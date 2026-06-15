@@ -80,10 +80,28 @@ const job = context.normalizeSearchJobInput_({
 assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job lead item failed');
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
+assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
+assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
+assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
+assert(html.includes('createSelectedLeadCalendarEvent'), 'calendar event handler missing');
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
 for (const [index, script] of scripts.entries()) {
   new Function(script);
   console.log(`Index.html script ${index + 1} OK`);
 }
+
+const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
+[
+  'saveEmailTemplate',
+  'saveNgMaster',
+  'saveExcludedDomain',
+  'saveSerperApiKey',
+  'checkRepliesForLeads',
+  'createCalendarEventForLead',
+  'importLeadsFromCsv',
+  'createSpreadsheetBackup',
+].forEach((action) => {
+  assert(webApp.includes(`action === '${action}'`), `doPost action missing: ${action}`);
+});
 
 console.log('smoke-test OK');

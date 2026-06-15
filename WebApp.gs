@@ -45,12 +45,36 @@ function parsePostPayload_(e) {
 
 function dispatchPostAction_(action, data) {
   if (action === 'setup') return setup();
+  if (action === 'getInitialData') return getInitialData();
+  if (action === 'getAuthorizationStatus') return getAuthorizationStatus();
+  if (action === 'getDashboardStats') return getDashboardStats(data);
+  if (action === 'getAppInfo') return getAppInfo();
   if (action === 'listLeads') return listLeads(data);
   if (action === 'createLead') return createLead(data);
   if (action === 'updateLead') return updateLead(data.id, data.patch || data);
   if (action === 'deleteLead') return deleteLead(data.id, data.options || {});
+  if (action === 'listSheetRecords') return listSheetRecords(data.sheetName || data.sheet_name, data.options || data);
+  if (action === 'listEmailTemplates') return listEmailTemplates(data);
+  if (action === 'saveEmailTemplate') return saveEmailTemplate(data);
+  if (action === 'deleteEmailTemplate') return deleteEmailTemplate(data.id);
+  if (action === 'listNgMasters') return listNgMasters(data);
+  if (action === 'saveNgMaster') return saveNgMaster(data);
+  if (action === 'deleteNgMaster') return deleteNgMaster(data.id);
+  if (action === 'listExcludedDomains') return listExcludedDomains(data);
+  if (action === 'saveExcludedDomain') return saveExcludedDomain(data);
+  if (action === 'deleteExcludedDomain') return deleteExcludedDomain(data.id);
+  if (action === 'saveSerperApiKey') return saveSerperApiKey(data.apiKey || data.api_key || data.key);
+  if (action === 'testSerperApiKey') return testSerperApiKey();
   if (action === 'runSmallSearchJob') return runSmallSearchJob(data);
   if (action === 'sendLeadEmail') return sendLeadEmail(data.leadId || data.lead_id, data.templateId || data.template_id, data.options || {});
+  if (action === 'sendTestEmail') return sendTestEmail(data.templateId || data.template_id, data.toEmail || data.to_email, data.sampleLead || data.sample_lead || {});
+  if (action === 'checkRepliesForLeads') return checkRepliesForLeads(data);
+  if (action === 'createCalendarEventForLead') return createCalendarEventForLead(data.leadId || data.lead_id, data.event || data.options || data);
+  if (action === 'importLeadsFromCsv') return importLeadsFromCsv(data.csvText || data.csv_text || data.text, data.options || {});
+  if (action === 'advanceQueuedJobs') return advanceQueuedJobs(data);
+  if (action === 'installDefaultTriggers') return installDefaultTriggers();
+  if (action === 'createSpreadsheetBackup') return createSpreadsheetBackup();
+  if (action === 'setSettingValue') return setSettingValue(data.key, data.value, data.valueType || data.value_type, data.description);
 
   throw new Error('Unknown action: ' + action);
 }

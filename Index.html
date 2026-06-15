@@ -217,6 +217,19 @@
         padding: 12px;
       }
 
+      .action-block {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+        display: grid;
+        gap: 10px;
+      }
+
+      .action-block h3 {
+        margin: 0;
+        font-size: 13px;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -412,6 +425,28 @@
                     <button type="button" class="danger" onclick="archiveLead()">対応不要</button>
                   </div>
                 </form>
+                <div class="action-block">
+                  <h3>メール送信</h3>
+                  <form id="leadSendForm" class="grid" onsubmit="sendSelectedLeadEmail(event)">
+                    <label>テンプレート<select id="leadSendTemplate"></select></label>
+                    <label>種別<select id="leadSendType">
+                      <option value="初回メール">初回メール</option>
+                      <option value="2ヶ月後メール">2ヶ月後メール</option>
+                    </select></label>
+                    <label>送信者名<input id="leadSenderName"></label>
+                    <button type="submit" class="blue">送信</button>
+                  </form>
+                </div>
+                <div class="action-block">
+                  <h3>カレンダー登録</h3>
+                  <form id="leadCalendarForm" class="grid" onsubmit="createSelectedLeadCalendarEvent(event)">
+                    <label>開始<input id="meetingStart" type="datetime-local"></label>
+                    <label>終了<input id="meetingEnd" type="datetime-local"></label>
+                    <label>場所<input id="meetingLocation"></label>
+                    <label>メモ<input id="meetingMemo"></label>
+                    <button type="submit" class="primary">登録</button>
+                  </form>
+                </div>
                 <datalist id="genreList"></datalist>
               </div>
             </div>
@@ -702,14 +737,21 @@
         document.getElementById('leadDealStatus').value = lead.deal_status || '未設定';
         document.getElementById('leadContact').value = lead.contact_name || '';
         document.getElementById('leadNotes').value = lead.notes || '';
+        document.getElementById('meetingStart').value = toDatetimeLocalValue(lead.meeting_start_at);
+        document.getElementById('meetingEnd').value = toDatetimeLocalValue(lead.meeting_end_at);
+        document.getElementById('meetingLocation').value = lead.address || '';
+        document.getElementById('meetingMemo').value = lead.meeting_memo || '';
       }
 
       function clearLeadForm() {
         document.getElementById('leadFormTitle').textContent = 'リード新規';
         document.getElementById('leadForm').reset();
+        document.getElementById('leadSendForm').reset();
+        document.getElementById('leadCalendarForm').reset();
         document.getElementById('leadId').value = '';
         document.getElementById('leadEditStatus').value = '未対応';
         document.getElementById('leadDealStatus').value = '未設定';
+        renderLeadSendTemplateOptions();
       }
 
       async function saveLead(event) {
@@ -765,6 +807,65 @@
           </tr>
         `).join('');
         document.getElementById('templateTable').innerHTML = table(['操作', '名前', 'ジャンル', '種類', '状態'], rows);
+        renderLeadSendTemplateOptions();
+      }
+
+      function renderLeadSendTemplateOptions() {
+        const select = document.getElementById('leadSendTemplate');
+        if (!select) return;
+        const options = ['<option value="">本番テンプレートを自動選択</option>'].concat(state.templates.map((template) => {
+          const label = [
+            template.name,
+            template.genre || '共通',
+            template.template_type || '',
+            template.is_production === true || template.is_production === 'true' ? '本番' : '下書き',
+          ].filter(Boolean).join(' / ');
+          return `<option value="${escapeHtml(template.id)}">${escapeHtml(label)}</option>`;
+        }));
+        select.innerHTML = options.join('');
+      }
+
+      async function sendSelectedLeadEmail(event) {
+        event.preventDefault();
+        const id = document.getElementById('leadId').value;
+        if (!id) {
+          message('送信するリードを選択してください', 'error');
+          return;
+        }
+        const lead = state.leads.find((item) => item.id === id);
+        const label = lead ? lead.company_name : id;
+        if (!confirm(`${label}へメール送信しますか。`)) return;
+        try {
+          const result = await api('sendLeadEmail', id, document.getElementById('leadSendTemplate').value, {
+            send_type: document.getElementById('leadSendType').value,
+            sender_name: document.getElementById('leadSenderName').value,
+          });
+          message(result.ok ? 'メール送信を記録しました' : `メール送信に失敗しました: ${result.errorMessage}`, result.ok ? 'ok' : 'error');
+          await refreshAll();
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      async function createSelectedLeadCalendarEvent(event) {
+        event.preventDefault();
+        const id = document.getElementById('leadId').value;
+        if (!id) {
+          message('登録するリードを選択してください', 'error');
+          return;
+        }
+        try {
+          const result = await api('createCalendarEventForLead', id, {
+            start: document.getElementById('meetingStart').value,
+            end: document.getElementById('meetingEnd').value,
+            location: document.getElementById('meetingLocation').value,
+            memo: document.getElementById('meetingMemo').value,
+          });
+          message(`カレンダー登録: ${result.title}`, 'ok');
+          await refreshAll();
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
       }
 
       function newTemplate() {
@@ -936,6 +1037,18 @@
         const good = ['返信あり', '商談予定', '商談済み', '受注'];
         const tone = danger.includes(status) ? 'bad' : warn.includes(status) ? 'warn' : good.includes(status) ? 'good' : '';
         return `<span class="pill ${tone}">${escapeHtml(status || '未設定')}</span>`;
+      }
+
+      function toDatetimeLocalValue(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime())) return '';
+        const pad = (number) => String(number).padStart(2, '0');
+        return [
+          date.getFullYear(),
+          pad(date.getMonth() + 1),
+          pad(date.getDate()),
+        ].join('-') + 'T' + [pad(date.getHours()), pad(date.getMinutes())].join(':');
       }
 
       function escapeHtml(value) {
