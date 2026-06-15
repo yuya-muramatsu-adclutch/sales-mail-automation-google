@@ -1,0 +1,953 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      :root {
+        --bg: #f7f8fa;
+        --panel: #ffffff;
+        --line: #d9dee7;
+        --text: #18212f;
+        --muted: #687386;
+        --accent: #0f766e;
+        --accent-2: #1d4ed8;
+        --danger: #b42318;
+        --warn: #b45309;
+        --good: #15803d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14px;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        min-height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        cursor: pointer;
+        padding: 6px 10px;
+      }
+
+      button.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #fff;
+      }
+
+      button.blue {
+        border-color: var(--accent-2);
+        background: var(--accent-2);
+        color: #fff;
+      }
+
+      button.danger {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        padding: 8px 9px;
+      }
+
+      textarea {
+        min-height: 88px;
+        resize: vertical;
+      }
+
+      label {
+        display: grid;
+        gap: 5px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto auto 1fr;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .brand {
+        display: grid;
+        gap: 2px;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.25;
+      }
+
+      .brand span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 4px;
+        padding: 8px 18px;
+        border-bottom: 1px solid var(--line);
+        background: #eef2f7;
+        overflow-x: auto;
+      }
+
+      .tab {
+        border: 0;
+        background: transparent;
+        color: #334155;
+        white-space: nowrap;
+      }
+
+      .tab.active {
+        background: #fff;
+        border: 1px solid var(--line);
+        color: var(--text);
+      }
+
+      .main {
+        padding: 16px 18px 28px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .section {
+        display: none;
+      }
+
+      .section.active {
+        display: grid;
+        gap: 14px;
+      }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 8px;
+      }
+
+      .toolbar label {
+        min-width: 170px;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+        gap: 10px;
+      }
+
+      .stat {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 12px;
+      }
+
+      .stat strong {
+        display: block;
+        margin-top: 5px;
+        font-size: 22px;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        overflow: hidden;
+      }
+
+      .panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .panel-head h2 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .panel-body {
+        padding: 12px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #eef1f5;
+        padding: 8px 9px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        background: #f8fafc;
+      }
+
+      tr:hover td {
+        background: #fafafa;
+      }
+
+      .table-wrap {
+        overflow: auto;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 10px;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .side {
+        position: sticky;
+        top: 12px;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        padding: 2px 8px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .pill.good {
+        color: var(--good);
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+      }
+
+      .pill.warn {
+        color: var(--warn);
+        border-color: #fed7aa;
+        background: #fff7ed;
+      }
+
+      .pill.bad {
+        color: var(--danger);
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .message {
+        min-height: 22px;
+        color: var(--muted);
+      }
+
+      .message.error {
+        color: var(--danger);
+      }
+
+      .message.ok {
+        color: var(--good);
+      }
+
+      .empty {
+        padding: 18px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      @media (max-width: 900px) {
+        .split {
+          grid-template-columns: 1fr;
+        }
+
+        .side {
+          position: static;
+        }
+
+        .topbar {
+          align-items: stretch;
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <h1>自動営業リスト</h1>
+          <span id="appMeta">読み込み中</span>
+        </div>
+        <div class="toolbar">
+          <button type="button" onclick="refreshAll()">更新</button>
+          <button type="button" class="primary" onclick="runSetup()">setup</button>
+        </div>
+      </header>
+
+      <nav class="tabs">
+        <button type="button" class="tab active" data-tab="dashboard" onclick="showTab('dashboard')">ダッシュボード</button>
+        <button type="button" class="tab" data-tab="leads" onclick="showTab('leads')">リード</button>
+        <button type="button" class="tab" data-tab="templates" onclick="showTab('templates')">テンプレート</button>
+        <button type="button" class="tab" data-tab="masters" onclick="showTab('masters')">NG/除外</button>
+        <button type="button" class="tab" data-tab="search" onclick="showTab('search')">Serper検索</button>
+        <button type="button" class="tab" data-tab="ops" onclick="showTab('ops')">運用</button>
+      </nav>
+
+      <main class="main">
+        <div id="globalMessage" class="message"></div>
+
+        <section id="dashboard" class="section active">
+          <div class="stats" id="stats"></div>
+          <div class="split">
+            <div class="panel">
+              <div class="panel-head"><h2>ステータス内訳</h2></div>
+              <div class="panel-body table-wrap"><table id="statusTable"></table></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2>ジャンル内訳</h2></div>
+              <div class="panel-body table-wrap"><table id="genreTable"></table></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="leads" class="section">
+          <div class="split">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>リード一覧</h2>
+                <button type="button" class="primary" onclick="newLead()">新規</button>
+              </div>
+              <div class="panel-body">
+                <div class="toolbar">
+                  <label>検索<input id="leadSearch" type="search" placeholder="会社名、メール、URL"></label>
+                  <label>ステータス<select id="leadStatus"></select></label>
+                  <button type="button" onclick="loadLeads()">絞り込み</button>
+                </div>
+              </div>
+              <div class="table-wrap"><table id="leadTable"></table></div>
+            </div>
+
+            <div class="panel side">
+              <div class="panel-head"><h2 id="leadFormTitle">リード編集</h2></div>
+              <div class="panel-body">
+                <form id="leadForm" class="grid" onsubmit="saveLead(event)">
+                  <input type="hidden" id="leadId">
+                  <label>会社名<input id="leadCompany" required></label>
+                  <label>施設名<input id="leadFacility"></label>
+                  <label>ジャンル<input id="leadGenre" list="genreList"></label>
+                  <label>メール<input id="leadEmail" type="email"></label>
+                  <label>電話<input id="leadPhone"></label>
+                  <label>公式サイト<input id="leadWebsite" type="url"></label>
+                  <label>フォームURL<input id="leadFormUrl" type="url"></label>
+                  <label>住所<input id="leadAddress"></label>
+                  <label>ステータス<select id="leadEditStatus"></select></label>
+                  <label>商談ステータス<select id="leadDealStatus"></select></label>
+                  <label>担当者<input id="leadContact"></label>
+                  <label>メモ<textarea id="leadNotes"></textarea></label>
+                  <div class="toolbar">
+                    <button type="submit" class="primary">保存</button>
+                    <button type="button" onclick="clearLeadForm()">クリア</button>
+                    <button type="button" class="danger" onclick="archiveLead()">対応不要</button>
+                  </div>
+                </form>
+                <datalist id="genreList"></datalist>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="templates" class="section">
+          <div class="split">
+            <div class="panel">
+              <div class="panel-head">
+                <h2>メールテンプレート</h2>
+                <button type="button" class="primary" onclick="newTemplate()">新規</button>
+              </div>
+              <div class="table-wrap"><table id="templateTable"></table></div>
+            </div>
+            <div class="panel side">
+              <div class="panel-head"><h2 id="templateFormTitle">テンプレート編集</h2></div>
+              <div class="panel-body">
+                <form id="templateForm" class="grid" onsubmit="saveTemplate(event)">
+                  <input type="hidden" id="templateId">
+                  <label>名前<input id="templateName" required></label>
+                  <label>ジャンル<input id="templateGenre" list="genreList"></label>
+                  <label>種類<select id="templateType">
+                    <option value="initial">初回</option>
+                    <option value="followup_2m">2ヶ月後</option>
+                    <option value="form">フォーム</option>
+                  </select></label>
+                  <label>本番<select id="templateProduction">
+                    <option value="false">いいえ</option>
+                    <option value="true">はい</option>
+                  </select></label>
+                  <label>件名<input id="templateSubject" required></label>
+                  <label style="grid-column:1/-1">本文<textarea id="templateBody" required></textarea></label>
+                  <div class="toolbar">
+                    <button type="submit" class="primary">保存</button>
+                    <button type="button" onclick="clearTemplateForm()">クリア</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="masters" class="section">
+          <div class="split">
+            <div class="panel">
+              <div class="panel-head"><h2>送信NG</h2></div>
+              <div class="panel-body">
+                <form class="grid" onsubmit="saveNg(event)">
+                  <input type="hidden" id="ngId">
+                  <label>メール<input id="ngEmail" type="email"></label>
+                  <label>ドメイン<input id="ngDomain"></label>
+                  <label>会社名<input id="ngCompany"></label>
+                  <label>理由<input id="ngReason"></label>
+                  <button type="submit" class="primary">保存</button>
+                </form>
+              </div>
+              <div class="table-wrap"><table id="ngTable"></table></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2>除外ドメイン</h2></div>
+              <div class="panel-body">
+                <form class="grid" onsubmit="saveExcluded(event)">
+                  <input type="hidden" id="excludedId">
+                  <label>ドメイン<input id="excludedDomain" required></label>
+                  <label>理由<input id="excludedReason" required></label>
+                  <button type="submit" class="primary">保存</button>
+                </form>
+              </div>
+              <div class="table-wrap"><table id="excludedTable"></table></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="search" class="section">
+          <div class="split">
+            <div class="panel">
+              <div class="panel-head"><h2>Serper API</h2></div>
+              <div class="panel-body">
+                <form class="grid" onsubmit="saveSerper(event)">
+                  <label>APIキー<input id="serperKey" type="password" autocomplete="off"></label>
+                  <button type="submit" class="primary">保存</button>
+                  <button type="button" onclick="testSerper()">接続テスト</button>
+                </form>
+                <p id="serperInfo" class="muted"></p>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h2>小規模検索ジョブ</h2></div>
+              <div class="panel-body">
+                <form class="grid" onsubmit="runSearch(event)">
+                  <label>種類<select id="searchJobType">
+                    <option value="lead_official_site">公式サイト探索</option>
+                    <option value="lead_form_url">フォーム探索</option>
+                    <option value="prospecting">営業候補検索</option>
+                  </select></label>
+                  <label>リードID<input id="searchLeadId" placeholder="空なら対象リードから抽出"></label>
+                  <label>ジャンル<input id="searchGenre"></label>
+                  <label>地域<input id="searchRegion"></label>
+                  <label>最大件数<input id="searchMax" type="number" min="1" max="20" value="5"></label>
+                  <button type="submit" class="blue">実行</button>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>検索結果</h2></div>
+            <div class="table-wrap"><table id="searchResultsTable"></table></div>
+          </div>
+        </section>
+
+        <section id="ops" class="section">
+          <div class="panel">
+            <div class="panel-head"><h2>運用</h2></div>
+            <div class="panel-body">
+              <div class="toolbar">
+                <button type="button" onclick="checkReplies()">返信チェック</button>
+                <button type="button" onclick="advanceJobs()">ジョブを進める</button>
+                <button type="button" onclick="installTriggers()">定期トリガー作成</button>
+                <button type="button" onclick="createBackup()">バックアップ作成</button>
+              </div>
+              <hr>
+              <form class="grid" onsubmit="importCsv(event)">
+                <label style="grid-column:1/-1">CSV貼り付け<textarea id="csvText" placeholder="会社名,メール,公式サイト"></textarea></label>
+                <button type="submit" class="primary">CSVインポート</button>
+              </form>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>送信履歴</h2></div>
+            <div class="table-wrap"><table id="historyTable"></table></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const state = {
+        app: null,
+        enums: {},
+        leads: [],
+        templates: [],
+        ngMasters: [],
+        excludedDomains: [],
+      };
+
+      function api(name, ...args) {
+        setBusy(true);
+        return new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler((result) => {
+              setBusy(false);
+              resolve(result);
+            })
+            .withFailureHandler((error) => {
+              setBusy(false);
+              reject(error);
+            })[name](...args);
+        });
+      }
+
+      function setBusy(busy) {
+        document.querySelectorAll('button').forEach((button) => {
+          button.disabled = busy;
+        });
+      }
+
+      function message(text, kind = '') {
+        const target = document.getElementById('globalMessage');
+        target.className = 'message ' + kind;
+        target.textContent = text || '';
+      }
+
+      function showTab(name) {
+        document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
+        document.querySelectorAll('.section').forEach((section) => section.classList.toggle('active', section.id === name));
+      }
+
+      async function refreshAll() {
+        try {
+          message('読み込み中...');
+          const auth = await api('getAuthorizationStatus');
+          if (auth.required) {
+            document.getElementById('appMeta').textContent = '初回承認が必要です';
+            document.getElementById('globalMessage').innerHTML = `初回承認が必要です。<a href="${escapeHtml(auth.authorizationUrl)}" target="_blank" rel="noopener">Googleの承認画面を開く</a>`;
+            return;
+          }
+          const initial = await api('getInitialData');
+          state.app = initial.app;
+          state.enums = initial.enums;
+          document.getElementById('appMeta').textContent = `${initial.app.version} / ${initial.app.spreadsheetUrl}`;
+          renderSelects(initial.enums, initial.genres);
+          renderDashboard(initial.dashboard);
+          renderSerper(initial.serper);
+          await Promise.all([loadLeads(), loadTemplates(), loadMasters(), loadSearchResults(), loadHistories()]);
+          message('更新しました', 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      async function runSetup() {
+        try {
+          await api('setup');
+          await refreshAll();
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      function renderSelects(enums, genres) {
+        fillSelect('leadStatus', [''].concat(enums.leadStatuses || []));
+        fillSelect('leadEditStatus', enums.leadStatuses || []);
+        fillSelect('leadDealStatus', enums.dealStatuses || []);
+        const datalist = document.getElementById('genreList');
+        datalist.innerHTML = (genres || []).map((genre) => `<option value="${escapeHtml(genre.name)}"></option>`).join('');
+      }
+
+      function fillSelect(id, values) {
+        const select = document.getElementById(id);
+        select.innerHTML = values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value || 'すべて')}</option>`).join('');
+      }
+
+      function renderDashboard(dashboard) {
+        const stats = [
+          ['リード', dashboard.leadsTotal],
+          ['送信対象', dashboard.sendTargets],
+          ['フォーム対象', dashboard.formTargets],
+          ['返信あり', dashboard.replies],
+          ['商談', dashboard.deals],
+          ['本日送信', dashboard.sentToday],
+          ['本日検索', dashboard.serperToday],
+          ['月間検索', dashboard.serperMonth],
+        ];
+        document.getElementById('stats').innerHTML = stats.map(([label, value]) => `<div class="stat"><span>${label}</span><strong>${value}</strong></div>`).join('');
+        renderObjectTable('statusTable', dashboard.byStatus || {});
+        renderObjectTable('genreTable', dashboard.byGenre || {});
+      }
+
+      function renderObjectTable(id, object) {
+        const rows = Object.keys(object).sort().map((key) => `<tr><td>${escapeHtml(key)}</td><td>${object[key]}</td></tr>`).join('');
+        document.getElementById(id).innerHTML = '<thead><tr><th>項目</th><th>件数</th></tr></thead><tbody>' + rows + '</tbody>';
+      }
+
+      async function loadLeads() {
+        const result = await api('listLeads', {
+          search: document.getElementById('leadSearch').value,
+          status: document.getElementById('leadStatus').value,
+          limit: 200,
+        });
+        state.leads = result.items || [];
+        renderLeads();
+      }
+
+      function renderLeads() {
+        const rows = state.leads.map((lead) => `
+          <tr>
+            <td><button type="button" onclick="editLead('${lead.id}')">編集</button></td>
+            <td><strong>${escapeHtml(lead.company_name)}</strong><br><span class="muted">${escapeHtml(lead.facility_name || '')}</span></td>
+            <td>${escapeHtml(lead.genre || '')}</td>
+            <td>${statusPill(lead.status)}</td>
+            <td>${escapeHtml(lead.email || '')}<br><span class="muted">${escapeHtml(lead.form_url || lead.website_url || '')}</span></td>
+            <td>${escapeHtml(lead.updated_at || '')}</td>
+          </tr>
+        `).join('');
+        document.getElementById('leadTable').innerHTML = table(['操作', '会社/施設', 'ジャンル', '状態', '連絡先', '更新'], rows);
+      }
+
+      function newLead() {
+        clearLeadForm();
+        document.getElementById('leadCompany').focus();
+      }
+
+      function editLead(id) {
+        const lead = state.leads.find((item) => item.id === id);
+        if (!lead) return;
+        document.getElementById('leadFormTitle').textContent = 'リード編集';
+        document.getElementById('leadId').value = lead.id || '';
+        document.getElementById('leadCompany').value = lead.company_name || '';
+        document.getElementById('leadFacility').value = lead.facility_name || '';
+        document.getElementById('leadGenre').value = lead.genre || '';
+        document.getElementById('leadEmail').value = lead.email || '';
+        document.getElementById('leadPhone').value = lead.phone || '';
+        document.getElementById('leadWebsite').value = lead.website_url || '';
+        document.getElementById('leadFormUrl').value = lead.form_url || '';
+        document.getElementById('leadAddress').value = lead.address || '';
+        document.getElementById('leadEditStatus').value = lead.status || '未対応';
+        document.getElementById('leadDealStatus').value = lead.deal_status || '未設定';
+        document.getElementById('leadContact').value = lead.contact_name || '';
+        document.getElementById('leadNotes').value = lead.notes || '';
+      }
+
+      function clearLeadForm() {
+        document.getElementById('leadFormTitle').textContent = 'リード新規';
+        document.getElementById('leadForm').reset();
+        document.getElementById('leadId').value = '';
+        document.getElementById('leadEditStatus').value = '未対応';
+        document.getElementById('leadDealStatus').value = '未設定';
+      }
+
+      async function saveLead(event) {
+        event.preventDefault();
+        const id = document.getElementById('leadId').value;
+        const payload = {
+          company_name: document.getElementById('leadCompany').value,
+          facility_name: document.getElementById('leadFacility').value,
+          genre: document.getElementById('leadGenre').value,
+          email: document.getElementById('leadEmail').value,
+          phone: document.getElementById('leadPhone').value,
+          website_url: document.getElementById('leadWebsite').value,
+          form_url: document.getElementById('leadFormUrl').value,
+          address: document.getElementById('leadAddress').value,
+          status: document.getElementById('leadEditStatus').value,
+          deal_status: document.getElementById('leadDealStatus').value,
+          contact_name: document.getElementById('leadContact').value,
+          notes: document.getElementById('leadNotes').value,
+        };
+        try {
+          if (id) await api('updateLead', id, payload);
+          else await api('createLead', payload);
+          clearLeadForm();
+          await refreshAll();
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      async function archiveLead() {
+        const id = document.getElementById('leadId').value;
+        if (!id) return;
+        if (!confirm('このリードを対応不要にしますか。')) return;
+        await api('deleteLead', id);
+        clearLeadForm();
+        await refreshAll();
+      }
+
+      async function loadTemplates() {
+        const result = await api('listEmailTemplates', { limit: 300 });
+        state.templates = result.items || [];
+        renderTemplates();
+      }
+
+      function renderTemplates() {
+        const rows = state.templates.map((template) => `
+          <tr>
+            <td><button type="button" onclick="editTemplate('${template.id}')">編集</button></td>
+            <td>${escapeHtml(template.name)}</td>
+            <td>${escapeHtml(template.genre || '共通')}</td>
+            <td>${escapeHtml(template.template_type)}</td>
+            <td>${template.is_production === true || template.is_production === 'true' ? '<span class="pill good">本番</span>' : '<span class="pill">下書き</span>'}</td>
+          </tr>
+        `).join('');
+        document.getElementById('templateTable').innerHTML = table(['操作', '名前', 'ジャンル', '種類', '状態'], rows);
+      }
+
+      function newTemplate() {
+        clearTemplateForm();
+        document.getElementById('templateName').focus();
+      }
+
+      function editTemplate(id) {
+        const template = state.templates.find((item) => item.id === id);
+        if (!template) return;
+        document.getElementById('templateId').value = template.id || '';
+        document.getElementById('templateName').value = template.name || '';
+        document.getElementById('templateGenre').value = template.genre || '';
+        document.getElementById('templateType').value = template.template_type || 'initial';
+        document.getElementById('templateProduction').value = String(template.is_production === true || template.is_production === 'true');
+        document.getElementById('templateSubject').value = template.subject || '';
+        document.getElementById('templateBody').value = template.body || '';
+      }
+
+      function clearTemplateForm() {
+        document.getElementById('templateForm').reset();
+        document.getElementById('templateId').value = '';
+        document.getElementById('templateType').value = 'initial';
+        document.getElementById('templateProduction').value = 'false';
+      }
+
+      async function saveTemplate(event) {
+        event.preventDefault();
+        const payload = {
+          id: document.getElementById('templateId').value,
+          name: document.getElementById('templateName').value,
+          genre: document.getElementById('templateGenre').value,
+          template_type: document.getElementById('templateType').value,
+          is_production: document.getElementById('templateProduction').value === 'true',
+          subject: document.getElementById('templateSubject').value,
+          body: document.getElementById('templateBody').value,
+        };
+        await api('saveEmailTemplate', payload);
+        clearTemplateForm();
+        await refreshAll();
+      }
+
+      async function loadMasters() {
+        const [ng, excluded] = await Promise.all([
+          api('listNgMasters', { limit: 300 }),
+          api('listExcludedDomains', { limit: 300 }),
+        ]);
+        state.ngMasters = ng.items || [];
+        state.excludedDomains = excluded.items || [];
+        renderMasters();
+      }
+
+      function renderMasters() {
+        document.getElementById('ngTable').innerHTML = table(['会社', 'メール', 'ドメイン', '理由'], state.ngMasters.map((item) => `
+          <tr><td>${escapeHtml(item.company_name || '')}</td><td>${escapeHtml(item.email || '')}</td><td>${escapeHtml(item.domain || '')}</td><td>${escapeHtml(item.reason || '')}</td></tr>
+        `).join(''));
+        document.getElementById('excludedTable').innerHTML = table(['ドメイン', '理由'], state.excludedDomains.map((item) => `
+          <tr><td>${escapeHtml(item.domain || '')}</td><td>${escapeHtml(item.reason || '')}</td></tr>
+        `).join(''));
+      }
+
+      async function saveNg(event) {
+        event.preventDefault();
+        await api('saveNgMaster', {
+          id: document.getElementById('ngId').value,
+          email: document.getElementById('ngEmail').value,
+          domain: document.getElementById('ngDomain').value,
+          company_name: document.getElementById('ngCompany').value,
+          reason: document.getElementById('ngReason').value,
+        });
+        event.target.reset();
+        await refreshAll();
+      }
+
+      async function saveExcluded(event) {
+        event.preventDefault();
+        await api('saveExcludedDomain', {
+          id: document.getElementById('excludedId').value,
+          domain: document.getElementById('excludedDomain').value,
+          reason: document.getElementById('excludedReason').value,
+        });
+        event.target.reset();
+        await refreshAll();
+      }
+
+      function renderSerper(info) {
+        document.getElementById('serperInfo').textContent = info.configured ? `設定済み: ${info.key_mask}` : '未設定';
+      }
+
+      async function saveSerper(event) {
+        event.preventDefault();
+        await api('saveSerperApiKey', document.getElementById('serperKey').value);
+        document.getElementById('serperKey').value = '';
+        await refreshAll();
+      }
+
+      async function testSerper() {
+        const result = await api('testSerperApiKey');
+        message(`Serper OK: ${result.resultCount}件`, 'ok');
+      }
+
+      async function runSearch(event) {
+        event.preventDefault();
+        const result = await api('runSmallSearchJob', {
+          job_type: document.getElementById('searchJobType').value,
+          leadId: document.getElementById('searchLeadId').value,
+          genre: document.getElementById('searchGenre').value,
+          region: document.getElementById('searchRegion').value,
+          maxItems: Number(document.getElementById('searchMax').value || 5),
+        });
+        message(`検索処理: ${result.processed}件`, result.errors && result.errors.length ? 'error' : 'ok');
+        await refreshAll();
+      }
+
+      async function loadSearchResults() {
+        const result = await api('listSheetRecords', 'search_results', { limit: 100, includeInactive: true });
+        document.getElementById('searchResultsTable').innerHTML = table(['種類', 'タイトル', 'URL', '作成'], (result.items || []).map((item) => `
+          <tr><td>${escapeHtml(item.result_type || '')}</td><td>${escapeHtml(item.title || '')}</td><td>${escapeHtml(item.url || '')}</td><td>${escapeHtml(item.created_at || '')}</td></tr>
+        `).join(''));
+      }
+
+      async function loadHistories() {
+        const result = await api('listSheetRecords', 'send_histories', { limit: 100, includeInactive: true });
+        document.getElementById('historyTable').innerHTML = table(['日時', '宛先', '件名', '結果'], (result.items || []).map((item) => `
+          <tr><td>${escapeHtml(item.sent_at || '')}</td><td>${escapeHtml(item.to_email || '')}</td><td>${escapeHtml(item.subject || '')}</td><td>${escapeHtml(item.send_result || '')}</td></tr>
+        `).join(''));
+      }
+
+      async function checkReplies() {
+        const result = await api('checkRepliesForLeads', { maxThreads: 100 });
+        message(`返信チェック: ${result.replies}件`, 'ok');
+        await refreshAll();
+      }
+
+      async function advanceJobs() {
+        const result = await api('advanceQueuedJobs', { maxJobs: 3, maxItems: 5 });
+        message(`ジョブ処理: ${result.jobs.length}件`, 'ok');
+        await refreshAll();
+      }
+
+      async function installTriggers() {
+        const result = await api('installDefaultTriggers');
+        message(`トリガー: ${result.triggers.length}件`, 'ok');
+      }
+
+      async function createBackup() {
+        const result = await api('createSpreadsheetBackup');
+        message(`バックアップ作成: ${result.name}`, 'ok');
+        if (result.url) {
+          window.open(result.url, '_blank', 'noopener');
+        }
+      }
+
+      async function importCsv(event) {
+        event.preventDefault();
+        const result = await api('importLeadsFromCsv', document.getElementById('csvText').value, { source: 'csv' });
+        message(`CSV: 追加 ${result.added} / スキップ ${result.skipped}`, result.errors.length ? 'error' : 'ok');
+        await refreshAll();
+      }
+
+      function table(headers, rows) {
+        if (!rows) rows = `<tr><td colspan="${headers.length}" class="empty">データがありません</td></tr>`;
+        return `<thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody>`;
+      }
+
+      function statusPill(status) {
+        const danger = ['送信NG', '失注', '対応不要'];
+        const warn = ['フォーム対応中', 'フォーム対応済み'];
+        const good = ['返信あり', '商談予定', '商談済み', '受注'];
+        const tone = danger.includes(status) ? 'bad' : warn.includes(status) ? 'warn' : good.includes(status) ? 'good' : '';
+        return `<span class="pill ${tone}">${escapeHtml(status || '未設定')}</span>`;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      refreshAll();
+    </script>
+  </body>
+</html>
