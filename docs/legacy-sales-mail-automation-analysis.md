@@ -22,6 +22,10 @@
 - `components/ProspectingActivityPanel.tsx`, `components/ProspectingCollectionTool.tsx`: 営業リスト収集ツールの指標、収集ルート、実行カード
 - `app/background-jobs/page.tsx`, `app/sync/page.tsx`, `app/admin/page.tsx`, `app/histories/page.tsx`: 運用、ジョブ、同期ログ、送信履歴、管理系の見せ方
 - `app/email-leads/page.tsx`, `app/sending/page.tsx`, `app/deals/page.tsx`, `app/analytics/page.tsx`, `app/integrations/gmail/page.tsx`: メール送信リスト、送信プレビュー、商談、分析、Gmail連携の見せ方
+- `components/EmailPreviewPanel.tsx`: テンプレート/営業先選択、差し込み後の件名・本文、送信不可理由、対象リスト自動送信の見せ方
+- `components/TemplateTestRecipientManager.tsx`: テスト送信先の現在値、営業リストからの宛先選択、保存導線
+- `components/JobResultsReviewTable.tsx`: 検索ジョブ結果のカテゴリ別レビュー、確認済み操作、メール/フォーム/URLの根拠表示
+- `components/GmailConnectionCheck.tsx`, `components/GoogleCredentialsManager.tsx`, `components/MailSendLockPanel.tsx`: Gmail連携テスト、Google認証状態、送信ロック、本番前チェックの見せ方
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
 ## GAS版へ反映したUI
@@ -40,6 +44,11 @@
 - 管理/運用画面に準備状況、実行アクション、送信履歴、ジョブ一覧、同期ログを集約。
 - 旧 `AppFrame` のサイドバー導線に合わせ、`バックグラウンド進捗`、`メール送信リスト`、`送信プレビュー`、`送信履歴`、`商談`、`分析`、`同期`、`Gmail連携`、`管理` を独立タブとして追加。
 - 旧アプリの各ページをApps Script/Sheets運用に読み替え、送信予定、送信履歴、商談ステータス、営業ファネル、同期ルール、Gmail承認状態、本番公開前チェックを表示。
+- 送信プレビューに旧 `EmailPreviewPanel` のテンプレート/営業先選択、差し込み後確認、送信不可理由、対象リスト自動送信カードを追加。テンプレート未登録の空状態でも同じ枠組みが見えるようにした。
+- 送信プレビューに旧 `TemplateTestRecipientManager` のテスト送信先選択パネルを追加。
+- 営業リスト収集ツールに旧 `JobResultsReviewTable` の結果一覧、結果カテゴリ、確認済み操作、メール/フォーム/URLの根拠表示を追加。
+- Gmail連携に旧 `GmailConnectionCheck` と `MailSendLockPanel` の連携テスト、必要権限、送信ロック状態を追加。
+- 管理に旧 `GoogleCredentialsManager` のGoogle/Gmail APIキー管理、OAuth/Refresh Token/送信元の状態表示をApps Script承認モデルへ読み替えて追加。
 
 ## GAS版へ反映した機能
 
@@ -58,6 +67,6 @@
 
 ## 次に移す候補
 
-- 検索ジョブ結果レビュー画面。
-- Gmail連携専用画面の詳細ステータス。
-- 送信プレビュー内の個別メール本文プレビューとテスト送信先管理。
+- 旧アプリのメール本文プレビューで使っているテンプレート変数の詳細説明と差分ハイライト。
+- 検索結果レビューから営業リストへ新規追加する確定フロー。
+- Gmail連携での実テストメール送信履歴と失敗理由の詳細表示。

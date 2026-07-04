@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260704_apps_script_full_workflow_v14_nav_parity_ui'), 'v14 app version missing');
+assert(code.includes('20260704_apps_script_full_workflow_v18_preview_review_gmail_ui'), 'v18 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -142,6 +142,16 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'adminReadinessPanel',
 ].forEach((marker) => {
   assert(html.includes(marker), `legacy expanded UI marker missing: ${marker}`);
+});
+[
+  'emailPreviewPanel',
+  'templateTestRecipientPanel',
+  'jobResultsReviewPanel',
+  'gmailConnectionCheckPanel',
+  'mailSendLockPanel',
+  'googleCredentialSummaryPanel',
+].forEach((marker) => {
+  assert(html.includes(marker), `legacy v18 UI marker missing: ${marker}`);
 });
 const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), html.indexOf('async function showStartupError'));
 assert(refreshAllBlock.includes("api('getInitialData')"), 'refreshAll should load initial data');

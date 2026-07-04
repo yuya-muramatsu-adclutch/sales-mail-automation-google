@@ -1370,6 +1370,187 @@
         line-height: 1.75;
       }
 
+      .preview-grid,
+      .template-test-settings-grid,
+      .admin-check-summary,
+      .job-result-contact-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+      }
+
+      .mail-preview,
+      .template-test-current,
+      .send-check-card,
+      .admin-check-summary > div,
+      .mail-send-lock-panel,
+      .job-result-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: var(--shadow-soft);
+      }
+
+      .mail-preview {
+        min-height: 240px;
+        margin: 0;
+        padding: 14px;
+        overflow: auto;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: inherit;
+        font-size: 13px;
+        line-height: 1.7;
+        white-space: pre-wrap;
+      }
+
+      .send-check-card,
+      .template-test-current,
+      .mail-send-lock-panel {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .template-test-current span,
+      .template-test-current small,
+      .admin-check-summary span,
+      .admin-check-summary small,
+      .job-result-card-head span,
+      .job-result-contact-grid span,
+      .job-result-meta,
+      .job-results-filter small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .template-test-current strong,
+      .admin-check-summary strong {
+        display: block;
+        margin-top: 4px;
+        color: var(--ink);
+        font-size: 18px;
+      }
+
+      .admin-check-summary > div {
+        display: grid;
+        gap: 4px;
+        padding: 12px;
+      }
+
+      .job-results-panel {
+        display: grid;
+        gap: 14px;
+      }
+
+      .section-title-row,
+      .job-result-card-head,
+      .job-result-actions,
+      .job-results-toolbar,
+      .job-results-render-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .job-results-filter {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 4px;
+      }
+
+      .job-results-filter button {
+        flex: 0 0 auto;
+        display: grid;
+        gap: 2px;
+        min-width: 112px;
+        min-height: 50px;
+        border-radius: 8px;
+        text-align: left;
+      }
+
+      .job-results-filter button.active {
+        border-color: #0f766e;
+        background: #ecfdf5;
+        color: #0f766e;
+      }
+
+      .job-results-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .job-result-card {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border-left: 4px solid #94a3b8;
+      }
+
+      .job-result-card.email {
+        border-left-color: #2563eb;
+      }
+
+      .job-result-card.form,
+      .job-result-card.url,
+      .job-result-card.lead {
+        border-left-color: #0f766e;
+      }
+
+      .job-result-card.error,
+      .job-result-card.excluded,
+      .job-result-card.duplicate,
+      .job-result-card.not_found {
+        border-left-color: #d97706;
+      }
+
+      .job-result-card-head h3 {
+        margin: 3px 0 0;
+        font-size: 16px;
+      }
+
+      .job-result-contact-grid > div {
+        display: grid;
+        gap: 4px;
+        min-height: 66px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .job-result-contact-grid strong,
+      .job-result-contact-grid a {
+        overflow-wrap: anywhere;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .job-result-message {
+        margin: 0;
+        padding: 10px;
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+      }
+
+      .job-result-actions {
+        justify-content: flex-start;
+      }
+
+      .empty-state {
+        padding: 18px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
       .template-sender-banner,
       .exclusion-hero-panel,
       .prospecting-activity-panel,
@@ -2647,6 +2828,7 @@
           <div class="dashboard-action-grid" id="searchOverview"></div>
           <section id="searchActivityPanel" class="prospecting-activity-panel"></section>
           <section id="collectionCommandCenter" class="collection-command-center"></section>
+          <section id="jobResultsReviewPanel" class="panel job-results-panel"></section>
           <div class="content-grid">
             <section class="panel">
               <div class="panel-head"><h2>Serper API</h2></div>
@@ -2733,6 +2915,8 @@
             </div>
             <button type="button" onclick="showTab('histories')">全履歴を見る</button>
           </header>
+          <section class="panel stack" id="emailPreviewPanel"></section>
+          <section class="panel stack" id="templateTestRecipientPanel"></section>
           <div class="split">
             <section class="panel stack">
               <div class="panel-head"><h2>自動送信予定</h2><span class="pill" id="sendingPlanPill">確認中</span></div>
@@ -2888,6 +3072,8 @@ PropertiesService
               </ol>
             </section>
           </div>
+          <section id="gmailConnectionCheckPanel" class="panel stack" style="margin-top:18px"></section>
+          <section id="mailSendLockPanel" class="panel stack" style="margin-top:18px"></section>
         </section>
 
         <section id="admin" class="section">
@@ -2901,6 +3087,7 @@ PropertiesService
           <section id="adminStatusGrid" class="settings-status-grid"></section>
           <section id="adminReadinessPanel" class="ops-readiness-panel"></section>
           <div class="grid">
+            <section id="googleCredentialSummaryPanel" class="panel stack"></section>
             <section class="panel stack">
               <h2>運用アクション</h2>
               <button type="button" onclick="installTriggers()">定期トリガー作成</button>
@@ -3019,6 +3206,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         emailTotal: 0,
         dealLeads: [],
         dealTotal: 0,
+        selectedEmailPreviewTemplateId: '',
+        selectedEmailPreviewLeadId: '',
+        selectedTemplateTestLeadId: '',
+        jobResultCategory: 'all',
+        dismissedSearchResultIds: [],
         selectedFormLeadId: '',
         selectedLeadIds: [],
         searchResults: [],
@@ -4345,6 +4537,160 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         `;
       }
 
+      function renderJobResultsReviewPanel() {
+        const target = document.getElementById('jobResultsReviewPanel');
+        if (!target) return;
+        const rows = (state.searchResults || []).filter((item) => !state.dismissedSearchResultIds.includes(item.id)).map(normalizeJobResultRow);
+        const counts = rows.reduce((acc, item) => {
+          item.categories.forEach((category) => {
+            acc[category] = (acc[category] || 0) + 1;
+          });
+          return acc;
+        }, {});
+        const categories = ['all', 'email', 'form', 'url', 'lead', 'duplicate', 'excluded', 'not_found', 'error'].filter((category) => category === 'all' || counts[category]);
+        if (!categories.includes(state.jobResultCategory)) state.jobResultCategory = 'all';
+        const visible = state.jobResultCategory === 'all' ? rows : rows.filter((item) => item.categories.includes(state.jobResultCategory));
+        const rendered = visible.slice(0, 40);
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>結果一覧</h2>
+              <p class="muted">完了したジョブで、どの営業先にリスト・URL・メールが追加されたか確認できます。</p>
+            </div>
+            <div class="toolbar">
+              <button type="button" onclick="markVisibleJobResultsReviewed()">表示中を確認済み</button>
+              <button type="button" onclick="showTab('backgroundJobs')">ジョブ進捗へ</button>
+            </div>
+          </div>
+          <div class="job-results-filter" aria-label="結果カテゴリ">
+            <small class="muted">結果カテゴリ</small>
+            ${categories.map((category) => `<button type="button" class="${state.jobResultCategory === category ? 'active' : ''}" onclick="setJobResultCategory('${escapeJsString(category)}')"><span>${escapeHtml(jobResultCategoryLabel(category))}</span><small>${formatNumber(category === 'all' ? rows.length : counts[category] || 0)}件</small></button>`).join('')}
+          </div>
+          ${visible.length === 0 ? '<div class="empty-state"><strong>表示できる結果がありません</strong><p class="muted">この分類の明細は保存されていません。別の分類を選択してください。</p></div>' : `
+            <div class="job-results-render-summary"><span>${formatNumber(visible.length)}件中 ${formatNumber(rendered.length)}件を表示</span><small class="muted">確認済みにするとこの画面上では非表示になります</small></div>
+            <div class="job-results-list">
+              ${rendered.map(renderJobResultCard).join('')}
+            </div>
+          `}
+        `;
+      }
+
+      function normalizeJobResultRow(item) {
+        const url = item.url || '';
+        const type = item.result_type || '';
+        const title = item.title || '';
+        const snippet = item.snippet || '';
+        const categories = [];
+        if (/email/i.test(type) || /@[a-z0-9.-]+/i.test(snippet)) categories.push('email');
+        if (/form|contact|inquiry/i.test(type) || /(contact|inquiry|お問い合わせ|問い合わせ)/i.test(url)) categories.push('form');
+        if (/official|site|url|lead_official_site/i.test(type) || url) categories.push('url');
+        if (/prospecting/i.test(type)) categories.push('lead');
+        if (/duplicate|重複/i.test(snippet)) categories.push('duplicate');
+        if (/excluded|除外/i.test(snippet)) categories.push('excluded');
+        if (/error|failed|エラー/i.test(snippet + type)) categories.push('error');
+        if (!url && !snippet) categories.push('not_found');
+        if (!categories.length) categories.push('url');
+        const primary = categories.includes('error') ? 'error'
+          : categories.includes('email') ? 'email'
+            : categories.includes('form') ? 'form'
+              : categories.includes('lead') ? 'lead'
+                : categories[0];
+        return {
+          id: item.id || `${item.job_id || 'result'}-${item.rank || ''}-${item.url || item.title || ''}`,
+          categories: Array.from(new Set(categories)),
+          category: primary,
+          title,
+          company_name: title,
+          email: extractEmail(snippet),
+          form_url: categories.includes('form') ? url : '',
+          website_url: url,
+          lead_id: item.lead_id || '',
+          message: snippet,
+          query: item.query || '',
+          source_label: item.query || item.result_type || '',
+          updated_at: item.created_at || '',
+          status: item.result_type || '',
+        };
+      }
+
+      function renderJobResultCard(item) {
+        return `
+          <article class="job-result-card ${escapeHtml(item.category)}">
+            <div class="job-result-card-head">
+              <div>
+                <span>${escapeHtml(item.source_label || dateTimeLabel(item.updated_at) || '-')}</span>
+                <h3>${escapeHtml(item.title || item.company_name || item.website_url || '名称未取得')}</h3>
+              </div>
+              <span class="pill ${jobResultTone(item.category)}">${escapeHtml(jobResultCategoryLabel(item.category))}</span>
+            </div>
+            <div class="job-result-contact-grid">
+              <div><span>メール</span><strong>${escapeHtml(item.email || '-')}</strong></div>
+              <div><span>WEBサイト</span>${item.website_url ? `<a href="${escapeHtml(externalUrl(item.website_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.website_url))}</a>` : '<strong>-</strong>'}</div>
+              <div><span>フォーム</span>${item.form_url ? `<a href="${escapeHtml(externalUrl(item.form_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.form_url))}</a>` : '<strong>-</strong>'}</div>
+            </div>
+            <div class="job-result-meta"><span>更新: ${escapeHtml(dateTimeLabel(item.updated_at) || '-')}</span><span>状態: ${escapeHtml(item.status || '-')}</span></div>
+            ${item.message ? `<p class="job-result-message">${escapeHtml(item.message)}</p>` : ''}
+            <div class="job-result-actions">
+              ${item.lead_id ? `<button type="button" class="table-link-button" onclick="editLead('${escapeJsString(item.lead_id)}')">詳細/編集</button>` : '<span class="muted">営業先未作成</span>'}
+              ${item.website_url || item.form_url || item.email ? `<button type="button" class="table-link-button primary-action" onclick="queueSearchResultLead('${escapeJsString(item.id)}')">営業リスト確認</button>` : '<span class="muted">メールまたはフォームURLが必要です</span>'}
+              <button type="button" class="table-link-button" onclick="dismissJobResult('${escapeJsString(item.id)}')">確認済みにする</button>
+            </div>
+          </article>
+        `;
+      }
+
+      function setJobResultCategory(category) {
+        state.jobResultCategory = category || 'all';
+        renderJobResultsReviewPanel();
+      }
+
+      function dismissJobResult(id) {
+        if (!state.dismissedSearchResultIds.includes(id)) state.dismissedSearchResultIds.push(id);
+        renderJobResultsReviewPanel();
+      }
+
+      function markVisibleJobResultsReviewed() {
+        const rows = (state.searchResults || []).map(normalizeJobResultRow);
+        const visible = state.jobResultCategory === 'all' ? rows : rows.filter((item) => item.categories.includes(state.jobResultCategory));
+        visible.slice(0, 40).forEach((item) => {
+          if (!state.dismissedSearchResultIds.includes(item.id)) state.dismissedSearchResultIds.push(item.id);
+        });
+        renderJobResultsReviewPanel();
+        message(`検索結果レビュー: ${formatNumber(Math.min(visible.length, 40))}件を確認済みにしました`, 'ok');
+      }
+
+      function queueSearchResultLead(id) {
+        const item = (state.searchResults || []).map(normalizeJobResultRow).find((row) => row.id === id);
+        if (!item) return;
+        message(item.lead_id ? '既存営業先の詳細編集を開けます。' : 'GAS版では検索結果からの新規追加はCSV/検索ジョブ側で確定します。', 'ok');
+      }
+
+      function jobResultCategoryLabel(category) {
+        return {
+          all: 'すべて',
+          duplicate: '重複',
+          email: 'メール追加',
+          error: 'エラー',
+          excluded: '除外',
+          form: 'フォーム',
+          lead: '営業リスト追加',
+          not_found: '未検出',
+          url: 'URL追加',
+        }[category] || category;
+      }
+
+      function jobResultTone(category) {
+        if (category === 'error') return 'bad';
+        if (['duplicate', 'excluded', 'not_found'].includes(category)) return 'warn';
+        if (category === 'email') return 'info';
+        return 'good';
+      }
+
+      function extractEmail(text) {
+        const match = String(text || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+        return match ? match[0] : '';
+      }
+
       function prospectingRouteItem(label, added, website, form, review) {
         return `
           <div class="prospecting-route-item">
@@ -4520,12 +4866,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderBackgroundJobsScreen();
         renderEmailLeadsScreen();
         renderSendingScreen();
+        renderEmailPreviewPanel();
+        renderTemplateTestRecipientPanel();
         renderHistoriesScreen();
         renderDealsScreen();
         renderAnalyticsScreen();
         renderSyncScreen();
         renderGmailScreen();
         renderAdminScreen();
+        renderJobResultsReviewPanel();
+        renderGmailConnectionCheckPanel();
+        renderMailSendLockPanel();
+        renderGoogleCredentialSummaryPanel();
       }
 
       function statCard(label, value, detail, tone) {
@@ -4618,6 +4970,259 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['宛先', escapeHtml(history.to_email || '-')],
           ['結果', history.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="pill bad">${escapeHtml(history.send_result || '失敗')}</span>`],
         ])).join(''));
+      }
+
+      function renderEmailPreviewPanel() {
+        const target = document.getElementById('emailPreviewPanel');
+        if (!target) return;
+        const mailTemplates = (state.templates || []).filter((template) => template.template_type !== 'form');
+        if (!mailTemplates.length || !(state.emailLeads || []).length) {
+          const noTemplate = mailTemplates.length === 0;
+          const noLead = !(state.emailLeads || []).length;
+          target.innerHTML = `
+            <div class="section-title-row">
+              <div>
+                <h2>送信プレビュー</h2>
+                <p class="muted">テンプレートと営業先を選ぶと、差し込み後の件名・本文を確認できます。</p>
+              </div>
+              <span class="pill warn">差し込み後を確認</span>
+            </div>
+            <div class="preview-grid">
+              <label>テンプレート<input readonly value="${noTemplate ? 'メールテンプレート未登録' : '選択待ち'}"></label>
+              <label>営業先<input readonly value="${noLead ? 'メール送信対象なし' : '選択待ち'}"></label>
+            </div>
+            <label>件名<input readonly value="テンプレートを登録すると表示されます"></label>
+            <label>本文<pre class="mail-preview">メールテンプレートとメール送信対象の営業先を用意すると、差し込み後の本文をここで確認できます。</pre></label>
+            <div class="send-check-card">
+              <div>
+                <h3>対象リスト自動送信</h3>
+                <p class="muted">営業リストとメールテンプレートが揃うと、対象候補、今回送信、本日残りを確認してから送信できます。</p>
+              </div>
+              <div class="send-check-grid">
+                <span><small>対象候補</small><strong>0件</strong></span>
+                <span><small>今回送信</small><strong>0件</strong></span>
+                <span><small>本日残り</small><strong>${formatNumber((state.dashboard || {}).todayRemaining || 0)}件</strong></span>
+              </div>
+              <button type="button" disabled>対象リストを確認して自動送信</button>
+            </div>
+          `;
+          return;
+        }
+        if (!state.selectedEmailPreviewTemplateId || !mailTemplates.some((template) => template.id === state.selectedEmailPreviewTemplateId)) {
+          const production = mailTemplates.find(isProductionTemplate);
+          state.selectedEmailPreviewTemplateId = (production || mailTemplates[0]).id;
+        }
+        const selectedTemplate = mailTemplates.find((template) => template.id === state.selectedEmailPreviewTemplateId) || mailTemplates[0];
+        const matchedLeads = getTemplateMatchedEmailLeads(selectedTemplate);
+        if (!state.selectedEmailPreviewLeadId || !matchedLeads.some((lead) => lead.id === state.selectedEmailPreviewLeadId)) {
+          const nextLead = matchedLeads.find((lead) => lead.email) || matchedLeads[0];
+          state.selectedEmailPreviewLeadId = nextLead ? nextLead.id : '';
+        }
+        const selectedLead = matchedLeads.find((lead) => lead.id === state.selectedEmailPreviewLeadId) || matchedLeads[0];
+        const dashboard = state.dashboard || {};
+        const preview = renderTemplateForLeadClient(selectedTemplate, selectedLead);
+        const blockReason = getSendBlockReasonClient(selectedTemplate, selectedLead);
+        const batchTargets = matchedLeads.filter((lead) => canEmailLead(lead) && !lead.last_sent_at);
+        const batchLimit = Math.min(100, dashboard.todayRemaining || 0);
+        const batchCount = Math.min(batchTargets.length, batchLimit);
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>送信プレビュー</h2>
+              <p class="muted">テンプレートと営業先を選ぶと、差し込み後の件名・本文を確認できます。</p>
+            </div>
+            <span class="pill info">差し込み後を確認</span>
+          </div>
+          <div class="grid">
+            <label>テンプレート<select id="previewTemplateSelect" onchange="setEmailPreviewTemplate(this.value)">
+              ${mailTemplates.map((template) => `<option value="${escapeHtml(template.id)}" ${template.id === selectedTemplate.id ? 'selected' : ''}>${escapeHtml([template.name, template.genre || 'ジャンルなし', templateTypeLabel(template.template_type)].filter(Boolean).join(' / '))}</option>`).join('')}
+            </select></label>
+            <label>営業先<select id="previewLeadSelect" onchange="setEmailPreviewLead(this.value)" ${matchedLeads.length ? '' : 'disabled'}>
+              ${matchedLeads.length ? matchedLeads.map((lead) => `<option value="${escapeHtml(lead.id)}" ${selectedLead && lead.id === selectedLead.id ? 'selected' : ''}>${escapeHtml([lead.company_name || '会社名未入力', lead.facility_name || '-', lead.genre || 'ジャンルなし', lead.email || 'メールなし'].join(' / '))}</option>`).join('') : '<option value="">対象の営業先がありません</option>'}
+            </select></label>
+          </div>
+          <p class="${selectedTemplate.genre ? 'muted' : 'form-message'}">${selectedTemplate.genre ? `選択中テンプレートのジャンル「${escapeHtml(selectedTemplate.genre)}」に一致する営業先を優先表示しています。` : 'ジャンル未設定のテンプレートは誤送信防止のため本番送信前に確認してください。'}</p>
+          <div class="preview-grid">
+            <label>送信先<input readonly value="${escapeHtml(selectedLead ? selectedLead.email || 'メールアドレスなし' : '営業先なし')}"></label>
+            <label>送信可否<input readonly value="${escapeHtml(blockReason ? `送信不可: ${blockReason}` : '送信可能')}"></label>
+          </div>
+          <label>件名<input readonly value="${escapeHtml(preview.subject)}"></label>
+          <label>本文<pre class="mail-preview">${escapeHtml(preview.body)}</pre></label>
+          <div class="toolbar">
+            ${renderSendGuardPills(selectedTemplate, selectedLead, blockReason)}
+          </div>
+          <button type="button" class="primary" onclick="sendPreviewEmail()" ${blockReason ? 'disabled' : ''}>この内容で1件送信</button>
+          ${blockReason ? `<p class="muted">1件送信できない理由: ${escapeHtml(blockReason)}</p>` : ''}
+          <div class="send-check-card">
+            <div>
+              <h3>対象リスト自動送信</h3>
+              <p class="muted">選択中テンプレートと同じジャンルの対象へ順番に送信します。GAS版では実行前に確認を挟み、1日の送信上限を守ります。</p>
+            </div>
+            <div class="send-check-grid">
+              <span><small>対象候補</small><strong>${formatNumber(batchTargets.length)}件</strong></span>
+              <span><small>今回送信</small><strong>${formatNumber(batchCount)}件</strong></span>
+              <span><small>本日残り</small><strong>${formatNumber(dashboard.todayRemaining || 0)}件</strong></span>
+            </div>
+            <button type="button" onclick="sendPreviewBatch()" ${batchCount <= 0 || blockReason ? 'disabled' : ''}>対象リストを確認して自動送信</button>
+          </div>
+        `;
+      }
+
+      function getTemplateMatchedEmailLeads(template) {
+        const leads = state.emailLeads || [];
+        if (!template || !template.genre) return leads;
+        const matched = leads.filter((lead) => lead.genre === template.genre);
+        return matched.length ? matched : leads;
+      }
+
+      function setEmailPreviewTemplate(id) {
+        state.selectedEmailPreviewTemplateId = id;
+        state.selectedEmailPreviewLeadId = '';
+        renderEmailPreviewPanel();
+      }
+
+      function setEmailPreviewLead(id) {
+        state.selectedEmailPreviewLeadId = id;
+        renderEmailPreviewPanel();
+      }
+
+      function renderTemplateForLeadClient(template, lead) {
+        if (!template || !lead) return { subject: '', body: '' };
+        const values = {
+          company_name: lead.company_name || '',
+          facility_name: lead.facility_name || '',
+          contact_name: lead.contact_name || 'ご担当者',
+          genre: lead.genre || '',
+          email: lead.email || '',
+          website_url: lead.website_url || '',
+          form_url: lead.form_url || '',
+          address: lead.address || '',
+          sender_name: document.getElementById('leadSenderName') ? document.getElementById('leadSenderName').value || '営業担当' : '営業担当',
+        };
+        const replace = (text) => String(text || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => values[key] !== undefined ? values[key] : '');
+        return {
+          subject: replace(template.subject || ''),
+          body: replace(template.body || ''),
+        };
+      }
+
+      function getSendBlockReasonClient(template, lead) {
+        const dashboard = state.dashboard || {};
+        if (!template) return 'テンプレートがありません';
+        if (template.template_type === 'form') return 'フォーム用テンプレートはメール送信できません';
+        if (!isProductionTemplate(template)) return 'テンプレートが本番OFFです';
+        if (!template.genre) return 'テンプレートにジャンルが設定されていません';
+        if ((dashboard.todayRemaining || 0) <= 0) return '本日の送信上限に達しています';
+        if (!lead) return '営業先がありません';
+        if (template.genre && lead.genre && template.genre !== lead.genre) return 'テンプレートと営業先のジャンルが一致していません';
+        if (!lead.email) return 'メールアドレスがありません';
+        if (normalizeBooleanLike(lead.send_ng) || lead.status === '送信NG') return '送信NGです';
+        if (normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり') return '返信ありのため対象外です';
+        if (lead.deal_status && lead.deal_status !== '未設定') return '商談対象のため対象外です';
+        if (template.template_type === 'initial' && lead.last_sent_at) return '初回メールは送信済みです';
+        return '';
+      }
+
+      function renderSendGuardPills(template, lead, blockReason) {
+        const pills = [];
+        if (!isProductionTemplate(template)) pills.push('<span class="pill warn">本番ON前なので送信不可</span>');
+        if (template && !template.genre) pills.push('<span class="pill bad">テンプレートのジャンル未設定</span>');
+        if (lead && !lead.genre) pills.push('<span class="pill bad">営業先のジャンル未設定</span>');
+        if (lead && normalizeBooleanLike(lead.send_ng)) pills.push('<span class="pill bad">送信NG</span>');
+        if (lead && normalizeBooleanLike(lead.reply_checked)) pills.push('<span class="pill warn">返信あり</span>');
+        if (lead && lead.deal_status && lead.deal_status !== '未設定') pills.push('<span class="pill warn">商談対象</span>');
+        if (lead && template && template.template_type === 'initial' && lead.last_sent_at) pills.push('<span class="pill warn">初回送信済み</span>');
+        if (lead && !lead.email) pills.push('<span class="pill warn">メールアドレスなし</span>');
+        pills.push(`<span class="pill ${(state.dashboard || {}).todayRemaining > 0 ? 'good' : 'bad'}">本日残り ${formatNumber((state.dashboard || {}).todayRemaining || 0)}件</span>`);
+        if (!blockReason) pills.push('<span class="pill good">送信可能</span>');
+        return pills.join('');
+      }
+
+      async function sendPreviewEmail() {
+        const templateId = state.selectedEmailPreviewTemplateId;
+        const leadId = state.selectedEmailPreviewLeadId;
+        const lead = (state.emailLeads || []).find((item) => item.id === leadId);
+        const template = (state.templates || []).find((item) => item.id === templateId);
+        if (!templateId || !leadId || !lead) {
+          message('テンプレートと営業先を選択してください', 'error');
+          return;
+        }
+        const blockReason = getSendBlockReasonClient(template, lead);
+        if (blockReason) {
+          message(`送信できません: ${blockReason}`, 'error');
+          renderEmailPreviewPanel();
+          return;
+        }
+        if (!confirm(`${lead.company_name || lead.facility_name || lead.email}へプレビュー内容で1件送信しますか。`)) return;
+        const result = await api('sendLeadEmail', leadId, templateId, { send_type: '初回メール', sender_name: '営業担当' });
+        message(result.ok ? 'メール送信を記録しました' : `メール送信に失敗しました: ${result.errorMessage}`, result.ok ? 'ok' : 'error');
+        await refreshAll();
+      }
+
+      async function sendPreviewBatch() {
+        const template = (state.templates || []).find((item) => item.id === state.selectedEmailPreviewTemplateId);
+        const previewLead = (state.emailLeads || []).find((item) => item.id === state.selectedEmailPreviewLeadId);
+        const blockReason = getSendBlockReasonClient(template, previewLead);
+        if (blockReason) {
+          message(`自動送信できません: ${blockReason}`, 'error');
+          renderEmailPreviewPanel();
+          return;
+        }
+        const targets = getTemplateMatchedEmailLeads(template).filter((lead) => canEmailLead(lead) && !lead.last_sent_at);
+        const limit = Math.min(10, (state.dashboard || {}).todayRemaining || 0);
+        const sendTargets = targets.slice(0, limit);
+        if (!sendTargets.length || !template) {
+          message('自動送信できる対象がありません', 'error');
+          return;
+        }
+        if (!confirm(`${sendTargets.length}件へ順番に送信しますか。安全のためGAS版では一度に最大10件までにしています。`)) return;
+        let success = 0;
+        let failed = 0;
+        for (const lead of sendTargets) {
+          try {
+            const result = await api('sendLeadEmail', lead.id, template.id, { send_type: '初回メール', sender_name: '営業担当' });
+            if (result.ok) success += 1;
+            else failed += 1;
+          } catch (error) {
+            failed += 1;
+          }
+        }
+        message(`自動送信: 成功 ${formatNumber(success)}件 / 失敗 ${formatNumber(failed)}件`, failed ? 'error' : 'ok');
+        await refreshAll();
+      }
+
+      function renderTemplateTestRecipientPanel() {
+        const target = document.getElementById('templateTestRecipientPanel');
+        if (!target) return;
+        const leads = (state.emailLeads || []).filter((lead) => lead.email).slice(0, 200);
+        if (!state.selectedTemplateTestLeadId && leads.length) state.selectedTemplateTestLeadId = leads[0].id;
+        const selected = leads.find((lead) => lead.id === state.selectedTemplateTestLeadId) || leads[0];
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>テンプレートテスト送信先</h2>
+              <p class="muted">テスト送信だけで使う宛先です。営業リストのメールあり対象から選択します。</p>
+            </div>
+            <span class="pill ${selected ? 'good' : 'warn'}">${selected ? '営業リスト指定' : '未設定'}</span>
+          </div>
+          <div class="template-test-settings-grid">
+            <div class="template-test-current">
+              <div><span>現在の送信先</span><strong>${escapeHtml(selected ? selected.email : '未設定')}</strong><small>${escapeHtml(selected ? [selected.facility_name, selected.company_name, selected.genre].filter(Boolean).join(' / ') : 'メールアドレスありの営業先を選択してください')}</small></div>
+            </div>
+            <div class="stack">
+              <label>テスト送信用の営業先<select id="templateTestRecipientLead" onchange="setTemplateTestRecipient(this.value)">
+                ${leads.map((lead) => `<option value="${escapeHtml(lead.id)}" ${selected && selected.id === lead.id ? 'selected' : ''}>${escapeHtml([lead.facility_name, lead.company_name, lead.email].filter(Boolean).join(' / '))}</option>`).join('')}
+              </select></label>
+              <small class="muted">メールアドレスが登録されている営業先だけ表示しています。</small>
+            </div>
+          </div>
+          <button type="button" onclick="message('テスト送信先を画面上で選択しました。実送信は上の送信プレビューから行えます。', 'ok')">保存する</button>
+        `;
+      }
+
+      function setTemplateTestRecipient(id) {
+        state.selectedTemplateTestLeadId = id;
+        renderTemplateTestRecipientPanel();
       }
 
       function renderHistoriesScreen() {
@@ -4734,6 +5339,87 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           `<span class="pill info">本日残り ${formatNumber(dashboard.mailQuotaRemaining || dashboard.todayRemaining || 0)}件</span>`,
           `<span class="pill ${dashboard.triggerCount > 0 ? 'good' : 'warn'}">Trigger ${formatNumber(dashboard.triggerCount || 0)}件</span>`,
         ].join('');
+      }
+
+      function renderGmailConnectionCheckPanel() {
+        const target = document.getElementById('gmailConnectionCheckPanel');
+        if (!target) return;
+        const dashboard = state.dashboard || {};
+        const integrations = dashboard.integrations || {};
+        const missing = [];
+        if (integrations.gmail === false) missing.push(['Gmail送信', 'MailApp/GmailApp承認または送信枠を確認してください']);
+        if (integrations.calendar === false) missing.push(['Calendar登録', 'CalendarApp承認を確認してください']);
+        if (!dashboard.triggerCount) missing.push(['時間主導トリガー', '管理画面から定期トリガーを作成してください']);
+        const ready = missing.length === 0;
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>Gmail連携テスト</h2>
+              <p class="muted">保存済みのApps Script承認で、送信・返信チェック・Calendar権限を確認します。メールは送信しません。</p>
+            </div>
+            <button type="button" onclick="checkReplies()">連携テスト</button>
+          </div>
+          <div class="admin-check-summary">
+            <div><span>Gmailアカウント</span><strong>${integrations.gmail === false ? '要確認' : 'Apps Script承認済み'}</strong><span class="pill ${integrations.gmail === false ? 'warn' : 'good'}">${integrations.gmail === false ? '要確認' : 'OK'}</span></div>
+            <div><span>必要権限</span><strong>${missing.length === 0 ? 'OK' : `${formatNumber(missing.length)}件不足`}</strong><span class="pill ${ready ? 'good' : 'warn'}">${ready ? 'OK' : '再確認'}</span></div>
+            <div><span>本日送信枠</span><strong>${formatNumber(dashboard.mailQuotaRemaining || dashboard.todayRemaining || 0)}件</strong><small>アプリ残り ${formatNumber(dashboard.todayRemaining || 0)}件</small></div>
+            <div><span>Trigger</span><strong>${formatNumber(dashboard.triggerCount || 0)}件</strong><small>時間主導トリガー</small></div>
+          </div>
+          ${missing.length ? `<div class="readiness-list">${missing.map(([label, detail]) => `<div class="readiness-item"><div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(detail)}</small></div><span class="pill warn">要確認</span></div>`).join('')}</div>` : '<p class="message ok">Gmail送信、返信チェック、Calendar登録に必要な承認状態は利用可能です。</p>'}
+        `;
+      }
+
+      function renderMailSendLockPanel() {
+        const target = document.getElementById('mailSendLockPanel');
+        if (!target) return;
+        const runningMailJobs = (state.jobs || []).filter((job) => /mail|send|email/i.test(String(job.job_type || job.type || '')) && /running|処理中/i.test(String(job.status || '')));
+        const locked = runningMailJobs.length > 0;
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>送信ロック</h2>
+              <p class="muted">手動送信と自動送信が同時に走らないようにする安全装置です。GAS版ではLockServiceと処理分割で保護します。</p>
+            </div>
+            <span class="pill ${locked ? 'info' : 'good'}">${locked ? '送信処理中' : 'ロックなし'}</span>
+          </div>
+          <div class="mail-send-lock-panel">
+            <div class="readiness-item">
+              <div><strong>${locked ? '送信処理中' : 'ロックなし'}</strong><small>${locked ? `${formatNumber(runningMailJobs.length)}件の送信系ジョブを確認` : '現在、送信処理は実行されていません。'}</small></div>
+              <span class="pill ${locked ? 'info' : 'good'}">${locked ? 'LOCK' : 'OK'}</span>
+            </div>
+            <p class="muted">明らかに止まっている場合はApps Script実行履歴と jobs / sync_logs を確認してください。</p>
+            <button type="button" class="secondary" ${locked ? '' : 'disabled'} onclick="advanceJobs()">ジョブ処理を確認</button>
+          </div>
+        `;
+      }
+
+      function renderGoogleCredentialSummaryPanel() {
+        const target = document.getElementById('googleCredentialSummaryPanel');
+        if (!target) return;
+        const dashboard = state.dashboard || {};
+        const integrations = dashboard.integrations || {};
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>Google / Gmail APIキー管理</h2>
+              <p class="muted">Apps Script版ではOAuth秘密情報を画面に出さず、承認状態とPropertiesService参照だけを確認します。</p>
+            </div>
+            <span class="pill ${integrations.gmail !== false ? 'good' : 'warn'}">${integrations.gmail !== false ? 'Gmail利用可能' : '要設定'}</span>
+          </div>
+          <div class="settings-status-grid">
+            <div class="settings-status-item"><span>OAuth Client</span><span class="pill good">Apps Script</span></div>
+            <div class="settings-status-item"><span>Refresh Token</span><span class="pill good">Google管理</span></div>
+            <div class="settings-status-item"><span>送信元</span><span class="pill ${integrations.gmail !== false ? 'good' : 'warn'}">${integrations.gmail !== false ? 'OK' : '要確認'}</span></div>
+            <div class="settings-status-item"><span>テスト宛先</span><span class="pill info">営業リスト指定</span></div>
+          </div>
+          <div class="api-key-summary">
+            <div>
+              <strong>差出人名: 営業担当</strong>
+              <span>現在の参照元: Apps Script承認 + PropertiesService。秘密項目はシート/HTMLへ出しません。</span>
+            </div>
+            <button type="button" onclick="showTab('gmail')">Gmail連携</button>
+          </div>
+        `;
       }
 
       function renderAdminScreen() {
@@ -4877,7 +5563,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const text = String(value || '').trim();
         if (!text) return '';
         if (/^https?:\/\//i.test(text)) return text;
-        return `https://${text}`;
+        return 'https:' + String.fromCharCode(47, 47) + text;
       }
 
       function dateLabel(value) {
@@ -4906,7 +5592,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function csvValue(value) {
         const text = String(value ?? '').replace(/\r?\n/g, ' ');
-        return `"${text.replace(/"/g, '""')}"`;
+        const quote = String.fromCharCode(34);
+        return quote + text.replace(/"/g, quote + quote) + quote;
       }
 
       function downloadText(filename, text) {
