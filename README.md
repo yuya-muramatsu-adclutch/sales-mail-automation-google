@@ -34,6 +34,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の管理画面に寄せた自動運用設定、重複リスト管理、エラー詳細パネル
 - 旧Next/Supabase版の `ListViewSettingsPanel` に寄せた営業リスト表示項目設定
 - 旧Next/Supabase版の `CustomFieldDefinitionForm` / `CustomFieldsInputs` に寄せたカスタム項目定義とリード詳細入力
+- 旧Next/Supabase版の `TemplateTagMenu` に寄せたテンプレート差し込みメニュー、サンプル文面、差し込み値プレビュー
+- 旧Next/Supabase版の `AppSafetyStrip` / `AppTopShortcutBar` / `AppRouteProgress` に寄せた運用ステータスバー、上部ショートカット、タブ切替進行バー
 
 ## ファイル
 
@@ -64,7 +66,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment v20: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @21 / code v22: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -110,6 +112,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - v19 Chrome確認で管理タブの `自動運用設定`, `重複リスト管理`, `エラー詳細` を確認し、重複チェックが全5,441件から22グループ/22件を検出することを確認済み
 - v20で旧Next/Supabase版の `ListViewSettingsPanel`, `CustomFieldDefinitionForm`, `CustomFieldsInputs`, `/api/display-settings`, `/api/custom-fields` に寄せた表示項目設定とカスタム項目定義を追加済み
 - v20は `clasp deploy -V 20` で既存Web app URLへ反映済み。ローカルスモークで `leadListViewSettingsPanel`, `customFieldDefinitionPanel`, `renderListViewSettingsPanel`, `renderCustomFieldDefinitionPanel` を確認済み
+- Apps Script Version 21 / code v22で旧Next/Supabase版の `TemplateTagMenu`, `AppSafetyStrip`, `AppTopShortcutBar`, `AppRouteProgress` に寄せたテンプレート差し込みメニュー、運用ステータスバー、上部ショートカット、タブ切替進行バーを追加済み
+- Version 21は `clasp deploy -V 21 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `templateTagMenuPanel`, `appSafetyStrip`, `appRouteProgress`, `toolbar-shortcut` を確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 
@@ -223,6 +227,7 @@ Web appの `doPost` は次の形のJSONを受け付けます。
 - `app/page.tsx` / `components/LeadQuickViews.tsx` / `components/ListSearchFilters.tsx` / `components/LeadStatusLegend.tsx` / `app/forms/page.tsx` / `app/prospecting/page.tsx` / `app/templates/page.tsx` / `app/ng-master/page.tsx` / `app/exclusions/page.tsx` / `app/background-jobs/page.tsx` / `app/admin/page.tsx`: ダッシュボード、クイックビュー、フォーム送信、Serper収集、テンプレート、NG/除外、運用画面の情報設計
 - `components/EmailPreviewPanel.tsx` / `components/TemplateTestRecipientManager.tsx` / `components/JobResultsReviewTable.tsx` / `components/GmailConnectionCheck.tsx` / `components/GoogleCredentialsManager.tsx` / `components/MailSendLockPanel.tsx`: 送信前確認、テスト送信先、検索結果レビュー、Gmail/Google認証状態、送信ロックのUI構成
 - `components/SendWindowSettingsForm.tsx` / `components/BackgroundWorkerSettingsForm.tsx` / `components/DuplicateLeadManager.tsx` / `app/errors/page.tsx`: 自動運用設定、重複リスト管理、エラー詳細のUI構成
+- `components/TemplateTagMenu.tsx` / `components/AppSafetyStrip.tsx` / `components/AppTopShortcutBar.tsx` / `components/AppRouteProgress.tsx`: 差し込みタグ操作、運用ステータス、上部ショートカット、画面遷移フィードバックのUI構成
 
 持ち込まないもの:
 

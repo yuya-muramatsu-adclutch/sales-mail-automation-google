@@ -8,6 +8,7 @@
 
 - `app/globals.css`: 色、余白、パネル、テーブル、サイドバー、ダッシュボード、営業リスト、収集ツールのスタイル
 - `components/AppFrame.tsx`: サイドバー、ナビグループ、ブランド表現、上部ショートカット
+- `components/AppSafetyStrip.tsx`, `components/AppTopShortcutBar.tsx`, `components/AppRouteProgress.tsx`: 運用ステータスバー、よく使う操作、画面遷移フィードバック
 - `app/page.tsx`: 営業ダッシュボード、今日の送信キュー、API連携、次の作業、今月の動き
 - `app/leads/page.tsx`: 営業リスト、ジャンル、検索、クイックビュー、KPI、色分け、ページング
 - `components/LeadQuickViews.tsx`: 作業/状態別の即時フィルタ
@@ -29,6 +30,7 @@
 - `components/SendWindowSettingsForm.tsx`, `components/GmailReplyCheckSettingsForm.tsx`, `components/EmailDiscoverySettingsForm.tsx`, `components/BackgroundWorkerSettingsForm.tsx`: 自動送信時間、返信自動チェック、メール自動取得、重い処理の設定UI
 - `components/DuplicateLeadManager.tsx`, `app/errors/page.tsx`: 重複リスト管理、エラー詳細の運用UI
 - `components/ListViewSettingsPanel.tsx`, `components/CustomFieldDefinitionForm.tsx`, `components/CustomFieldsInputs.tsx`: 表示項目設定、カスタム項目定義、リード詳細内のカスタム項目入力
+- `components/TemplateTagMenu.tsx`, `components/TemplateActions.tsx`, `components/TemplateCreateForm.tsx`: テンプレート差し込みタグ、テンプレートサンプル、作成/編集フォーム
 - `app/api/display-settings/route.ts`, `app/api/custom-fields/route.ts`, `supabase/schema.sql`: `list_view_settings` / `custom_field_definitions` の保存APIとスキーマ
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
@@ -59,6 +61,9 @@
 - 営業リストに旧 `ListViewSettingsPanel` の開閉式「表示項目」UIを追加し、ジャンル別に列の表示/順番を `list_view_settings` シートへ保存できるようにした。
 - 管理に旧 `CustomFieldDefinitionForm` のカスタム項目作成UIを追加し、`custom_field_definitions` シートへ保存できるようにした。
 - リード詳細ドロワーに旧 `CustomFieldsInputs` 相当の入力欄を追加し、ジャンル別カスタム項目を `custom_fields_json` へ保存できるようにした。
+- テンプレート画面に旧 `TemplateTagMenu` 相当の差し込みメニューを追加し、件名/本文へのタグ挿入、初回メール例、フォーム営業例、使用中タグ表示を追加した。
+- 送信プレビューに差し込み後の本文だけでなく、使用タグごとの置換値プレビューを追加した。
+- 旧 `AppFrame` の上部フレームに合わせ、運用ステータスバー、よく使う操作ショートカット、タブ切替進行バーを追加した。
 
 ## GAS版へ反映した機能
 
@@ -69,6 +74,7 @@
 - 空文字を真扱いしていた `normalizeBooleanLike_()` を修正し、返信数や送信NG数の集計が過剰にならないようにした。
 - GAS版で安全に実行できる範囲として、表示中リードの複数選択、確認待ち選択、選択リードのステータス更新、表示中リードCSV出力、個別公式サイト探索の導線を追加。
 - `custom_field_definitions` と `list_view_settings` をSheets DBへ追加し、旧Supabase版のカスタム項目/表示項目設定をUUID付き行として保持。
+- `Email.gs` のテンプレート置換を日本語タグとカスタム項目に対応させ、`{{会社名}}`, `{{担当者名}}`, `{{WEBサイトURL}}`, `{{差出人名}}`, `{{カスタム項目キー}}` を送信時にも置換できるようにした。
 
 ## そのまま移植しないもの
 
@@ -78,7 +84,6 @@
 
 ## 次に移す候補
 
-- 旧アプリのメール本文プレビューで使っているテンプレート変数の詳細説明と差分ハイライト。
 - 検索結果レビューから営業リストへ新規追加する確定フロー。
 - Gmail連携での実テストメール送信履歴と失敗理由の詳細表示。
-- カスタム項目をテンプレート変数一覧へ表示する補助UI。
+- 送信プレビューの差し込み値に、空欄タグだけを強調する差分ハイライト。

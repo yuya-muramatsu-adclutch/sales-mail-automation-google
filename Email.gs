@@ -41,7 +41,10 @@ function sendLeadEmail(leadId, templateId, options) {
     return {
       lead: lead,
       template: template,
-      rendered: renderTemplateForLead_(template, lead),
+      rendered: renderTemplateForLead_(template, lead, {
+        sender_name: input.sender_name || input.senderName || '',
+        '差出人名': input.sender_name || input.senderName || '',
+      }),
     };
   });
 
@@ -113,7 +116,10 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
     website_url: 'https://example.com',
     form_url: 'https://example.com/contact',
   }, sampleLeadInput || {});
-  const rendered = renderTemplateForLead_(template, sampleLead);
+  const rendered = renderTemplateForLead_(template, sampleLead, {
+    sender_name: sampleLead.sender_name || sampleLead.senderName || '営業担当',
+    '差出人名': sampleLead.sender_name || sampleLead.senderName || '営業担当',
+  });
 
   MailApp.sendEmail({
     to: toEmail,
@@ -153,8 +159,8 @@ function findProductionTemplateForLead_(lead, templateType) {
   return genreMatch || active.find(function (template) { return !template.genre; }) || active[0] || null;
 }
 
-function renderTemplateForLead_(template, lead) {
-  const replacements = buildLeadTemplateVariables_(lead);
+function renderTemplateForLead_(template, lead, extraVariables) {
+  const replacements = Object.assign(buildLeadTemplateVariables_(lead), extraVariables || {});
   const subject = replaceTemplateVariables_(template.subject || '', replacements);
   const body = replaceTemplateVariables_(template.body || '', replacements);
   const htmlBody = body
@@ -169,27 +175,48 @@ function renderTemplateForLead_(template, lead) {
 }
 
 function buildLeadTemplateVariables_(lead) {
-  return {
+  const variables = {
     company_name: lead.company_name || '',
     companyName: lead.company_name || '',
+    '会社名': lead.company_name || '',
     facility_name: lead.facility_name || '',
     facilityName: lead.facility_name || '',
+    '屋号': lead.facility_name || '',
     genre: lead.genre || '',
+    'ジャンル名': lead.genre || '',
     contact_name: lead.contact_name || 'ご担当者',
     contactName: lead.contact_name || 'ご担当者',
+    '担当者名': lead.contact_name || 'ご担当者',
     email: lead.email || '',
+    'メール': lead.email || '',
     phone: lead.phone || '',
+    '電話番号': lead.phone || '',
     website_url: lead.website_url || '',
     websiteUrl: lead.website_url || '',
+    'WEBサイトURL': lead.website_url || '',
     form_url: lead.form_url || '',
     formUrl: lead.form_url || '',
+    'フォームURL': lead.form_url || '',
     address: lead.address || '',
+    '住所': lead.address || '',
   };
+  try {
+    const customFields = JSON.parse(String(lead.custom_fields_json || '{}'));
+    Object.keys(customFields || {}).forEach(function (key) {
+      if (variables[key] === undefined) {
+        variables[key] = customFields[key];
+      }
+    });
+  } catch (error) {
+    // Ignore malformed custom fields and keep standard variables available.
+  }
+  return variables;
 }
 
 function replaceTemplateVariables_(text, variables) {
-  return String(text || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, function (_, key) {
-    return variables[key] === undefined ? '' : String(variables[key]);
+  return String(text || '').replace(/\{\{\s*([^{}]+?)\s*\}\}/g, function (_, key) {
+    const normalizedKey = String(key || '').trim();
+    return variables[normalizedKey] === undefined ? '' : String(variables[normalizedKey]);
   });
 }
 

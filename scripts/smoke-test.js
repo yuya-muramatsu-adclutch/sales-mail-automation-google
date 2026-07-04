@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260704_apps_script_full_workflow_v20_list_view_custom_fields'), 'v20 app version missing');
+assert(code.includes('20260704_apps_script_full_workflow_v22_app_frame_shortcuts'), 'v22 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -91,8 +91,10 @@ assert(html.includes('全 ${total} 件中'), 'lead pager total display missing')
 assert(html.includes('class="sidebar"'), 'sidebar layout missing');
 assert(html.includes('class="tab nav-item active"'), 'sidebar nav item missing');
 assert(html.includes('class="section-header"'), 'section header UI missing');
+assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
+assert(html.includes('appRouteProgress'), 'legacy route progress missing');
+assert(html.includes('toolbar-shortcut'), 'legacy top shortcut bar missing');
 assert(html.includes('row-send-ng'), 'lead row status styling missing');
-assert(html.includes('activeViewTitle'), 'active view title missing');
 assert(html.includes('dashboard-hero-grid'), 'legacy-style dashboard hero missing');
 assert(html.includes('dashboard-signal-grid'), 'legacy-style dashboard signals missing');
 assert(html.includes('lead-quick-views'), 'lead quick views missing');
@@ -156,11 +158,19 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'renderListViewSettingsPanel',
   'renderCustomFieldDefinitionPanel',
   'saveCustomFieldDefinitionFromForm',
+  'templateTagMenuPanel',
+  'template-tag-panel',
+  'renderTemplateTagMenuPanel',
+  'insertTemplateTag',
+  'applyTemplateSample',
+  'renderTemplateVariablePreview',
   'duplicateLeadManagerPanel',
   'adminErrorDetailsPanel',
 ].forEach((marker) => {
-  assert(html.includes(marker), `legacy v20 UI marker missing: ${marker}`);
+  assert(html.includes(marker), `legacy v22 UI marker missing: ${marker}`);
 });
+assert(html.includes('会社名') && html.includes('差し込みメニュー'), 'legacy template tag menu labels missing');
+assert(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8').includes("'会社名'"), 'server Japanese template variables missing');
 [
   'custom_field_definitions',
   'list_view_settings',

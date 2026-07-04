@@ -297,6 +297,107 @@
         gap: 18px;
       }
 
+      .app-route-progress {
+        position: sticky;
+        z-index: 80;
+        top: 0;
+        height: 3px;
+        margin: -28px 0 0;
+        pointer-events: none;
+        opacity: 0;
+        transform: scaleX(0);
+        transform-origin: left;
+        background: linear-gradient(90deg, var(--blue), var(--green));
+        transition:
+          opacity 120ms ease,
+          transform 650ms cubic-bezier(0.2, 0, 0, 1);
+      }
+
+      .app-route-progress.active {
+        opacity: 1;
+        transform: scaleX(0.76);
+      }
+
+      .app-safety-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+      }
+
+      .app-safety-strip-main {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 220px;
+      }
+
+      .app-safety-icon {
+        display: grid;
+        flex: 0 0 auto;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        color: #b91c1c;
+        background: #fee2e2;
+        font-size: 15px;
+        font-weight: 900;
+      }
+
+      .app-safety-icon.ok {
+        color: #047857;
+        background: #d1fae5;
+      }
+
+      .app-safety-strip-main strong,
+      .app-safety-strip-main span {
+        display: block;
+      }
+
+      .app-safety-strip-main strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .app-safety-strip-main span {
+        max-width: 520px;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .app-safety-strip-items {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .app-safety-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 34px;
+        padding: 6px 9px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
       .main-toolbar {
         position: sticky;
         top: 0;
@@ -304,24 +405,94 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 14px;
-        min-height: 58px;
-        margin: -28px calc(clamp(20px, 2.4vw, 36px) * -1) 2px;
-        padding: 12px clamp(20px, 2.4vw, 36px);
-        border-bottom: 1px solid rgba(197, 206, 216, 0.78);
-        background: rgba(246, 247, 249, 0.92);
+        gap: 12px;
+        min-height: 48px;
+        margin: -4px 0 0;
+        padding: 8px 10px 8px 12px;
+        border: 1px solid rgba(197, 206, 216, 0.72);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
         backdrop-filter: blur(14px);
+      }
+
+      .main-toolbar-date {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .main-toolbar-date span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
       }
 
       .main-toolbar strong {
         display: block;
-        font-size: 16px;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 900;
+        white-space: nowrap;
       }
 
       .main-toolbar-actions {
         display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+
+      .main-toolbar-actions button {
+        min-height: 32px;
+        padding: 6px 10px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: #334155;
+        box-shadow: none;
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .main-toolbar-actions button:hover {
+        border-color: #dbe4ee;
+        background: #f8fafc;
+        box-shadow: none;
+        transform: none;
+      }
+
+      .main-toolbar-actions button.active,
+      .main-toolbar-actions button[aria-current="page"] {
+        border-color: #dbeafe;
+        background: #eff6ff;
+        color: #1d4ed8;
+        box-shadow: inset 0 0 0 1px #bfdbfe;
+      }
+
+      .main-toolbar-actions .utility-action {
+        border-color: #dbe4ee;
+        background: #fff;
+      }
+
+      .shortcut-icon {
+        display: inline-grid;
+        place-items: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 6px;
+        background: #e2e8f0;
+        color: #475569;
+        font-size: 10px;
+        font-weight: 900;
+      }
+
+      .main-toolbar-actions button.active .shortcut-icon {
+        background: #dbeafe;
+        color: #1d4ed8;
       }
 
       .section {
@@ -1794,6 +1965,106 @@
         font-size: 20px;
       }
 
+      .template-tag-panel {
+        display: grid;
+        gap: 14px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+      }
+
+      .template-tag-panel-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .template-tag-panel-header strong {
+        display: block;
+      }
+
+      .template-tag-list {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.5;
+      }
+
+      .template-tag-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 10px;
+      }
+
+      .template-tag-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        min-height: 76px;
+        padding: 12px;
+        border: 1px solid #dbe4ee;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .template-tag-copy {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .template-tag-token {
+        color: #1d4ed8;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 13px;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+      }
+
+      .template-tag-copy small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
+      .template-tag-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .template-tag-actions .table-link-button {
+        min-height: 32px;
+        padding: 6px 9px;
+      }
+
+      .template-variable-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 8px;
+      }
+
+      .template-variable-card {
+        display: grid;
+        gap: 4px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .template-variable-card small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
       .template-safety-panel,
       .prospecting-activity-panel,
       .ops-readiness-panel {
@@ -2441,9 +2712,27 @@
           padding: 20px 14px 34px;
         }
 
+        .app-route-progress {
+          margin-top: -20px;
+        }
+
+        .app-safety-strip {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .app-safety-strip-main span {
+          max-width: none;
+          white-space: normal;
+        }
+
+        .app-safety-strip-items {
+          justify-content: flex-start;
+        }
+
         .main-toolbar {
-          margin: -20px -14px 2px;
-          padding: 12px 14px;
+          margin: -4px 0 2px;
+          padding: 8px 10px;
         }
 
         .split {
@@ -2678,15 +2967,36 @@
       </aside>
 
       <main class="main">
-        <div class="main-toolbar">
-          <div>
-            <p class="eyebrow">Google Sheets / Apps Script</p>
-            <strong id="activeViewTitle">ダッシュボード</strong>
+        <div id="appRouteProgress" class="app-route-progress" aria-hidden="true"></div>
+        <section id="appSafetyStrip" class="app-safety-strip" aria-label="運用ステータス">
+          <div class="app-safety-strip-main">
+            <span class="app-safety-icon">SH</span>
+            <div>
+              <strong>自動送信 確認中</strong>
+              <span>Google Sheets / Apps Script の運用状態を読み込んでいます</span>
+            </div>
           </div>
-          <div class="main-toolbar-actions">
-            <button type="button" onclick="refreshAll()">更新</button>
-            <button type="button" class="primary" onclick="runSetup()">setup</button>
+          <div class="app-safety-strip-items">
+            <span class="app-safety-chip">送信時間 <span class="pill info">確認中</span></span>
+            <span class="app-safety-chip">Gmail <span class="pill info">確認中</span></span>
+            <span class="app-safety-chip">Serper残量 <span class="pill info">確認中</span></span>
           </div>
+        </section>
+        <div class="main-toolbar" aria-label="運用ショートカット">
+          <div class="main-toolbar-date">
+            <span>今日</span>
+            <strong id="todayLabel">-</strong>
+          </div>
+          <nav class="main-toolbar-actions" aria-label="よく使う操作">
+            <button type="button" class="toolbar-shortcut" data-shortcut-tab="leads" onclick="showTab('leads')"><span class="shortcut-icon">LD</span>リスト</button>
+            <button type="button" class="toolbar-shortcut" data-shortcut-tab="backgroundJobs" onclick="showTab('backgroundJobs')"><span class="shortcut-icon">BG</span>進捗</button>
+            <button type="button" class="toolbar-shortcut" data-shortcut-tab="search" onclick="showTab('search')"><span class="shortcut-icon">SP</span>収集</button>
+            <button type="button" class="toolbar-shortcut" data-shortcut-tab="forms" onclick="showTab('forms')"><span class="shortcut-icon">FM</span>フォーム</button>
+            <button type="button" class="toolbar-shortcut" data-shortcut-tab="sending" onclick="showTab('sending')"><span class="shortcut-icon">PV</span>送信</button>
+            <button type="button" class="toolbar-shortcut" data-shortcut-tab="emailLeads" onclick="showTab('emailLeads')"><span class="shortcut-icon">ML</span>メール</button>
+            <button type="button" class="utility-action" onclick="refreshAll()">更新</button>
+            <button type="button" class="utility-action" onclick="runSetup()">setup</button>
+          </nav>
         </div>
         <div id="globalMessage" class="message"></div>
 
@@ -2898,7 +3208,7 @@
                   <input type="hidden" id="templateId">
                   <label>名前<input id="templateName" required></label>
                   <label>ジャンル<input id="templateGenre" list="genreList"></label>
-                  <label>種類<select id="templateType">
+                  <label>種類<select id="templateType" onchange="renderTemplateTagMenuPanel()">
                     <option value="initial">初回</option>
                     <option value="followup_2m">2ヶ月後</option>
                     <option value="form">フォーム</option>
@@ -2907,10 +3217,13 @@
                     <option value="false">いいえ</option>
                     <option value="true">はい</option>
                   </select></label>
-                  <label>件名<input id="templateSubject" required></label>
-                  <label style="grid-column:1/-1">本文<textarea id="templateBody" required></textarea></label>
+                  <label>件名<input id="templateSubject" required oninput="renderTemplateTagMenuPanel()"></label>
+                  <label style="grid-column:1/-1">本文<textarea id="templateBody" required oninput="renderTemplateTagMenuPanel()"></textarea></label>
+                  <section id="templateTagMenuPanel" class="template-tag-panel" style="grid-column:1/-1"></section>
                   <div class="toolbar">
                     <button type="submit" class="primary">保存</button>
+                    <button type="button" onclick="applyTemplateSample('initial')">初回メール例</button>
+                    <button type="button" onclick="applyTemplateSample('form')">フォーム営業例</button>
                     <button type="button" onclick="clearTemplateForm()">クリア</button>
                   </div>
                 </form>
@@ -3376,6 +3689,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         ops: '管理/運用',
       };
 
+      const TOP_SHORTCUT_TABS = ['leads', 'backgroundJobs', 'search', 'forms', 'sending', 'emailLeads'];
+      let routeProgressTimer = null;
+
       const LEAD_QUICK_VIEW_GROUPS = [
         {
           label: '作業',
@@ -3469,10 +3785,83 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function showTab(name) {
+        showRouteProgress();
         document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
         document.querySelectorAll('.section').forEach((section) => section.classList.toggle('active', section.id === name));
         const title = document.getElementById('activeViewTitle');
         if (title) title.textContent = TAB_TITLES[name] || name;
+        updateTopShortcutBar(name);
+      }
+
+      function showRouteProgress() {
+        const progress = document.getElementById('appRouteProgress');
+        if (!progress) return;
+        progress.classList.add('active');
+        if (routeProgressTimer) clearTimeout(routeProgressTimer);
+        routeProgressTimer = setTimeout(() => progress.classList.remove('active'), 650);
+      }
+
+      function updateTopShortcutBar(activeTab) {
+        document.querySelectorAll('.toolbar-shortcut').forEach((button) => {
+          const active = button.dataset.shortcutTab === activeTab;
+          button.classList.toggle('active', active);
+          if (active) {
+            button.setAttribute('aria-current', 'page');
+          } else {
+            button.removeAttribute('aria-current');
+          }
+        });
+      }
+
+      function renderTodayLabel() {
+        const target = document.getElementById('todayLabel');
+        if (!target) return;
+        target.textContent = new Intl.DateTimeFormat('ja-JP', {
+          month: 'short',
+          day: 'numeric',
+          weekday: 'short',
+          timeZone: 'Asia/Tokyo',
+        }).format(new Date());
+      }
+
+      function renderAppSafetyStrip(dashboard) {
+        const target = document.getElementById('appSafetyStrip');
+        if (!target) return;
+        const data = dashboard || {};
+        const integrations = data.integrations || {};
+        const sendWindow = data.sendWindow || {};
+        const gmailReady = integrations.gmail !== false;
+        const mailReady = gmailReady && (data.todayRemaining || 0) > 0;
+        const sendWindowAllowed = sendWindow.allowed !== false && sendWindow.enabled !== false;
+        const sendingEnabled = mailReady && sendWindowAllowed;
+        const reason = sendingEnabled
+          ? '自動送信だけ時間制限内で実行します'
+          : !gmailReady
+            ? 'Gmail送信枠または承認状態を確認してください'
+            : (data.todayRemaining || 0) <= 0
+              ? '本日の送信上限に達しています'
+              : '自動送信時間外または時間制限OFFです';
+        const serperReady = Boolean(data.serperConfigured);
+        const serperLabel = serperReady ? `${formatNumber(data.serperTodayRemaining || 0)}件` : '未設定';
+        target.innerHTML = `
+          <div class="app-safety-strip-main">
+            <span class="app-safety-icon ${sendingEnabled ? 'ok' : ''}">SH</span>
+            <div>
+              <strong>自動送信 ${sendingEnabled ? '稼働中' : '停止中'}</strong>
+              <span>${escapeHtml(reason)}</span>
+            </div>
+          </div>
+          <div class="app-safety-strip-items">
+            <span class="app-safety-chip">送信時間 ${statusTonePill(sendWindow.label || '確認中', sendWindowAllowed ? 'good' : 'warn')}</span>
+            <span class="app-safety-chip">Gmail ${statusTonePill(gmailReady ? 'OK' : '確認', gmailReady ? 'good' : 'bad')}</span>
+            <span class="app-safety-chip">Calendar ${statusTonePill(integrations.calendar !== false ? 'OK' : '確認', integrations.calendar !== false ? 'good' : 'warn')}</span>
+            <span class="app-safety-chip">Serper残量 ${statusTonePill(serperLabel, serperReady ? ((data.serperTodayRemaining || 0) > 0 ? 'good' : 'warn') : 'warn')}</span>
+          </div>
+        `;
+      }
+
+      function statusTonePill(label, tone) {
+        return `<span class="pill ${escapeHtml(tone || '')}">${escapeHtml(label)}</span>`;
       }
 
       async function refreshAll() {
@@ -3485,12 +3874,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.customFieldDefinitions = initial.customFieldDefinitions || [];
           state.listViewSettings = initial.listViewSettings || [];
           document.getElementById('appMeta').textContent = `${initial.app.version} / ${initial.app.spreadsheetUrl}`;
+          renderTodayLabel();
+          renderAppSafetyStrip(initial.dashboard);
           renderSelects(initial.enums, initial.genres);
           renderDashboard(initial.dashboard);
           renderSerper(initial.serper);
           await Promise.all([loadLeads(), loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()]);
           await loadFormLeads();
           renderExpandedLegacyScreens();
+          updateTopShortcutBar(document.querySelector('.section.active')?.id || 'dashboard');
           message('更新しました', 'ok');
         } catch (error) {
           await showStartupError(error);
@@ -4526,6 +4918,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('templateCountPill').textContent = `${formatNumber(state.templates.length)}件`;
         document.getElementById('templateTable').innerHTML = table(['名称', 'ジャンル', '種別', 'タグ', 'テスト', '本番', '版', '操作'], rows);
         renderTemplateExample(state.templates[0]);
+        renderTemplateTagMenuPanel();
         renderLeadSendTemplateOptions();
       }
 
@@ -4593,11 +4986,117 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function collectTemplateTags(text) {
         const tags = [];
-        String(text || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => {
-          if (!tags.includes(key)) tags.push(key);
+        String(text || '').replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, key) => {
+          const normalizedKey = String(key || '').trim();
+          if (normalizedKey && !tags.includes(normalizedKey)) tags.push(normalizedKey);
           return '';
         });
         return tags;
+      }
+
+      function templateTagOptions() {
+        const standard = [
+          ['会社名', '会社名が空欄の場合は空文字になります'],
+          ['屋号', '店舗名・サービス名・施設名として使います'],
+          ['担当者名', '未登録の場合は「ご担当者」になります'],
+          ['WEBサイトURL', '登録済みのWEBサイトURLを差し込みます'],
+          ['ジャンル名', '営業リストのジャンル名を差し込みます'],
+          ['メール', '営業先メールアドレスを差し込みます'],
+          ['電話番号', '営業先電話番号を差し込みます'],
+          ['フォームURL', '問い合わせフォームURLを差し込みます'],
+          ['住所', '営業先住所を差し込みます'],
+          ['差出人名', 'メール送信時の差出人名を差し込みます'],
+        ];
+        const compatibility = [
+          ['company_name', 'GAS内部の会社名キー'],
+          ['facility_name', 'GAS内部の屋号キー'],
+          ['contact_name', 'GAS内部の担当者キー'],
+          ['website_url', 'GAS内部のWEBサイトURLキー'],
+          ['genre', 'GAS内部のジャンルキー'],
+        ];
+        const custom = (state.customFieldDefinitions || [])
+          .filter((field) => field.active !== false && field.template_enabled !== false)
+          .map((field) => [field.field_key, `${field.genre || 'ジャンル未設定'} / ${field.label}`]);
+        const seen = {};
+        return standard.concat(compatibility, custom).filter(([tag]) => {
+          if (!tag || seen[tag]) return false;
+          seen[tag] = true;
+          return true;
+        });
+      }
+
+      function renderTemplateTagMenuPanel() {
+        const target = document.getElementById('templateTagMenuPanel');
+        if (!target) return;
+        const type = document.getElementById('templateType')?.value || 'initial';
+        const subjectDisabled = type === 'form';
+        const usedTags = collectTemplateTags(`${document.getElementById('templateSubject')?.value || ''}\n${document.getElementById('templateBody')?.value || ''}`);
+        const tags = templateTagOptions();
+        target.innerHTML = `
+          <div class="template-tag-panel-header">
+            <div>
+              <strong>差し込みメニュー</strong>
+              <span class="template-tag-list">件名または本文に追加できます。タグは送信時に営業リストの内容へ置き換わります。</span>
+            </div>
+            <span class="pill info">${formatNumber(tags.length)}タグ</span>
+          </div>
+          <div class="template-tag-grid">
+            ${tags.map(([tag, help]) => `
+              <article class="template-tag-card">
+                <div class="template-tag-copy">
+                  <span class="template-tag-token">{{${escapeHtml(tag)}}}</span>
+                  <small>${escapeHtml(help)}${usedTags.includes(tag) ? ' / 使用中' : ''}</small>
+                </div>
+                <div class="template-tag-actions">
+                  <button type="button" class="table-link-button" onclick="insertTemplateTag('${escapeJsString(tag)}', 'subject')" ${subjectDisabled ? 'disabled title="フォーム営業用は件名を使用しません"' : ''}>件名 +</button>
+                  <button type="button" class="table-link-button" onclick="insertTemplateTag('${escapeJsString(tag)}', 'body')">本文 +</button>
+                </div>
+              </article>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      function insertTemplateTag(tag, target) {
+        const token = `{{${tag}}}`;
+        const field = document.getElementById(target === 'subject' ? 'templateSubject' : 'templateBody');
+        if (!field || (target === 'subject' && document.getElementById('templateType')?.value === 'form')) return;
+        const separator = target === 'subject'
+          ? (field.value && !field.value.endsWith(' ') ? ' ' : '')
+          : (field.value && !field.value.endsWith('\n') ? '\n' : '');
+        field.value = `${field.value || ''}${separator}${token}`;
+        field.focus();
+        renderTemplateTagMenuPanel();
+        renderTemplateExample({
+          name: document.getElementById('templateName')?.value || '編集中テンプレート',
+          subject: document.getElementById('templateSubject')?.value || '',
+          body: document.getElementById('templateBody')?.value || '',
+        });
+      }
+
+      function applyTemplateSample(type) {
+        const samples = {
+          initial: {
+            name: '初回メール',
+            template_type: 'initial',
+            subject: '{{会社名}} ご担当者様へのご提案',
+            body: '{{会社名}}\n{{担当者名}}様\n\n突然のご連絡失礼いたします。\n{{ジャンル名}}領域の集客・営業支援についてご提案できればと思い、ご連絡いたしました。\n\n一度だけ簡単にご案内のお時間をいただけますでしょうか。\n\nよろしくお願いいたします。'
+          },
+          form: {
+            name: 'フォーム営業',
+            template_type: 'form',
+            subject: '',
+            body: '{{会社名}}\n{{担当者名}}様\n\nお問い合わせフォームより失礼いたします。\n貴社の集客・営業活動に関して、短時間でご確認いただけるご提案がありご連絡いたしました。\n\nご担当者様にご確認いただけますと幸いです。'
+          },
+        };
+        const sample = samples[type] || samples.initial;
+        document.getElementById('templateName').value = sample.name;
+        document.getElementById('templateType').value = sample.template_type;
+        document.getElementById('templateSubject').value = sample.subject;
+        document.getElementById('templateBody').value = sample.body;
+        document.getElementById('templateProduction').value = 'false';
+        renderTemplateTagMenuPanel();
+        renderTemplateExample(sample);
       }
 
       function templateTypeLabel(type) {
@@ -4685,6 +5184,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('templateSubject').value = template.subject || '';
         document.getElementById('templateBody').value = template.body || '';
         renderTemplateExample(template);
+        renderTemplateTagMenuPanel();
       }
 
       function clearTemplateForm() {
@@ -4692,6 +5192,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('templateId').value = '';
         document.getElementById('templateType').value = 'initial';
         document.getElementById('templateProduction').value = 'false';
+        renderTemplateTagMenuPanel();
       }
 
       async function saveTemplate(event) {
@@ -4868,23 +5369,50 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderClientTemplate(body, lead) {
+        const values = buildTemplateVariablesClient(lead);
+        return replaceTemplateVariablesClient(body, values);
+      }
+
+      function buildTemplateVariablesClient(lead) {
+        const customFields = parseCustomFieldsClient(lead && lead.custom_fields_json);
         const values = {
-          company_name: lead.company_name || '',
-          companyName: lead.company_name || '',
-          facility_name: lead.facility_name || '',
-          facilityName: lead.facility_name || '',
-          genre: lead.genre || '',
-          contact_name: lead.contact_name || 'ご担当者',
-          contactName: lead.contact_name || 'ご担当者',
-          email: lead.email || '',
-          phone: lead.phone || '',
-          website_url: lead.website_url || '',
-          websiteUrl: lead.website_url || '',
-          form_url: lead.form_url || '',
-          formUrl: lead.form_url || '',
-          address: lead.address || '',
+          company_name: lead?.company_name || '',
+          companyName: lead?.company_name || '',
+          '会社名': lead?.company_name || '',
+          facility_name: lead?.facility_name || '',
+          facilityName: lead?.facility_name || '',
+          '屋号': lead?.facility_name || '',
+          genre: lead?.genre || '',
+          'ジャンル名': lead?.genre || '',
+          contact_name: lead?.contact_name || 'ご担当者',
+          contactName: lead?.contact_name || 'ご担当者',
+          '担当者名': lead?.contact_name || 'ご担当者',
+          email: lead?.email || '',
+          'メール': lead?.email || '',
+          phone: lead?.phone || '',
+          '電話番号': lead?.phone || '',
+          website_url: lead?.website_url || '',
+          websiteUrl: lead?.website_url || '',
+          'WEBサイトURL': lead?.website_url || '',
+          form_url: lead?.form_url || '',
+          formUrl: lead?.form_url || '',
+          'フォームURL': lead?.form_url || '',
+          address: lead?.address || '',
+          '住所': lead?.address || '',
+          sender_name: document.getElementById('leadSenderName') ? document.getElementById('leadSenderName').value || '営業担当' : '営業担当',
+          '差出人名': document.getElementById('leadSenderName') ? document.getElementById('leadSenderName').value || '営業担当' : '営業担当',
         };
-        return String(body || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => values[key] === undefined ? '' : values[key]);
+        Object.keys(customFields || {}).forEach((key) => {
+          if (values[key] === undefined) values[key] = customFields[key];
+        });
+        return values;
+      }
+
+      function replaceTemplateVariablesClient(text, values) {
+        return String(text || '').replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_match, key) => {
+          const normalizedKey = String(key || '').trim();
+          return values[normalizedKey] === undefined ? '' : String(values[normalizedKey]);
+        });
       }
 
       async function copySelectedFormMessage() {
@@ -5535,6 +6063,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <label>送信先<input readonly value="${escapeHtml(selectedLead ? selectedLead.email || 'メールアドレスなし' : '営業先なし')}"></label>
             <label>送信可否<input readonly value="${escapeHtml(blockReason ? `送信不可: ${blockReason}` : '送信可能')}"></label>
           </div>
+          ${renderTemplateVariablePreview(selectedLead, selectedTemplate)}
           <label>件名<input readonly value="${escapeHtml(preview.subject)}"></label>
           <label>本文<pre class="mail-preview">${escapeHtml(preview.body)}</pre></label>
           <div class="toolbar">
@@ -5564,6 +6093,29 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return matched.length ? matched : leads;
       }
 
+      function renderTemplateVariablePreview(lead, template) {
+        if (!lead || !template) return '';
+        const usedTags = collectTemplateTags(`${template.subject || ''}\n${template.body || ''}`);
+        const tags = usedTags.length ? usedTags : ['会社名', '屋号', '担当者名', 'WEBサイトURL', 'ジャンル名'];
+        const values = buildTemplateVariablesClient(lead);
+        return `
+          <div class="send-check-card">
+            <div>
+              <h3>差し込み変数</h3>
+              <p class="muted">選択中の営業先で置き換えた時の値です。空欄のタグは送信時も空文字になります。</p>
+            </div>
+            <div class="template-variable-grid">
+              ${tags.map((tag) => `
+                <span class="template-variable-card">
+                  <small>{{${escapeHtml(tag)}}}</small>
+                  <strong>${escapeHtml(values[tag] == null || values[tag] === '' ? '-' : String(values[tag]))}</strong>
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
       function setEmailPreviewTemplate(id) {
         state.selectedEmailPreviewTemplateId = id;
         state.selectedEmailPreviewLeadId = '';
@@ -5577,21 +6129,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderTemplateForLeadClient(template, lead) {
         if (!template || !lead) return { subject: '', body: '' };
-        const values = {
-          company_name: lead.company_name || '',
-          facility_name: lead.facility_name || '',
-          contact_name: lead.contact_name || 'ご担当者',
-          genre: lead.genre || '',
-          email: lead.email || '',
-          website_url: lead.website_url || '',
-          form_url: lead.form_url || '',
-          address: lead.address || '',
-          sender_name: document.getElementById('leadSenderName') ? document.getElementById('leadSenderName').value || '営業担当' : '営業担当',
-        };
-        const replace = (text) => String(text || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => values[key] !== undefined ? values[key] : '');
+        const values = buildTemplateVariablesClient(lead);
         return {
-          subject: replace(template.subject || ''),
-          body: replace(template.body || ''),
+          subject: replaceTemplateVariablesClient(template.subject || '', values),
+          body: replaceTemplateVariablesClient(template.body || '', values),
         };
       }
 
