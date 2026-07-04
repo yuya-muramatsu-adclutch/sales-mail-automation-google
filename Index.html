@@ -423,6 +423,462 @@
         line-height: 1;
       }
 
+      .dashboard-hero-grid,
+      .dashboard-lower-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr);
+        gap: 14px;
+        align-items: stretch;
+      }
+
+      .dashboard-section-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .dashboard-kicker {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .dashboard-send-queue,
+      .dashboard-api-panel,
+      .dashboard-focus-section,
+      .dashboard-summary-panel,
+      .mail-sending-control,
+      .prospecting-status-card {
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: var(--shadow-soft);
+        padding: 16px;
+      }
+
+      .dashboard-send-queue {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(240px, 0.75fr);
+        gap: 14px;
+        border-top: 4px solid var(--blue);
+      }
+
+      .dashboard-send-queue-count strong {
+        font-size: 56px;
+        line-height: 1;
+      }
+
+      .dashboard-send-queue-count span {
+        margin-left: 6px;
+        color: var(--muted);
+        font-weight: 900;
+      }
+
+      .dashboard-send-queue p,
+      .dashboard-api-panel p,
+      .prospecting-status-card p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .dashboard-mini-metrics,
+      .dashboard-compact-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 8px;
+      }
+
+      .dashboard-mini-metric,
+      .dashboard-compact-stat {
+        display: grid;
+        gap: 4px;
+        min-height: 68px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .dashboard-mini-metric small,
+      .dashboard-compact-stat span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .dashboard-mini-metric strong,
+      .dashboard-compact-stat strong {
+        color: var(--text);
+        font-size: 20px;
+        line-height: 1.1;
+      }
+
+      .dashboard-api-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .dashboard-api-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        min-height: 40px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .dashboard-api-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--red);
+      }
+
+      .dashboard-api-dot.ok {
+        background: var(--green);
+      }
+
+      .dashboard-signal-grid,
+      .dashboard-action-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .dashboard-signal-card,
+      .dashboard-action-card {
+        display: grid;
+        gap: 7px;
+        min-height: 128px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+        text-align: left;
+      }
+
+      .dashboard-signal-card {
+        border-top: 4px solid var(--blue);
+      }
+
+      .dashboard-signal-card.green,
+      .dashboard-action-card.ok {
+        border-top-color: var(--green);
+      }
+
+      .dashboard-signal-card.ink,
+      .dashboard-action-card.info {
+        border-top-color: var(--teal);
+      }
+
+      .dashboard-signal-card.amber,
+      .dashboard-action-card.warn {
+        border-top-color: var(--amber);
+      }
+
+      .dashboard-signal-card.red,
+      .dashboard-action-card.bad {
+        border-top-color: var(--red);
+      }
+
+      .dashboard-signal-card span,
+      .dashboard-action-card span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .dashboard-signal-card strong,
+      .dashboard-action-card strong {
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      .dashboard-signal-card small,
+      .dashboard-action-card small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .dashboard-signal-card b {
+        color: #1d4ed8;
+        font-size: 12px;
+      }
+
+      .list-filter-panel {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(240px, 1fr) repeat(4, minmax(150px, 190px)) auto;
+        align-items: end;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+
+      .filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .filter-bar span {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .filter-bar button {
+        min-height: 32px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        font-size: 13px;
+      }
+
+      .filter-bar button.active {
+        border-color: #1f2937;
+        background: #1f2937;
+        color: #fff;
+      }
+
+      .lead-quick-views {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid #dbe4ee;
+        border-radius: 8px;
+        background: #f8fafc;
+        overflow-x: auto;
+      }
+
+      .lead-quick-views > span {
+        flex: 0 0 auto;
+        padding-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .lead-quick-view-group {
+        flex: 0 0 auto;
+        display: grid;
+        gap: 7px;
+        padding: 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .lead-quick-view-group small {
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .lead-quick-view-group div {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .lead-quick-view {
+        min-height: 32px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+      }
+
+      .lead-quick-view.active {
+        border-color: #1f2937;
+        background: #1f2937;
+        color: #fff;
+      }
+
+      .list-count-bar {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .list-count-bar div,
+      .lead-kpi-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: linear-gradient(180deg, #fff, #f8fafc);
+      }
+
+      .list-count-bar div {
+        display: grid;
+        gap: 5px;
+        min-height: 70px;
+        padding: 12px;
+      }
+
+      .list-count-bar span,
+      .lead-kpi-card span:not(.lead-kpi-icon) {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .list-count-bar strong {
+        font-size: 24px;
+        line-height: 1;
+      }
+
+      .lead-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .lead-kpi-card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        min-height: 92px;
+        padding: 14px;
+        border-top-width: 4px;
+      }
+
+      .lead-kpi-icon {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        color: #1d4ed8;
+        background: #dbeafe;
+        font-weight: 900;
+      }
+
+      .lead-kpi-card strong {
+        display: block;
+        margin-top: 3px;
+        font-size: 24px;
+        line-height: 1;
+      }
+
+      .lead-kpi-card small {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .lead-kpi-card--reply .lead-kpi-icon,
+      .lead-kpi-card--won .lead-kpi-icon {
+        color: #047857;
+        background: #d1fae5;
+      }
+
+      .lead-kpi-card--send-ng .lead-kpi-icon {
+        color: #b91c1c;
+        background: #fee2e2;
+      }
+
+      .lead-kpi-card--deal .lead-kpi-icon {
+        color: #92400e;
+        background: #fef3c7;
+      }
+
+      .lead-kpi-card--lost .lead-kpi-icon {
+        color: #475569;
+        background: #e2e8f0;
+      }
+
+      .lead-status-legend {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .lead-status-legend > span,
+      .lead-status-legend-item {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .lead-status-legend > div {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .lead-status-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #334155;
+      }
+
+      .lead-status-legend-item i {
+        width: 13px;
+        height: 13px;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        background: #fff;
+      }
+
+      .lead-status-legend-item i.reply { background: #eff6ff; border-color: #bfdbfe; }
+      .lead-status-legend-item i.ng { background: #fff1f2; border-color: #fecaca; }
+      .lead-status-legend-item i.lost { background: #f1f5f9; border-color: #cbd5e1; }
+      .lead-status-legend-item i.won { background: #ecfdf5; border-color: #bbf7d0; }
+      .lead-status-legend-item i.review { background: #fffbeb; border-color: #fde68a; }
+
+      .lead-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 12px 0 0;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .form-work-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .form-template-preview {
+        display: grid;
+        gap: 10px;
+        min-height: 180px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        white-space: pre-wrap;
+      }
+
       .panel {
         border: 1px solid var(--line-strong);
         border-radius: 8px;
@@ -512,6 +968,14 @@
 
       tr.row-deal:hover td {
         background: #d1fae5;
+      }
+
+      tr.row-review td {
+        background: #fffbeb;
+      }
+
+      tr.row-review:hover td {
+        background: #fef3c7;
       }
 
       tr.row-muted td {
@@ -686,6 +1150,20 @@
           grid-template-columns: 1fr;
         }
 
+        .dashboard-hero-grid,
+        .dashboard-lower-grid,
+        .dashboard-send-queue,
+        .form-work-panel,
+        .list-filter-panel {
+          grid-template-columns: 1fr;
+        }
+
+        .dashboard-signal-grid,
+        .dashboard-action-grid,
+        .lead-kpi-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .side {
           position: static;
         }
@@ -714,7 +1192,11 @@
         }
 
         .stats,
-        .grid {
+        .grid,
+        .dashboard-signal-grid,
+        .dashboard-action-grid,
+        .lead-kpi-grid,
+        .list-count-bar {
           grid-template-columns: 1fr;
         }
 
@@ -812,6 +1294,9 @@
             <button type="button" class="tab nav-item" data-tab="search" onclick="showTab('search')">
               <span class="nav-icon">SP</span><span>Serper検索</span>
             </button>
+            <button type="button" class="tab nav-item" data-tab="forms" onclick="showTab('forms')">
+              <span class="nav-icon">FM</span><span>フォーム送信</span>
+            </button>
           </div>
           <div class="nav-group">
             <div class="nav-group-label">運用</div>
@@ -854,7 +1339,38 @@
               <h1>ダッシュボード</h1>
             </div>
           </header>
+          <div class="dashboard-hero-grid">
+            <section class="dashboard-send-queue" id="dashboardSendQueue"></section>
+            <section class="dashboard-api-panel">
+              <div class="dashboard-section-heading">
+                <div>
+                  <span class="dashboard-kicker">API連携</span>
+                  <h2 id="dashboardApiTitle">確認中</h2>
+                </div>
+                <span id="dashboardApiPill" class="pill">確認中</span>
+              </div>
+              <div class="dashboard-api-list" id="dashboardApiList"></div>
+            </section>
+          </div>
+          <section class="dashboard-focus-section">
+            <div class="dashboard-section-heading"><h2>重要指標</h2></div>
+            <div class="dashboard-signal-grid" id="dashboardSignals"></div>
+          </section>
+          <section class="dashboard-focus-section">
+            <div class="dashboard-section-heading"><h2>次の作業</h2></div>
+            <div class="dashboard-action-grid" id="dashboardActions"></div>
+          </section>
           <div class="stats" id="stats"></div>
+          <div class="dashboard-lower-grid">
+            <section class="dashboard-summary-panel">
+              <div class="dashboard-section-heading"><h2>今月の動き</h2></div>
+              <div class="dashboard-compact-grid" id="dashboardMonth"></div>
+            </section>
+            <section class="dashboard-summary-panel">
+              <div class="dashboard-section-heading"><h2>運用サマリー</h2></div>
+              <div class="dashboard-compact-grid" id="dashboardOps"></div>
+            </section>
+          </div>
           <div class="split">
             <div class="panel">
               <div class="panel-head"><h2>ステータス内訳</h2></div>
@@ -875,6 +1391,34 @@
             </div>
             <button type="button" class="primary" onclick="newLead()">手動追加</button>
           </header>
+          <div class="filter-bar" id="genreBar"></div>
+          <div class="list-filter-panel">
+            <label>検索<input id="leadSearch" type="search" placeholder="会社名、屋号、メール、URL"></label>
+            <label>ビュー<select id="leadQuickFilter">
+              <option value="all">すべて</option>
+              <option value="email">メール対象</option>
+              <option value="form">フォーム対象</option>
+              <option value="unsent">未送信だけ</option>
+              <option value="sent">送信済み</option>
+              <option value="reply">返信あり</option>
+              <option value="deal">商談あり</option>
+              <option value="no_contact">メール/フォームなし</option>
+              <option value="send_ng">送信NGだけ</option>
+              <option value="won">成約だけ</option>
+              <option value="lost">失注だけ</option>
+            </select></label>
+            <label>ステータス<select id="leadStatus"></select></label>
+            <label>ジャンル<select id="leadGenre"></select></label>
+            <label>並び替え<select id="leadSort">
+              <option value="updated_desc">更新が新しい順</option>
+              <option value="created_desc">作成が新しい順</option>
+              <option value="company_asc">会社名順</option>
+              <option value="status_asc">ステータス順</option>
+              <option value="last_sent_desc">最終送信が新しい順</option>
+            </select></label>
+            <button type="button" onclick="filterLeads()">適用</button>
+          </div>
+          <div class="lead-quick-views" id="leadQuickViews"></div>
           <div class="split">
             <div class="panel">
               <div class="panel-head">
@@ -883,17 +1427,18 @@
               </div>
               <div class="panel-body">
                 <div class="toolbar">
-                  <label>検索<input id="leadSearch" type="search" placeholder="会社名、メール、URL"></label>
-                  <label>ステータス<select id="leadStatus"></select></label>
                   <label>表示件数<select id="leadLimit">
                     <option value="100">100件</option>
                     <option value="500" selected>500件</option>
                     <option value="1000">1000件</option>
                     <option value="2000">2000件</option>
                   </select></label>
-                  <button type="button" onclick="filterLeads()">絞り込み</button>
+                  <button type="button" onclick="clearLeadFilters()">クリア</button>
                 </div>
-                <div id="leadPager" class="toolbar"></div>
+                <div id="leadCountBar" class="list-count-bar"></div>
+                <div id="leadKpiGrid" class="lead-kpi-grid"></div>
+                <div id="leadStatusLegend" class="lead-status-legend"></div>
+                <div id="leadPager" class="lead-pagination"></div>
               </div>
               <div class="table-wrap"><table id="leadTable"></table></div>
             </div>
@@ -1029,6 +1574,52 @@
           </div>
         </section>
 
+        <section id="forms" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Manual form outreach</p>
+              <h1>フォーム送信リスト</h1>
+            </div>
+            <button type="button" class="primary" onclick="showTab('templates')">フォーム用テンプレート</button>
+          </header>
+          <div class="list-filter-panel">
+            <label>検索<input id="formSearch" type="search" placeholder="会社名、施設名、フォームURL"></label>
+            <label>フォーム状態<select id="formStatusFilter">
+              <option value="active">未対応/対応中</option>
+              <option value="未対応">未対応</option>
+              <option value="対応中">対応中</option>
+              <option value="対応済み">対応済み</option>
+              <option value="対応不要">対応不要</option>
+              <option value="all">すべて</option>
+            </select></label>
+            <label>表示件数<select id="formLimit">
+              <option value="50">50件</option>
+              <option value="100" selected>100件</option>
+              <option value="300">300件</option>
+            </select></label>
+            <button type="button" onclick="loadFormLeads()">適用</button>
+          </div>
+          <div class="form-work-panel">
+            <div class="panel">
+              <div class="panel-head"><h2>フォーム対象</h2><span class="pill info" id="formLeadCount">0件</span></div>
+              <div class="table-wrap"><table id="formLeadTable"></table></div>
+            </div>
+            <div class="panel side">
+              <div class="panel-head"><h2>本文プレビュー</h2></div>
+              <div class="panel-body">
+                <p class="muted" id="formPreviewMeta">対象を選択してください</p>
+                <div class="form-template-preview" id="formTemplatePreview">フォーム送信用テンプレートがここに表示されます。</div>
+                <div class="toolbar" style="margin-top:12px">
+                  <button type="button" class="primary" onclick="copySelectedFormMessage()">コピー</button>
+                  <button type="button" onclick="markSelectedFormLead('対応中')">対応中</button>
+                  <button type="button" onclick="markSelectedFormLead('対応済み')">対応済み</button>
+                  <button type="button" class="danger" onclick="markSelectedFormLead('対応不要')">対応不要</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section id="search" class="section">
           <header class="section-header">
             <div>
@@ -1036,6 +1627,7 @@
               <h1>Serper検索</h1>
             </div>
           </header>
+          <div class="dashboard-action-grid" id="searchOverview"></div>
           <div class="split">
             <div class="panel">
               <div class="panel-head"><h2>Serper API</h2></div>
@@ -1110,8 +1702,33 @@
         templates: 'テンプレート',
         masters: 'NG/除外',
         search: 'Serper検索',
+        forms: 'フォーム送信',
         ops: '運用',
       };
+
+      const LEAD_QUICK_VIEW_GROUPS = [
+        {
+          label: '作業',
+          views: [
+            ['all', 'すべて'],
+            ['email', 'メール対象'],
+            ['form', 'フォーム対象'],
+            ['no_contact', '連絡先なし'],
+          ],
+        },
+        {
+          label: '状態',
+          views: [
+            ['unsent', '未送信'],
+            ['sent', '送信済み'],
+            ['reply', '返信あり'],
+            ['deal', '商談あり'],
+            ['won', '成約'],
+            ['lost', '失注'],
+            ['send_ng', '送信NG'],
+          ],
+        },
+      ];
 
       const state = {
         app: null,
@@ -1120,6 +1737,10 @@
         templates: [],
         ngMasters: [],
         excludedDomains: [],
+        genres: [],
+        formLeads: [],
+        formTotal: 0,
+        selectedFormLeadId: '',
         leadPage: {
           limit: 500,
           offset: 0,
@@ -1172,6 +1793,7 @@
           renderDashboard(initial.dashboard);
           renderSerper(initial.serper);
           await Promise.all([loadLeads(), loadTemplates(), loadMasters(), loadSearchResults(), loadHistories()]);
+          await loadFormLeads();
           message('更新しました', 'ok');
         } catch (error) {
           await showStartupError(error);
@@ -1206,11 +1828,15 @@
       }
 
       function renderSelects(enums, genres) {
+        state.genres = genres || [];
         fillSelect('leadStatus', [''].concat(enums.leadStatuses || []));
+        fillSelect('leadGenre', [''].concat((genres || []).map((genre) => genre.name)));
         fillSelect('leadEditStatus', enums.leadStatuses || []);
         fillSelect('leadDealStatus', enums.dealStatuses || []);
         const datalist = document.getElementById('genreList');
         datalist.innerHTML = (genres || []).map((genre) => `<option value="${escapeHtml(genre.name)}"></option>`).join('');
+        renderGenreBar();
+        renderLeadQuickViews();
       }
 
       function fillSelect(id, values) {
@@ -1219,6 +1845,7 @@
       }
 
       function renderDashboard(dashboard) {
+        state.dashboard = dashboard;
         const stats = [
           ['リード', dashboard.leadsTotal],
           ['送信対象', dashboard.sendTargets],
@@ -1230,8 +1857,121 @@
           ['月間検索', dashboard.serperMonth],
         ];
         document.getElementById('stats').innerHTML = stats.map(([label, value]) => `<div class="stat"><span>${label}</span><strong>${value}</strong></div>`).join('');
+        renderDashboardHero(dashboard);
+        renderDashboardSignals(dashboard);
+        renderDashboardActions(dashboard);
+        renderDashboardCompact(dashboard);
+        renderSearchOverview(dashboard);
         renderObjectTable('statusTable', dashboard.byStatus || {});
         renderObjectTable('genreTable', dashboard.byGenre || {});
+      }
+
+      function renderDashboardHero(dashboard) {
+        const canSend = dashboard.sendTargets > 0 && dashboard.todayRemaining > 0;
+        const sendReason = !canSend
+          ? dashboard.todayRemaining <= 0
+            ? '本日の送信上限に達しています'
+            : '今日送れる営業先がありません'
+          : '送信前チェックへ進めます';
+        document.getElementById('dashboardSendQueue').innerHTML = `
+          <div>
+            <div class="dashboard-section-heading">
+              <div><span class="dashboard-kicker">メール送信対象</span><h2>今日の送信キュー</h2></div>
+              ${statusPill(canSend ? '送信可能' : '要確認')}
+            </div>
+            <div class="dashboard-send-queue-count"><strong>${formatNumber(Math.min(dashboard.sendTargets || 0, dashboard.todayRemaining || 0))}</strong><span>件</span></div>
+            <p>${escapeHtml(sendReason)}</p>
+          </div>
+          <div class="dashboard-mini-metrics">
+            ${miniMetric('送信可能リスト', `${formatNumber(dashboard.sendTargets)}件`)}
+            ${miniMetric('本日残り', `${formatNumber(dashboard.todayRemaining)}件`)}
+            ${miniMetric('本日送信済み', `${formatNumber(dashboard.sentToday)}件`)}
+            ${miniMetric('自動送信時間', escapeHtml((dashboard.sendWindow && dashboard.sendWindow.label) || '-'))}
+          </div>
+        `;
+
+        const integrations = dashboard.integrations || {};
+        const apiRows = [
+          ['Sheets', integrations.sheets, 'DB'],
+          ['Gmail', integrations.gmail, `残り ${formatNumber(dashboard.mailQuotaRemaining)}件`],
+          ['Calendar', integrations.calendar, '商談作成'],
+          ['Serper', integrations.serper, dashboard.serperConfigured ? `本日残り ${formatNumber(dashboard.serperTodayRemaining)}件` : '未設定'],
+          ['Trigger', integrations.triggers, `${formatNumber(dashboard.triggerCount)}件`],
+        ];
+        const okCount = apiRows.filter((item) => item[1]).length;
+        document.getElementById('dashboardApiTitle').textContent = `${okCount}/${apiRows.length} 正常`;
+        document.getElementById('dashboardApiPill').outerHTML = `<span id="dashboardApiPill" class="pill ${okCount === apiRows.length ? 'good' : okCount >= 3 ? 'warn' : 'bad'}">${okCount === apiRows.length ? '正常' : '要確認'}</span>`;
+        document.getElementById('dashboardApiList').innerHTML = apiRows.map(([label, ready, detail]) => `
+          <div class="dashboard-api-row">
+            <span class="dashboard-api-dot ${ready ? 'ok' : ''}"></span>
+            <span><strong>${escapeHtml(label)}</strong><br><small class="muted">${escapeHtml(detail)}</small></span>
+            <span class="pill ${ready ? 'good' : 'bad'}">${ready ? 'OK' : '要確認'}</span>
+          </div>
+        `).join('');
+      }
+
+      function renderDashboardSignals(dashboard) {
+        const month = dashboard.thisMonth || {};
+        const apiOk = Object.values(dashboard.integrations || {}).filter(Boolean).length;
+        const apiTotal = Object.keys(dashboard.integrations || {}).length || 5;
+        document.getElementById('dashboardSignals').innerHTML = [
+          signalCard('メール送信対象', `${formatNumber(Math.min(dashboard.sendTargets || 0, dashboard.todayRemaining || 0))}件`, `送信可能 ${formatNumber(dashboard.sendTargets)}件`, '送信リストへ', 'blue', "showTab('leads'); setLeadFilter('email')"),
+          signalCard('API連携', `${apiOk}/${apiTotal}`, `Serper本日残り ${formatNumber(dashboard.serperTodayRemaining)}件`, '運用へ', apiOk === apiTotal ? 'green' : 'amber', "showTab('ops')"),
+          signalCard('今月新規リスト', `${formatNumber(month.addedLeads || 0)}件`, `累計 ${formatNumber(dashboard.leadsTotal)}件`, '収集へ', 'green', "showTab('search')"),
+          signalCard('今月返信', `${formatNumber(month.replies || 0)}件`, `返信率 ${formatPercent(month.replyRate || 0)}`, '返信を見る', 'ink', "showTab('leads'); setLeadFilter('reply')"),
+        ].join('');
+      }
+
+      function renderDashboardActions(dashboard) {
+        document.getElementById('dashboardActions').innerHTML = [
+          actionCard('送信前チェック', `${formatNumber(dashboard.todayRemaining)}件`, '本日残り送信枠', dashboard.todayRemaining > 0 ? 'ok' : 'bad', "showTab('leads'); setLeadFilter('email')"),
+          actionCard('フォーム対象', `${formatNumber(dashboard.formTargets)}件`, 'メールなし・フォームあり', dashboard.formTargets > 0 ? 'info' : 'ok', "showTab('forms')"),
+          actionCard('確認待ち/未対応', `${formatNumber((dashboard.byStatus || {})['未対応'] || 0)}件`, '未対応リード確認', 'warn', "showTab('leads'); setLeadFilter('all'); document.getElementById('leadStatus').value='未対応'; filterLeads()"),
+          actionCard('異常確認', `${formatNumber(dashboard.errorCount)}件`, 'sync_logs warn/error', dashboard.errorCount > 0 ? 'bad' : 'ok', "showTab('ops')"),
+        ].join('');
+      }
+
+      function renderDashboardCompact(dashboard) {
+        const month = dashboard.thisMonth || {};
+        document.getElementById('dashboardMonth').innerHTML = [
+          compactStat('新規追加', `${formatNumber(month.addedLeads || 0)}件`),
+          compactStat('送信', `${formatNumber(month.sent || 0)}件`),
+          compactStat('返信', `${formatNumber(month.replies || 0)}件`, formatPercent(month.replyRate || 0)),
+          compactStat('商談', `${formatNumber(month.deals || 0)}件`),
+        ].join('');
+        document.getElementById('dashboardOps').innerHTML = [
+          compactStat('送信可能', `${formatNumber(dashboard.sendTargets)}件`),
+          compactStat('フォーム対象', `${formatNumber(dashboard.formTargets)}件`),
+          compactStat('送信NG', `${formatNumber(dashboard.sendNg)}件`),
+          compactStat('ジョブ待ち', `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件`),
+        ].join('');
+      }
+
+      function renderSearchOverview(dashboard) {
+        const target = document.getElementById('searchOverview');
+        if (!target) return;
+        target.innerHTML = [
+          actionCard('Serper API', dashboard.serperConfigured ? '設定済み' : '未設定', dashboard.serperKeyMask || 'PropertiesService保存', dashboard.serperConfigured ? 'ok' : 'bad', "document.getElementById('serperKey').focus()"),
+          actionCard('本日検索', `${formatNumber(dashboard.serperToday)} / ${formatNumber(dashboard.serperDailyLimit)}`, `残り ${formatNumber(dashboard.serperTodayRemaining)}件`, dashboard.serperTodayRemaining > 0 ? 'ok' : 'bad', "showTab('search')"),
+          actionCard('月間検索', `${formatNumber(dashboard.serperMonth)} / ${formatNumber(dashboard.serperMonthlyLimit)}`, `残り ${formatNumber(dashboard.serperMonthRemaining)}件`, dashboard.serperMonthRemaining > 0 ? 'ok' : 'warn', "showTab('search')"),
+          actionCard('検索ジョブ', `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件`, `完了 ${formatNumber(dashboard.completedJobs || 0)} / 失敗 ${formatNumber(dashboard.failedJobs || 0)}`, dashboard.failedJobs > 0 ? 'bad' : 'info', "showTab('ops')"),
+        ].join('');
+      }
+
+      function signalCard(label, value, detail, action, tone, onclick) {
+        return `<button type="button" class="dashboard-signal-card ${tone}" onclick="${onclick}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small><b>${escapeHtml(action)}</b></button>`;
+      }
+
+      function actionCard(label, value, detail, tone, onclick) {
+        return `<button type="button" class="dashboard-action-card ${tone}" onclick="${onclick}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></button>`;
+      }
+
+      function miniMetric(label, value) {
+        return `<span class="dashboard-mini-metric"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`;
+      }
+
+      function compactStat(label, value, detail) {
+        return `<span class="dashboard-compact-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${detail ? `<small class="muted">${escapeHtml(detail)}</small>` : ''}</span>`;
       }
 
       function renderObjectTable(id, object) {
@@ -1247,6 +1987,47 @@
         await loadLeads();
       }
 
+      function clearLeadFilters() {
+        document.getElementById('leadSearch').value = '';
+        document.getElementById('leadQuickFilter').value = 'all';
+        document.getElementById('leadStatus').value = '';
+        document.getElementById('leadGenre').value = '';
+        document.getElementById('leadSort').value = 'updated_desc';
+        filterLeads();
+      }
+
+      function setLeadFilter(filter) {
+        document.getElementById('leadQuickFilter').value = filter || 'all';
+        filterLeads();
+      }
+
+      function setLeadGenre(genre) {
+        document.getElementById('leadGenre').value = genre || '';
+        filterLeads();
+      }
+
+      function renderGenreBar() {
+        const active = document.getElementById('leadGenre') ? document.getElementById('leadGenre').value : '';
+        const topGenres = (state.genres || []).slice(0, 12);
+        document.getElementById('genreBar').innerHTML = [
+          '<span>ジャンル</span>',
+          `<button type="button" class="${!active ? 'active' : ''}" onclick="setLeadGenre('')">すべて</button>`,
+        ].concat(topGenres.map((genre) => {
+          const name = escapeHtml(genre.name);
+          return `<button type="button" class="${active === genre.name ? 'active' : ''}" onclick="setLeadGenre('${escapeJsString(genre.name)}')">${name}</button>`;
+        })).join('');
+      }
+
+      function renderLeadQuickViews() {
+        const active = document.getElementById('leadQuickFilter') ? document.getElementById('leadQuickFilter').value : 'all';
+        document.getElementById('leadQuickViews').innerHTML = '<span>ビュー切り替え</span>' + LEAD_QUICK_VIEW_GROUPS.map((group) => `
+          <div class="lead-quick-view-group">
+            <small>${escapeHtml(group.label)}</small>
+            <div>${group.views.map(([value, label]) => `<button type="button" class="lead-quick-view ${active === value ? 'active' : ''}" onclick="setLeadFilter('${escapeJsString(value)}')">${escapeHtml(label)}</button>`).join('')}</div>
+          </div>
+        `).join('');
+      }
+
       async function loadLeads(offset) {
         if (typeof offset === 'number') {
           state.leadPage.offset = Math.max(offset, 0);
@@ -1255,6 +2036,9 @@
         const result = await api('listLeads', {
           search: document.getElementById('leadSearch').value,
           status: document.getElementById('leadStatus').value,
+          genre: document.getElementById('leadGenre').value,
+          filter: document.getElementById('leadQuickFilter').value,
+          sort: document.getElementById('leadSort').value,
           limit: state.leadPage.limit,
           offset: state.leadPage.offset,
         });
@@ -1262,11 +2046,16 @@
         state.leadPage.total = result.total || 0;
         state.leadPage.offset = result.offset || 0;
         state.leadPage.limit = result.limit || state.leadPage.limit;
+        state.leadPage.stats = result.stats || {};
+        state.leadPage.filteredStats = result.filteredStats || {};
+        renderGenreBar();
+        renderLeadQuickViews();
         renderLeads();
       }
 
       function renderLeads() {
         renderLeadPager();
+        renderLeadInsights();
         const rows = state.leads.map((lead) => {
           const className = leadRowClass(lead);
           return `<tr class="${className}">` + [
@@ -1279,6 +2068,41 @@
           ].map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
         }).join('');
         document.getElementById('leadTable').innerHTML = table(['操作', '会社/施設', 'ジャンル', '状態', '連絡先', '更新'], rows);
+      }
+
+      function renderLeadInsights() {
+        const stats = state.leadPage.stats || {};
+        const filtered = state.leadPage.filteredStats || {};
+        const genre = document.getElementById('leadGenre').value || '全ジャンル';
+        document.getElementById('leadCountBar').innerHTML = [
+          ['営業リスト累計', `${formatNumber(stats.totalLeadCount || 0)}件`],
+          ['表示中', `${formatNumber(state.leadPage.total || 0)}件`],
+          [genre, `${formatNumber(filtered.totalLeadCount || state.leadPage.total || 0)}件`],
+        ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
+        const kpis = [
+          ['lead-kpi-card--sendable', '送信可能数', stats.sendable, 'メール送信対象', 'ML'],
+          ['lead-kpi-card--reply', '返信数', stats.replies, '返信あり', 'RP'],
+          ['lead-kpi-card--send-ng', '送信NG数', stats.sendNg, '送信NG', 'NG'],
+          ['lead-kpi-card--deal', '商談数', stats.deals, '商談予定・済み含む', 'MT'],
+          ['lead-kpi-card--lost', '失注数', stats.lost, '失注', 'LS'],
+          ['lead-kpi-card--won', '成約数', stats.won, '受注', 'WN'],
+        ];
+        document.getElementById('leadKpiGrid').innerHTML = kpis.map(([className, label, value, detail, icon]) => `
+          <div class="lead-kpi-card ${className}">
+            <span class="lead-kpi-icon">${escapeHtml(icon)}</span>
+            <div><span>${escapeHtml(label)}</span><strong>${formatNumber(value || 0)}件</strong><small>${escapeHtml(detail)}</small></div>
+          </div>
+        `).join('');
+        document.getElementById('leadStatusLegend').innerHTML = `
+          <span>色分け</span>
+          <div>
+            <span class="lead-status-legend-item"><i></i>通常</span>
+            <span class="lead-status-legend-item"><i class="reply"></i>返信あり</span>
+            <span class="lead-status-legend-item"><i class="ng"></i>送信NG</span>
+            <span class="lead-status-legend-item"><i class="lost"></i>失注</span>
+            <span class="lead-status-legend-item"><i class="won"></i>成約/商談</span>
+          </div>
+        `;
       }
 
       function renderLeadPager() {
@@ -1534,6 +2358,103 @@
         await refreshAll();
       }
 
+      async function loadFormLeads() {
+        const result = await api('listLeads', {
+          search: document.getElementById('formSearch').value,
+          filter: 'form',
+          formStatus: document.getElementById('formStatusFilter').value,
+          limit: Number(document.getElementById('formLimit').value || 100),
+          offset: 0,
+        });
+        state.formLeads = result.items || [];
+        state.formTotal = result.total || state.formLeads.length;
+        if (!state.selectedFormLeadId && state.formLeads.length > 0) {
+          state.selectedFormLeadId = state.formLeads[0].id;
+        }
+        renderFormLeads(state.formTotal);
+      }
+
+      function renderFormLeads(total) {
+        document.getElementById('formLeadCount').textContent = `${formatNumber(total)}件`;
+        const rows = state.formLeads.map((lead) => row([
+          ['選択', `<button type="button" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '選択中' : '選択'}</button>`],
+          ['会社/施設', `<strong>${escapeHtml(lead.company_name)}</strong><br><span class="muted">${escapeHtml(lead.facility_name || '')}</span>`],
+          ['ジャンル', escapeHtml(lead.genre || '')],
+          ['状態', statusPill(lead.form_status || lead.status || '未対応')],
+          ['フォーム', lead.form_url ? `<a href="${escapeHtml(lead.form_url)}" target="_blank" rel="noopener">${escapeHtml(compactUrl(lead.form_url))}</a>` : '<span class="muted">未取得</span>'],
+          ['操作', `<button type="button" onclick="selectFormLead('${escapeJsString(lead.id)}'); copySelectedFormMessage()">コピー</button>`],
+        ])).join('');
+        document.getElementById('formLeadTable').innerHTML = table(['選択', '会社/施設', 'ジャンル', '状態', 'フォーム', '操作'], rows);
+        renderSelectedFormLead();
+      }
+
+      function selectFormLead(id) {
+        state.selectedFormLeadId = id;
+        renderFormLeads(state.formTotal);
+      }
+
+      function renderSelectedFormLead() {
+        const lead = state.formLeads.find((item) => item.id === state.selectedFormLeadId);
+        if (!lead) {
+          document.getElementById('formPreviewMeta').textContent = '対象を選択してください';
+          document.getElementById('formTemplatePreview').textContent = 'フォーム送信用テンプレートがここに表示されます。';
+          return;
+        }
+        const template = findFormTemplateForLead(lead);
+        document.getElementById('formPreviewMeta').textContent = `${lead.company_name || ''} / ${lead.genre || '共通'} / ${template ? template.name : 'テンプレート未設定'}`;
+        document.getElementById('formTemplatePreview').textContent = template ? renderClientTemplate(template.body || '', lead) : '本番ONのフォーム用テンプレートがありません。テンプレート画面で template_type=form を作成してください。';
+      }
+
+      function findFormTemplateForLead(lead) {
+        const active = state.templates.filter((template) => template.template_type === 'form' && (template.is_production === true || template.is_production === 'true'));
+        return active.find((template) => template.genre && lead.genre && template.genre === lead.genre) || active.find((template) => !template.genre) || active[0] || null;
+      }
+
+      function renderClientTemplate(body, lead) {
+        const values = {
+          company_name: lead.company_name || '',
+          companyName: lead.company_name || '',
+          facility_name: lead.facility_name || '',
+          facilityName: lead.facility_name || '',
+          genre: lead.genre || '',
+          contact_name: lead.contact_name || 'ご担当者',
+          contactName: lead.contact_name || 'ご担当者',
+          email: lead.email || '',
+          phone: lead.phone || '',
+          website_url: lead.website_url || '',
+          websiteUrl: lead.website_url || '',
+          form_url: lead.form_url || '',
+          formUrl: lead.form_url || '',
+          address: lead.address || '',
+        };
+        return String(body || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key) => values[key] === undefined ? '' : values[key]);
+      }
+
+      async function copySelectedFormMessage() {
+        const text = document.getElementById('formTemplatePreview').textContent || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          message('フォーム送信用本文をコピーしました', 'ok');
+        } catch (error) {
+          message('コピーできませんでした。本文プレビューを選択してコピーしてください。', 'error');
+        }
+      }
+
+      async function markSelectedFormLead(nextStatus) {
+        if (!state.selectedFormLeadId) {
+          message('フォーム対象を選択してください', 'error');
+          return;
+        }
+        const statusPatch = nextStatus === '対応済み'
+          ? { status: 'フォーム対応済み', form_status: '対応済み' }
+          : nextStatus === '対応不要'
+            ? { status: '対応不要', form_status: '対応不要' }
+            : { status: 'フォーム対応中', form_status: '対応中' };
+        await api('updateLead', state.selectedFormLeadId, statusPatch);
+        message(`フォーム状態を${nextStatus}に更新しました`, 'ok');
+        await Promise.all([loadFormLeads(), loadLeads()]);
+      }
+
       function renderSerper(info) {
         document.getElementById('serperInfo').textContent = info.configured ? `設定済み: ${info.key_mask}` : '未設定';
       }
@@ -1626,19 +2547,46 @@
 
       function statusPill(status) {
         const danger = ['送信NG', '失注', '対応不要'];
-        const warn = ['フォーム対応中', 'フォーム対応済み'];
-        const good = ['返信あり', '商談予定', '商談済み', '受注'];
-        const info = ['対応中', '送信済み'];
+        const warn = ['フォーム対応中', '対応中'];
+        const good = ['返信あり', '商談予定', '商談済み', '受注', 'フォーム対応済み', '対応済み', '送信可能'];
+        const info = ['初回メール送信済み', '2ヶ月後メール送信済み', '送信済み', '要確認'];
         const tone = danger.includes(status) ? 'bad' : warn.includes(status) ? 'warn' : good.includes(status) ? 'good' : info.includes(status) ? 'info' : '';
         return `<span class="pill ${tone}">${escapeHtml(status || '未設定')}</span>`;
       }
 
       function leadRowClass(lead) {
-        if (['送信NG', '失注', '対応不要'].includes(lead.status)) return 'row-send-ng';
+        if (['失注'].includes(lead.status) || ['失注'].includes(lead.deal_status)) return 'row-muted';
+        if (lead.status === '未対応' && ['serper', 'search_job', 'prospecting'].includes(String(lead.source || ''))) return 'row-review';
+        if (['送信NG', '対応不要'].includes(lead.status)) return 'row-send-ng';
         if (['返信あり'].includes(lead.status)) return 'row-reply';
         if (['商談予定', '商談済み', '受注'].includes(lead.status) || ['受注'].includes(lead.deal_status)) return 'row-deal';
-        if (['失注'].includes(lead.deal_status)) return 'row-muted';
         return '';
+      }
+
+      function formatNumber(value) {
+        return Number(value || 0).toLocaleString('ja-JP');
+      }
+
+      function formatPercent(value) {
+        return `${Number(value || 0).toLocaleString('ja-JP', { maximumFractionDigits: 1 })}%`;
+      }
+
+      function compactUrl(value) {
+        if (!value) return '';
+        try {
+          const url = new URL(value);
+          return url.hostname.replace(/^www\./, '') + (url.pathname === '/' ? '' : url.pathname);
+        } catch (error) {
+          return String(value);
+        }
+      }
+
+      function escapeJsString(value) {
+        return String(value ?? '')
+          .replace(/\\/g, '\\\\')
+          .replace(/'/g, "\\'")
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '');
       }
 
       function toDatetimeLocalValue(value) {

@@ -91,6 +91,12 @@ assert(html.includes('class="tab nav-item active"'), 'sidebar nav item missing')
 assert(html.includes('class="section-header"'), 'section header UI missing');
 assert(html.includes('row-send-ng'), 'lead row status styling missing');
 assert(html.includes('activeViewTitle'), 'active view title missing');
+assert(html.includes('dashboard-hero-grid'), 'legacy-style dashboard hero missing');
+assert(html.includes('dashboard-signal-grid'), 'legacy-style dashboard signals missing');
+assert(html.includes('lead-quick-views'), 'lead quick views missing');
+assert(html.includes('lead-kpi-grid'), 'lead KPI grid missing');
+assert(html.includes('form-work-panel'), 'form outreach panel missing');
+assert(html.includes('searchOverview'), 'Serper search overview missing');
 const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), html.indexOf('async function showStartupError'));
 assert(refreshAllBlock.includes("api('getInitialData')"), 'refreshAll should load initial data');
 assert(!refreshAllBlock.includes("api('getAuthorizationStatus')"), 'refreshAll should not preflight authorization');
@@ -102,6 +108,7 @@ for (const [index, script] of scripts.entries()) {
 
 const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 assert(webApp.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'dashboard should read all lead rows');
+assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflect v11 operations payload');
 [
   'saveEmailTemplate',
   'saveNgMaster',

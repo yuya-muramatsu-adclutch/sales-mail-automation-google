@@ -100,7 +100,7 @@ function normalizeBooleanLike_(value) {
     return value;
   }
   const text = String(value || '').trim().toLowerCase();
-  if (text === 'false' || text === '0' || text === 'no' || text === 'off' || text === 'いいえ') {
+  if (text === '' || text === 'false' || text === '0' || text === 'no' || text === 'off' || text === 'いいえ') {
     return false;
   }
   return true;

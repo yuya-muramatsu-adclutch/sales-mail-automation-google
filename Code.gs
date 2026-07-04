@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260704_apps_script_full_workflow_v10_design_alignment';
+const APP_VERSION = '20260704_apps_script_full_workflow_v11_legacy_ui_deep_port';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -494,11 +494,21 @@ function listLeads(options) {
   const sheet = ensureSheet_(spreadsheet, 'leads');
   const rows = readSheetRecords_(sheet);
   const query = normalizeListOptions_(options);
+  const masterContext = buildMasterBlockContext_();
   const filtered = rows.filter(function (lead) {
     if (!query.includeArchived && isArchivedLead_(lead)) {
       return false;
     }
     if (query.status && lead.status !== query.status) {
+      return false;
+    }
+    if (query.genre && String(lead.genre || '') !== query.genre) {
+      return false;
+    }
+    if (query.formStatus && !matchesFormStatusFilter_(lead, query.formStatus)) {
+      return false;
+    }
+    if (!matchesLeadListFilter_(lead, query.filter, masterContext)) {
       return false;
     }
     if (!query.search) {
@@ -526,15 +536,94 @@ function listLeads(options) {
     return haystack.indexOf(query.search) !== -1;
   });
 
-  filtered.sort(function (a, b) {
-    return String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
-  });
+  sortLeads_(filtered, query.sort);
 
   return {
     total: filtered.length,
     offset: query.offset,
     limit: query.limit,
+    filter: query.filter,
+    genre: query.genre,
+    sort: query.sort,
+    stats: buildLeadListStats_(rows, masterContext, query.genre),
+    filteredStats: buildLeadListStats_(filtered, masterContext, query.genre),
     items: filtered.slice(query.offset, query.offset + query.limit),
+  };
+}
+
+function sortLeads_(leads, sort) {
+  leads.sort(function (a, b) {
+    if (sort === 'company_asc') {
+      return String(a.company_name || a.facility_name || '').localeCompare(String(b.company_name || b.facility_name || ''), 'ja');
+    }
+    if (sort === 'status_asc') {
+      return String(a.status || '').localeCompare(String(b.status || ''), 'ja') ||
+        String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
+    }
+    if (sort === 'created_desc') {
+      return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    }
+    if (sort === 'last_sent_desc') {
+      return String(b.last_sent_at || '').localeCompare(String(a.last_sent_at || '')) ||
+        String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
+    }
+    return String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
+  });
+}
+
+function matchesLeadListFilter_(lead, filter, masterContext) {
+  const value = String(filter || 'all');
+  if (value === 'all') return true;
+  const status = String(lead.status || '');
+  const dealStatus = String(lead.deal_status || '未設定');
+  const sendCount = Number(lead.send_count || 0);
+  const replied = normalizeBooleanLike_(lead.reply_checked) || status === '返信あり';
+  const sendNg = normalizeBooleanLike_(lead.send_ng) || status === '送信NG';
+  const sent = sendCount > 0 || Boolean(lead.last_sent_at) || status.indexOf('送信済み') !== -1;
+  const deal = dealStatus !== '未設定' || DEAL_STATUSES.indexOf(status) !== -1;
+
+  if (value === 'email') return isEmailSendTarget_(lead, masterContext);
+  if (value === 'form') return isFormSendTarget_(lead, masterContext);
+  if (value === 'excluded') return sendNg || SEND_EXCLUDED_STATUSES.indexOf(status) !== -1;
+  if (value === 'send_ng') return sendNg;
+  if (value === 'unsent') return isValidEmailAddress_(lead.email) && !sent && !sendNg && !replied && !deal;
+  if (value === 'sent') return sent;
+  if (value === 'reply') return replied;
+  if (value === 'deal') return deal;
+  if (value === 'no_contact') return !isValidEmailAddress_(lead.email) && !lead.form_url;
+  if (value === 'won') return dealStatus === '受注' || status === '受注';
+  if (value === 'lost') return dealStatus === '失注' || status === '失注';
+  if (value === 'review') return status === '未対応' && ['serper', 'search_job', 'prospecting'].indexOf(String(lead.source || '')) !== -1;
+  return true;
+}
+
+function matchesFormStatusFilter_(lead, formStatus) {
+  const status = String(lead.form_status || '未対応');
+  if (formStatus === 'all') return true;
+  if (formStatus === 'active') return status === '未対応' || status === '対応中' || !status;
+  return status === formStatus;
+}
+
+function buildLeadListStats_(rows, masterContext, genre) {
+  const active = rows.filter(function (lead) {
+    if (isArchivedLead_(lead)) return false;
+    if (genre && String(lead.genre || '') !== genre) return false;
+    return true;
+  });
+
+  return {
+    totalLeadCount: active.length,
+    sendable: active.filter(function (lead) { return isEmailSendTarget_(lead, masterContext); }).length,
+    formTargets: active.filter(function (lead) { return isFormSendTarget_(lead, masterContext); }).length,
+    replies: active.filter(function (lead) { return normalizeBooleanLike_(lead.reply_checked) || lead.status === '返信あり'; }).length,
+    sendNg: active.filter(function (lead) { return normalizeBooleanLike_(lead.send_ng) || lead.status === '送信NG'; }).length,
+    deals: active.filter(function (lead) { return String(lead.deal_status || '未設定') !== '未設定' || DEAL_STATUSES.indexOf(String(lead.status || '')) !== -1; }).length,
+    won: active.filter(function (lead) { return lead.deal_status === '受注' || lead.status === '受注'; }).length,
+    lost: active.filter(function (lead) { return lead.deal_status === '失注' || lead.status === '失注'; }).length,
+    sent: active.filter(function (lead) { return Number(lead.send_count || 0) > 0 || Boolean(lead.last_sent_at) || String(lead.status || '').indexOf('送信済み') !== -1; }).length,
+    unsent: active.filter(function (lead) { return matchesLeadListFilter_(lead, 'unsent', masterContext); }).length,
+    noContact: active.filter(function (lead) { return matchesLeadListFilter_(lead, 'no_contact', masterContext); }).length,
+    reviewPending: active.filter(function (lead) { return matchesLeadListFilter_(lead, 'review', masterContext); }).length,
   };
 }
 
@@ -1221,15 +1310,34 @@ function normalizeListOptions_(options) {
   const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 2000);
   const offset = Math.max(Number(input.offset) || 0, 0);
   const status = input.status ? String(input.status).trim() : '';
+  const genre = String(input.genre || '').trim();
+  const filter = String(input.filter || 'all').trim() || 'all';
+  const formStatus = String(input.formStatus || input.form_status || '').trim();
+  const sort = String(input.sort || 'updated_desc').trim() || 'updated_desc';
+  const allowedFilters = ['all', 'email', 'form', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'];
+  const allowedSorts = ['updated_desc', 'created_desc', 'company_asc', 'status_asc', 'last_sent_desc'];
 
   if (status && LEAD_STATUSES.indexOf(status) === -1) {
     throw new Error('Invalid lead status: ' + status);
+  }
+  if (allowedFilters.indexOf(filter) === -1) {
+    throw new Error('Invalid lead list filter: ' + filter);
+  }
+  if (formStatus && ['active', 'all'].concat(FORM_STATUSES).indexOf(formStatus) === -1) {
+    throw new Error('Invalid form status filter: ' + formStatus);
+  }
+  if (allowedSorts.indexOf(sort) === -1) {
+    throw new Error('Invalid lead sort: ' + sort);
   }
 
   return {
     limit: limit,
     offset: offset,
     status: status,
+    genre: genre,
+    filter: filter,
+    formStatus: formStatus,
+    sort: sort,
     search: String(input.search || '').trim().toLowerCase(),
     includeArchived: input.includeArchived === true,
   };

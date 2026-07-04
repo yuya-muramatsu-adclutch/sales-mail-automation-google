@@ -146,14 +146,41 @@ function getDashboardStats(options) {
 
   const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'));
   const templates = listSheetRecords('email_templates', { limit: 1000 }).items;
+  const searchJobs = listSheetRecords('search_jobs', { limit: 1000, includeInactive: true }).items;
+  const syncLogs = listSheetRecords('sync_logs', { limit: 1000, includeInactive: true }).items;
   const today = todayText_();
   const month = today.slice(0, 7);
   const sentToday = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).filter(function (record) {
     return String(record.sent_at || record.created_at || '').slice(0, 10) === today && record.send_result === '成功';
   }).length;
+  const sentMonth = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).filter(function (record) {
+    return String(record.sent_at || record.created_at || '').slice(0, 7) === month && record.send_result === '成功';
+  }).length;
   const serperToday = getSerperUsageCount_({ day: today });
   const serperMonth = getSerperUsageCount_({ month: month });
   const masterContext = buildMasterBlockContext_();
+  const listStats = buildLeadListStats_(leads, masterContext, '');
+  const sendWindow = buildSendWindowStatus_();
+  const dailyMailLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
+  const serperDailyLimit = Number(getSettingValue_('serper_daily_search_limit', 100));
+  const serperMonthlyLimit = Number(getSettingValue_('serper_monthly_search_limit', 1000));
+  const mailQuota = getMailQuotaStatus_(dailyMailLimit);
+  const serperInfo = getSerperApiKeyInfo();
+  const triggerCount = getProjectTriggerCount_();
+  const monthLeads = leads.filter(function (lead) {
+    return !isArchivedLead_(lead) && String(lead.created_at || '').slice(0, 7) === month;
+  });
+  const thisMonth = {
+    addedLeads: monthLeads.length,
+    sent: sentMonth,
+    replies: leads.filter(function (lead) {
+      return normalizeBooleanLike_(lead.reply_checked) && String(lead.updated_at || lead.created_at || '').slice(0, 7) === month;
+    }).length,
+    deals: leads.filter(function (lead) {
+      return String(lead.deal_status || '未設定') !== '未設定' && String(lead.updated_at || lead.created_at || '').slice(0, 7) === month;
+    }).length,
+  };
+  thisMonth.replyRate = sentMonth > 0 ? Math.round((thisMonth.replies / sentMonth) * 1000) / 10 : 0;
   const byStatus = {};
   const byGenre = {};
 
@@ -167,14 +194,48 @@ function getDashboardStats(options) {
   const stats = {
     leadsTotal: leads.filter(function (lead) { return !isArchivedLead_(lead); }).length,
     archivedLeads: leads.filter(isArchivedLead_).length,
-    sendTargets: leads.filter(function (lead) { return isEmailSendTarget_(lead, masterContext); }).length,
-    formTargets: leads.filter(function (lead) { return isFormSendTarget_(lead, masterContext); }).length,
-    replies: leads.filter(function (lead) { return normalizeBooleanLike_(lead.reply_checked); }).length,
-    deals: leads.filter(function (lead) { return String(lead.deal_status || '未設定') !== '未設定'; }).length,
+    sendTargets: listStats.sendable,
+    formTargets: listStats.formTargets,
+    replies: listStats.replies,
+    deals: listStats.deals,
+    sendNg: listStats.sendNg,
+    sent: listStats.sent,
+    unsent: listStats.unsent,
+    noContact: listStats.noContact,
+    won: listStats.won,
+    lost: listStats.lost,
+    reviewTargets: listStats.reviewPending,
     sentToday: sentToday,
     serperToday: serperToday,
     serperMonth: serperMonth,
     productionTemplates: templates.filter(function (template) { return normalizeBooleanLike_(template.is_production); }).length,
+    productionInitialTemplates: templates.filter(function (template) { return template.template_type === 'initial' && normalizeBooleanLike_(template.is_production); }).length,
+    productionFormTemplates: templates.filter(function (template) { return template.template_type === 'form' && normalizeBooleanLike_(template.is_production); }).length,
+    dailyMailLimit: dailyMailLimit,
+    todayRemaining: Math.max(0, Math.min(dailyMailLimit - sentToday, mailQuota.remaining)),
+    mailQuotaRemaining: mailQuota.remaining,
+    mailQuotaAvailable: mailQuota.available,
+    sendWindow: sendWindow,
+    serperConfigured: serperInfo.configured,
+    serperKeyMask: serperInfo.key_mask,
+    serperDailyLimit: serperDailyLimit,
+    serperMonthlyLimit: serperMonthlyLimit,
+    serperTodayRemaining: Math.max(0, serperDailyLimit - serperToday),
+    serperMonthRemaining: Math.max(0, serperMonthlyLimit - serperMonth),
+    queuedJobs: searchJobs.filter(function (job) { return job.status === 'queued'; }).length,
+    runningJobs: searchJobs.filter(function (job) { return job.status === 'running'; }).length,
+    failedJobs: searchJobs.filter(function (job) { return job.status === 'failed'; }).length,
+    completedJobs: searchJobs.filter(function (job) { return job.status === 'completed'; }).length,
+    errorCount: syncLogs.filter(function (log) { return log.level === 'error' || log.level === 'warn'; }).length,
+    integrations: {
+      sheets: true,
+      gmail: mailQuota.available,
+      calendar: true,
+      serper: serperInfo.configured,
+      triggers: triggerCount > 0,
+    },
+    triggerCount: triggerCount,
+    thisMonth: thisMonth,
     byStatus: byStatus,
     byGenre: byGenre,
     updatedAt: nowIso_(),
@@ -195,7 +256,7 @@ function monthText_() {
 
 function readDashboardStatsCache_() {
   try {
-    const cached = CacheService.getScriptCache().get('dashboard_stats_v2');
+    const cached = CacheService.getScriptCache().get('dashboard_stats_v3');
     if (!cached) {
       return null;
     }
@@ -211,7 +272,7 @@ function readDashboardStatsCache_() {
 
 function writeDashboardStatsCache_(stats) {
   try {
-    CacheService.getScriptCache().put('dashboard_stats_v2', JSON.stringify(stats), 120);
+    CacheService.getScriptCache().put('dashboard_stats_v3', JSON.stringify(stats), 120);
     upsertDashboardCacheSheet_(stats);
   } catch (error) {
     console.warn('Dashboard cache write skipped: ' + error.message);
@@ -221,11 +282,11 @@ function writeDashboardStatsCache_(stats) {
 function upsertDashboardCacheSheet_(stats) {
   const records = listSheetRecords('dashboard_cache', { limit: 100, includeInactive: true }).items;
   const existing = records.find(function (record) {
-    return record.cache_key === 'dashboard_stats_v2';
+    return record.cache_key === 'dashboard_stats_v3';
   });
   const expiresAt = Utilities.formatDate(new Date(Date.now() + 2 * 60 * 1000), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX");
   const payload = {
-    cache_key: 'dashboard_stats_v2',
+    cache_key: 'dashboard_stats_v3',
     value_json: JSON.stringify(stats),
     expires_at: expiresAt,
   };
@@ -234,5 +295,52 @@ function upsertDashboardCacheSheet_(stats) {
     updateSheetRecord_('dashboard_cache', existing.id, payload);
   } else {
     appendSheetRecord_('dashboard_cache', payload);
+  }
+}
+
+function buildSendWindowStatus_() {
+  const setting = getSettingValue_('email_send_window', {
+    enabled: true,
+    start: '07:00',
+    end: '08:00',
+    timezone: 'Asia/Tokyo',
+  });
+  const enabled = setting.enabled !== false;
+  const timezone = setting.timezone || Session.getScriptTimeZone() || 'Asia/Tokyo';
+  const start = setting.start || '07:00';
+  const end = setting.end || '08:00';
+  const now = Utilities.formatDate(new Date(), timezone, 'HH:mm');
+  return {
+    enabled: enabled,
+    start: start,
+    end: end,
+    timezone: timezone,
+    currentTime: now,
+    label: start + '-' + end,
+    allowed: enabled && now >= start && now <= end,
+  };
+}
+
+function getMailQuotaStatus_(dailyLimit) {
+  try {
+    const remaining = MailApp.getRemainingDailyQuota ? MailApp.getRemainingDailyQuota() : dailyLimit;
+    return {
+      available: remaining > 0,
+      remaining: Math.max(0, Number(remaining) || 0),
+    };
+  } catch (error) {
+    return {
+      available: false,
+      remaining: dailyLimit,
+      error: error.message,
+    };
+  }
+}
+
+function getProjectTriggerCount_() {
+  try {
+    return ScriptApp.getProjectTriggers().length;
+  } catch (error) {
+    return 0;
   }
 }
