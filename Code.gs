@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260704_apps_script_full_workflow_v8';
+const APP_VERSION = '20260704_apps_script_full_workflow_v9';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -1218,7 +1218,7 @@ function normalizeCompanyName_(value) {
 
 function normalizeListOptions_(options) {
   const input = options && typeof options === 'object' ? options : {};
-  const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 500);
+  const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 2000);
   const offset = Math.max(Number(input.offset) || 0, 0);
   const status = input.status ? String(input.status).trim() : '';
 

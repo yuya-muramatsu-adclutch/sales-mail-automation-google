@@ -396,8 +396,15 @@
                 <div class="toolbar">
                   <label>検索<input id="leadSearch" type="search" placeholder="会社名、メール、URL"></label>
                   <label>ステータス<select id="leadStatus"></select></label>
-                  <button type="button" onclick="loadLeads()">絞り込み</button>
+                  <label>表示件数<select id="leadLimit">
+                    <option value="100">100件</option>
+                    <option value="500" selected>500件</option>
+                    <option value="1000">1000件</option>
+                    <option value="2000">2000件</option>
+                  </select></label>
+                  <button type="button" onclick="filterLeads()">絞り込み</button>
                 </div>
+                <div id="leadPager" class="toolbar"></div>
               </div>
               <div class="table-wrap"><table id="leadTable"></table></div>
             </div>
@@ -591,6 +598,11 @@
         templates: [],
         ngMasters: [],
         excludedDomains: [],
+        leadPage: {
+          limit: 500,
+          offset: 0,
+          total: 0,
+        },
       };
 
       function api(name, ...args) {
@@ -703,17 +715,31 @@
         document.getElementById(id).innerHTML = '<thead><tr><th>項目</th><th>件数</th></tr></thead><tbody>' + rows + '</tbody>';
       }
 
-      async function loadLeads() {
+      async function filterLeads() {
+        state.leadPage.offset = 0;
+        await loadLeads();
+      }
+
+      async function loadLeads(offset) {
+        if (typeof offset === 'number') {
+          state.leadPage.offset = Math.max(offset, 0);
+        }
+        state.leadPage.limit = Number(document.getElementById('leadLimit').value || 500);
         const result = await api('listLeads', {
           search: document.getElementById('leadSearch').value,
           status: document.getElementById('leadStatus').value,
-          limit: 200,
+          limit: state.leadPage.limit,
+          offset: state.leadPage.offset,
         });
         state.leads = result.items || [];
+        state.leadPage.total = result.total || 0;
+        state.leadPage.offset = result.offset || 0;
+        state.leadPage.limit = result.limit || state.leadPage.limit;
         renderLeads();
       }
 
       function renderLeads() {
+        renderLeadPager();
         const rows = state.leads.map((lead) => `
           <tr>
             <td><button type="button" onclick="editLead('${lead.id}')">編集</button></td>
@@ -725,6 +751,21 @@
           </tr>
         `).join('');
         document.getElementById('leadTable').innerHTML = table(['操作', '会社/施設', 'ジャンル', '状態', '連絡先', '更新'], rows);
+      }
+
+      function renderLeadPager() {
+        const total = state.leadPage.total || 0;
+        const limit = state.leadPage.limit || 500;
+        const offset = state.leadPage.offset || 0;
+        const start = total === 0 ? 0 : offset + 1;
+        const end = Math.min(offset + state.leads.length, total);
+        const previousOffset = Math.max(offset - limit, 0);
+        const nextOffset = offset + limit;
+        document.getElementById('leadPager').innerHTML = `
+          <span class="muted">全 ${total} 件中 ${start}-${end} 件を表示</span>
+          <button type="button" onclick="loadLeads(${previousOffset})" ${offset <= 0 ? 'disabled' : ''}>前へ</button>
+          <button type="button" onclick="loadLeads(${nextOffset})" ${nextOffset >= total ? 'disabled' : ''}>次へ</button>
+        `;
       }
 
       function newLead() {

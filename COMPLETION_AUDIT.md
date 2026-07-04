@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app v8: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app v9: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260704_apps_script_full_workflow_v8`
+- Code version: `20260704_apps_script_full_workflow_v9`
 
 ## 計画書との対応
 
@@ -15,9 +15,9 @@
 | --- | --- | --- |
 | Google Sheets DB | 完了 | `setup()` で `Auto Sales List App DB` を作成済み |
 | 主要タブ作成 | 完了 | 17タブ作成済み |
-| Apps Script HTML Service画面 | 完了 | v8 Web app GETでHTML返却を確認済み |
+| Apps Script HTML Service画面 | 完了 | v9 Web app GETでHTML返却を確認済み |
 | カスタムメニュー | 完了 | `onOpen()` / `showSidebar()` 実装済み |
-| `leads` CRUD | 完了 | v8 `doPost` で作成・更新・検索・物理削除を確認済み |
+| `leads` CRUD | 完了 | v9 `doPost` で作成・更新・検索・物理削除を確認済み |
 | ID更新ルール | 完了 | 更新・削除は `findRowById_()` 経由 |
 | UUID | 完了 | `appendSheetRecord_()` / `createLead()` でUUID付与 |
 | LockService | 完了 | 書き込み系関数で `withScriptLock_()` 使用 |
@@ -32,12 +32,13 @@
 | Gmail送信上限 | 完了 | アプリ日次上限とMailApp残数を確認 |
 | 返信チェック | 完了 | `checkRepliesForLeads()` と運用UI実装済み |
 | Google Calendar登録 | 完了 | `createCalendarEventForLead()` とリード詳細UI実装済み |
-| ダッシュボード | 完了 | 集計表示、CacheService、`dashboard_cache` 実装済み |
+| ダッシュボード | 完了 | 全5,441件対象の集計表示、CacheService、`dashboard_cache` 実装済み |
 | CSVインポート | 完了 | 運用UIと `importLeadsFromCsv()` 実装済み |
 | バッチ再開 | 完了 | `search_jobs` の `processed_count` と `advanceQueuedJobs()` 実装済み |
 | Driveバックアップ | 完了 | `createSpreadsheetBackup()` 実装済み |
 | `doPost` API | 完了 | v8でリード、テンプレート、マスター、検索、運用系アクションを公開 |
 | 旧アプリからの営業リスト移行 | 完了 | Supabase `sales_leads` 5,441件を `leads` へ移行済み |
+| リード一覧ページング | 完了 | 総件数5,441件を表示し、500/1000/2000件単位でページ移動可能 |
 
 ## 検証済み
 
@@ -61,6 +62,13 @@
 - 移行結果: `migratedRows=5441`, `expectedRows=5441`, `targetTotal=5441`
 - `leads` タブは最大行5442で、ヘッダー1行 + データ5,441件であることを確認
 - `sync_logs` に移行完了ログが記録されていることを確認
+- `clasp deploy -d apps-script-full-workflow-v9-lead-pagination-counts` 成功
+- 既存Web app URLを `clasp deploy -V 9 -i ...` でv9へ再デプロイ済み
+- v9 `listLeads({limit:500})` が `total=5441`, `items.length=500` を返すことを確認
+- v9 `listLeads({limit:1000})` が `total=5441`, `items.length=1000` を返すことを確認
+- v9 `listLeads({limit:500, offset:500})` が2ページ目500件を返すことを確認
+- v9 `getDashboardStats({bypassCache:true})` が `leadsTotal=5441`, `statusSum=5441` を返すことを確認
+- v9 Web app HTMLに `leadPager`, `leadLimit`, `renderLeadPager` が含まれることを確認
 
 ## 運用時に確認する外部依存
 

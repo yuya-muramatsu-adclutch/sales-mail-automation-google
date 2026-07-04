@@ -144,7 +144,7 @@ function getDashboardStats(options) {
     }
   }
 
-  const leads = listLeads({ limit: 1000, includeArchived: true }).items;
+  const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'));
   const templates = listSheetRecords('email_templates', { limit: 1000 }).items;
   const today = todayText_();
   const month = today.slice(0, 7);
@@ -195,7 +195,7 @@ function monthText_() {
 
 function readDashboardStatsCache_() {
   try {
-    const cached = CacheService.getScriptCache().get('dashboard_stats_v1');
+    const cached = CacheService.getScriptCache().get('dashboard_stats_v2');
     if (!cached) {
       return null;
     }
@@ -211,7 +211,7 @@ function readDashboardStatsCache_() {
 
 function writeDashboardStatsCache_(stats) {
   try {
-    CacheService.getScriptCache().put('dashboard_stats_v1', JSON.stringify(stats), 120);
+    CacheService.getScriptCache().put('dashboard_stats_v2', JSON.stringify(stats), 120);
     upsertDashboardCacheSheet_(stats);
   } catch (error) {
     console.warn('Dashboard cache write skipped: ' + error.message);
@@ -221,11 +221,11 @@ function writeDashboardStatsCache_(stats) {
 function upsertDashboardCacheSheet_(stats) {
   const records = listSheetRecords('dashboard_cache', { limit: 100, includeInactive: true }).items;
   const existing = records.find(function (record) {
-    return record.cache_key === 'dashboard_stats_v1';
+    return record.cache_key === 'dashboard_stats_v2';
   });
   const expiresAt = Utilities.formatDate(new Date(Date.now() + 2 * 60 * 1000), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX");
   const payload = {
-    cache_key: 'dashboard_stats_v1',
+    cache_key: 'dashboard_stats_v2',
     value_json: JSON.stringify(stats),
     expires_at: expiresAt,
   };

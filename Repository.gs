@@ -183,6 +183,7 @@ function clearRuntimeCaches_(changedSheetName) {
 
   try {
     CacheService.getScriptCache().remove('dashboard_stats_v1');
+    CacheService.getScriptCache().remove('dashboard_stats_v2');
   } catch (error) {
     console.warn('Cache clear skipped: ' + error.message);
   }

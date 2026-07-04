@@ -84,6 +84,8 @@ assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
 assert(html.includes('createSelectedLeadCalendarEvent'), 'calendar event handler missing');
+assert(html.includes('id="leadPager"'), 'lead pager UI missing');
+assert(html.includes('全 ${total} 件中'), 'lead pager total display missing');
 const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), html.indexOf('async function showStartupError'));
 assert(refreshAllBlock.includes("api('getInitialData')"), 'refreshAll should load initial data');
 assert(!refreshAllBlock.includes("api('getAuthorizationStatus')"), 'refreshAll should not preflight authorization');
@@ -94,6 +96,7 @@ for (const [index, script] of scripts.entries()) {
 }
 
 const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
+assert(webApp.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'dashboard should read all lead rows');
 [
   'saveEmailTemplate',
   'saveNgMaster',
