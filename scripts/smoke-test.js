@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v33_auth_gate_ui'), 'v33 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v34_serper_key_manager'), 'v34 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -119,6 +119,8 @@ assert(html.includes('form-board-grid'), 'legacy form board layout missing');
 assert(html.includes('searchOverview'), 'Serper search overview missing');
 assert(html.includes('searchActivityPanel'), 'legacy prospecting activity panel missing');
 assert(html.includes('collectionCommandCenter'), 'legacy collection command center missing');
+assert(html.includes('serperKeyManagerPanel'), 'legacy Serper key manager panel missing');
+assert(html.includes('api-key-summary'), 'legacy Serper key summary missing');
 assert(html.includes('searchUsageTable'), 'Serper usage table missing');
 assert(html.includes('opsReadinessPanel'), 'legacy operations readiness panel missing');
 assert(html.includes('opsStatusGrid'), 'legacy operations status grid missing');
@@ -261,6 +263,10 @@ assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflec
   'saveReason',
   'updateReason',
   'saveSerperApiKey',
+  'listSerperApiKeyManager',
+  'saveSerperApiKeyEntry',
+  'updateSerperApiKeyEntry',
+  'deleteSerperApiKeyEntry',
   'listLeadSendHistories',
   'listLeadDuplicateCandidates',
   'markLeadFormSent',

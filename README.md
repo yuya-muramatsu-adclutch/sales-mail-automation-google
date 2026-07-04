@@ -46,6 +46,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `DuplicateResolutionDialog` に寄せたリード詳細内の重複候補確認、残す営業先選択UI
 - 旧Next/Supabase版の `FormOutreachBoard` に寄せたフォーム送信リストの送信済みチェック、送信済み解除、フォーム送信イベント保存
 - 旧Next/Supabase版の `LoginForm` に寄せた初回Google承認ゲート
+- 旧Next/Supabase版の `SerperApiKeyManager` / `SerperSetupGuide` に寄せたSerper APIキー管理、検索テスト、マスク済みキー一覧
 
 ## ファイル
 
@@ -76,7 +77,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @33 / code v33: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @34 / code v34: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -143,6 +144,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script code v31で旧Next/Supabase版の `DuplicateResolutionDialog` に寄せ、リード詳細ドロワーへ重複候補確認、既存候補を残す/編集中の営業先を残す操作UIを追加済み
 - Apps Script code v32で旧Next/Supabase版の `FormOutreachBoard` に寄せ、フォーム送信リストへ送信済みチェック、送信済み解除、フォーム送信イベント保存を追加済み
 - Apps Script code v33で旧Next/Supabase版の `LoginForm` に寄せ、初回承認/認証エラー時のGoogle承認ゲートを追加済み
+- Apps Script code v34で旧Next/Supabase版の `SerperApiKeyManager` / `SerperSetupGuide` に寄せ、Serper APIキー管理、検索APIテスト、マスク済みキー一覧を追加済み
 - Version 30は `clasp deploy -V 30 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `leadDuplicatePanel`, `renderLeadDuplicatePanel`, `listLeadDuplicateCandidates` を確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。

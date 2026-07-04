@@ -73,6 +73,10 @@ function dispatchPostAction_(action, data) {
   if (action === 'saveReason') return saveReason(data);
   if (action === 'updateReason') return updateReason(data.id, data.patch || data);
   if (action === 'saveSerperApiKey') return saveSerperApiKey(data.apiKey || data.api_key || data.key);
+  if (action === 'listSerperApiKeyManager') return listSerperApiKeyManager();
+  if (action === 'saveSerperApiKeyEntry') return saveSerperApiKeyEntry(data);
+  if (action === 'updateSerperApiKeyEntry') return updateSerperApiKeyEntry(data.id, data.patch || data);
+  if (action === 'deleteSerperApiKeyEntry') return deleteSerperApiKeyEntry(data.id);
   if (action === 'testSerperApiKey') return testSerperApiKey();
   if (action === 'runSmallSearchJob') return runSmallSearchJob(data);
   if (action === 'sendLeadEmail') return sendLeadEmail(data.leadId || data.lead_id, data.templateId || data.template_id, data.options || {});

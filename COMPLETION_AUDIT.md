@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @33 / code v33: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @34 / code v34: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v33_auth_gate_ui`
+- Code version: `20260705_apps_script_full_workflow_v34_serper_key_manager`
 
 ## 計画書との対応
 
@@ -60,6 +60,7 @@
 | 旧アプリ重複候補UI反映 | 完了 | 旧 `DuplicateResolutionDialog` に合わせ、code v31でリード詳細ドロワー内の重複候補確認、既存候補を残す/編集中の営業先を残す操作UIを反映 |
 | 旧アプリフォーム送信状態反映 | 完了 | 旧 `FormOutreachBoard` に合わせ、code v32でフォーム送信リストの送信済みチェック、送信済み解除、フォーム送信イベント保存を反映 |
 | 旧アプリ認証画面反映 | 完了 | 旧 `LoginForm` に合わせ、code v33で初回Google承認ゲート、承認リンク、承認後再読み込み導線を反映 |
+| 旧アプリSerperキー管理反映 | 完了 | 旧 `SerperApiKeyManager` / `SerperSetupGuide` に合わせ、code v34でSerper APIキー管理、検索APIテスト、マスク済みキー一覧を反映 |
 
 ## 検証済み
 
@@ -197,6 +198,11 @@
 - 既存Web app URLを `clasp deploy -V 33 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 33へ再デプロイ済み
 - `clasp deployments` で既存Web app URLが `@33 - apps-script-full-workflow-v33-auth-gate-ui-on-existing-url` を指すことを確認
 - code v33ローカルスモークで `authGate`, `login-card`, `renderAuthorizationGate` が含まれることを確認
+- `.gs` 全ファイルのNode構文チェック成功、`node scripts/smoke-test.js` 成功、`git diff --check` 成功
+- `clasp push -f` 成功、`clasp version "apps-script-full-workflow-v34-serper-key-manager"` でVersion 34作成済み
+- 既存Web app URLを `clasp deploy -V 34 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 34へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@34 - apps-script-full-workflow-v34-serper-key-manager-on-existing-url` を指すことを確認
+- code v34ローカルスモークで `serperKeyManagerPanel`, `api-key-summary`, `listSerperApiKeyManager`, `saveSerperApiKeyEntry`, `updateSerperApiKeyEntry`, `deleteSerperApiKeyEntry` が含まれることを確認
 - `.gs` 全ファイルのNode構文チェック成功、`node scripts/smoke-test.js` 成功、`git diff --check` 成功
 
 ## 運用時に確認する外部依存

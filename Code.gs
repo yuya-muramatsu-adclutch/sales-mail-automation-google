@@ -1,8 +1,9 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260705_apps_script_full_workflow_v33_auth_gate_ui';
+const APP_VERSION = '20260705_apps_script_full_workflow_v34_serper_key_manager';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
+  SERPER_API_KEYS_JSON: 'SERPER_API_KEYS_JSON',
 });
 
 const EXISTING_APP_REFERENCE = Object.freeze({
@@ -877,6 +878,7 @@ function saveSerperApiKey(apiKey) {
   }
 
   PropertiesService.getScriptProperties().setProperty(PROPERTY_KEYS.SERPER_API_KEY, normalized);
+  upsertSerperPrimaryKey_(normalized, 'Serperキー');
 
   return {
     ok: true,

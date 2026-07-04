@@ -2,22 +2,107 @@ const SERPER_SEARCH_ENDPOINT = 'https://google.serper.dev/search';
 
 function getSerperApiKeyInfo() {
   const key = getSerperApiKey_();
-  return {
+  const manager = buildSerperApiKeyManagerInfo_();
+  return Object.assign({}, manager, {
     configured: Boolean(key),
     key_mask: key ? maskSecret_(key) : '',
-  };
+  });
 }
 
 function testSerperApiKey() {
-  const result = callSerperSearch_('OpenAI official site', {
-    num: 1,
-    purpose: 'manual_search_preview',
-    source: 'api_key_test',
+  try {
+    const result = callSerperSearch_('OpenAI official site', {
+      num: 1,
+      purpose: 'manual_search_preview',
+      source: 'api_key_test',
+    });
+    recordSerperActiveKeyTestResult_(true, result.organic.length, '');
+    return {
+      ok: true,
+      resultCount: result.organic.length,
+      checkedAt: nowIso_(),
+      manager: buildSerperApiKeyManagerInfo_(),
+    };
+  } catch (error) {
+    recordSerperActiveKeyTestResult_(false, 0, error.message || String(error));
+    throw error;
+  }
+}
+
+function listSerperApiKeyManager() {
+  return buildSerperApiKeyManagerInfo_();
+}
+
+function saveSerperApiKeyEntry(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const key = String(source.key || source.apiKey || source.api_key || '').trim();
+  if (!key) throw new Error('Serper API key is required.');
+  return withScriptLock_('saveSerperApiKeyEntry', function () {
+    const role = source.role === 'sub' ? 'sub' : 'main';
+    const name = String(source.name || '').trim() || (role === 'main' ? 'メインキー' : 'サブキー');
+    const now = nowIso_();
+    const records = readSerperApiKeyRecords_();
+    const nextRecords = records.map(function (record) {
+      return role === 'main' ? Object.assign({}, record, { role: 'sub', updated_at: now }) : record;
+    });
+    nextRecords.push({
+      id: Utilities.getUuid(),
+      name: name,
+      role: role,
+      key: key,
+      active: source.active === false ? false : true,
+      source: 'managed',
+      created_at: now,
+      updated_at: now,
+      last_status: '未確認',
+      last_search_status: '未確認',
+    });
+    writeSerperApiKeyRecords_(nextRecords);
+    syncPrimarySerperApiKeyProperty_(nextRecords);
+    return buildSerperApiKeyManagerInfo_('Serper APIキーを保存しました。');
   });
-  return {
-    ok: true,
-    resultCount: result.organic.length,
-  };
+}
+
+function updateSerperApiKeyEntry(id, patch) {
+  const targetId = requireId_(id);
+  const input = patch && typeof patch === 'object' ? patch : {};
+  return withScriptLock_('updateSerperApiKeyEntry', function () {
+    const now = nowIso_();
+    const records = readSerperApiKeyRecords_();
+    let found = false;
+    const nextRecords = records.map(function (record) {
+      if (record.id !== targetId) {
+        if (input.role === 'main') return Object.assign({}, record, { role: 'sub', updated_at: now });
+        return record;
+      }
+      found = true;
+      const next = Object.assign({}, record, { updated_at: now });
+      if (Object.prototype.hasOwnProperty.call(input, 'active')) next.active = input.active !== false;
+      if (input.name) next.name = String(input.name).trim();
+      if (input.role === 'main' || input.role === 'sub') next.role = input.role;
+      return next;
+    });
+    if (!found) throw new Error('Serper API key entry not found: ' + targetId);
+    writeSerperApiKeyRecords_(nextRecords);
+    syncPrimarySerperApiKeyProperty_(nextRecords);
+    return buildSerperApiKeyManagerInfo_('Serper APIキー設定を更新しました。');
+  });
+}
+
+function deleteSerperApiKeyEntry(id) {
+  const targetId = requireId_(id);
+  return withScriptLock_('deleteSerperApiKeyEntry', function () {
+    const records = readSerperApiKeyRecords_();
+    const nextRecords = records.filter(function (record) {
+      return record.id !== targetId;
+    });
+    if (nextRecords.length === records.length) {
+      throw new Error('Serper API key entry not found: ' + targetId);
+    }
+    writeSerperApiKeyRecords_(nextRecords);
+    syncPrimarySerperApiKeyProperty_(nextRecords);
+    return buildSerperApiKeyManagerInfo_('Serper APIキーを削除しました。');
+  });
 }
 
 function runSmallSearchJob(input) {
@@ -450,6 +535,8 @@ function logSerperUsage_(entry) {
 }
 
 function getSerperApiKey_() {
+  const selected = selectPrimarySerperApiKeyRecord_(readSerperApiKeyRecords_());
+  if (selected && selected.key) return String(selected.key || '').trim();
   return String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SERPER_API_KEY) || '').trim();
 }
 
@@ -458,6 +545,202 @@ function maskSecret_(value) {
   if (!text) return '';
   if (text.length <= 8) return '****';
   return text.slice(0, 4) + '****' + text.slice(-4);
+}
+
+function upsertSerperPrimaryKey_(key, name) {
+  const normalized = String(key || '').trim();
+  if (!normalized) return;
+  const now = nowIso_();
+  const records = readSerperApiKeyRecords_();
+  const primary = selectPrimarySerperApiKeyRecord_(records);
+  let nextRecords = records.map(function (record) {
+    if (primary && record.id === primary.id) {
+      return Object.assign({}, record, {
+        key: normalized,
+        name: name || record.name || 'メインキー',
+        role: 'main',
+        active: true,
+        updated_at: now,
+      });
+    }
+    return Object.assign({}, record, {
+      role: record.role === 'main' ? 'sub' : record.role,
+      updated_at: record.role === 'main' ? now : record.updated_at,
+    });
+  });
+  if (!primary) {
+    nextRecords.push({
+      id: Utilities.getUuid(),
+      name: name || 'メインキー',
+      role: 'main',
+      key: normalized,
+      active: true,
+      source: 'managed',
+      created_at: now,
+      updated_at: now,
+      last_status: '未確認',
+      last_search_status: '未確認',
+    });
+  }
+  writeSerperApiKeyRecords_(nextRecords);
+  syncPrimarySerperApiKeyProperty_(nextRecords);
+}
+
+function buildSerperApiKeyManagerInfo_(message) {
+  const records = readSerperApiKeyRecords_();
+  const legacyKey = String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SERPER_API_KEY) || '').trim();
+  const selected = selectPrimarySerperApiKeyRecord_(records);
+  const configured = Boolean(selected && selected.key) || Boolean(legacyKey);
+  const today = todayText_();
+  const month = monthText_();
+  const todayUsed = getSerperUsageCount_({ day: today });
+  const monthUsed = getSerperUsageCount_({ month: month });
+  const dailyLimit = Number(getSettingValue_('serper_daily_search_limit', 100));
+  const monthlyLimit = Number(getSettingValue_('serper_monthly_search_limit', 1000));
+  const sanitized = records.map(sanitizeSerperApiKeyRecord_);
+  if (!sanitized.length && legacyKey) {
+    sanitized.push({
+      active: true,
+      id: 'legacy-main',
+      key_mask: maskSecret_(legacyKey),
+      last_checked_at: '',
+      last_error: '',
+      last_remaining: '',
+      last_search_error: '',
+      last_search_result_count: '',
+      last_search_status: '未確認',
+      last_status: '利用可能',
+      name: 'PropertiesService メインキー',
+      readonly: true,
+      role: 'main',
+      source: 'env',
+    });
+  }
+  return {
+    configured: configured,
+    credit: {
+      detail: configured
+        ? '本日残り ' + Math.max(0, dailyLimit - todayUsed) + '件 / 月間残り ' + Math.max(0, monthlyLimit - monthUsed) + '件'
+        : 'Serper APIキーをPropertiesServiceへ保存してください。',
+      label: configured ? 'Serper利用可能' : 'Serper未設定',
+      ready: configured,
+      tone: configured ? 'ok' : 'warn',
+    },
+    key_mask: configured ? maskSecret_(selected && selected.key ? selected.key : legacyKey) : '',
+    keys: sanitized,
+    limits: {
+      daily: dailyLimit,
+      monthly: monthlyLimit,
+      todayUsed: todayUsed,
+      monthUsed: monthUsed,
+      todayRemaining: Math.max(0, dailyLimit - todayUsed),
+      monthRemaining: Math.max(0, monthlyLimit - monthUsed),
+    },
+    message: message || '',
+  };
+}
+
+function sanitizeSerperApiKeyRecord_(record) {
+  return {
+    active: record.active !== false,
+    id: record.id,
+    key_mask: maskSecret_(record.key || ''),
+    last_checked_at: record.last_checked_at || '',
+    last_error: record.last_error || '',
+    last_remaining: record.last_remaining || '',
+    last_search_error: record.last_search_error || '',
+    last_search_result_count: record.last_search_result_count || '',
+    last_search_status: record.last_search_status || '未確認',
+    last_search_test_at: record.last_search_test_at || '',
+    last_status: record.last_status || '未確認',
+    name: record.name || (record.role === 'main' ? 'メインキー' : 'サブキー'),
+    readonly: false,
+    role: record.role === 'sub' ? 'sub' : 'main',
+    source: record.source || 'managed',
+  };
+}
+
+function readSerperApiKeyRecords_() {
+  const raw = String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SERPER_API_KEYS_JSON) || '').trim();
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(function (record) {
+        return record && typeof record === 'object' && !Array.isArray(record) && record.id && record.key;
+      })
+      .map(function (record) {
+        return {
+          active: record.active !== false,
+          created_at: String(record.created_at || ''),
+          id: String(record.id || ''),
+          key: String(record.key || ''),
+          last_checked_at: String(record.last_checked_at || ''),
+          last_error: String(record.last_error || ''),
+          last_remaining: record.last_remaining || '',
+          last_search_error: String(record.last_search_error || ''),
+          last_search_result_count: record.last_search_result_count || '',
+          last_search_status: String(record.last_search_status || '未確認'),
+          last_search_test_at: String(record.last_search_test_at || ''),
+          last_status: String(record.last_status || '未確認'),
+          name: String(record.name || ''),
+          role: record.role === 'sub' ? 'sub' : 'main',
+          source: record.source === 'env' ? 'env' : 'managed',
+          updated_at: String(record.updated_at || ''),
+        };
+      });
+  } catch (error) {
+    return [];
+  }
+}
+
+function writeSerperApiKeyRecords_(records) {
+  const safeRecords = (Array.isArray(records) ? records : [])
+    .filter(function (record) {
+      return record && record.id && record.key;
+    })
+    .slice(0, 10);
+  PropertiesService.getScriptProperties().setProperty(PROPERTY_KEYS.SERPER_API_KEYS_JSON, JSON.stringify(safeRecords));
+}
+
+function selectPrimarySerperApiKeyRecord_(records) {
+  const activeRecords = (Array.isArray(records) ? records : []).filter(function (record) {
+    return record && record.active !== false && record.key;
+  });
+  return activeRecords.find(function (record) { return record.role === 'main'; }) || activeRecords[0] || null;
+}
+
+function syncPrimarySerperApiKeyProperty_(records) {
+  const selected = selectPrimarySerperApiKeyRecord_(records);
+  const properties = PropertiesService.getScriptProperties();
+  if (selected && selected.key) {
+    properties.setProperty(PROPERTY_KEYS.SERPER_API_KEY, selected.key);
+  } else {
+    properties.deleteProperty(PROPERTY_KEYS.SERPER_API_KEY);
+  }
+}
+
+function recordSerperActiveKeyTestResult_(ok, resultCount, errorMessage) {
+  const records = readSerperApiKeyRecords_();
+  const selected = selectPrimarySerperApiKeyRecord_(records);
+  if (!selected) return;
+  const now = nowIso_();
+  const nextRecords = records.map(function (record) {
+    if (record.id !== selected.id) return record;
+    return Object.assign({}, record, {
+      last_checked_at: now,
+      last_error: ok ? '' : errorMessage,
+      last_remaining: '',
+      last_search_error: ok ? '' : errorMessage,
+      last_search_result_count: Number(resultCount || 0),
+      last_search_status: ok ? '成功' : '失敗',
+      last_search_test_at: now,
+      last_status: ok ? '利用可能' : 'エラー',
+      updated_at: now,
+    });
+  });
+  writeSerperApiKeyRecords_(nextRecords);
 }
 
 function appendSyncError_(operation, error, context) {

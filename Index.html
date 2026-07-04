@@ -1846,6 +1846,152 @@
         text-decoration: none;
       }
 
+      .setup-guide {
+        display: grid;
+        gap: 16px;
+        border-color: #bfdbfe;
+        background: linear-gradient(180deg, #ffffff, #f8fbff);
+      }
+
+      .setup-guide-heading {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+      }
+
+      .setup-guide-heading p {
+        margin: 0;
+      }
+
+      .setup-guide-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .setup-step {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .setup-step > span,
+      .api-key-icon {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .setup-step strong {
+        font-size: 14px;
+      }
+
+      .setup-step p {
+        margin: 5px 0 8px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.6;
+      }
+
+      .setup-step a {
+        color: var(--blue);
+        font-weight: 900;
+      }
+
+      .setup-command-box {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        background: #eef2ff;
+        color: #1e293b;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .api-key-summary {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 13px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+      }
+
+      .api-key-summary strong,
+      .api-key-summary span,
+      .api-key-item strong,
+      .api-key-item span,
+      .api-key-item small {
+        display: block;
+      }
+
+      .api-key-summary span,
+      .api-key-item span,
+      .api-key-item small {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .serper-key-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .api-key-form {
+        display: grid;
+        grid-template-columns: minmax(120px, 160px) minmax(160px, 220px) minmax(260px, 1fr) auto auto;
+        gap: 10px;
+        align-items: end;
+      }
+
+      .api-key-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .api-key-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto auto auto auto;
+        gap: 10px;
+        align-items: center;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .api-key-item strong {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .api-key-item .error-text {
+        color: var(--red);
+      }
+
       .form-message,
       .success-message {
         margin: 0;
@@ -3528,6 +3674,9 @@
         .form-work-panel,
         .form-board-grid,
         .content-grid,
+        .api-key-summary,
+        .api-key-form,
+        .api-key-item,
         .template-safety-grid,
         .exclusion-hero-panel,
         .prospecting-route-grid,
@@ -3545,6 +3694,7 @@
         .lead-kpi-grid,
         .form-outreach-summary-grid,
         .collection-tabs,
+        .setup-guide-grid,
         .settings-status-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -3600,6 +3750,7 @@
         .dashboard-action-grid,
         .lead-kpi-grid,
         .form-outreach-summary-grid,
+        .setup-guide-grid,
         .settings-status-grid,
         .list-count-bar {
           grid-template-columns: 1fr;
@@ -4182,18 +4333,8 @@
           <section id="searchActivityPanel" class="prospecting-activity-panel"></section>
           <section id="collectionCommandCenter" class="collection-command-center"></section>
           <section id="jobResultsReviewPanel" class="panel job-results-panel"></section>
+          <section id="serperKeyManagerPanel" class="panel stack"></section>
           <div class="content-grid">
-            <section class="panel">
-              <div class="panel-head"><h2>Serper API</h2></div>
-              <div class="panel-body">
-                <form class="grid" onsubmit="saveSerper(event)">
-                  <label>APIキー<input id="serperKey" type="password" autocomplete="off"></label>
-                  <button type="submit" class="primary">保存</button>
-                  <button type="button" onclick="testSerper()">接続テスト</button>
-                </form>
-                <p id="serperInfo" class="muted"></p>
-              </div>
-            </section>
             <section class="panel">
               <div class="panel-head"><h2>小規模検索ジョブ</h2></div>
               <div class="panel-body">
@@ -4661,6 +4802,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         jobs: [],
         syncLogs: [],
         settings: [],
+        serperLastTest: null,
         customFieldDefinitions: [],
         listViewSettings: [],
         leadPage: {
@@ -7036,26 +7178,164 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderSerper(info) {
-        document.getElementById('serperInfo').textContent = info.configured ? `設定済み: ${info.key_mask}` : '未設定';
+        state.serper = info || {};
         const pill = document.getElementById('serperStatusPill');
         if (pill) {
           pill.className = `pill ${info.configured ? 'good' : 'warn'}`;
           pill.textContent = info.configured ? `Serper設定済み ${info.key_mask || ''}` : 'Serper未設定';
         }
+        renderSerperKeyManager(info || {});
         renderSearchActivityPanel();
         renderCollectionCommandCenter(info);
       }
 
+      function renderSerperKeyManager(info) {
+        const target = document.getElementById('serperKeyManagerPanel');
+        if (!target) return;
+        const data = info || state.serper || {};
+        const credit = data.credit || {
+          detail: data.configured ? 'PropertiesServiceに保存済み' : 'Serper APIキーをPropertiesServiceへ保存してください。',
+          label: data.configured ? 'Serper利用可能' : 'Serper未設定',
+          ready: Boolean(data.configured),
+          tone: data.configured ? 'ok' : 'warn',
+        };
+        const keys = Array.isArray(data.keys) ? data.keys : [];
+        const lastTest = state.serperLastTest;
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>Serper APIキー管理</h2>
+              <p class="muted">メインキーを優先して使います。キー本体はPropertiesServiceに保存し、画面にはマスクだけ表示します。</p>
+            </div>
+            <span class="pill ${escapeHtml(credit.tone === 'ok' ? 'good' : credit.tone === 'bad' ? 'bad' : 'warn')}">${escapeHtml(credit.label || '確認中')}</span>
+          </div>
+          ${data.configured ? '' : renderSerperSetupGuide()}
+          <div class="api-key-summary">
+            <span class="api-key-icon" aria-hidden="true">SK</span>
+            <div>
+              <strong>${escapeHtml(credit.ready ? 'Serper利用可能' : 'Serper未設定')}</strong>
+              <span>${escapeHtml(credit.detail || '')}${lastTest ? ` / 検索テスト ${escapeHtml(formatNumber(lastTest.resultCount || 0))}件 ${escapeHtml(dateTimeLabel(lastTest.checkedAt) || '')}` : ''}</span>
+            </div>
+            <div class="serper-key-actions">
+              <button type="button" class="icon-text-button" onclick="refreshSerperKeyManager()">残量確認</button>
+              <button type="button" class="icon-text-button" onclick="testSerper()">検索APIテスト</button>
+            </div>
+          </div>
+          <form class="api-key-form" onsubmit="saveSerper(event)">
+            <label>役割<select id="serperKeyRole">
+              <option value="main">メイン</option>
+              <option value="sub">サブ</option>
+            </select></label>
+            <label>名称<input id="serperKeyName" placeholder="例: Serperキー 1"></label>
+            <label>APIキー<input id="serperKey" type="password" autocomplete="off" placeholder="ここにSerper APIキーを貼り付け" required></label>
+            <label class="check-row"><input id="serperKeyActive" type="checkbox" checked><span>有効</span></label>
+            <button type="submit" class="primary">追加</button>
+          </form>
+          <div id="serperKeyManagerMessage" class="message"></div>
+          <div class="api-key-list">
+            ${keys.length ? keys.map(renderSerperKeyItem).join('') : '<p class="muted">Serper APIキーはまだ登録されていません。</p>'}
+          </div>
+        `;
+      }
+
+      function renderSerperSetupGuide() {
+        return `
+          <section class="setup-guide">
+            <div class="setup-guide-heading">
+              <span class="api-key-icon" aria-hidden="true">KY</span>
+              <div>
+                <h2>Serper APIキーが未設定です</h2>
+                <p class="muted">営業先検索、公式サイト検索、問い合わせフォーム探索を使うために設定します。</p>
+              </div>
+            </div>
+            <div class="setup-guide-grid">
+              <div class="setup-step"><span>1</span><div><strong>SerperでAPIキーを作成</strong><p><a href="https://serper.dev/api-key" target="_blank" rel="noopener">Serper API Key</a> でキーを発行します。</p></div></div>
+              <div class="setup-step"><span>2</span><div><strong>WEBアプリに保存</strong><p>この画面のAPIキー管理に貼り付けます。保存先はPropertiesServiceです。</p></div></div>
+              <div class="setup-step"><span>3</span><div><strong>検索APIテスト</strong><p>保存後に検索APIテストを実行して、検索結果が返ることを確認します。</p></div></div>
+            </div>
+            <div class="setup-command-box"><span class="api-key-icon" aria-hidden="true">PS</span><span>環境変数ではなくApps ScriptのPropertiesServiceに保存します。シートやHTMLへキー本体は出しません。</span><button type="button" onclick="document.getElementById('serperKey').focus()">入力へ</button></div>
+          </section>
+        `;
+      }
+
+      function renderSerperKeyItem(item) {
+        const id = escapeJsString(item.id || '');
+        const readonly = item.readonly === true;
+        const statusTone = item.last_status === '利用可能' ? 'good' : item.last_status === 'エラー' || item.last_status === '残量なし' ? 'warn' : 'info';
+        const searchTone = item.last_search_status === '成功' ? 'good' : item.last_search_status === '失敗' ? 'warn' : 'info';
+        return `
+          <div class="api-key-item">
+            <div>
+              <strong><span class="api-key-icon" aria-hidden="true">${item.role === 'main' ? 'M' : 'S'}</span>${escapeHtml(item.name || 'Serperキー')}</strong>
+              <span>${escapeHtml(item.role === 'main' ? 'メイン' : 'サブ')} / ${escapeHtml(item.key_mask || '****')} / ${escapeHtml(item.source === 'env' ? 'PropertiesService' : 'WEB管理')}</span>
+              <small>残量確認: ${escapeHtml(dateTimeLabel(item.last_checked_at) || '-')} / 残量: ${escapeHtml(item.last_remaining || '-')}</small>
+              <small>検索テスト: ${escapeHtml(item.last_search_status || '未確認')} / ${escapeHtml(dateTimeLabel(item.last_search_test_at) || '-')} / 結果: ${escapeHtml(item.last_search_result_count || '-')}件</small>
+              ${item.last_error ? `<small class="error-text">${escapeHtml(item.last_error)}</small>` : ''}
+              ${item.last_search_error ? `<small class="error-text">${escapeHtml(item.last_search_error)}</small>` : ''}
+            </div>
+            ${statusTonePill(item.last_status || '未確認', statusTone)}
+            ${statusTonePill(item.last_search_status || '検索未確認', searchTone)}
+            <label class="table-checkbox"><input type="checkbox" ${item.active ? 'checked' : ''} ${readonly ? 'disabled' : ''} onchange="toggleSerperKeyActive('${id}', this.checked)">有効</label>
+            ${item.role === 'sub' && !readonly ? `<button type="button" class="table-link-button" onclick="makeSerperKeyMain('${id}')">メインにする</button>` : '<span></span>'}
+            ${readonly ? '<span class="pill info">読取専用</span>' : `<button type="button" class="table-danger-button" onclick="deleteSerperKey('${id}')">削除</button>`}
+          </div>
+        `;
+      }
+
       async function saveSerper(event) {
         event.preventDefault();
-        await api('saveSerperApiKey', document.getElementById('serperKey').value);
+        const result = await api('saveSerperApiKeyEntry', {
+          key: document.getElementById('serperKey').value,
+          name: document.getElementById('serperKeyName').value,
+          role: document.getElementById('serperKeyRole').value,
+          active: document.getElementById('serperKeyActive').checked,
+        });
+        state.serper = result || state.serper;
         document.getElementById('serperKey').value = '';
+        document.getElementById('serperKeyName').value = '';
+        renderSerperKeyManager(state.serper);
+        message((result && result.message) || 'Serper APIキーを保存しました', 'ok');
         await refreshAll();
       }
 
       async function testSerper() {
         const result = await api('testSerperApiKey');
+        state.serperLastTest = result;
+        if (result.manager) state.serper = result.manager;
+        renderSerperKeyManager(state.serper);
         message(`Serper OK: ${result.resultCount}件`, 'ok');
+      }
+
+      async function refreshSerperKeyManager() {
+        const result = await api('listSerperApiKeyManager');
+        state.serper = result || state.serper;
+        renderSerperKeyManager(state.serper);
+        message('Serper APIキー管理を更新しました', 'ok');
+      }
+
+      async function toggleSerperKeyActive(id, active) {
+        const result = await api('updateSerperApiKeyEntry', id, { active });
+        state.serper = result || state.serper;
+        renderSerperKeyManager(state.serper);
+        message((result && result.message) || 'Serper APIキー設定を更新しました', 'ok');
+        await refreshAll();
+      }
+
+      async function makeSerperKeyMain(id) {
+        const result = await api('updateSerperApiKeyEntry', id, { role: 'main', active: true });
+        state.serper = result || state.serper;
+        renderSerperKeyManager(state.serper);
+        message((result && result.message) || 'Serper APIキーをメインにしました', 'ok');
+        await refreshAll();
+      }
+
+      async function deleteSerperKey(id) {
+        if (!confirm('このSerper APIキーを削除しますか。')) return;
+        const result = await api('deleteSerperApiKeyEntry', id);
+        state.serper = result || state.serper;
+        renderSerperKeyManager(state.serper);
+        message((result && result.message) || 'Serper APIキーを削除しました', 'ok');
+        await refreshAll();
       }
 
       async function runSearch(event) {
