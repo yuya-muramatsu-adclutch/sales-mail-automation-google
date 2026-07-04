@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260705_apps_script_full_workflow_v31_duplicate_resolution';
+const APP_VERSION = '20260705_apps_script_full_workflow_v32_form_send_state';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -612,6 +612,7 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
 
   if (value === 'email') return isEmailSendTarget_(lead, masterContext);
   if (value === 'form') return isFormSendTarget_(lead, masterContext);
+  if (value === 'form_all') return isFormOutreachLead_(lead);
   if (value === 'excluded') return sendNg || SEND_EXCLUDED_STATUSES.indexOf(status) !== -1;
   if (value === 'send_ng') return sendNg;
   if (value === 'unsent') return isValidEmailAddress_(lead.email) && !sent && !sendNg && !replied && !deal;
@@ -718,6 +719,96 @@ function deleteLead(id, options) {
 
     writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
     return nextRecord;
+  });
+}
+
+function markLeadFormSent(leadId, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  return withScriptLock_('markLeadFormSent', function () {
+    const id = requireId_(leadId);
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'leads');
+    const found = findRowById_(sheet, id);
+
+    if (!found) {
+      throw new Error('Lead not found: ' + id);
+    }
+
+    const now = nowIso_();
+    const headers = getHeaders_(sheet);
+    const customFields = parseJsonObjectSafe_(found.record.custom_fields_json);
+    const events = formSendEventsFromCustomFields_(customFields);
+    const body = typeof input.body === 'string' ? input.body : '';
+    const templateId = String(input.template_id || input.templateId || '').trim();
+    const nextCount = Number(customFields.form_send_count || 0) + 1;
+
+    events.unshift({
+      at: now,
+      type: 'sent',
+      body: body,
+      template_id: templateId,
+    });
+
+    customFields.form_send_count = nextCount;
+    customFields.last_form_sent_at = now;
+    customFields.last_form_body = body;
+    if (templateId) customFields.last_form_template_id = templateId;
+    customFields.form_send_events = events.slice(0, 50);
+
+    const nextRecord = Object.assign({}, found.record, {
+      status: 'フォーム対応済み',
+      form_status: '対応済み',
+      last_sent_at: now,
+      next_send_at: '',
+      custom_fields_json: safeJsonStringify_(customFields),
+      updated_at: now,
+    });
+
+    writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+    return getLeadById(id);
+  });
+}
+
+function unmarkLeadFormSent(leadId) {
+  return withScriptLock_('unmarkLeadFormSent', function () {
+    const id = requireId_(leadId);
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'leads');
+    const found = findRowById_(sheet, id);
+
+    if (!found) {
+      throw new Error('Lead not found: ' + id);
+    }
+
+    const now = nowIso_();
+    const headers = getHeaders_(sheet);
+    const customFields = parseJsonObjectSafe_(found.record.custom_fields_json);
+    const events = formSendEventsFromCustomFields_(customFields);
+    const nextCount = Math.max(0, Number(customFields.form_send_count || 0) - 1);
+    const fallbackSentAt = latestSuccessfulMailSentAt_(id);
+
+    events.unshift({
+      at: now,
+      type: 'unsent',
+      body: '',
+    });
+
+    customFields.form_send_count = nextCount;
+    customFields.form_send_events = events.slice(0, 50);
+    delete customFields.last_form_sent_at;
+    delete customFields.last_form_body;
+    delete customFields.last_form_template_id;
+
+    const nextRecord = Object.assign({}, found.record, {
+      status: found.record.status === 'フォーム対応済み' ? '未対応' : (found.record.status || '未対応'),
+      form_status: '未対応',
+      last_sent_at: fallbackSentAt || '',
+      custom_fields_json: safeJsonStringify_(customFields),
+      updated_at: now,
+    });
+
+    writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+    return getLeadById(id);
   });
 }
 
@@ -1437,7 +1528,7 @@ function normalizeListOptions_(options) {
   const filter = String(input.filter || 'all').trim() || 'all';
   const formStatus = String(input.formStatus || input.form_status || '').trim();
   const sort = String(input.sort || 'updated_desc').trim() || 'updated_desc';
-  const allowedFilters = ['all', 'email', 'form', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'];
+  const allowedFilters = ['all', 'email', 'form', 'form_all', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'];
   const allowedSorts = ['updated_desc', 'created_desc', 'company_asc', 'status_asc', 'last_sent_desc'];
 
   if (status && LEAD_STATUSES.indexOf(status) === -1) {
@@ -1468,6 +1559,48 @@ function normalizeListOptions_(options) {
 
 function isArchivedLead_(lead) {
   return lead.status === 'archived' || Boolean(lead.archived_at);
+}
+
+function parseJsonObjectSafe_(value) {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return Object.assign({}, value);
+
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function formSendEventsFromCustomFields_(customFields) {
+  const raw = customFields && Array.isArray(customFields.form_send_events)
+    ? customFields.form_send_events
+    : [];
+  return raw
+    .filter(function (event) {
+      return event && typeof event === 'object' && !Array.isArray(event) && (event.type === 'sent' || event.type === 'unsent') && event.at;
+    })
+    .map(function (event) {
+      return {
+        at: String(event.at || ''),
+        type: String(event.type || ''),
+        body: typeof event.body === 'string' ? event.body : '',
+        template_id: event.template_id ? String(event.template_id) : '',
+      };
+    });
+}
+
+function latestSuccessfulMailSentAt_(leadId) {
+  const histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'))
+    .filter(function (history) {
+      return String(history.lead_id || '') === String(leadId || '') && history.send_result === '成功';
+    })
+    .sort(function (a, b) {
+      return String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || ''));
+    });
+
+  return histories.length ? String(histories[0].sent_at || histories[0].created_at || '') : '';
 }
 
 function requireId_(id) {

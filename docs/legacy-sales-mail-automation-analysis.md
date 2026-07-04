@@ -20,7 +20,8 @@
 - `app/prospecting/page.tsx`: Serperを使う営業リスト収集ツール
 - `app/templates/page.tsx`: テンプレート管理、差出人バナー、安全チェック、テンプレート例
 - `app/ng-master/page.tsx`, `app/exclusions/page.tsx`: 送信NG/除外ドメイン管理、集計、履歴テーブル
-- `components/FormOutreachBoard.tsx`: フォーム送信対象テーブル、作業バー、本文プレビュー
+- `components/FormOutreachBoard.tsx`: フォーム送信対象テーブル、送信済みチェック、送信済み解除、作業バー、本文プレビュー
+- `app/api/leads/[id]/form-send/route.ts`, `lib/form-outreach-state.ts`: フォーム送信済み/解除時の状態更新、送信回数、最終送信日時、イベント保持
 - `components/ProspectingActivityPanel.tsx`, `components/ProspectingCollectionTool.tsx`, `components/AutoProspectingSettingsPanel.tsx`, `components/ProspectingBatchPanel.tsx`, `components/ExclusionSearchPanel.tsx`, `components/CareFacilityFileProspectingPanel.tsx`, `components/SourcePageProspectingPanel.tsx`: 営業リスト収集ツールの指標、収集ルート、実行カード、5モード操作UI
 - `app/background-jobs/page.tsx`, `app/sync/page.tsx`, `app/admin/page.tsx`, `app/histories/page.tsx`: 運用、ジョブ、同期ログ、送信履歴、管理系の見せ方
 - `app/background-jobs/activity/page.tsx`, `app/errors/page.tsx`: 直近実行結果、ジョブ別結果、運用エラー詳細の見せ方
@@ -80,6 +81,8 @@
 - リード詳細ドロワーに旧 `QuickLeadEditButton` のフォーム送信履歴セクションを追加し、`custom_fields_json` の `form_send_events`, `last_form_sent_at`, `form_send_count`, `last_form_body` から最新送信、状態、本文プレビュー、本文コピーを表示できるようにした。
 - リード詳細ドロワー下部に旧 `QuickLeadEditButton` の危険操作セクションを追加し、除外ドメイン登録して営業対象から外す操作、営業先削除確認を同じ流れで実行できるようにした。
 - リード詳細ドロワーに旧 `DuplicateResolutionDialog` 相当の重複候補セクションを追加し、同じ会社名・メール・ドメインの候補を確認しながら、既存候補を残す/編集中の営業先を残す操作を選べるようにした。
+- フォーム送信リストに旧 `FormOutreachBoard` の送信済みチェック、一覧行の送信済み/解除ボタン、作業バー内の送信済み解除導線を追加した。
+- 送信済み更新時は `custom_fields_json` に `form_send_count`, `last_form_sent_at`, `last_form_body`, `form_send_events` を保存し、リード詳細のフォーム送信履歴と同じデータを参照するようにした。
 
 ## GAS版へ反映した機能
 
@@ -94,6 +97,8 @@
 - リード保存時に `form_status`, `send_ng_reason`, `send_ng_memo`, `decline_reason` も更新できるようにし、旧アプリの詳細編集で扱っていたステータス補足情報をSheets DBへ反映。
 - `listLeadSendHistories()` を追加し、旧 `/api/leads/[id]/send-histories` 相当としてリード単位の送信履歴を新しい順に取得できるようにした。
 - `Email.gs` のテンプレート置換を日本語タグとカスタム項目に対応させ、`{{会社名}}`, `{{担当者名}}`, `{{WEBサイトURL}}`, `{{差出人名}}`, `{{カスタム項目キー}}` を送信時にも置換できるようにした。
+- `markLeadFormSent()` / `unmarkLeadFormSent()` を追加し、旧 `/api/leads/[id]/form-send` 相当としてフォーム送信済みと解除をUUID `id` 更新で実行できるようにした。
+- `listLeads()` に `form_all` フィルタを追加し、フォーム送信リストで対応済み/対応不要を含むフォーム営業先を状態別に表示できるようにした。
 
 ## そのまま移植しないもの
 

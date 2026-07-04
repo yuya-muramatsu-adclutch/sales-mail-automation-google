@@ -24,6 +24,13 @@ function isFormSendTarget_(lead, masterContext) {
   return !blocked.blocked;
 }
 
+function isFormOutreachLead_(lead) {
+  if (!lead || isArchivedLead_(lead)) return false;
+  if (!lead.form_url) return false;
+  if (isValidEmailAddress_(lead.email)) return false;
+  return true;
+}
+
 function sendLeadEmail(leadId, templateId, options) {
   const input = options && typeof options === 'object' ? options : {};
   const result = withScriptLock_('sendLeadEmail', function () {

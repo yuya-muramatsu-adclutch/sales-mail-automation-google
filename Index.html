@@ -1376,6 +1376,16 @@
         accent-color: var(--blue);
       }
 
+      .form-sent-check {
+        justify-content: flex-start;
+        min-width: 118px;
+        color: var(--text);
+      }
+
+      .form-sent-check input {
+        flex: 0 0 auto;
+      }
+
       .lead-action-cell,
       .contact-channel-cell {
         flex-wrap: wrap;
@@ -2799,6 +2809,27 @@
         white-space: nowrap;
       }
 
+      .form-work-actions,
+      .form-send-state-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .form-send-state-actions {
+        justify-content: flex-start;
+      }
+
+      .form-send-state-cell {
+        display: grid;
+        gap: 5px;
+      }
+
+      .form-outreach-row-sent td {
+        background: #f0fdf4;
+      }
+
       .form-outreach-row-active td {
         background: #eff6ff;
       }
@@ -3451,12 +3482,14 @@
         }
 
         .toolbar,
+        .form-work-actions,
         .main-toolbar-actions {
           align-items: stretch;
           width: 100%;
         }
 
         .toolbar > *,
+        .form-work-actions > *,
         .main-toolbar-actions > button {
           flex: 1 1 160px;
         }
@@ -4508,6 +4541,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         leadDangerConfirmAction: '',
         dismissedBackgroundJobKeys: [],
         selectedFormLeadId: '',
+        formUpdatingLeadId: '',
         selectedLeadIds: [],
         searchResults: [],
         searchUsageLogs: [],
@@ -6570,13 +6604,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function loadFormLeads() {
         const result = await api('listLeads', {
           search: document.getElementById('formSearch').value,
-          filter: 'form',
+          filter: 'form_all',
           formStatus: document.getElementById('formStatusFilter').value,
           limit: Number(document.getElementById('formLimit').value || 100),
           offset: 0,
         });
         state.formLeads = result.items || [];
         state.formTotal = result.total || state.formLeads.length;
+        if (!state.formLeads.some((lead) => lead.id === state.selectedFormLeadId)) {
+          state.selectedFormLeadId = '';
+        }
         if (!state.selectedFormLeadId && state.formLeads.length > 0) {
           state.selectedFormLeadId = state.formLeads[0].id;
         }
@@ -6586,18 +6623,53 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderFormLeads(total) {
         document.getElementById('formLeadCount').textContent = `${formatNumber(total)}件`;
         renderFormOutreachSummary(total);
-        const rows = state.formLeads.map((lead) => row([
-          ['選択', `<button type="button" class="table-link-button" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '作業中' : '選択'}</button>`],
-          ['営業先', `<span class="facility-cell"><strong>${escapeHtml(lead.facility_name || lead.company_name || '-')}</strong><small class="muted">${escapeHtml(lead.company_name || '')}</small></span>`],
-          ['ジャンル', escapeHtml(lead.genre || '-')],
-          ['フォーム状態', statusPill(lead.form_status || '未対応')],
-          ['営業状態', statusPill(lead.status || '未対応')],
-          ['送信回数', sendSummaryCell(lead)],
-          ['フォームURL', lead.form_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(lead.form_url))}</a>` : '<span class="muted">未取得</span>'],
-          ['操作', `<button type="button" class="table-link-button" onclick="selectFormLead('${escapeJsString(lead.id)}'); copySelectedFormMessage()">本文コピー</button>`],
-        ])).join('');
-        document.getElementById('formLeadTable').innerHTML = table(['選択', '営業先', 'ジャンル', 'フォーム状態', '営業状態', '送信回数', 'フォームURL', '操作'], rows);
+        const rows = state.formLeads.map((lead) => {
+          const sent = isFormLeadSent(lead);
+          const updating = state.formUpdatingLeadId === lead.id;
+          const classes = [
+            state.selectedFormLeadId === lead.id ? 'form-outreach-row-active' : '',
+            sent ? 'form-outreach-row-sent' : '',
+          ].filter(Boolean).join(' ');
+          const cells = [
+            ['選択', `<button type="button" class="table-link-button" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '作業中' : '選択'}</button>`],
+            ['送信済み', renderFormSentCheck(lead, sent, updating)],
+            ['営業先', `<span class="facility-cell"><strong>${escapeHtml(lead.facility_name || lead.company_name || '-')}</strong><small class="muted">${escapeHtml(lead.company_name || '')}</small></span>`],
+            ['ジャンル', escapeHtml(lead.genre || '-')],
+            ['フォーム状態', statusPill(lead.form_status || '未対応')],
+            ['営業状態', statusPill(lead.status || '未対応')],
+            ['フォーム送信', formSendSummaryCell(lead)],
+            ['フォームURL', lead.form_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(lead.form_url))}</a>` : '<span class="muted">未取得</span>'],
+            ['操作', renderFormLeadActionCell(lead, sent, updating)],
+          ];
+          return `<tr class="${escapeHtml(classes)}">` + cells.map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
+        }).join('');
+        document.getElementById('formLeadTable').innerHTML = table(['選択', '送信済み', '営業先', 'ジャンル', 'フォーム状態', '営業状態', 'フォーム送信', 'フォームURL', '操作'], rows);
         renderSelectedFormLead();
+      }
+
+      function renderFormSentCheck(lead, sent, updating) {
+        const latest = latestFormSentAtClient(lead);
+        return `
+          <span class="form-send-state-cell">
+            <label class="table-checkbox form-sent-check">
+              <input type="checkbox" onchange="toggleFormLeadSent('${escapeJsString(lead.id)}', this.checked)" ${sent ? 'checked' : ''} ${updating ? 'disabled' : ''}>
+              <span>${sent ? '送信済み' : '未送信'}</span>
+            </label>
+            ${latest ? `<small class="muted">${escapeHtml(dateTimeLabel(latest))}</small>` : ''}
+          </span>
+        `;
+      }
+
+      function renderFormLeadActionCell(lead, sent, updating) {
+        const id = escapeJsString(lead.id);
+        return `
+          <span class="table-action-row">
+            <button type="button" class="table-link-button" onclick="selectFormLead('${id}'); copySelectedFormMessage()" ${updating ? 'disabled' : ''}>本文コピー</button>
+            ${sent
+              ? `<button type="button" class="table-link-button" onclick="unmarkFormLeadSent('${id}')" ${updating ? 'disabled' : ''}>解除</button>`
+              : `<button type="button" class="table-link-button" onclick="markFormLeadSent('${id}')" ${updating || !lead.form_url ? 'disabled' : ''}>送信済み</button>`}
+          </span>
+        `;
       }
 
       function selectFormLead(id) {
@@ -6637,6 +6709,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           return;
         }
         const template = findFormTemplateForLead(lead);
+        const sent = isFormLeadSent(lead);
+        const updating = state.formUpdatingLeadId === lead.id;
+        const formCount = formDisplaySendCount(lead);
+        const latestFormAt = latestFormSentAtClient(lead);
         document.getElementById('formPreviewMeta').textContent = `${lead.company_name || ''} / ${lead.genre || '共通'} / ${template ? template.name : 'テンプレート未設定'}`;
         document.getElementById('formTemplatePreview').textContent = template ? renderClientTemplate(template.body || '', lead) : '本番ONのフォーム用テンプレートがありません。テンプレート画面で template_type=form を作成してください。';
         document.getElementById('formTemplatePill').textContent = template ? template.name : 'テンプレート未設定';
@@ -6644,12 +6720,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <div class="form-work-main">
             <span class="muted">次に作業するフォーム営業先</span>
             <strong>${escapeHtml(lead.facility_name || lead.company_name || '-')}</strong>
-            <small class="muted">${escapeHtml(lead.genre || '共通')} / ${escapeHtml(lead.form_status || '未対応')} / ${template ? escapeHtml(template.name) : 'テンプレート未設定'}</small>
+            <small class="muted">${escapeHtml(lead.genre || '共通')} / ${escapeHtml(lead.form_status || '未対応')} / ${formatNumber(formCount)}回${latestFormAt ? ' / 最新 ' + escapeHtml(dateTimeLabel(latestFormAt)) : ''} / ${template ? escapeHtml(template.name) : 'テンプレート未設定'}</small>
           </div>
-          <div class="toolbar">
+          <div class="form-work-actions">
             ${lead.form_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">フォームURL</a>` : '<span class="pill warn">フォーム未取得</span>'}
             <button type="button" class="primary" onclick="copySelectedFormMessage()">本文コピー</button>
-            <button type="button" onclick="markSelectedFormLead('対応済み')">送信済み</button>
+            ${sent
+              ? `<button type="button" onclick="unmarkSelectedFormLeadSent()" ${updating ? 'disabled' : ''}>送信済み解除</button>`
+              : `<button type="button" onclick="markSelectedFormLeadSent()" ${updating || !lead.form_url ? 'disabled' : ''}>送信済み</button>`}
           </div>
         `;
       }
@@ -6721,6 +6799,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           message('フォーム対象を選択してください', 'error');
           return;
         }
+        if (nextStatus === '対応済み') {
+          await markSelectedFormLeadSent();
+          return;
+        }
         const statusPatch = nextStatus === '対応済み'
           ? { status: 'フォーム対応済み', form_status: '対応済み' }
           : nextStatus === '対応不要'
@@ -6729,6 +6811,96 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         await api('updateLead', state.selectedFormLeadId, statusPatch);
         message(`フォーム状態を${nextStatus}に更新しました`, 'ok');
         await Promise.all([loadFormLeads(), loadLeads()]);
+      }
+
+      function isFormLeadSent(lead) {
+        return String(lead?.form_status || '') === '対応済み' || formSendCountClient(lead) > 0 || Boolean(latestFormSentAtClient(lead));
+      }
+
+      function formDisplaySendCount(lead) {
+        const count = formSendCountClient(lead);
+        return count > 0 ? count : (String(lead?.form_status || '') === '対応済み' ? 1 : 0);
+      }
+
+      function formSendSummaryCell(lead) {
+        const count = formDisplaySendCount(lead);
+        const latest = latestFormSentAtClient(lead);
+        return `
+          <span class="send-summary-cell">
+            <strong>${formatNumber(count)}回</strong>
+            ${latest ? `<small>最新 ${escapeHtml(dateTimeLabel(latest))}</small>` : '<small>フォーム未送信</small>'}
+          </span>
+        `;
+      }
+
+      async function toggleFormLeadSent(id, checked) {
+        try {
+          if (checked) {
+            await markFormLeadSent(id);
+          } else {
+            await unmarkFormLeadSent(id);
+          }
+        } catch (error) {
+          await loadFormLeads();
+        }
+      }
+
+      async function markSelectedFormLeadSent() {
+        if (!state.selectedFormLeadId) {
+          message('フォーム対象を選択してください', 'error');
+          return;
+        }
+        await markFormLeadSent(state.selectedFormLeadId);
+      }
+
+      async function unmarkSelectedFormLeadSent() {
+        if (!state.selectedFormLeadId) {
+          message('フォーム対象を選択してください', 'error');
+          return;
+        }
+        await unmarkFormLeadSent(state.selectedFormLeadId);
+      }
+
+      async function markFormLeadSent(id) {
+        const lead = state.formLeads.find((item) => item.id === id) || state.leads.find((item) => item.id === id);
+        if (!lead || !lead.form_url) {
+          message('フォームURLがない営業先は送信済みにできません', 'error');
+          return;
+        }
+        const template = findFormTemplateForLead(lead);
+        const body = template ? renderClientTemplate(template.body || '', lead) : '';
+        state.formUpdatingLeadId = id;
+        renderFormLeads(state.formTotal);
+        try {
+          await api('markLeadFormSent', id, {
+            body: body,
+            template_id: template ? template.id : '',
+          });
+          message('フォーム送信済みに更新しました', 'ok');
+          await Promise.all([loadFormLeads(), loadLeads()]);
+        } catch (error) {
+          message(error && error.message ? error.message : 'フォーム送信済みの更新に失敗しました', 'error');
+          throw error;
+        } finally {
+          state.formUpdatingLeadId = '';
+          renderFormLeads(state.formTotal);
+        }
+      }
+
+      async function unmarkFormLeadSent(id) {
+        state.formUpdatingLeadId = id;
+        renderFormLeads(state.formTotal);
+        try {
+          await api('unmarkLeadFormSent', id);
+          message('フォーム送信済みを解除しました', 'ok');
+          await Promise.all([loadFormLeads(), loadLeads()]);
+        } catch (error) {
+          message(error && error.message ? error.message : 'フォーム送信済み解除に失敗しました', 'error');
+          throw error;
+        } finally {
+          state.formUpdatingLeadId = '';
+          renderFormLeads(state.formTotal);
+        }
       }
 
       function renderSerper(info) {
