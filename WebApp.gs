@@ -75,6 +75,12 @@ function dispatchPostAction_(action, data) {
   if (action === 'installDefaultTriggers') return installDefaultTriggers();
   if (action === 'createSpreadsheetBackup') return createSpreadsheetBackup();
   if (action === 'setSettingValue') return setSettingValue(data.key, data.value, data.valueType || data.value_type, data.description);
+  if (action === 'listCustomFieldDefinitions') return listCustomFieldDefinitions(data);
+  if (action === 'saveCustomFieldDefinition') return saveCustomFieldDefinition(data);
+  if (action === 'updateCustomFieldDefinition') return updateCustomFieldDefinition(data.id, data.patch || data);
+  if (action === 'getListViewSetting') return getListViewSetting(data.genreId || data.genre_id);
+  if (action === 'listListViewSettings') return listListViewSettings(data);
+  if (action === 'saveListViewSettings') return saveListViewSettings(data);
   if (action === 'prepareLeadMigration') return prepareLeadMigration(data);
   if (action === 'writeLeadMigrationRows') return writeLeadMigrationRows(data);
   if (action === 'finalizeLeadMigration') return finalizeLeadMigration(data);
@@ -97,6 +103,8 @@ function getInitialData() {
     genres: listSheetRecords('genres', { limit: 200 }).items,
     reasons: listSheetRecords('reasons', { limit: 300 }).items,
     settings: listSheetRecords('settings', { limit: 200, includeInactive: true }).items,
+    customFieldDefinitions: listCustomFieldDefinitions({ includeInactive: true }).items,
+    listViewSettings: listListViewSettings({}).items,
     serper: getSerperApiKeyInfo(),
   };
 }

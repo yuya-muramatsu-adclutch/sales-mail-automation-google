@@ -28,6 +28,8 @@
 - `components/GmailConnectionCheck.tsx`, `components/GoogleCredentialsManager.tsx`, `components/MailSendLockPanel.tsx`: Gmail連携テスト、Google認証状態、送信ロック、本番前チェックの見せ方
 - `components/SendWindowSettingsForm.tsx`, `components/GmailReplyCheckSettingsForm.tsx`, `components/EmailDiscoverySettingsForm.tsx`, `components/BackgroundWorkerSettingsForm.tsx`: 自動送信時間、返信自動チェック、メール自動取得、重い処理の設定UI
 - `components/DuplicateLeadManager.tsx`, `app/errors/page.tsx`: 重複リスト管理、エラー詳細の運用UI
+- `components/ListViewSettingsPanel.tsx`, `components/CustomFieldDefinitionForm.tsx`, `components/CustomFieldsInputs.tsx`: 表示項目設定、カスタム項目定義、リード詳細内のカスタム項目入力
+- `app/api/display-settings/route.ts`, `app/api/custom-fields/route.ts`, `supabase/schema.sql`: `list_view_settings` / `custom_field_definitions` の保存APIとスキーマ
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
 ## GAS版へ反映したUI
@@ -54,6 +56,9 @@
 - 管理に旧 `SendWindowSettingsForm`, `GmailReplyCheckSettingsForm`, `EmailDiscoverySettingsForm`, `BackgroundWorkerSettingsForm` の自動運用設定を追加し、GAS版では `settings` シート、時間主導トリガー、`batch_runtime_budget_ms` に読み替えた。
 - 管理に旧 `DuplicateLeadManager` の重複チェックUIを追加し、全営業リストをページ取得して会社名/メール/ドメイン一致を表示できるようにした。
 - 管理に旧 `errors/page.tsx` のエラー詳細を追加し、GAS版では `sync_logs` の warn/error を表示するようにした。
+- 営業リストに旧 `ListViewSettingsPanel` の開閉式「表示項目」UIを追加し、ジャンル別に列の表示/順番を `list_view_settings` シートへ保存できるようにした。
+- 管理に旧 `CustomFieldDefinitionForm` のカスタム項目作成UIを追加し、`custom_field_definitions` シートへ保存できるようにした。
+- リード詳細ドロワーに旧 `CustomFieldsInputs` 相当の入力欄を追加し、ジャンル別カスタム項目を `custom_fields_json` へ保存できるようにした。
 
 ## GAS版へ反映した機能
 
@@ -63,6 +68,7 @@
 - `getDashboardStats()` にメール送信枠、Gmail残数、Serper日次/月次残数、検索ジョブ数、連携状態、今月指標を追加。
 - 空文字を真扱いしていた `normalizeBooleanLike_()` を修正し、返信数や送信NG数の集計が過剰にならないようにした。
 - GAS版で安全に実行できる範囲として、表示中リードの複数選択、確認待ち選択、選択リードのステータス更新、表示中リードCSV出力、個別公式サイト探索の導線を追加。
+- `custom_field_definitions` と `list_view_settings` をSheets DBへ追加し、旧Supabase版のカスタム項目/表示項目設定をUUID付き行として保持。
 
 ## そのまま移植しないもの
 
@@ -75,4 +81,4 @@
 - 旧アプリのメール本文プレビューで使っているテンプレート変数の詳細説明と差分ハイライト。
 - 検索結果レビューから営業リストへ新規追加する確定フロー。
 - Gmail連携での実テストメール送信履歴と失敗理由の詳細表示。
-- 営業リストの表示項目設定とカスタム項目定義。
+- カスタム項目をテンプレート変数一覧へ表示する補助UI。

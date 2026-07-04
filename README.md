@@ -32,6 +32,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版のサイドバー構成に寄せた `バックグラウンド進捗` / `メール送信リスト` / `送信プレビュー` / `送信履歴` / `商談` / `分析` / `同期` / `Gmail連携` / `管理` タブ
 - 旧Next/Supabase版の送信プレビュー、検索結果レビュー、Gmail連携テスト、送信ロック、Google認証管理に寄せた詳細パネル
 - 旧Next/Supabase版の管理画面に寄せた自動運用設定、重複リスト管理、エラー詳細パネル
+- 旧Next/Supabase版の `ListViewSettingsPanel` に寄せた営業リスト表示項目設定
+- 旧Next/Supabase版の `CustomFieldDefinitionForm` / `CustomFieldsInputs` に寄せたカスタム項目定義とリード詳細入力
 
 ## ファイル
 
@@ -62,7 +64,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment v19: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment v20: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -72,7 +74,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 2026-06-16 01:12 JST時点で、Web appの初回承認後に `Auto Sales List App DB` が作成されていることを確認済みです。
 
 - DB Spreadsheet ID: `1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY`
-- 作成済みタブ: `leads`, `send_histories`, `email_templates`, `ng_masters`, `excluded_domains`, `genres`, `reasons`, `search_jobs`, `search_results`, `search_usage_logs`, `domain_cache`, `reply_logs`, `sync_logs`, `jobs`, `settings`, `dashboard_cache`, `raw_import`
+- 作成済みタブ: `leads`, `send_histories`, `email_templates`, `ng_masters`, `excluded_domains`, `genres`, `reasons`, `custom_field_definitions`, `list_view_settings`, `search_jobs`, `search_results`, `search_usage_logs`, `domain_cache`, `reply_logs`, `sync_logs`, `jobs`, `settings`, `dashboard_cache`, `raw_import`
 - `leads` は45列のヘッダー生成済み
 - `settings` はGmail日次送信上限、Serper日次/月次/リード別上限、バッチ実行時間上限を初期投入済み
 - v9 Web app URLは認証付きGETでHTML返却を確認済み
@@ -106,6 +108,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - v19で旧Next/Supabase版の `SendWindowSettingsForm`, `GmailReplyCheckSettingsForm`, `EmailDiscoverySettingsForm`, `BackgroundWorkerSettingsForm`, `DuplicateLeadManager`, `errors/page.tsx` に寄せた管理UIを追加済み
 - v19 Web app `doPost` 経由の `getAppInfo` / `getInitialData` でバージョン `20260704_apps_script_full_workflow_v19_admin_settings_ui`、`leadsTotal=5441`、`settings=9` を確認済み
 - v19 Chrome確認で管理タブの `自動運用設定`, `重複リスト管理`, `エラー詳細` を確認し、重複チェックが全5,441件から22グループ/22件を検出することを確認済み
+- v20で旧Next/Supabase版の `ListViewSettingsPanel`, `CustomFieldDefinitionForm`, `CustomFieldsInputs`, `/api/display-settings`, `/api/custom-fields` に寄せた表示項目設定とカスタム項目定義を追加済み
+- v20は `clasp deploy -V 20` で既存Web app URLへ反映済み。ローカルスモークで `leadListViewSettingsPanel`, `customFieldDefinitionPanel`, `renderListViewSettingsPanel`, `renderCustomFieldDefinitionPanel` を確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 

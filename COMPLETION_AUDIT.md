@@ -5,16 +5,16 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app v19: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app v20: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260704_apps_script_full_workflow_v19_admin_settings_ui`
+- Code version: `20260704_apps_script_full_workflow_v20_list_view_custom_fields`
 
 ## 計画書との対応
 
 | 項目 | 状態 | 根拠 |
 | --- | --- | --- |
 | Google Sheets DB | 完了 | `setup()` で `Auto Sales List App DB` を作成済み |
-| 主要タブ作成 | 完了 | 17タブ作成済み |
+| 主要タブ作成 | 完了 | 19タブ作成済み |
 | Apps Script HTML Service画面 | 完了 | v9 Web app GETでHTML返却を確認済み |
 | カスタムメニュー | 完了 | `onOpen()` / `showSidebar()` 実装済み |
 | `leads` CRUD | 完了 | v9 `doPost` で作成・更新・検索・物理削除を確認済み |
@@ -46,6 +46,7 @@
 | 旧アプリナビ導線反映 | 完了 | 旧 `AppFrame` のリスト/運用メニューに合わせ、v14で追加9タブを反映 |
 | 旧アプリ詳細パネル反映 | 完了 | 旧 `EmailPreviewPanel` / `JobResultsReviewTable` / Gmail連携系パネルに合わせ、v18で送信前確認、検索結果カテゴリ、Gmailテスト、送信ロック、Google認証管理を反映 |
 | 旧アプリ管理UI反映 | 完了 | 旧 `SendWindowSettingsForm` / `BackgroundWorkerSettingsForm` / `DuplicateLeadManager` / エラー詳細に合わせ、v19で自動運用設定、重複リスト管理、エラー詳細を反映 |
+| 旧アプリ表示項目/カスタム項目反映 | 完了 | 旧 `ListViewSettingsPanel` / `CustomFieldDefinitionForm` / `CustomFieldsInputs` に合わせ、v20でジャンル別表示項目設定、カスタム項目定義、リード詳細入力を反映 |
 
 ## 検証済み
 
@@ -120,6 +121,11 @@
 - v19 Chrome確認で管理タブに `自動運用設定`, `自動送信時間`, `Gmail返信自動チェック`, `メール自動取得`, `バックグラウンド実行`, `重複リスト管理`, `エラー詳細` が表示されることを確認
 - v19 Chrome確認で `重複チェック` が全5,441件を読み込み、22グループ/22件の重複候補を表示することを確認
 - v19 live配信scriptを抽出し、`node --check /tmp/live-appscript-v19.js` が成功することを確認
+- `clasp deploy -d apps-script-full-workflow-v20-list-view-custom-fields` 成功
+- 既存Web app URLを `clasp deploy -V 20 -i ...` でv20へ再デプロイ済み
+- v20ローカルスモークで `leadListViewSettingsPanel`, `customFieldDefinitionPanel`, `renderListViewSettingsPanel`, `renderCustomFieldDefinitionPanel`, `saveListViewSettings`, `saveCustomFieldDefinitionFromForm` が含まれることを確認
+- v20で `custom_field_definitions` / `list_view_settings` シート定義、`saveCustomFieldDefinition` / `updateCustomFieldDefinition` / `saveListViewSettings` のAPI公開を確認
+- v20 Chrome確認ではGoogleの再承認画面が表示されたため、承認後に実画面表示を確認する
 
 ## 運用時に確認する外部依存
 

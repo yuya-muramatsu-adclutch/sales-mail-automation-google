@@ -1376,7 +1376,8 @@
       .job-result-contact-grid,
       .automation-settings-grid,
       .duplicate-summary-grid,
-      .error-detail-grid {
+      .error-detail-grid,
+      .form-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 10px;
@@ -1626,6 +1627,105 @@
       .duplicate-group-list {
         display: grid;
         gap: 10px;
+      }
+
+      .list-view-settings-panel {
+        margin: -4px 0 18px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: var(--shadow-soft);
+      }
+
+      .list-view-settings-panel summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 42px;
+        padding: 10px 14px;
+        cursor: pointer;
+        color: var(--text);
+        font-weight: 900;
+      }
+
+      .list-view-settings-form,
+      .custom-field-form,
+      .custom-field-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .list-view-settings-form {
+        padding: 0 14px 14px;
+      }
+
+      .list-view-settings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 10px;
+      }
+
+      .list-view-setting-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 76px;
+        gap: 8px;
+        align-items: end;
+      }
+
+      .list-view-setting-row .field input {
+        min-height: 40px;
+        padding: 8px;
+      }
+
+      .custom-field-form {
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .custom-field-card {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .custom-fields-inputs {
+        display: grid;
+        grid-column: 1 / -1;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .custom-fields-inputs:empty {
+        display: none;
+      }
+
+      .custom-field-card header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .custom-field-card h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .custom-field-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
       }
 
       .duplicate-keep-box,
@@ -2681,6 +2781,7 @@
             <button type="button" onclick="filterLeads()">適用</button>
           </div>
           <div class="lead-quick-views" id="leadQuickViews"></div>
+          <section id="leadListViewSettingsPanel"></section>
           <section id="leadReviewGuide" class="prospecting-review-guide" hidden></section>
           <section class="panel">
             <div class="panel-head">
@@ -2725,7 +2826,7 @@
                   <input type="hidden" id="leadId">
                   <label>会社名<input id="leadCompany" required></label>
                   <label>施設名<input id="leadFacility"></label>
-                  <label>ジャンル<input id="leadEditGenre" list="genreList"></label>
+                  <label>ジャンル<input id="leadEditGenre" list="genreList" oninput="renderLeadCustomFieldsPanel(null)"></label>
                   <label>メール<input id="leadEmail" type="email"></label>
                   <label>電話<input id="leadPhone"></label>
                   <label>公式サイト<input id="leadWebsite" type="url"></label>
@@ -2735,6 +2836,7 @@
                   <label>商談ステータス<select id="leadDealStatus"></select></label>
                   <label>担当者<input id="leadContact"></label>
                   <label>メモ<textarea id="leadNotes"></textarea></label>
+                  <section id="leadCustomFieldsPanel" class="custom-fields-inputs"></section>
                   <div class="toolbar">
                     <button type="submit" class="primary">保存</button>
                     <button type="button" onclick="clearLeadForm()">クリア</button>
@@ -3192,6 +3294,7 @@ PropertiesService
           <div class="grid">
             <section id="googleCredentialSummaryPanel" class="panel stack"></section>
             <section id="adminAutomationSettingsPanel" class="panel stack"></section>
+            <section id="customFieldDefinitionPanel" class="panel stack"></section>
             <section id="duplicateLeadManagerPanel" class="panel stack"></section>
             <section id="adminErrorDetailsPanel" class="panel stack"></section>
             <section class="panel stack">
@@ -3329,6 +3432,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         jobs: [],
         syncLogs: [],
         settings: [],
+        customFieldDefinitions: [],
+        listViewSettings: [],
         leadPage: {
           limit: 500,
           offset: 0,
@@ -3377,6 +3482,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.app = initial.app;
           state.enums = initial.enums;
           state.settings = initial.settings || [];
+          state.customFieldDefinitions = initial.customFieldDefinitions || [];
+          state.listViewSettings = initial.listViewSettings || [];
           document.getElementById('appMeta').textContent = `${initial.app.version} / ${initial.app.spreadsheetUrl}`;
           renderSelects(initial.enums, initial.genres);
           renderDashboard(initial.dashboard);
@@ -3669,6 +3776,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderLeads() {
         renderLeadPager();
         renderLeadInsights();
+        renderListViewSettingsPanel();
         renderLeadBulkActionBar();
         renderLeadRowsTable();
       }
@@ -3676,19 +3784,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderLeadRowsTable() {
         const visibleIds = state.leads.map((lead) => lead.id);
         const visibleSelected = visibleIds.length > 0 && visibleIds.every((id) => state.selectedLeadIds.includes(id));
+        const columns = getVisibleLeadColumns();
+        const fixedHeaders = ['No.', '操作'];
         const rows = state.leads.map((lead, index) => {
           const rowNumber = (state.leadPage.offset || 0) + index + 1;
-          return `<tr class="${leadRowClass(lead)}">` + [
+          const cells = [
             ['No.', renderLeadSelectCell(lead, rowNumber)],
             ['操作', renderLeadActionCell(lead)],
-            ['屋号', renderFacilityCell(lead)],
-            ['連絡先', contactChannelCell(lead)],
-            ['ジャンル名', escapeHtml(lead.genre || '-')],
-            ['ステータス', statusStack(lead)],
-            ['送信状況', sendSummaryCell(lead)],
-          ].map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
+          ].concat(columns.map((column) => [column.label, renderLeadColumnCell(lead, column)]));
+          return `<tr class="${leadRowClass(lead)}">` + cells.map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
         }).join('');
-        const emptyRow = `<tr><td data-column="" colspan="7" class="empty">営業リストはありません</td></tr>`;
+        const headers = fixedHeaders.concat(columns.map((column) => column.label));
+        const emptyRow = `<tr><td data-column="" colspan="${headers.length}" class="empty">営業リストはありません</td></tr>`;
         document.getElementById('leadTable').innerHTML = `
           <thead>
             <tr>
@@ -3698,16 +3805,197 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                   <span>No.</span>
                 </label>
               </th>
-              <th>操作</th>
-              <th>屋号</th>
-              <th>連絡先</th>
-              <th>ジャンル名</th>
-              <th>ステータス</th>
-              <th>送信状況</th>
+              ${headers.slice(1).map((header) => `<th>${escapeHtml(header)}</th>`).join('')}
             </tr>
           </thead>
           <tbody>${rows || emptyRow}</tbody>
         `;
+      }
+
+      function renderLeadColumnCell(lead, column) {
+        const key = column.key;
+        if (key === 'facility') return renderFacilityCell(lead);
+        if (key === 'company') return escapeHtml(lead.company_name || '-');
+        if (key === 'contact') return contactChannelCell(lead);
+        if (key === 'email') return lead.email ? `<a class="mini-text-link" href="mailto:${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</a>` : '<span class="muted">未取得</span>';
+        if (key === 'website') return lead.website_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(lead.website_url))}</a>` : '<span class="muted">未取得</span>';
+        if (key === 'form_url') return lead.form_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">フォーム</a>` : '<span class="muted">未取得</span>';
+        if (key === 'phone') return escapeHtml(lead.phone || '-');
+        if (key === 'address') return escapeHtml(lead.address || '-');
+        if (key === 'genre') return escapeHtml(lead.genre || '-');
+        if (key === 'status') return statusStack(lead);
+        if (key === 'send_summary') return sendSummaryCell(lead);
+        if (key === 'form_status') return statusPill(lead.form_status || '未対応');
+        if (key === 'deal_status') return statusPill(lead.deal_status || '未設定');
+        if (key === 'owner') return escapeHtml(lead.owner || '-');
+        if (key === 'updated_at') return escapeHtml(dateTimeLabel(lead.updated_at || lead.created_at) || '-');
+        if (key === 'notes') return escapeHtml(truncateText(lead.notes || '', 80) || '-');
+        if (key.indexOf('custom:') === 0) {
+          const customFields = parseCustomFieldsClient(lead.custom_fields_json);
+          const fieldKey = key.slice('custom:'.length);
+          return formatCustomFieldValue(customFields[fieldKey]);
+        }
+        return escapeHtml(lead[key] || '-');
+      }
+
+      function renderListViewSettingsPanel() {
+        const target = document.getElementById('leadListViewSettingsPanel');
+        if (!target) return;
+        const genre = getSelectedGenreObject();
+        const columns = getAvailableLeadColumns();
+        const messageText = genre
+          ? `ジャンル「${escapeHtml(genre.name)}」の一覧表示を保存します。`
+          : 'ジャンルを選ぶと、そのジャンル用の表示項目を保存できます。';
+        target.innerHTML = `
+          <details class="list-view-settings-panel">
+            <summary><span class="nav-icon">SL</span>表示項目</summary>
+            <form class="list-view-settings-form" onsubmit="saveLeadListViewSettings(event)">
+              <p class="muted">${messageText}</p>
+              <div class="list-view-settings-grid">
+                ${columns.map((column, index) => `
+                  <div class="list-view-setting-row">
+                    <label class="check-row">
+                      <input name="visible:${escapeHtml(column.key)}" type="checkbox" ${column.visible ? 'checked' : ''}>
+                      <span>${escapeHtml(column.label)}</span>
+                    </label>
+                    <div class="field">
+                      <label for="order-${escapeHtml(column.key)}">順番</label>
+                      <input id="order-${escapeHtml(column.key)}" name="order:${escapeHtml(column.key)}" type="number" min="1" value="${escapeHtml(column.order || index + 1)}">
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+              <div id="listViewSettingsMessage" class="message"></div>
+              <button type="submit" class="primary" ${genre ? '' : 'disabled'}>表示項目を保存</button>
+            </form>
+          </details>
+        `;
+      }
+
+      async function saveLeadListViewSettings(event) {
+        event.preventDefault();
+        const genre = getSelectedGenreObject();
+        const messageTarget = document.getElementById('listViewSettingsMessage');
+        if (!genre) {
+          if (messageTarget) {
+            messageTarget.className = 'message error';
+            messageTarget.textContent = '先にジャンルを選択してください。';
+          }
+          return;
+        }
+        const formData = new FormData(event.currentTarget);
+        const columns = getAvailableLeadColumns().map((column, index) => {
+          const orderValue = Number(formData.get(`order:${column.key}`));
+          return {
+            key: column.key,
+            label: column.label,
+            visible: formData.get(`visible:${column.key}`) === 'on',
+            order: Number.isFinite(orderValue) ? orderValue : index + 1,
+            custom: column.custom === true,
+          };
+        }).sort((a, b) => a.order - b.order);
+
+        try {
+          const saved = await api('saveListViewSettings', {
+            genre_id: genre.id,
+            genre: genre.name,
+            columns,
+          });
+          state.listViewSettings = (state.listViewSettings || []).filter((setting) => setting.genre_id !== genre.id);
+          state.listViewSettings.push(saved);
+          renderLeads();
+          if (messageTarget) {
+            messageTarget.className = 'message ok';
+            messageTarget.textContent = '表示項目を保存しました。';
+          }
+          message('表示項目を保存しました。', 'ok');
+        } catch (error) {
+          if (messageTarget) {
+            messageTarget.className = 'message error';
+            messageTarget.textContent = error.message || String(error);
+          }
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      function getVisibleLeadColumns() {
+        return getAvailableLeadColumns().filter((column) => column.visible);
+      }
+
+      function getAvailableLeadColumns() {
+        const defaults = [
+          { key: 'facility', label: '屋号', visible: true, order: 1 },
+          { key: 'contact', label: '連絡先', visible: true, order: 2 },
+          { key: 'genre', label: 'ジャンル名', visible: true, order: 3 },
+          { key: 'status', label: 'ステータス', visible: true, order: 4 },
+          { key: 'send_summary', label: '送信状況', visible: true, order: 5 },
+          { key: 'company', label: '会社名', visible: false, order: 6 },
+          { key: 'email', label: 'メール', visible: false, order: 7 },
+          { key: 'website', label: '公式サイト', visible: false, order: 8 },
+          { key: 'form_url', label: 'フォームURL', visible: false, order: 9 },
+          { key: 'phone', label: '電話番号', visible: false, order: 10 },
+          { key: 'address', label: '住所', visible: false, order: 11 },
+          { key: 'form_status', label: 'フォーム状態', visible: false, order: 12 },
+          { key: 'deal_status', label: '商談状態', visible: false, order: 13 },
+          { key: 'owner', label: '担当者', visible: false, order: 14 },
+          { key: 'updated_at', label: '更新日時', visible: false, order: 15 },
+          { key: 'notes', label: 'メモ', visible: false, order: 16 },
+        ];
+        const genre = getSelectedGenreObject();
+        const customColumns = (state.customFieldDefinitions || [])
+          .filter((field) => field.active !== false && field.list_visible !== false && (!genre || field.genre_id === genre.id || field.genre === genre.name))
+          .map((field, index) => ({
+            key: `custom:${field.field_key}`,
+            label: field.label,
+            visible: field.list_visible !== false,
+            order: 100 + index,
+            custom: true,
+          }));
+        const setting = genre ? (state.listViewSettings || []).find((item) => item.genre_id === genre.id) : null;
+        const settingColumns = setting && Array.isArray(setting.columns) ? setting.columns : [];
+        const settingByKey = settingColumns.reduce((accumulator, column) => {
+          accumulator[column.key] = column;
+          return accumulator;
+        }, {});
+        return defaults.concat(customColumns).map((column, index) => {
+          const saved = settingByKey[column.key];
+          if (!saved) return Object.assign({}, column, { order: column.order || index + 1 });
+          return Object.assign({}, column, {
+            label: saved.label || column.label,
+            visible: saved.visible !== false,
+            order: Number(saved.order || column.order || index + 1),
+          });
+        }).sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+      }
+
+      function getSelectedGenreObject() {
+        const selectedName = String(document.getElementById('leadGenreFilter')?.value || '').trim();
+        if (!selectedName) return null;
+        return (state.genres || []).find((genre) => genre.name === selectedName) || null;
+      }
+
+      function parseCustomFieldsClient(value) {
+        if (!value) return {};
+        if (typeof value === 'object' && !Array.isArray(value)) return value;
+        try {
+          const parsed = JSON.parse(String(value || '{}'));
+          return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch (error) {
+          return {};
+        }
+      }
+
+      function formatCustomFieldValue(value) {
+        if (value === true) return statusPill('ON');
+        if (value === false) return '<span class="muted">OFF</span>';
+        if (Array.isArray(value)) return escapeHtml(value.join(', ') || '-');
+        if (value && typeof value === 'object') return escapeHtml(JSON.stringify(value));
+        return escapeHtml(value == null || value === '' ? '-' : String(value));
+      }
+
+      function truncateText(value, length) {
+        const text = String(value || '');
+        return text.length > length ? text.slice(0, length) + '...' : text;
       }
 
       function renderLeadBulkActionBar() {
@@ -4038,6 +4326,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('meetingLocation').value = lead.address || '';
         document.getElementById('meetingMemo').value = lead.meeting_memo || '';
         renderLeadQuickSummary(lead);
+        renderLeadCustomFieldsPanel(lead);
         openLeadDialog();
       }
 
@@ -4050,6 +4339,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('leadEditStatus').value = '未対応';
         document.getElementById('leadDealStatus').value = '未設定';
         renderLeadQuickSummary(null);
+        renderLeadCustomFieldsPanel(null);
         renderLeadSendTemplateOptions();
       }
 
@@ -4091,13 +4381,98 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`;
       }
 
+      function renderLeadCustomFieldsPanel(lead) {
+        const target = document.getElementById('leadCustomFieldsPanel');
+        if (!target) return;
+        const genreName = String((lead && lead.genre) || document.getElementById('leadEditGenre')?.value || '').trim();
+        const genre = (state.genres || []).find((item) => item.name === genreName || item.id === genreName);
+        const fields = (state.customFieldDefinitions || []).filter((field) => {
+          if (field.active === false || field.detail_visible === false) return false;
+          if (!genre) return false;
+          return field.genre_id === genre.id || field.genre === genre.name;
+        });
+        const values = parseCustomFieldsClient(lead && lead.custom_fields_json);
+        if (!genreName) {
+          target.innerHTML = '<p class="muted">ジャンルを選ぶと、そのジャンルのカスタム項目が表示されます。</p>';
+          return;
+        }
+        if (!fields.length) {
+          target.innerHTML = '<p class="muted">このジャンルにはカスタム項目がまだありません。管理画面から追加できます。</p>';
+          return;
+        }
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h3>カスタム項目</h3>
+              <p class="muted">${escapeHtml(genre.name)}用の追加項目です。</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            ${fields.map((field) => renderLeadCustomFieldInput(field, values[field.field_key])).join('')}
+          </div>
+        `;
+      }
+
+      function renderLeadCustomFieldInput(field, value) {
+        const inputName = `custom_field:${field.field_key}`;
+        if (field.input_type === 'select') {
+          const options = Array.isArray(field.options) ? field.options : [];
+          return `
+            <label>${escapeHtml(field.label)}
+              <select name="${escapeHtml(inputName)}" ${field.required ? 'required' : ''}>
+                <option value="">未選択</option>
+                ${options.map((option) => `<option value="${escapeHtml(option)}" ${String(value ?? '') === option ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+              </select>
+            </label>
+          `;
+        }
+        if (field.input_type === 'checkbox') {
+          return `
+            <label class="check-row">
+              <input name="${escapeHtml(inputName)}" type="checkbox" ${value === true || String(value).toLowerCase() === 'true' ? 'checked' : ''}>
+              <span>${escapeHtml(field.label)}</span>
+            </label>
+          `;
+        }
+        return `
+          <label>${escapeHtml(field.label)}
+            <input name="${escapeHtml(inputName)}" type="${escapeHtml(field.input_type || 'text')}" value="${escapeHtml(value == null ? '' : value)}" ${field.required ? 'required' : ''}>
+          </label>
+        `;
+      }
+
+      function parseLeadCustomFieldsFromForm(existingValues, genreName) {
+        const genre = (state.genres || []).find((item) => item.name === genreName || item.id === genreName);
+        const values = Object.assign({}, existingValues || {});
+        if (!genre) return values;
+        const form = document.getElementById('leadForm');
+        const fields = (state.customFieldDefinitions || []).filter((field) => field.active !== false && field.detail_visible !== false && (field.genre_id === genre.id || field.genre === genre.name));
+        fields.forEach((field) => {
+          const input = form.elements[`custom_field:${field.field_key}`];
+          if (field.input_type === 'checkbox') {
+            values[field.field_key] = Boolean(input && input.checked);
+            return;
+          }
+          const rawValue = input ? String(input.value || '').trim() : '';
+          if (!rawValue) {
+            delete values[field.field_key];
+            return;
+          }
+          values[field.field_key] = field.input_type === 'number' ? Number(rawValue) : rawValue;
+        });
+        return values;
+      }
+
       async function saveLead(event) {
         event.preventDefault();
         const id = document.getElementById('leadId').value;
+        const existingLead = id ? state.leads.find((item) => item.id === id) : null;
+        const genreName = document.getElementById('leadEditGenre').value;
+        const customFields = parseLeadCustomFieldsFromForm(parseCustomFieldsClient(existingLead && existingLead.custom_fields_json), genreName);
         const payload = {
           company_name: document.getElementById('leadCompany').value,
           facility_name: document.getElementById('leadFacility').value,
-          genre: document.getElementById('leadEditGenre').value,
+          genre: genreName,
           email: document.getElementById('leadEmail').value,
           phone: document.getElementById('leadPhone').value,
           website_url: document.getElementById('leadWebsite').value,
@@ -4107,6 +4482,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           deal_status: document.getElementById('leadDealStatus').value,
           contact_name: document.getElementById('leadContact').value,
           notes: document.getElementById('leadNotes').value,
+          custom_fields_json: JSON.stringify(customFields),
         };
         try {
           if (id) await api('updateLead', id, payload);
@@ -4988,6 +5364,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderMailSendLockPanel();
         renderGoogleCredentialSummaryPanel();
         renderAdminAutomationSettingsPanel();
+        renderCustomFieldDefinitionPanel();
         renderDuplicateLeadManagerPanel();
         renderAdminErrorDetailsPanel();
       }
@@ -5656,6 +6033,159 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         await api('setSettingValue', 'batch_runtime_budget_ms', value, 'number', 'Maximum runtime budget per batch. Apps Script hard limit is 6 minutes.');
         message('バックグラウンド実行予算を保存しました', 'ok');
         await refreshAll();
+      }
+
+      function renderCustomFieldDefinitionPanel() {
+        const target = document.getElementById('customFieldDefinitionPanel');
+        if (!target) return;
+        const genres = (state.genres || []).filter((genre) => genre.active !== false);
+        const fields = (state.customFieldDefinitions || []).slice().sort((a, b) => Number(a.sort_order || 100) - Number(b.sort_order || 100) || String(a.label || '').localeCompare(String(b.label || ''), 'ja'));
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>カスタム項目</h2>
+              <p class="muted">旧管理画面のカスタム項目定義です。ジャンル別に、一覧表示やテンプレート差し込みへ使う項目を追加できます。</p>
+            </div>
+            <span class="pill info">${formatNumber(fields.filter((field) => field.active !== false).length)}件</span>
+          </div>
+          <form class="custom-field-form" onsubmit="saveCustomFieldDefinitionFromForm(event)">
+            <div class="form-grid">
+              <label>ジャンル<select id="customFieldGenre" name="genre_id" required>
+                <option value="">選択</option>
+                ${genres.map((genre) => `<option value="${escapeHtml(genre.id)}">${escapeHtml(genre.name)}</option>`).join('')}
+              </select></label>
+              <label>項目名<input id="customFieldLabel" name="label" required></label>
+              <label>差し込み名<input id="customFieldKey" name="field_key" placeholder="未入力なら項目名から自動作成"></label>
+              <label>入力形式<select id="customFieldType" name="input_type">
+                <option value="text">テキスト</option>
+                <option value="number">数値</option>
+                <option value="date">日付</option>
+                <option value="select">プルダウン</option>
+                <option value="checkbox">チェックボックス</option>
+                <option value="url">URL</option>
+                <option value="email">メール</option>
+              </select></label>
+            </div>
+            <label>プルダウン選択肢<input id="customFieldOptions" name="options" placeholder="A,B,C のようにカンマ区切り"></label>
+            <div class="toolbar">
+              <label class="check-row"><input name="list_visible" type="checkbox"><span>一覧に表示</span></label>
+              <label class="check-row"><input name="template_enabled" type="checkbox" checked><span>テンプレート差し込み可</span></label>
+              <label class="check-row"><input name="required" type="checkbox"><span>必須</span></label>
+            </div>
+            <div id="customFieldMessage" class="message"></div>
+            <button type="submit" class="primary">カスタム項目を追加</button>
+          </form>
+          <div class="custom-field-list">
+            ${fields.length ? fields.map(renderCustomFieldDefinitionCard).join('') : '<p class="empty-state muted">カスタム項目はまだありません。</p>'}
+          </div>
+        `;
+      }
+
+      function renderCustomFieldDefinitionCard(field) {
+        const active = field.active !== false;
+        const options = Array.isArray(field.options) ? field.options : [];
+        return `
+          <article class="custom-field-card">
+            <header>
+              <div>
+                <h3>${escapeHtml(field.label || field.field_key || '名称未設定')}</h3>
+                <p class="muted">${escapeHtml(field.genre || field.genres?.name || 'ジャンル未設定')} / {{${escapeHtml(field.field_key || '')}}}</p>
+              </div>
+              <span class="pill ${active ? 'good' : 'warn'}">${active ? '有効' : '無効'}</span>
+            </header>
+            <div class="custom-field-meta">
+              <span class="pill info">${escapeHtml(inputTypeLabel(field.input_type))}</span>
+              ${field.list_visible ? '<span class="pill good">一覧表示</span>' : '<span class="pill">一覧OFF</span>'}
+              ${field.template_enabled ? '<span class="pill good">差し込み可</span>' : '<span class="pill">差し込みOFF</span>'}
+              ${field.required ? '<span class="pill warn">必須</span>' : '<span class="pill">任意</span>'}
+            </div>
+            ${options.length ? `<small class="muted">選択肢: ${escapeHtml(options.join(', '))}</small>` : ''}
+            <div class="toolbar">
+              <button type="button" onclick="toggleCustomFieldActive('${escapeJsString(field.id)}', ${active ? 'false' : 'true'})">${active ? '無効化' : '有効化'}</button>
+              <button type="button" onclick="toggleCustomFieldListVisible('${escapeJsString(field.id)}', ${field.list_visible ? 'false' : 'true'})">${field.list_visible ? '一覧から外す' : '一覧に表示'}</button>
+            </div>
+          </article>
+        `;
+      }
+
+      async function saveCustomFieldDefinitionFromForm(event) {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const label = String(formData.get('label') || '').trim();
+        const fieldKey = String(formData.get('field_key') || '').trim() || normalizeCustomFieldKeyClient(label);
+        const genreId = String(formData.get('genre_id') || '').trim();
+        const genre = (state.genres || []).find((item) => item.id === genreId);
+        const payload = {
+          genre_id: genreId,
+          genre: genre ? genre.name : '',
+          field_key: fieldKey,
+          label,
+          input_type: String(formData.get('input_type') || 'text'),
+          options: String(formData.get('options') || '').split(',').map((option) => option.trim()).filter(Boolean),
+          list_visible: formData.get('list_visible') === 'on',
+          detail_visible: true,
+          template_enabled: formData.get('template_enabled') === 'on',
+          required: formData.get('required') === 'on',
+          active: true,
+          sort_order: (state.customFieldDefinitions || []).length + 100,
+        };
+        const messageTarget = document.getElementById('customFieldMessage');
+        try {
+          await api('saveCustomFieldDefinition', payload);
+          const refreshed = await api('listCustomFieldDefinitions', { includeInactive: true });
+          state.customFieldDefinitions = refreshed.items || [];
+          event.currentTarget.reset();
+          renderCustomFieldDefinitionPanel();
+          renderLeads();
+          message('カスタム項目を追加しました。', 'ok');
+        } catch (error) {
+          if (messageTarget) {
+            messageTarget.className = 'message error';
+            messageTarget.textContent = error.message || String(error);
+          }
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      async function toggleCustomFieldActive(id, active) {
+        try {
+          const updated = await api('updateCustomFieldDefinition', id, { active });
+          state.customFieldDefinitions = (state.customFieldDefinitions || []).map((field) => field.id === id ? updated : field);
+          renderCustomFieldDefinitionPanel();
+          renderLeads();
+          message(active ? 'カスタム項目を有効化しました。' : 'カスタム項目を無効化しました。', 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      async function toggleCustomFieldListVisible(id, listVisible) {
+        try {
+          const updated = await api('updateCustomFieldDefinition', id, { list_visible: listVisible });
+          state.customFieldDefinitions = (state.customFieldDefinitions || []).map((field) => field.id === id ? updated : field);
+          renderCustomFieldDefinitionPanel();
+          renderLeads();
+          message(listVisible ? '一覧表示をONにしました。' : '一覧表示をOFFにしました。', 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      function normalizeCustomFieldKeyClient(value) {
+        return String(value || '').trim().replace(/[ \t\n\r　]+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '');
+      }
+
+      function inputTypeLabel(type) {
+        const labels = {
+          text: 'テキスト',
+          number: '数値',
+          date: '日付',
+          select: 'プルダウン',
+          checkbox: 'チェックボックス',
+          url: 'URL',
+          email: 'メール',
+        };
+        return labels[type] || type || 'テキスト';
       }
 
       function renderDuplicateLeadManagerPanel() {

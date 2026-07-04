@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260704_apps_script_full_workflow_v19_admin_settings_ui';
+const APP_VERSION = '20260704_apps_script_full_workflow_v20_list_view_custom_fields';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -131,6 +131,31 @@ const SHEET_DEFINITIONS = Object.freeze({
     'name',
     'description',
     'active',
+    'created_at',
+    'updated_at',
+  ],
+  custom_field_definitions: [
+    'id',
+    'genre_id',
+    'genre',
+    'field_key',
+    'label',
+    'input_type',
+    'options_json',
+    'list_visible',
+    'detail_visible',
+    'template_enabled',
+    'required',
+    'active',
+    'sort_order',
+    'created_at',
+    'updated_at',
+  ],
+  list_view_settings: [
+    'id',
+    'genre_id',
+    'genre',
+    'columns_json',
     'created_at',
     'updated_at',
   ],
