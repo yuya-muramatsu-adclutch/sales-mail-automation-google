@@ -1571,7 +1571,8 @@
 
       .lead-status-control-panel,
       .lead-meeting-panel,
-      .quick-history-section {
+      .quick-history-section,
+      .danger-zone {
         display: grid;
         gap: 12px;
         grid-column: 1 / -1;
@@ -1583,10 +1584,28 @@
 
       .lead-status-control-panel h3,
       .lead-meeting-panel h3,
-      .quick-history-section h3 {
+      .quick-history-section h3,
+      .danger-zone h3 {
         margin: 0;
         font-size: 14px;
         letter-spacing: 0;
+      }
+
+      .danger-zone {
+        border-color: #fecaca;
+        background: #fff1f2;
+      }
+
+      .danger-zone h3 {
+        color: var(--red);
+      }
+
+      .danger-zone p {
+        margin: 0;
+      }
+
+      .danger-zone .row {
+        justify-content: flex-end;
       }
 
       .quick-history-list {
@@ -3761,6 +3780,7 @@
                     <p id="leadCalendarMessage" class="success-message" hidden></p>
                   </form>
                 </div>
+                <section id="leadDangerPanel" class="danger-zone"></section>
                 <datalist id="genreList"></datalist>
               </div>
             </aside>
@@ -4408,6 +4428,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         editingReasonId: '',
         activeLeadHistoryLeadId: '',
         activeLeadFormHistories: [],
+        leadDangerConfirmAction: '',
         dismissedBackgroundJobKeys: [],
         selectedFormLeadId: '',
         selectedLeadIds: [],
@@ -5405,6 +5426,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderLeadCalendarMeta(lead);
         renderLeadHistoryPanel(lead, [], true);
         renderLeadFormHistoryPanel(lead);
+        renderLeadDangerPanel(lead);
         renderLeadQuickSummary(lead);
         renderLeadCustomFieldsPanel(lead);
         openLeadDialog();
@@ -5421,6 +5443,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderLeadCalendarMeta(null);
         renderLeadHistoryPanel(null, [], false);
         renderLeadFormHistoryPanel(null);
+        renderLeadDangerPanel(null);
         renderLeadQuickSummary(null);
         renderLeadCustomFieldsPanel(null);
         renderLeadSendTemplateOptions();
@@ -5849,6 +5872,96 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         clearLeadForm();
         closeLeadDialog();
         await refreshAll();
+      }
+
+      function renderLeadDangerPanel(lead) {
+        const target = document.getElementById('leadDangerPanel');
+        if (!target) return;
+        if (!lead) {
+          state.leadDangerConfirmAction = '';
+          target.innerHTML = `
+            <div>
+              <h3>営業対象から外す操作</h3>
+              <p class="muted">営業先を選ぶと除外ドメイン登録と削除操作が表示されます。</p>
+            </div>
+          `;
+          return;
+        }
+        const domain = leadPrimaryDomainClient(lead);
+        const confirmingExclude = state.leadDangerConfirmAction === 'exclude';
+        const confirmingArchive = state.leadDangerConfirmAction === 'archive';
+        target.innerHTML = `
+          <div>
+            <h3>除外ドメイン登録</h3>
+            <p class="muted">${domain ? `${escapeHtml(domain)} を除外ドメインに登録し、この営業先をメール送信リスト・フォーム送信リストから外します。` : 'WEBサイトURL・フォームURL・メールドメインがある営業先だけ除外ドメインに登録できます。'}</p>
+          </div>
+          <div class="row">
+            ${confirmingExclude ? `
+              <button type="button" onclick="setLeadDangerConfirm('')">取消</button>
+              <button type="button" class="danger" onclick="excludeSelectedLeadDomainAndArchive()" ${domain ? '' : 'disabled'}>除外登録を確定</button>
+            ` : `<button type="button" class="danger" onclick="setLeadDangerConfirm('exclude')" ${domain ? '' : 'disabled'}>除外登録して削除</button>`}
+          </div>
+          <div>
+            <h3>営業先の削除</h3>
+            <p class="muted">削除すると営業リストから非表示になり、メール送信リスト・フォーム送信リストにも表示されません。GAS版では履歴保全のため安全にアーカイブします。</p>
+          </div>
+          <div class="row">
+            ${confirmingArchive ? `
+              <button type="button" onclick="setLeadDangerConfirm('')">取消</button>
+              <button type="button" class="danger" onclick="archiveSelectedLeadFromDangerZone()">削除を確定</button>
+            ` : `<button type="button" class="danger" onclick="setLeadDangerConfirm('archive')">削除</button>`}
+          </div>
+        `;
+      }
+
+      function setLeadDangerConfirm(action) {
+        state.leadDangerConfirmAction = action || '';
+        const lead = currentLeadFromDialog();
+        renderLeadDangerPanel(lead);
+      }
+
+      function currentLeadFromDialog() {
+        const id = document.getElementById('leadId')?.value || '';
+        return state.leads.find((lead) => lead.id === id) || null;
+      }
+
+      function leadPrimaryDomainClient(lead) {
+        const emailDomain = String(lead && lead.email || '').includes('@') ? String(lead.email).split('@').pop().toLowerCase() : '';
+        return String((lead && lead.website_domain) || '').trim()
+          || domainFromUrlClient(lead && lead.website_url)
+          || domainFromUrlClient(lead && lead.form_url)
+          || emailDomain;
+      }
+
+      async function archiveSelectedLeadFromDangerZone() {
+        const lead = currentLeadFromDialog();
+        if (!lead) return;
+        await api('deleteLead', lead.id);
+        state.leadDangerConfirmAction = '';
+        clearLeadForm();
+        closeLeadDialog();
+        await refreshAll();
+        message('営業先を営業対象から外しました', 'ok');
+      }
+
+      async function excludeSelectedLeadDomainAndArchive() {
+        const lead = currentLeadFromDialog();
+        if (!lead) return;
+        const domain = leadPrimaryDomainClient(lead);
+        if (!domain) {
+          message('除外登録できるドメインがありません', 'error');
+          return;
+        }
+        await api('saveExcludedDomain', {
+          domain,
+          reason: 'ランキングサイト・比較サイト・ポータルサイト',
+        });
+        await api('deleteLead', lead.id);
+        state.leadDangerConfirmAction = '';
+        clearLeadForm();
+        closeLeadDialog();
+        await refreshAll();
+        message('除外ドメイン登録と営業対象からの削除を完了しました', 'ok');
       }
 
       async function loadTemplates() {

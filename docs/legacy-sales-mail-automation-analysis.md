@@ -78,6 +78,7 @@
 - リード詳細ドロワーのカレンダー枠を旧 `MeetingScheduleForm` に寄せ、開始/終了日時、場所、商談メモ、Google Calendar登録ボタン、Meetリンク表示の構成へ変更した。
 - リード詳細ドロワーに旧 `QuickLeadEditButton` の送信履歴セクションを追加し、ダイアログ内で送信日時、送信種別、件名、成功/失敗、本文詳細を確認できるようにした。
 - リード詳細ドロワーに旧 `QuickLeadEditButton` のフォーム送信履歴セクションを追加し、`custom_fields_json` の `form_send_events`, `last_form_sent_at`, `form_send_count`, `last_form_body` から最新送信、状態、本文プレビュー、本文コピーを表示できるようにした。
+- リード詳細ドロワー下部に旧 `QuickLeadEditButton` の危険操作セクションを追加し、除外ドメイン登録して営業対象から外す操作、営業先削除確認を同じ流れで実行できるようにした。
 
 ## GAS版へ反映した機能
 
