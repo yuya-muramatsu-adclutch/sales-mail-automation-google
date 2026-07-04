@@ -21,7 +21,7 @@
 - `app/templates/page.tsx`: テンプレート管理、差出人バナー、安全チェック、テンプレート例
 - `app/ng-master/page.tsx`, `app/exclusions/page.tsx`: 送信NG/除外ドメイン管理、集計、履歴テーブル
 - `components/FormOutreachBoard.tsx`: フォーム送信対象テーブル、作業バー、本文プレビュー
-- `components/ProspectingActivityPanel.tsx`, `components/ProspectingCollectionTool.tsx`: 営業リスト収集ツールの指標、収集ルート、実行カード
+- `components/ProspectingActivityPanel.tsx`, `components/ProspectingCollectionTool.tsx`, `components/AutoProspectingSettingsPanel.tsx`, `components/ProspectingBatchPanel.tsx`, `components/ExclusionSearchPanel.tsx`, `components/CareFacilityFileProspectingPanel.tsx`, `components/SourcePageProspectingPanel.tsx`: 営業リスト収集ツールの指標、収集ルート、実行カード、5モード操作UI
 - `app/background-jobs/page.tsx`, `app/sync/page.tsx`, `app/admin/page.tsx`, `app/histories/page.tsx`: 運用、ジョブ、同期ログ、送信履歴、管理系の見せ方
 - `app/background-jobs/activity/page.tsx`, `app/errors/page.tsx`: 直近実行結果、ジョブ別結果、運用エラー詳細の見せ方
 - `app/email-leads/page.tsx`, `app/sending/page.tsx`, `app/deals/page.tsx`, `app/analytics/page.tsx`, `app/integrations/gmail/page.tsx`: メール送信リスト、送信プレビュー、商談、分析、Gmail連携の見せ方
@@ -68,6 +68,7 @@
 - 旧 `AppFrame` の上部フレームに合わせ、運用ステータスバー、よく使う操作ショートカット、タブ切替進行バーを追加した。
 - 旧 `BackgroundJobWidgets` 相当として、右下のジョブ通知スタック、進捗バー、閉じる操作、バックグラウンド進捗タブへの導線、全画面共通の戻るボタンを追加した。GAS版では `jobs` / `search_jobs` の現在値に読み替えて表示する。
 - 旧 `ng-master` / `exclusions` / `background-jobs/activity` / `errors` のページ分割に合わせ、送信NG、除外ドメイン、直近実行結果、エラー詳細を独立タブとして追加した。
+- 旧 `ProspectingCollectionTool` 系のタブ式操作に合わせ、営業リスト収集ツール内へ `0 自動運用`, `1 ジャンル×エリア`, `2 キーワード検索`, `3 ファイル収集`, `4 まとめサイトURL` の5モードパネルを追加した。GAS版では `settings`, `runSmallSearchJob`, `importLeadsFromCsv` に読み替えて実操作できるようにした。
 
 ## GAS版へ反映した機能
 

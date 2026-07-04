@@ -2595,6 +2595,145 @@
         box-shadow: inset 0 0 0 1px #bfdbfe;
       }
 
+      .collection-main-action small,
+      .collection-main-action span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .collection-main-action strong {
+        display: block;
+        color: var(--text);
+        font-size: 15px;
+      }
+
+      .collection-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        padding: 12px 14px 0;
+        background: #fff;
+      }
+
+      .collection-tab-button {
+        display: grid;
+        gap: 3px;
+        min-height: 58px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: var(--text);
+        text-align: left;
+      }
+
+      .collection-tab-button.active {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: inset 0 0 0 1px #bfdbfe;
+      }
+
+      .collection-tab-button span {
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .collection-tab-button small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .collection-tab-panel {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border-top: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .collection-panel-grid,
+      .auto-prospecting-grid,
+      .source-page-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .collection-panel-card,
+      .auto-prospecting-panel,
+      .prospecting-batch-panel,
+      .source-page-prospecting-panel,
+      .care-file-panel {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: linear-gradient(180deg, #fff, #f8fafc);
+      }
+
+      .collection-panel-card h3,
+      .auto-prospecting-panel h3,
+      .prospecting-batch-panel h3,
+      .source-page-prospecting-panel h3,
+      .care-file-panel h3 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .collection-disclosure {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .collection-disclosure summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 11px 13px;
+        cursor: pointer;
+        font-weight: 900;
+      }
+
+      .collection-disclosure summary small {
+        color: var(--muted);
+      }
+
+      .collection-disclosure-body {
+        display: grid;
+        gap: 10px;
+        padding: 0 13px 13px;
+      }
+
+      .collection-preview-list,
+      .source-page-monitor-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .collection-preview-list span,
+      .source-page-monitor-list span {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .collection-run-button {
+        justify-self: start;
+      }
+
       .settings-status-grid {
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       }
@@ -2953,6 +3092,9 @@
         .exclusion-hero-panel,
         .prospecting-route-grid,
         .collection-command-center,
+        .collection-panel-grid,
+        .auto-prospecting-grid,
+        .source-page-grid,
         .ops-action-grid,
         .list-filter-panel {
           grid-template-columns: 1fr;
@@ -2962,6 +3104,7 @@
         .dashboard-action-grid,
         .lead-kpi-grid,
         .form-outreach-summary-grid,
+        .collection-tabs,
         .settings-status-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -4020,6 +4163,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         selectedEmailPreviewTemplateId: '',
         selectedEmailPreviewLeadId: '',
         selectedTemplateTestLeadId: '',
+        activeCollectionTab: 'automation',
         jobResultCategory: 'all',
         dismissedSearchResultIds: [],
         duplicateGroups: [],
@@ -6037,6 +6181,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const searchReady = Boolean(state.serper.configured);
         const target = document.getElementById('collectionCommandCenter');
         if (!target) return;
+        const autoSettings = getAutoCollectionSettings();
+        const sourceSettings = getSourcePageCollectionSettings();
+        const enabledRuleCount = autoCollectionPriorityGenres(autoSettings).length;
+        const enabledSourceCount = (sourceSettings.sites || []).filter((site) => site.enabled !== false && site.url).length;
         target.innerHTML = `
           <div class="collection-simple-head">
             <div>
@@ -6051,26 +6199,397 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           <div class="collection-status-bar">
             <div class="collection-status-item ${searchReady ? 'ok' : 'warn'}"><span>検索API</span><strong>${searchReady ? 'ON' : 'OFF'}</strong><small>${searchReady ? 'APIキー保存済み' : 'APIキーを保存してください'}</small></div>
-            <div class="collection-status-item ${dashboard.serperTodayRemaining > 0 ? 'ok' : 'warn'}"><span>本日残り</span><strong>${formatNumber(dashboard.serperTodayRemaining || 0)}件</strong><small>${formatNumber(dashboard.serperToday || 0)} / ${formatNumber(dashboard.serperDailyLimit || 0)}</small></div>
-            <div class="collection-status-item ${dashboard.serperMonthRemaining > 0 ? 'ok' : 'warn'}"><span>月間残り</span><strong>${formatNumber(dashboard.serperMonthRemaining || 0)}件</strong><small>${formatNumber(dashboard.serperMonth || 0)} / ${formatNumber(dashboard.serperMonthlyLimit || 0)}</small></div>
+            <div class="collection-status-item ${autoSettings.enabled && enabledRuleCount ? 'ok' : 'warn'}"><span>自動検索</span><strong>${autoSettings.enabled ? 'ON' : 'OFF'}</strong><small>優先ジャンル ${formatNumber(enabledRuleCount)}件</small></div>
+            <div class="collection-status-item ${enabledSourceCount ? 'ok' : 'warn'}"><span>まとめサイト監視</span><strong>${formatNumber(enabledSourceCount)}サイト</strong><small>保存済み ${formatNumber((sourceSettings.sites || []).length)}件</small></div>
           </div>
           <div class="collection-main-actions">
-            ${collectionAction('0 自動運用', 'Apps Scriptトリガーとジョブ処理', 'ops')}
-            ${collectionAction('1 ジャンル×エリア', '業種と地域から営業候補検索', 'prospecting')}
-            ${collectionAction('2 キーワード検索', '会社名・問い合わせ検索', 'lead_official_site')}
-            ${collectionAction('3 ファイル収集', 'CSVインポートは運用へ', 'ops')}
-            ${collectionAction('4 まとめサイトURL', 'URLから公式サイト探索', 'lead_form_url')}
+            ${collectionAction('0 自動運用', 'Apps Scriptトリガーとジョブ処理', 'automation')}
+            ${collectionAction('1 ジャンル×エリア', '業種と地域から営業候補検索', 'area')}
+            ${collectionAction('2 キーワード検索', '会社名・問い合わせ検索', 'keyword')}
+            ${collectionAction('3 ファイル収集', 'CSV貼り付けで一括追加', 'file')}
+            ${collectionAction('4 まとめサイトURL', 'URLから公式サイト探索', 'sourcePage')}
+          </div>
+          <div class="collection-tabs" role="tablist" aria-label="営業リスト収集ツール管理">
+            ${[
+              ['automation', '基本', '自動運用'],
+              ['area', 'エリア', '検索収集'],
+              ['keyword', 'キーワード', '除外確認'],
+              ['file', 'ファイル', 'CSV収集'],
+              ['sourcePage', 'URL', 'まとめサイト'],
+            ].map(([key, label, detail]) => `<button type="button" role="tab" aria-selected="${state.activeCollectionTab === key ? 'true' : 'false'}" class="collection-tab-button ${state.activeCollectionTab === key ? 'active' : ''}" onclick="setCollectionTab('${key}')"><span>${escapeHtml(label)}</span><small>${escapeHtml(detail)}</small></button>`).join('')}
+          </div>
+          <div class="collection-tab-panel" role="tabpanel">
+            ${renderCollectionTabPanel(state.activeCollectionTab, searchReady, dashboard)}
           </div>
         `;
       }
 
       function collectionAction(label, description, mode) {
-        const onclick = mode === 'ops'
-          ? "showTab('ops')"
-          : mode === 'prospecting'
-            ? "document.getElementById('searchJobType').value='prospecting'; document.getElementById('searchGenre').focus()"
-            : `document.getElementById('searchJobType').value='${mode}'; document.getElementById('searchLeadId').focus()`;
-        return `<button type="button" class="collection-main-action" onclick="${onclick}"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></button>`;
+        return `<button type="button" class="collection-main-action ${state.activeCollectionTab === mode ? 'active' : ''}" onclick="setCollectionTab('${escapeJsString(mode)}')"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></button>`;
+      }
+
+      function setCollectionTab(tab) {
+        state.activeCollectionTab = tab || 'automation';
+        renderCollectionCommandCenter(state.serper || {});
+      }
+
+      function renderCollectionTabPanel(tab, searchReady, dashboard) {
+        if (tab === 'area') return renderCollectionAreaPanel(searchReady, dashboard);
+        if (tab === 'keyword') return renderCollectionKeywordPanel(searchReady, dashboard);
+        if (tab === 'file') return renderCollectionFilePanel(searchReady, dashboard);
+        if (tab === 'sourcePage') return renderSourcePageCollectionPanel(searchReady, dashboard);
+        return renderAutoCollectionPanel(searchReady, dashboard);
+      }
+
+      function renderAutoCollectionPanel(searchReady, dashboard) {
+        const settings = getAutoCollectionSettings();
+        const priorityGenres = autoCollectionPriorityGenres(settings);
+        const regions = Array.isArray(settings.regions) && settings.regions.length ? settings.regions : ['東京都', '神奈川県', '大阪府'];
+        const preview = buildCollectionQueryPreview(priorityGenres[0] || firstGenreName(), regions.join('\n'), '公式サイト\n問い合わせ\n一覧').slice(0, 5);
+        return `
+          <div class="auto-prospecting-grid">
+            <section class="auto-prospecting-panel">
+              <div class="section-title-row">
+                <div>
+                  <h3>自動で営業候補を増やす</h3>
+                  <p class="muted">旧アプリの自動収集設定を、Apps Scriptの時間主導トリガーと小規模検索ジョブに読み替えます。</p>
+                </div>
+                <span class="pill ${settings.enabled ? 'good' : 'warn'}">${settings.enabled ? '自動検索 ON' : '自動検索 OFF'}</span>
+              </div>
+              <form class="grid" onsubmit="saveAutoCollectionSettings(event)">
+                <label class="check-row"><input id="autoCollectionEnabled" type="checkbox" ${settings.enabled ? 'checked' : ''}><span>自動収集を有効化</span></label>
+                <label>1回の検索語数<input id="autoCollectionMaxQueries" type="number" min="1" max="20" value="${escapeHtml(settings.maxQueriesPerRun || settings.max_queries_per_run || 5)}"></label>
+                <label>1検索あたり件数<input id="autoCollectionResultsPerQuery" type="number" min="1" max="20" value="${escapeHtml(settings.resultsPerQuery || settings.results_per_query || 10)}"></label>
+                <label style="grid-column:1/-1">優先ジャンル<textarea id="autoCollectionPriorityGenres" rows="4">${escapeHtml(priorityGenres.join('\n'))}</textarea></label>
+                <label style="grid-column:1/-1">対象エリア<textarea id="autoCollectionRegions" rows="4">${escapeHtml(regions.join('\n'))}</textarea></label>
+                <div class="toolbar">
+                  <button type="submit" class="primary">自動運用設定を保存</button>
+                  <button type="button" onclick="runAutoCollectionNow()" ${searchReady ? '' : 'disabled'}>今すぐ小規模実行</button>
+                  <button type="button" onclick="showTab('admin')">トリガー設定</button>
+                </div>
+              </form>
+            </section>
+            <aside class="collection-panel-card">
+              <h3>実行プレビュー</h3>
+              <div class="collection-preview-list">
+                ${preview.length ? preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('') : '<span><strong>優先ジャンルを入力してください</strong></span>'}
+              </div>
+              <div class="settings-status-grid">
+                <div class="settings-status-item"><div><strong>本日残り</strong><br><span>${formatNumber(dashboard.serperTodayRemaining || 0)}件</span></div><span class="pill ${dashboard.serperTodayRemaining > 0 ? 'good' : 'warn'}">Serper</span></div>
+                <div class="settings-status-item"><div><strong>GAS制限</strong><br><span>6分以内に分割</span></div><span class="pill info">jobs</span></div>
+              </div>
+            </aside>
+          </div>
+        `;
+      }
+
+      function renderCollectionAreaPanel(searchReady, dashboard) {
+        const genre = firstGenreName();
+        const regions = '東京都\n神奈川県\n大阪府';
+        const suffixes = '公式サイト\n問い合わせ\n一覧';
+        const preview = buildCollectionQueryPreview(genre, regions, suffixes).slice(0, 8);
+        return `
+          <section class="prospecting-batch-panel">
+            <div class="section-title-row">
+              <div>
+                <h3>ジャンル×エリアの検索収集</h3>
+                <p class="muted">ジャンルとエリアから検索語を生成し、公式サイト候補と問い合わせ先を収集します。</p>
+              </div>
+              <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? '実行可能' : 'Serper未設定'}</span>
+            </div>
+            <form class="collection-panel-grid" onsubmit="submitCollectionAreaSearch(event)">
+              <div class="grid">
+                <label>ジャンル<select id="collectionAreaGenre">${collectionGenreOptions(genre)}</select></label>
+                <label>最大処理件数<input id="collectionAreaMaxItems" type="number" min="1" max="20" value="5"></label>
+                <label style="grid-column:1/-1">エリア<textarea id="collectionAreaRegions" rows="5">${escapeHtml(regions)}</textarea></label>
+                <label style="grid-column:1/-1">補助キーワード<textarea id="collectionAreaSuffixes" rows="5">${escapeHtml(suffixes)}</textarea></label>
+                <button type="submit" class="primary collection-run-button" ${searchReady ? '' : 'disabled'}>営業候補を追加</button>
+              </div>
+              <aside class="collection-panel-card">
+                <h3>検索語プレビュー</h3>
+                <div id="collectionAreaPreview" class="collection-preview-list">${preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('')}</div>
+                <p class="muted">GAS版では1回の実行を小さく保つため、プレビュー先頭の検索語から小規模ジョブを作成します。</p>
+              </aside>
+            </form>
+          </section>
+        `;
+      }
+
+      function renderCollectionKeywordPanel(searchReady) {
+        return `
+          <section class="prospecting-batch-panel">
+            <div class="section-title-row">
+              <div>
+                <h3>ジャンル選択＋キーワード組み合わせ検索収集</h3>
+                <p class="muted">任意の検索語で候補を探し、除外ドメインと既存ドメイン重複を確認しながら検索結果レビューへ残します。</p>
+              </div>
+              <span class="pill info">結果カテゴリで確認</span>
+            </div>
+            <form class="collection-panel-grid" onsubmit="submitCollectionKeywordSearch(event)">
+              <div class="grid">
+                <label>キーワード<input id="collectionKeywordQuery" required placeholder="例: 介護施設 東京 公式サイト"></label>
+                <label>追加時のジャンル<select id="collectionKeywordGenre">${collectionGenreOptions(firstGenreName())}</select></label>
+                <label>最大処理件数<input id="collectionKeywordMaxItems" type="number" min="1" max="20" value="5"></label>
+                <button type="submit" class="primary collection-run-button" ${searchReady ? '' : 'disabled'}>キーワード検索を実行</button>
+              </div>
+              <aside class="collection-panel-card">
+                <h3>除外・重複の見方</h3>
+                <div class="collection-preview-list">
+                  <span><strong>除外</strong><em>excluded_domains</em></span>
+                  <span><strong>重複</strong><em>会社名 / ドメイン / メール</em></span>
+                  <span><strong>確認</strong><em>結果一覧でカテゴリ別レビュー</em></span>
+                </div>
+                <button type="button" onclick="showTab('exclusions')">除外ドメインを確認</button>
+              </aside>
+            </form>
+          </section>
+        `;
+      }
+
+      function renderCollectionFilePanel() {
+        return `
+          <section class="care-file-panel">
+            <div class="section-title-row">
+              <div>
+                <h3>ファイルアップロード収集</h3>
+                <p class="muted">旧アプリのExcel/PDF収集を、GAS版ではCSV貼り付けに読み替えます。会社名、メール、公式サイト、フォームURL、ジャンルを一括追加できます。</p>
+              </div>
+              <span class="pill good">CSV</span>
+            </div>
+            <form class="collection-panel-grid" onsubmit="importCollectionCsv(event)">
+              <div class="grid">
+                <label style="grid-column:1/-1">CSV貼り付け<textarea id="collectionCsvText" rows="9" placeholder="company_name,email,website_url,form_url,genre&#10;株式会社Example,sales@example.com,https://example.com,https://example.com/contact,介護施設"></textarea></label>
+                <label class="check-row"><input id="collectionCsvAllowDuplicate" type="checkbox"><span>重複を許可する</span></label>
+                <button type="submit" class="primary collection-run-button">CSVから営業先を追加</button>
+              </div>
+              <aside class="collection-panel-card">
+                <h3>取り込みルール</h3>
+                <div class="collection-preview-list">
+                  <span><strong>既存保護</strong><em>重複はスキップ</em></span>
+                  <span><strong>記録</strong><em>sync_logs / raw_import</em></span>
+                  <span><strong>編集</strong><em>追加後は営業リストで確認</em></span>
+                </div>
+              </aside>
+            </form>
+          </section>
+        `;
+      }
+
+      function renderSourcePageCollectionPanel(searchReady) {
+        const settings = getSourcePageCollectionSettings();
+        const sites = Array.isArray(settings.sites) ? settings.sites : [];
+        return `
+          <section class="source-page-prospecting-panel">
+            <div class="section-title-row">
+              <div>
+                <h3>まとめサイトURLから収集</h3>
+                <p class="muted">施設一覧ページやまとめ記事URLを起点に、公式サイト探索ジョブへ繋げます。GAS版ではURLとジャンルを保存し、小規模検索で補完します。</p>
+              </div>
+              <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? '検索補完ON' : 'Serper未設定'}</span>
+            </div>
+            <form class="source-page-grid" onsubmit="submitSourcePageSearch(event)">
+              <div class="grid">
+                <label style="grid-column:1/-1">まとめサイトURL<input id="sourcePageUrl" type="url" required placeholder="https://www.resort-glamping.com/accommodation_category/kanto/"></label>
+                <label>追加ジャンル<select id="sourcePageGenre">${collectionGenreOptions(firstGenreName())}</select></label>
+                <label>最大処理件数<input id="sourcePageMaxItems" type="number" min="1" max="20" value="5"></label>
+                <label style="grid-column:1/-1">監視ラベル<input id="sourcePageLabel" placeholder="関東グランピング一覧"></label>
+                <div class="toolbar">
+                  <button type="submit" class="primary" ${searchReady ? '' : 'disabled'}>URL起点で収集</button>
+                  <button type="button" onclick="saveSourcePageCollectionSettings()">監視サイトとして保存</button>
+                </div>
+              </div>
+              <aside class="collection-panel-card">
+                <h3>監視サイト</h3>
+                <div class="source-page-monitor-list">
+                  ${sites.length ? sites.slice(0, 6).map((site) => `<span><strong>${escapeHtml(site.label || compactUrl(site.url))}</strong><em>${escapeHtml(site.genre || site.genreName || '-')}</em></span>`).join('') : '<span><strong>まだ保存されていません</strong><em>URLを保存してください</em></span>'}
+                </div>
+              </aside>
+            </form>
+          </section>
+        `;
+      }
+
+      function getAutoCollectionSettings() {
+        const fallback = {
+          enabled: false,
+          maxQueriesPerRun: 5,
+          priorityGenres: (state.genres || []).slice(0, 3).map((genre) => genre.name),
+          regions: ['東京都', '神奈川県', '大阪府'],
+          resultsPerQuery: 10,
+        };
+        return getClientSetting('auto_prospecting', fallback) || fallback;
+      }
+
+      function getSourcePageCollectionSettings() {
+        const fallback = { sites: [] };
+        return getClientSetting('source_page_prospecting', fallback) || fallback;
+      }
+
+      function autoCollectionPriorityGenres(settings) {
+        const value = settings || {};
+        if (Array.isArray(value.priorityGenres)) return value.priorityGenres.filter(Boolean);
+        if (Array.isArray(value.priority_genres)) return value.priority_genres.filter(Boolean);
+        if (Array.isArray(value.priorityGenreIds)) {
+          return value.priorityGenreIds.map((id) => (state.genres || []).find((genre) => genre.id === id)?.name || '').filter(Boolean);
+        }
+        if (Array.isArray(value.rules)) {
+          return value.rules.map((rule) => rule.genre || (state.genres || []).find((genre) => genre.id === rule.genreId || genre.id === rule.genre_id)?.name || '').filter(Boolean);
+        }
+        return [];
+      }
+
+      function firstGenreName() {
+        return ((state.genres || [])[0] || {}).name || '介護施設';
+      }
+
+      function collectionGenreOptions(selectedName) {
+        const genres = state.genres || [];
+        if (!genres.length) return '<option value="">ジャンルなし</option>';
+        return genres.map((genre) => `<option value="${escapeHtml(genre.name)}" ${genre.name === selectedName ? 'selected' : ''}>${escapeHtml(genre.name)}</option>`).join('');
+      }
+
+      function parseCollectionLines(value) {
+        return String(value || '').split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+      }
+
+      function buildCollectionQueryPreview(genre, regionsText, suffixesText) {
+        const genreName = String(genre || '').trim();
+        if (!genreName) return [];
+        const regions = parseCollectionLines(regionsText);
+        const suffixes = parseCollectionLines(suffixesText);
+        const regionList = regions.length ? regions : [''];
+        const suffixList = suffixes.length ? suffixes : ['公式サイト'];
+        const seen = new Set();
+        const queries = [];
+        suffixList.forEach((suffix) => {
+          regionList.forEach((region) => {
+            const query = [genreName, region, suffix].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+            if (!query || seen.has(query)) return;
+            seen.add(query);
+            queries.push(query);
+          });
+        });
+        return queries.slice(0, 20);
+      }
+
+      async function saveAutoCollectionSettings(event) {
+        event.preventDefault();
+        const value = {
+          enabled: document.getElementById('autoCollectionEnabled').checked,
+          maxQueriesPerRun: Math.min(Math.max(Number(document.getElementById('autoCollectionMaxQueries').value) || 5, 1), 20),
+          priorityGenres: parseCollectionLines(document.getElementById('autoCollectionPriorityGenres').value),
+          regions: parseCollectionLines(document.getElementById('autoCollectionRegions').value),
+          resultsPerQuery: Math.min(Math.max(Number(document.getElementById('autoCollectionResultsPerQuery').value) || 10, 1), 20),
+          updatedAt: new Date().toISOString(),
+        };
+        const saved = await api('setSettingValue', 'auto_prospecting', value, 'json', 'Legacy auto prospecting settings ported to GAS.');
+        state.settings = (state.settings || []).filter((setting) => setting.key !== 'auto_prospecting');
+        state.settings.push(saved);
+        renderCollectionCommandCenter(state.serper || {});
+        message('自動収集設定を保存しました', 'ok');
+      }
+
+      async function runAutoCollectionNow() {
+        const settings = getAutoCollectionSettings();
+        const genre = autoCollectionPriorityGenres(settings)[0] || firstGenreName();
+        const region = (Array.isArray(settings.regions) ? settings.regions : [])[0] || '東京都';
+        const query = buildCollectionQueryPreview(genre, region, '公式サイト\n問い合わせ')[0] || [genre, region, '公式サイト'].filter(Boolean).join(' ');
+        await runCollectionSearchJob({
+          job_type: 'prospecting',
+          genre,
+          query,
+          region,
+          maxItems: Math.min(Number(settings.resultsPerQuery || 5) || 5, 20),
+        }, '自動収集');
+      }
+
+      async function submitCollectionAreaSearch(event) {
+        event.preventDefault();
+        const genre = document.getElementById('collectionAreaGenre').value;
+        const regions = document.getElementById('collectionAreaRegions').value;
+        const suffixes = document.getElementById('collectionAreaSuffixes').value;
+        const query = buildCollectionQueryPreview(genre, regions, suffixes)[0];
+        if (!query) {
+          message('検索語を作成できませんでした', 'error');
+          return;
+        }
+        await runCollectionSearchJob({
+          job_type: 'prospecting',
+          genre,
+          query,
+          region: parseCollectionLines(regions)[0] || '',
+          maxItems: Number(document.getElementById('collectionAreaMaxItems').value || 5),
+        }, 'ジャンル×エリア検索');
+      }
+
+      async function submitCollectionKeywordSearch(event) {
+        event.preventDefault();
+        const query = document.getElementById('collectionKeywordQuery').value;
+        const genre = document.getElementById('collectionKeywordGenre').value;
+        await runCollectionSearchJob({
+          job_type: 'prospecting',
+          genre,
+          query,
+          maxItems: Number(document.getElementById('collectionKeywordMaxItems').value || 5),
+        }, 'キーワード検索');
+      }
+
+      async function importCollectionCsv(event) {
+        event.preventDefault();
+        const csvText = document.getElementById('collectionCsvText').value;
+        const allowDuplicate = document.getElementById('collectionCsvAllowDuplicate').checked;
+        const result = await api('importLeadsFromCsv', csvText, {
+          allow_duplicate: allowDuplicate,
+          source: 'collection_file',
+        });
+        message(`ファイル収集: 追加 ${result.added} / スキップ ${result.skipped}`, result.errors.length ? 'error' : 'ok');
+        await refreshAll();
+      }
+
+      async function submitSourcePageSearch(event) {
+        event.preventDefault();
+        const url = document.getElementById('sourcePageUrl').value;
+        const genre = document.getElementById('sourcePageGenre').value;
+        const label = document.getElementById('sourcePageLabel').value || compactUrl(url);
+        await runCollectionSearchJob({
+          job_type: 'prospecting',
+          genre,
+          query: [genre, label, '公式サイト'].filter(Boolean).join(' '),
+          maxItems: Number(document.getElementById('sourcePageMaxItems').value || 5),
+        }, 'まとめサイトURL収集');
+      }
+
+      async function saveSourcePageCollectionSettings() {
+        const url = document.getElementById('sourcePageUrl').value;
+        if (!url) {
+          message('まとめサイトURLを入力してください', 'error');
+          return;
+        }
+        const settings = getSourcePageCollectionSettings();
+        const genre = document.getElementById('sourcePageGenre').value;
+        const nextSite = {
+          enabled: true,
+          genre,
+          id: `site-${Date.now()}`,
+          label: document.getElementById('sourcePageLabel').value || compactUrl(url),
+          updatedAt: new Date().toISOString(),
+          url,
+        };
+        const value = Object.assign({}, settings, {
+          sites: [nextSite].concat((settings.sites || []).filter((site) => site.url !== url)).slice(0, 30),
+          updatedAt: new Date().toISOString(),
+        });
+        const saved = await api('setSettingValue', 'source_page_prospecting', value, 'json', 'Legacy source page prospecting settings ported to GAS.');
+        state.settings = (state.settings || []).filter((setting) => setting.key !== 'source_page_prospecting');
+        state.settings.push(saved);
+        renderCollectionCommandCenter(state.serper || {});
+        message('まとめサイトURLを監視サイトとして保存しました', 'ok');
+      }
+
+      async function runCollectionSearchJob(payload, label) {
+        const result = await api('runSmallSearchJob', payload);
+        message(`${label}: ${formatNumber(result.processed || 0)}件処理しました`, result.errors && result.errors.length ? 'error' : 'ok');
+        await refreshAll();
       }
 
       async function loadOpsData() {
