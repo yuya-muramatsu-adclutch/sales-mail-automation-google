@@ -1397,6 +1397,46 @@
         font-weight: 900;
       }
 
+      .table-action-row {
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .table-inline-input {
+        min-height: 34px;
+        width: min(100%, 260px);
+        padding: 7px 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .table-danger-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 5px 9px;
+        border: 1px solid #fecdd3;
+        border-radius: 8px;
+        background: #fff1f2;
+        color: #be123c;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .table-danger-button.confirming {
+        border-color: #fb7185;
+        background: #ffe4e6;
+      }
+
       .facility-cell,
       .status-stack,
       .send-summary-cell {
@@ -2013,6 +2053,7 @@
       }
 
       .list-view-settings-form,
+      .reason-master-form,
       .custom-field-form,
       .custom-field-list {
         display: grid;
@@ -2042,6 +2083,11 @@
       }
 
       .custom-field-form {
+        padding-bottom: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .reason-master-form {
         padding-bottom: 14px;
         border-bottom: 1px solid var(--line);
       }
@@ -4006,6 +4052,8 @@ PropertiesService
           <div class="grid">
             <section id="googleCredentialSummaryPanel" class="panel stack"></section>
             <section id="adminAutomationSettingsPanel" class="panel stack"></section>
+            <section id="genreManagerPanel" class="panel stack"></section>
+            <section id="reasonMasterManagerPanel" class="panel stack"></section>
             <section id="customFieldDefinitionPanel" class="panel stack"></section>
             <section id="duplicateLeadManagerPanel" class="panel stack"></section>
             <section id="adminErrorDetailsPanel" class="panel stack"></section>
@@ -4154,6 +4202,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         ngMasters: [],
         excludedDomains: [],
         genres: [],
+        genreMasters: [],
+        reasons: [],
         formLeads: [],
         formTotal: 0,
         emailLeads: [],
@@ -4169,6 +4219,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         duplicateGroups: [],
         duplicateSummary: null,
         duplicateLoading: false,
+        editingGenreId: '',
+        deleteConfirmGenreId: '',
+        editingReasonId: '',
         dismissedBackgroundJobKeys: [],
         selectedFormLeadId: '',
         selectedLeadIds: [],
@@ -4317,6 +4370,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.app = initial.app;
           state.enums = initial.enums;
           state.settings = initial.settings || [];
+          state.genreMasters = initial.genreMasters || initial.genres || [];
+          state.reasons = initial.reasons || [];
           state.customFieldDefinitions = initial.customFieldDefinitions || [];
           state.listViewSettings = initial.listViewSettings || [];
           document.getElementById('appMeta').textContent = `${initial.app.version} / ${initial.app.spreadsheetUrl}`;
@@ -6862,6 +6917,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderMailSendLockPanel();
         renderGoogleCredentialSummaryPanel();
         renderAdminAutomationSettingsPanel();
+        renderGenreManagerPanel();
+        renderReasonMasterManagerPanel();
         renderCustomFieldDefinitionPanel();
         renderDuplicateLeadManagerPanel();
         renderAdminErrorDetailsPanel();
@@ -7574,6 +7631,298 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         await api('setSettingValue', 'batch_runtime_budget_ms', value, 'number', 'Maximum runtime budget per batch. Apps Script hard limit is 6 minutes.');
         message('バックグラウンド実行予算を保存しました', 'ok');
         await refreshAll();
+      }
+
+      function renderGenreManagerPanel() {
+        const target = document.getElementById('genreManagerPanel');
+        if (!target) return;
+        const genres = (state.genreMasters || state.genres || [])
+          .filter(isActiveClient)
+          .slice()
+          .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ja'));
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>ジャンル管理</h2>
+              <p class="muted">旧管理画面のジャンル管理です。営業リスト、テンプレート、収集ツールで使うジャンルを追加・編集・削除できます。</p>
+            </div>
+            <span class="pill info">${formatNumber(genres.length)}件</span>
+          </div>
+          <form class="reason-master-form" onsubmit="saveGenreFromForm(event)">
+            <div class="form-grid">
+              <label>ジャンル名<input id="genreCreateName" name="name" required></label>
+              <label>説明メモ<input id="genreCreateDescription" name="description" placeholder="必要に応じて補足を入力"></label>
+            </div>
+            <div id="genreManagerMessage" class="message"></div>
+            <button type="submit" class="primary">ジャンルを追加</button>
+          </form>
+          <div class="table-wrap">
+            <table>${table(['ジャンル', '説明', '操作'], genres.length ? genres.map(renderGenreManagerRow).join('') : '')}</table>
+          </div>
+        `;
+      }
+
+      function renderGenreManagerRow(genre) {
+        const editing = state.editingGenreId === genre.id;
+        const confirming = state.deleteConfirmGenreId === genre.id;
+        const nameCell = editing
+          ? `<input class="table-inline-input" id="genreEditName_${escapeHtml(genre.id)}" value="${escapeHtml(genre.name || '')}">`
+          : escapeHtml(genre.name || '-');
+        const descriptionCell = editing
+          ? `<input class="table-inline-input" id="genreEditDescription_${escapeHtml(genre.id)}" value="${escapeHtml(genre.description || '')}">`
+          : escapeHtml(genre.description || '-');
+        const actions = editing ? `
+          <div class="table-action-row">
+            <button type="button" class="table-link-button" onclick="saveGenreEdit('${escapeJsString(genre.id)}')">保存</button>
+            <button type="button" class="table-link-button" onclick="cancelGenreEdit()">取消</button>
+          </div>
+        ` : `
+          <div class="table-action-row">
+            <button type="button" class="table-link-button" onclick="startGenreEdit('${escapeJsString(genre.id)}')">編集</button>
+            <button type="button" class="table-danger-button ${confirming ? 'confirming' : ''}" onclick="deleteGenreFromManager('${escapeJsString(genre.id)}')">${confirming ? '削除を確定' : '削除'}</button>
+          </div>
+        `;
+        return row([
+          ['ジャンル', nameCell],
+          ['説明', descriptionCell],
+          ['操作', actions],
+        ]);
+      }
+
+      async function saveGenreFromForm(event) {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const payload = {
+          name: String(formData.get('name') || '').trim(),
+          description: String(formData.get('description') || '').trim(),
+          active: true,
+        };
+        try {
+          await api('saveGenre', payload);
+          state.editingGenreId = '';
+          state.deleteConfirmGenreId = '';
+          event.currentTarget.reset();
+          await refreshAdminMasters();
+          message('ジャンルを追加しました。', 'ok');
+        } catch (error) {
+          setPanelMessage('genreManagerMessage', error.message || String(error), 'error');
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      function startGenreEdit(id) {
+        state.editingGenreId = id;
+        state.deleteConfirmGenreId = '';
+        renderGenreManagerPanel();
+      }
+
+      function cancelGenreEdit() {
+        state.editingGenreId = '';
+        renderGenreManagerPanel();
+      }
+
+      async function saveGenreEdit(id) {
+        const genre = (state.genreMasters || []).find((item) => item.id === id);
+        const nameInput = document.getElementById(`genreEditName_${id}`);
+        const descriptionInput = document.getElementById(`genreEditDescription_${id}`);
+        try {
+          await api('saveGenre', {
+            id,
+            name: nameInput ? nameInput.value : '',
+            description: descriptionInput ? descriptionInput.value : '',
+            active: genre ? isActiveClient(genre) : true,
+          });
+          state.editingGenreId = '';
+          await refreshAdminMasters();
+          message('ジャンルを更新しました。', 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      async function deleteGenreFromManager(id) {
+        if (state.deleteConfirmGenreId !== id) {
+          state.deleteConfirmGenreId = id;
+          state.editingGenreId = '';
+          renderGenreManagerPanel();
+          message('もう一度「削除を確定」を押すと、このジャンルを削除します。営業リストやテンプレートの過去データは残ります。', 'error');
+          return;
+        }
+        try {
+          await api('deleteGenre', id);
+          state.deleteConfirmGenreId = '';
+          await refreshAdminMasters();
+          message('ジャンルを削除しました。', 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      function renderReasonMasterManagerPanel() {
+        const target = document.getElementById('reasonMasterManagerPanel');
+        if (!target) return;
+        const reasons = (state.reasons || [])
+          .slice()
+          .sort((a, b) => reasonCategorySortOrder(a.category) - reasonCategorySortOrder(b.category) || String(a.name || '').localeCompare(String(b.name || ''), 'ja'));
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>選択肢管理</h2>
+              <p class="muted">旧管理画面の理由マスターです。送信NG、失注、対応不要などのプルダウン選択肢を追加・編集できます。</p>
+            </div>
+            <span class="pill info">${formatNumber(reasons.filter(isActiveClient).length)}件有効</span>
+          </div>
+          <form class="reason-master-form" onsubmit="saveReasonFromForm(event)">
+            <div class="form-grid">
+              <label>カテゴリ<select id="reasonCreateCategory" name="category">
+                ${reasonCategoryOptions('send_ng_reason')}
+              </select></label>
+              <label>理由<input id="reasonCreateName" name="name" required></label>
+              <label>説明メモ<input id="reasonCreateDescription" name="description" placeholder="必要に応じて補足を入力"></label>
+            </div>
+            <div id="reasonManagerMessage" class="message"></div>
+            <button type="submit" class="primary">理由を追加</button>
+          </form>
+          <div class="table-wrap">
+            <table>${table(['カテゴリ', '理由', '説明', '状態', '操作'], reasons.length ? reasons.map(renderReasonManagerRow).join('') : '')}</table>
+          </div>
+        `;
+      }
+
+      function renderReasonManagerRow(reason) {
+        const editing = state.editingReasonId === reason.id;
+        const active = isActiveClient(reason);
+        const nameCell = editing
+          ? `<input class="table-inline-input" id="reasonEditName_${escapeHtml(reason.id)}" value="${escapeHtml(reason.name || '')}">`
+          : escapeHtml(reason.name || '-');
+        const descriptionCell = editing
+          ? `<input class="table-inline-input" id="reasonEditDescription_${escapeHtml(reason.id)}" value="${escapeHtml(reason.description || '')}">`
+          : escapeHtml(reason.description || '-');
+        const actions = editing ? `
+          <div class="table-action-row">
+            <button type="button" class="table-link-button" onclick="saveReasonEdit('${escapeJsString(reason.id)}')">保存</button>
+            <button type="button" class="table-link-button" onclick="cancelReasonEdit()">取消</button>
+          </div>
+        ` : `
+          <div class="table-action-row">
+            <button type="button" class="table-link-button" onclick="startReasonEdit('${escapeJsString(reason.id)}')">編集</button>
+            <button type="button" class="${active ? 'table-danger-button' : 'table-link-button'}" onclick="toggleReasonActive('${escapeJsString(reason.id)}', ${active ? 'false' : 'true'})">${active ? '無効化' : '有効化'}</button>
+          </div>
+        `;
+        return row([
+          ['カテゴリ', escapeHtml(reasonCategoryLabel(reason.category))],
+          ['理由', nameCell],
+          ['説明', descriptionCell],
+          ['状態', `<span class="pill ${active ? 'good' : 'warn'}">${active ? '有効' : '無効'}</span>`],
+          ['操作', actions],
+        ]);
+      }
+
+      async function saveReasonFromForm(event) {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        const payload = {
+          category: String(formData.get('category') || 'send_ng_reason'),
+          name: String(formData.get('name') || '').trim(),
+          description: String(formData.get('description') || '').trim(),
+          active: true,
+        };
+        try {
+          await api('saveReason', payload);
+          state.editingReasonId = '';
+          event.currentTarget.reset();
+          await refreshAdminMasters();
+          message('理由を追加しました。', 'ok');
+        } catch (error) {
+          setPanelMessage('reasonManagerMessage', error.message || String(error), 'error');
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      function startReasonEdit(id) {
+        state.editingReasonId = id;
+        renderReasonMasterManagerPanel();
+      }
+
+      function cancelReasonEdit() {
+        state.editingReasonId = '';
+        renderReasonMasterManagerPanel();
+      }
+
+      async function saveReasonEdit(id) {
+        const nameInput = document.getElementById(`reasonEditName_${id}`);
+        const descriptionInput = document.getElementById(`reasonEditDescription_${id}`);
+        try {
+          await api('updateReason', id, {
+            name: nameInput ? nameInput.value : '',
+            description: descriptionInput ? descriptionInput.value : '',
+          });
+          state.editingReasonId = '';
+          await refreshAdminMasters();
+          message('理由を更新しました。', 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      async function toggleReasonActive(id, active) {
+        try {
+          await api('updateReason', id, { active });
+          await refreshAdminMasters();
+          message(active ? '理由を有効化しました。' : '理由を無効化しました。', 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      async function refreshAdminMasters() {
+        const genreMasters = await api('listGenres', { limit: 500, includeInactive: true });
+        const activeGenres = await api('listSheetRecords', 'genres', { limit: 200 });
+        const reasons = await api('listReasons', { limit: 500, includeInactive: true });
+        state.genreMasters = genreMasters.items || [];
+        state.genres = activeGenres.items || [];
+        state.reasons = reasons.items || [];
+        renderSelects(state.enums, state.genres);
+        renderGenreManagerPanel();
+        renderReasonMasterManagerPanel();
+        renderCustomFieldDefinitionPanel();
+        renderLeads();
+      }
+
+      function reasonCategoryOptions(selected) {
+        return reasonCategoryDefinitions().map((item) => `<option value="${escapeHtml(item.value)}" ${item.value === selected ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('');
+      }
+
+      function reasonCategoryLabel(category) {
+        const found = reasonCategoryDefinitions().find((item) => item.value === category);
+        return found ? found.label : category || '-';
+      }
+
+      function reasonCategorySortOrder(category) {
+        const index = reasonCategoryDefinitions().findIndex((item) => item.value === category);
+        return index === -1 ? 99 : index;
+      }
+
+      function reasonCategoryDefinitions() {
+        return [
+          { label: '送信NG理由', value: 'send_ng_reason' },
+          { label: '失注理由', value: 'lost_reason' },
+          { label: '対応不要理由', value: 'no_action_reason' },
+          { label: '辞退理由', value: 'decline_reason' },
+        ];
+      }
+
+      function isActiveClient(record) {
+        if (!record) return false;
+        if (record.active === false) return false;
+        return String(record.active || '').trim().toLowerCase() !== 'false';
+      }
+
+      function setPanelMessage(id, text, tone) {
+        const target = document.getElementById(id);
+        if (!target) return;
+        target.className = `message ${tone === 'error' ? 'error' : 'ok'}`;
+        target.textContent = text || '';
       }
 
       function renderCustomFieldDefinitionPanel() {

@@ -131,6 +131,72 @@ function deleteExcludedDomain(id) {
   });
 }
 
+function listGenres(options) {
+  const query = Object.assign({
+    limit: 300,
+    includeInactive: true,
+  }, options || {});
+  return listSheetRecords('genres', query);
+}
+
+function saveGenre(input) {
+  return withScriptLock_('saveGenre', function () {
+    const normalized = normalizeGenreInput_(input);
+    assertUniqueGenreName_(normalized);
+
+    if (normalized.id) {
+      const id = normalized.id;
+      delete normalized.id;
+      return normalizeGenreRecord_(updateSheetRecord_('genres', id, normalized));
+    }
+
+    return normalizeGenreRecord_(appendSheetRecord_('genres', normalized));
+  });
+}
+
+function deleteGenre(id) {
+  return withScriptLock_('deleteGenre', function () {
+    return normalizeGenreRecord_(updateSheetRecord_('genres', requireId_(id), { active: false }));
+  });
+}
+
+function listReasons(options) {
+  const query = Object.assign({
+    limit: 500,
+    includeInactive: true,
+  }, options || {});
+  const result = listSheetRecords('reasons', query);
+  result.items = result.items.map(normalizeReasonRecord_);
+  return result;
+}
+
+function saveReason(input) {
+  return withScriptLock_('saveReason', function () {
+    const normalized = normalizeReasonInput_(input);
+    assertUniqueReasonName_(normalized);
+
+    if (normalized.id) {
+      const id = normalized.id;
+      delete normalized.id;
+      return normalizeReasonRecord_(updateSheetRecord_('reasons', id, normalized));
+    }
+
+    return normalizeReasonRecord_(appendSheetRecord_('reasons', normalized));
+  });
+}
+
+function updateReason(id, patch) {
+  return withScriptLock_('updateReason', function () {
+    const recordId = requireId_(id);
+    const current = findSheetRecordById_('reasons', recordId);
+    if (!current) throw new Error('理由が見つかりません: ' + recordId);
+    const updates = normalizeReasonPatch_(patch || {});
+    const candidate = Object.assign({}, current, updates, { id: recordId });
+    assertUniqueReasonName_(candidate);
+    return normalizeReasonRecord_(updateSheetRecord_('reasons', recordId, updates));
+  });
+}
+
 function normalizeExcludedDomainInput_(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error('Excluded domain input must be an object.');
@@ -147,6 +213,102 @@ function normalizeExcludedDomainInput_(input) {
     reason: String(input.reason || '').trim(),
     active: input.active === undefined ? true : normalizeBooleanLike_(input.active),
   };
+}
+
+function normalizeGenreInput_(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('Genre input must be an object.');
+  }
+
+  const name = String(input.name || '').trim();
+  if (!name) throw new Error('ジャンル名は必須です。');
+
+  return {
+    id: String(input.id || '').trim(),
+    name: name,
+    description: String(input.description || '').trim(),
+    active: input.active === undefined ? true : normalizeBooleanLike_(input.active),
+  };
+}
+
+function normalizeGenreRecord_(record) {
+  const normalized = Object.assign({}, record);
+  normalized.active = normalized.active === '' ? true : normalizeBooleanLike_(normalized.active);
+  return normalized;
+}
+
+function assertUniqueGenreName_(genre) {
+  const name = normalizeMasterName_(genre.name);
+  const records = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'genres'));
+  const duplicate = records.find(function (record) {
+    return normalizeBooleanLike_(record.active) !== false &&
+      normalizeMasterName_(record.name) === name &&
+      (!genre.id || String(record.id || '') !== String(genre.id));
+  });
+  if (duplicate) {
+    throw new Error('同じジャンル名がすでに登録されています。');
+  }
+}
+
+function normalizeReasonInput_(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('Reason input must be an object.');
+  }
+
+  const normalized = normalizeReasonPatch_(input);
+  if (!normalized.category) normalized.category = 'send_ng_reason';
+  if (!normalized.name) throw new Error('理由は必須です。');
+  normalized.id = String(input.id || '').trim();
+  normalized.active = input.active === undefined ? true : normalizeBooleanLike_(input.active);
+  return normalized;
+}
+
+function normalizeReasonPatch_(patch) {
+  const updates = {};
+  if (patch.category !== undefined) updates.category = normalizeReasonCategory_(patch.category);
+  if (patch.name !== undefined) {
+    const name = String(patch.name || '').trim();
+    if (!name) throw new Error('理由は必須です。');
+    updates.name = name;
+  }
+  if (patch.description !== undefined) updates.description = String(patch.description || '').trim();
+  if (patch.active !== undefined) updates.active = normalizeBooleanLike_(patch.active);
+  return updates;
+}
+
+function normalizeReasonRecord_(record) {
+  const normalized = Object.assign({}, record);
+  normalized.category = normalizeReasonCategory_(normalized.category || 'send_ng_reason');
+  normalized.active = normalized.active === '' ? true : normalizeBooleanLike_(normalized.active);
+  return normalized;
+}
+
+function normalizeReasonCategory_(category) {
+  const normalized = String(category || '').trim();
+  const allowed = ['send_ng_reason', 'lost_reason', 'no_action_reason', 'decline_reason'];
+  if (allowed.indexOf(normalized) === -1) {
+    throw new Error('理由カテゴリが不正です: ' + normalized);
+  }
+  return normalized;
+}
+
+function assertUniqueReasonName_(reason) {
+  const category = normalizeReasonCategory_(reason.category || 'send_ng_reason');
+  const name = normalizeMasterName_(reason.name);
+  const records = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'reasons'));
+  const duplicate = records.find(function (record) {
+    return normalizeBooleanLike_(record.active) !== false &&
+      normalizeReasonCategory_(record.category || 'send_ng_reason') === category &&
+      normalizeMasterName_(record.name) === name &&
+      (!reason.id || String(record.id || '') !== String(reason.id));
+  });
+  if (duplicate) {
+    throw new Error('同じカテゴリに同じ理由がすでに登録されています。');
+  }
+}
+
+function normalizeMasterName_(value) {
+  return String(value || '').trim().replace(/[ \t\n\r　]+/g, '').toLowerCase();
 }
 
 function isLeadBlockedByMasters_(lead) {

@@ -63,6 +63,12 @@ function dispatchPostAction_(action, data) {
   if (action === 'listExcludedDomains') return listExcludedDomains(data);
   if (action === 'saveExcludedDomain') return saveExcludedDomain(data);
   if (action === 'deleteExcludedDomain') return deleteExcludedDomain(data.id);
+  if (action === 'listGenres') return listGenres(data);
+  if (action === 'saveGenre') return saveGenre(data);
+  if (action === 'deleteGenre') return deleteGenre(data.id);
+  if (action === 'listReasons') return listReasons(data);
+  if (action === 'saveReason') return saveReason(data);
+  if (action === 'updateReason') return updateReason(data.id, data.patch || data);
   if (action === 'saveSerperApiKey') return saveSerperApiKey(data.apiKey || data.api_key || data.key);
   if (action === 'testSerperApiKey') return testSerperApiKey();
   if (action === 'runSmallSearchJob') return runSmallSearchJob(data);
@@ -101,7 +107,8 @@ function getInitialData() {
     enums: getClientEnums_(),
     dashboard: getDashboardStats(),
     genres: listSheetRecords('genres', { limit: 200 }).items,
-    reasons: listSheetRecords('reasons', { limit: 300 }).items,
+    genreMasters: listGenres({ limit: 500, includeInactive: true }).items,
+    reasons: listReasons({ limit: 500, includeInactive: true }).items,
     settings: listSheetRecords('settings', { limit: 200, includeInactive: true }).items,
     customFieldDefinitions: listCustomFieldDefinitions({ includeInactive: true }).items,
     listViewSettings: listListViewSettings({}).items,

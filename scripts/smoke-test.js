@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v25_collection_tool_panels'), 'v25 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v26_admin_master_managers'), 'v26 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -186,8 +186,14 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'submitCollectionKeywordSearch',
   'importCollectionCsv',
   'saveSourcePageCollectionSettings',
+  'genreManagerPanel',
+  'reasonMasterManagerPanel',
+  'renderGenreManagerPanel',
+  'renderReasonMasterManagerPanel',
+  'saveGenreFromForm',
+  'saveReasonFromForm',
 ].forEach((marker) => {
-  assert(html.includes(marker), `legacy v22 UI marker missing: ${marker}`);
+  assert(html.includes(marker), `legacy UI marker missing: ${marker}`);
 });
 assert(html.includes('会社名') && html.includes('差し込みメニュー'), 'legacy template tag menu labels missing');
 assert(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8').includes("'会社名'"), 'server Japanese template variables missing');
@@ -213,6 +219,12 @@ assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflec
   'saveEmailTemplate',
   'saveNgMaster',
   'saveExcludedDomain',
+  'listGenres',
+  'saveGenre',
+  'deleteGenre',
+  'listReasons',
+  'saveReason',
+  'updateReason',
   'saveSerperApiKey',
   'checkRepliesForLeads',
   'createCalendarEventForLead',
