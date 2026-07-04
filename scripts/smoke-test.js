@@ -84,6 +84,9 @@ assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
 assert(html.includes('createSelectedLeadCalendarEvent'), 'calendar event handler missing');
+const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), html.indexOf('async function showStartupError'));
+assert(refreshAllBlock.includes("api('getInitialData')"), 'refreshAll should load initial data');
+assert(!refreshAllBlock.includes("api('getAuthorizationStatus')"), 'refreshAll should not preflight authorization');
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
 for (const [index, script] of scripts.entries()) {
   new Function(script);

@@ -628,12 +628,6 @@
       async function refreshAll() {
         try {
           message('読み込み中...');
-          const auth = await api('getAuthorizationStatus');
-          if (auth.required) {
-            document.getElementById('appMeta').textContent = '初回承認が必要です';
-            document.getElementById('globalMessage').innerHTML = `初回承認が必要です。<a href="${escapeHtml(auth.authorizationUrl)}" target="_blank" rel="noopener">Googleの承認画面を開く</a>`;
-            return;
-          }
           const initial = await api('getInitialData');
           state.app = initial.app;
           state.enums = initial.enums;
@@ -644,8 +638,26 @@
           await Promise.all([loadLeads(), loadTemplates(), loadMasters(), loadSearchResults(), loadHistories()]);
           message('更新しました', 'ok');
         } catch (error) {
-          message(error.message || String(error), 'error');
+          await showStartupError(error);
         }
+      }
+
+      async function showStartupError(error) {
+        const errorMessage = error && error.message ? error.message : String(error || '');
+        const authorizationLike = /authorization|authorize|permission|access|scope|権限|承認|認証/i.test(errorMessage);
+        if (authorizationLike) {
+          try {
+            const auth = await api('getAuthorizationStatus');
+            if (auth && auth.required && auth.authorizationUrl) {
+              document.getElementById('appMeta').textContent = '初回承認が必要です';
+              document.getElementById('globalMessage').innerHTML = `初回承認が必要です。<a href="${escapeHtml(auth.authorizationUrl)}" target="_blank" rel="noopener">Googleの承認画面を開く</a>`;
+              return;
+            }
+          } catch (authError) {
+            // Fall through and show the original startup error.
+          }
+        }
+        message(errorMessage, 'error');
       }
 
       async function runSetup() {

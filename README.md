@@ -54,7 +54,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment v6: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment v7: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -67,11 +67,12 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 作成済みタブ: `leads`, `send_histories`, `email_templates`, `ng_masters`, `excluded_domains`, `genres`, `reasons`, `search_jobs`, `search_results`, `search_usage_logs`, `domain_cache`, `reply_logs`, `sync_logs`, `jobs`, `settings`, `dashboard_cache`, `raw_import`
 - `leads` は45列のヘッダー生成済み
 - `settings` はGmail日次送信上限、Serper日次/月次/リード別上限、バッチ実行時間上限を初期投入済み
-- v6 Web app URLは認証付きGETでHTML返却を確認済み
-- v6 Web app `doPost` 経由の `getInitialData` / `listEmailTemplates` / `listNgMasters` / `listExcludedDomains` / `listSheetRecords` スモークテスト成功済み
-- v6 Web app `doPost` 経由の `createLead` / `updateLead` / `listLeads` / `deleteLead` スモークテスト成功済み
+- v7 Web app URLは認証付きGETでHTML返却を確認済み
+- v7 Web app `doPost` 経由の `getInitialData` / `listEmailTemplates` / `listNgMasters` / `listExcludedDomains` / `listSheetRecords` スモークテスト成功済み
+- v7 Web app `doPost` 経由の `createLead` / `updateLead` / `listLeads` / `deleteLead` スモークテスト成功済み
 - CRUDスモーク用の一時リードは物理削除済みで、`leads` に残存していないことを確認済み
-- v6でリード詳細からのメール送信、カレンダー登録、テンプレート/マスター/運用系 `doPost` アクションを追加済み
+- v7でリード詳細からのメール送信、カレンダー登録、テンプレート/マスター/運用系 `doPost` アクションを利用可能
+- v7で起動時の承認事前判定を廃止し、`getInitialData()` 成功時は承認画面を出さないよう修正済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 
