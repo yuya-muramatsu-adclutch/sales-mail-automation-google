@@ -1218,6 +1218,158 @@
         gap: 14px;
       }
 
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .stat-card,
+      .analytics-summary-card,
+      .analytics-funnel-step,
+      .send-check-grid > span,
+      .send-blocked-reason,
+      .code-box,
+      .ordered-list {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .stat-card {
+        display: grid;
+        gap: 6px;
+        min-height: 92px;
+        padding: 14px;
+      }
+
+      .stat-card span,
+      .analytics-summary-card span,
+      .analytics-summary-card small,
+      .analytics-funnel-step span,
+      .analytics-funnel-step small,
+      .send-check-grid small,
+      .send-blocked-reason small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .stat-card strong,
+      .analytics-summary-card strong,
+      .analytics-funnel-step strong {
+        color: var(--ink);
+        font-size: 26px;
+        line-height: 1.05;
+      }
+
+      .stat-card.blue,
+      .analytics-summary-card.blue {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+      }
+
+      .stat-card.green,
+      .analytics-summary-card.green {
+        border-color: #bbf7d0;
+        background: #ecfdf5;
+      }
+
+      .stat-card.amber,
+      .analytics-summary-card.amber {
+        border-color: #fde68a;
+        background: #fffbeb;
+      }
+
+      .stat-card.red {
+        border-color: #fecdd3;
+        background: #fff1f2;
+      }
+
+      .send-check-grid,
+      .analytics-summary-grid,
+      .analytics-source-grid,
+      .analytics-funnel-flow {
+        display: grid;
+        gap: 10px;
+      }
+
+      .send-check-grid,
+      .analytics-summary-grid {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
+
+      .send-check-grid > span,
+      .send-blocked-reason,
+      .analytics-summary-card,
+      .analytics-funnel-step {
+        display: grid;
+        gap: 6px;
+        padding: 12px;
+      }
+
+      .send-blocked-reason {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .analytics-funnel-flow {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        align-items: stretch;
+      }
+
+      .analytics-funnel-step {
+        min-height: 112px;
+        background: linear-gradient(180deg, #fff, #f8fafc);
+      }
+
+      .analytics-source-card {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .analytics-source-meter {
+        position: relative;
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+
+      .analytics-source-meter::before {
+        content: '';
+        display: block;
+        width: var(--share, 0%);
+        height: 100%;
+        border-radius: inherit;
+        background: #0f766e;
+      }
+
+      .code-box {
+        margin: 0;
+        padding: 12px;
+        overflow: auto;
+        color: #0f172a;
+        background: #f8fafc;
+        font-size: 12px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+
+      .ordered-list {
+        margin: 0;
+        padding: 14px 14px 14px 32px;
+        color: #334155;
+        font-size: 13px;
+        line-height: 1.75;
+      }
+
       .template-sender-banner,
       .exclusion-hero-panel,
       .prospecting-activity-panel,
@@ -2089,17 +2241,44 @@
             <button type="button" class="tab nav-item" data-tab="search" onclick="showTab('search')">
               <span class="nav-icon">SP</span><span>営業リスト収集ツール</span>
             </button>
+            <button type="button" class="tab nav-item" data-tab="backgroundJobs" onclick="showTab('backgroundJobs')">
+              <span class="nav-icon">BG</span><span>バックグラウンド進捗</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="emailLeads" onclick="showTab('emailLeads')">
+              <span class="nav-icon">ML</span><span>メール送信リスト</span>
+            </button>
             <button type="button" class="tab nav-item" data-tab="forms" onclick="showTab('forms')">
               <span class="nav-icon">FM</span><span>フォーム送信リスト</span>
             </button>
           </div>
           <div class="nav-group">
             <div class="nav-group-label">運用</div>
+            <button type="button" class="tab nav-item" data-tab="analytics" onclick="showTab('analytics')">
+              <span class="nav-icon">AN</span><span>分析</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="sync" onclick="showTab('sync')">
+              <span class="nav-icon">SY</span><span>同期</span>
+            </button>
             <button type="button" class="tab nav-item" data-tab="templates" onclick="showTab('templates')">
               <span class="nav-icon">TP</span><span>テンプレート</span>
             </button>
+            <button type="button" class="tab nav-item" data-tab="sending" onclick="showTab('sending')">
+              <span class="nav-icon">PV</span><span>送信プレビュー</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="histories" onclick="showTab('histories')">
+              <span class="nav-icon">HS</span><span>送信履歴</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="deals" onclick="showTab('deals')">
+              <span class="nav-icon">DL</span><span>商談</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="gmail" onclick="showTab('gmail')">
+              <span class="nav-icon">GM</span><span>Gmail連携</span>
+            </button>
             <button type="button" class="tab nav-item" data-tab="masters" onclick="showTab('masters')">
               <span class="nav-icon">NG</span><span>NG/除外</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="admin" onclick="showTab('admin')">
+              <span class="nav-icon">AD</span><span>管理</span>
             </button>
             <button type="button" class="tab nav-item" data-tab="ops" onclick="showTab('ops')">
               <span class="nav-icon">OP</span><span>管理/運用</span>
@@ -2508,6 +2687,236 @@
           </div>
         </section>
 
+        <section id="backgroundJobs" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Background progress</p>
+              <h1>バックグラウンド進捗</h1>
+            </div>
+            <button type="button" onclick="showTab('search')">収集設定へ</button>
+          </header>
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-head"><h2>進捗の見方</h2><span class="pill info" id="backgroundJobSummaryPill">0件</span></div>
+              <div class="panel-body">
+                <p class="muted">自動収集で行うリスト追加、WEBサイト/メール/フォーム取得と、既存リスト補完のジョブを分けて確認します。GASの6分制限に合わせ、処理は少量ずつ再開できます。</p>
+              </div>
+            </section>
+            <section class="stats-grid" id="backgroundJobStats"></section>
+            <section class="panel">
+              <div class="panel-head"><h2>バックグラウンドジョブ</h2><span class="pill" id="backgroundJobCountPill">0件</span></div>
+              <div class="table-wrap"><table id="backgroundJobTable"></table></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="emailLeads" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Email send list</p>
+              <h1>メール送信リスト</h1>
+            </div>
+            <button type="button" class="primary" onclick="showTab('sending')">送信プレビュー</button>
+          </header>
+          <section class="stats-grid" id="emailLeadStats"></section>
+          <section class="panel">
+            <div class="panel-head"><h2>メール送信対象</h2><span class="pill info" id="emailLeadCountPill">0件</span></div>
+            <div class="table-wrap"><table id="emailLeadTable"></table></div>
+          </section>
+        </section>
+
+        <section id="sending" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Gmail API</p>
+              <h1>送信プレビュー</h1>
+            </div>
+            <button type="button" onclick="showTab('histories')">全履歴を見る</button>
+          </header>
+          <div class="split">
+            <section class="panel stack">
+              <div class="panel-head"><h2>自動送信予定</h2><span class="pill" id="sendingPlanPill">確認中</span></div>
+              <div class="send-check-grid" id="sendingPlanGrid"></div>
+              <div id="sendingBlockedReasons" class="send-check-grid"></div>
+              <div class="table-wrap"><table id="sendingPlanTable"></table></div>
+            </section>
+            <aside class="stack">
+              <section class="panel stack">
+                <h2>送信制限</h2>
+                <div class="toolbar" id="sendingLimitPills"></div>
+                <p class="muted" id="sendingLimitText"></p>
+              </section>
+              <section class="panel">
+                <div class="panel-head"><h2>直近送信履歴</h2><span class="pill info" id="sendingHistoryPill">0件</span></div>
+                <div class="table-wrap"><table id="sendingHistoryTable"></table></div>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <section id="histories" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Send history</p>
+              <h1>送信履歴</h1>
+            </div>
+            <button type="button" onclick="exportCurrentLeadCsv()">CSV出力</button>
+          </header>
+          <section class="stats-grid" id="historyStats"></section>
+          <section class="panel">
+            <div class="panel-head"><h2>送信履歴一覧</h2><span class="pill info" id="sendHistoryScreenPill">0件</span></div>
+            <div class="table-wrap"><table id="sendHistoryScreenTable"></table></div>
+          </section>
+        </section>
+
+        <section id="deals" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Reply and meeting</p>
+              <h1>返信・商談管理</h1>
+            </div>
+            <button type="button" onclick="showTab('leads'); setLeadFilter('deal')">営業リストで見る</button>
+          </header>
+          <section class="stats-grid" id="dealStats"></section>
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>商談ステータス</h2><span class="pill info" id="dealCountPill">0件</span></div>
+              <div class="table-wrap"><table id="dealTable"></table></div>
+            </section>
+            <aside class="stack">
+              <section class="panel stack">
+                <h2>運用メモ</h2>
+                <p class="muted">返信あり、商談予定、商談済み、受注、失注は営業リストと同じ編集画面で更新します。Calendar登録後はMeetリンクや商談メモも保存できます。</p>
+                <div class="toolbar"><span class="pill good">営業リストと同じ編集</span><span class="pill info">Meetリンク保存</span><span class="pill warn">送信対象から除外</span></div>
+              </section>
+              <section class="panel stack">
+                <h2>返信チェック</h2>
+                <p class="muted">Gmail Thread IDを保存した送信履歴から返信を確認できます。管理画面から手動チェック、または定期トリガーで更新します。</p>
+                <button type="button" class="primary" onclick="checkReplies()">返信チェックを実行</button>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <section id="analytics" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Analytics</p>
+              <h1>稼働分析</h1>
+            </div>
+            <div class="toolbar"><span class="pill info">月別</span><span class="pill info">ジャンル別</span><span class="pill info">返信率</span></div>
+          </header>
+          <section class="panel analytics-summary-panel">
+            <div class="dashboard-section-heading"><div><span class="dashboard-kicker">今月の成果サマリー</span><h2 id="analyticsMonthTitle">営業成果</h2></div><span class="pill good">月次</span></div>
+            <div class="analytics-summary-grid" id="analyticsSummaryGrid"></div>
+          </section>
+          <section class="panel stack">
+            <div class="dashboard-section-heading"><div><span class="dashboard-kicker">営業ファネル</span><h2>営業リストから成約までの流れ</h2></div><span class="pill good">累計</span></div>
+            <div class="analytics-funnel-flow" id="analyticsFunnel"></div>
+          </section>
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>ジャンル別分析</h2><span class="pill info">上位</span></div>
+              <div class="table-wrap"><table id="analyticsGenreTable"></table></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>送信品質</h2><span class="pill" id="analyticsQualityPill">確認中</span></div>
+              <div class="table-wrap"><table id="analyticsQualityTable"></table></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="sync" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Import policy</p>
+              <h1>営業リスト同期</h1>
+            </div>
+            <button type="button" onclick="showTab('ops')">同期ログ詳細</button>
+          </header>
+          <div class="grid">
+            <section class="panel stack">
+              <h2>CSV同期</h2>
+              <p class="muted">既存データは上書きせず、空欄のみ補完します。会社名、メールアドレス、ドメインの一致を重複判定に使います。</p>
+              <form class="grid" onsubmit="importCsv(event)">
+                <label style="grid-column:1/-1">CSV貼り付け<textarea id="syncCsvText" placeholder="会社名,メール,公式サイト"></textarea></label>
+                <button type="submit" class="primary">CSVインポート</button>
+              </form>
+            </section>
+            <section class="panel stack">
+              <h2>同期ルール</h2>
+              <pre class="code-box">POST / doPost importLeadsFromCsv
+source: csv
+mode: fill_blanks
+duplicate keys: email / domain / company</pre>
+            </section>
+            <section class="panel" style="grid-column:1/-1">
+              <div class="panel-head"><h2>同期ログ</h2><span class="pill" id="syncScreenPill">0件</span></div>
+              <div class="table-wrap"><table id="syncScreenTable"></table></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="gmail" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Google integration</p>
+              <h1>Gmail / Calendar連携</h1>
+            </div>
+            <button type="button" onclick="showTab('admin')">管理へ</button>
+          </header>
+          <div class="content-grid">
+            <section class="panel stack">
+              <h2>設定状態</h2>
+              <div class="toolbar" id="gmailStatusPills"></div>
+              <div class="field">
+                <label>Apps Scriptで使うサービス</label>
+                <pre class="code-box">GmailApp / MailApp
+CalendarApp
+PropertiesService
+時間主導トリガー</pre>
+              </div>
+              <button type="button" class="primary" onclick="checkReplies()">Gmail返信確認</button>
+            </section>
+            <section class="panel stack">
+              <h2>Google側でやること</h2>
+              <ol class="ordered-list">
+                <li>Apps Scriptの初回承認を完了します。</li>
+                <li>Gmail送信枠と送信先を確認します。</li>
+                <li>商談予定を使う場合はCalendar権限も承認します。</li>
+                <li>定期処理は管理画面から時間主導トリガーを作成します。</li>
+              </ol>
+            </section>
+          </div>
+        </section>
+
+        <section id="admin" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Settings</p>
+              <h1>管理画面</h1>
+            </div>
+            <button type="button" onclick="showTab('gmail')">Gmail連携</button>
+          </header>
+          <section id="adminStatusGrid" class="settings-status-grid"></section>
+          <section id="adminReadinessPanel" class="ops-readiness-panel"></section>
+          <div class="grid">
+            <section class="panel stack">
+              <h2>運用アクション</h2>
+              <button type="button" onclick="installTriggers()">定期トリガー作成</button>
+              <button type="button" onclick="advanceJobs()">バックグラウンド処理</button>
+              <button type="button" onclick="createBackup()">Driveバックアップ</button>
+            </section>
+            <section class="panel stack">
+              <h2>設定メモ</h2>
+              <pre class="code-box">Serper API: PropertiesService
+Spreadsheet DB: Script Properties SPREADSHEET_ID
+Mail limit: settings.daily_mail_limit
+Batch budget: settings.batch_runtime_budget_ms</pre>
+            </section>
+          </div>
+        </section>
+
         <section id="ops" class="section">
           <header class="section-header">
             <div>
@@ -2555,6 +2964,15 @@
       const TAB_TITLES = {
         dashboard: 'ダッシュボード',
         leads: '営業リスト',
+        backgroundJobs: 'バックグラウンド進捗',
+        emailLeads: 'メール送信リスト',
+        sending: '送信プレビュー',
+        histories: '送信履歴',
+        deals: '商談',
+        analytics: '分析',
+        sync: '同期',
+        gmail: 'Gmail連携',
+        admin: '管理',
         templates: 'テンプレート',
         masters: 'NG/除外',
         search: '営業リスト収集ツール',
@@ -2597,6 +3015,10 @@
         genres: [],
         formLeads: [],
         formTotal: 0,
+        emailLeads: [],
+        emailTotal: 0,
+        dealLeads: [],
+        dealTotal: 0,
         selectedFormLeadId: '',
         selectedLeadIds: [],
         searchResults: [],
@@ -2658,8 +3080,9 @@
           renderSelects(initial.enums, initial.genres);
           renderDashboard(initial.dashboard);
           renderSerper(initial.serper);
-          await Promise.all([loadLeads(), loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData()]);
+          await Promise.all([loadLeads(), loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()]);
           await loadFormLeads();
+          renderExpandedLegacyScreens();
           message('更新しました', 'ok');
         } catch (error) {
           await showStartupError(error);
@@ -2918,6 +3341,28 @@
         renderGenreBar();
         renderLeadQuickViews();
         renderLeads();
+      }
+
+      async function loadEmailLeads() {
+        const result = await api('listLeads', {
+          filter: 'email',
+          sort: 'updated_desc',
+          limit: 100,
+          offset: 0,
+        });
+        state.emailLeads = result.items || [];
+        state.emailTotal = result.total || 0;
+      }
+
+      async function loadDealLeads() {
+        const result = await api('listLeads', {
+          filter: 'deal',
+          sort: 'updated_desc',
+          limit: 100,
+          offset: 0,
+        });
+        state.dealLeads = result.items || [];
+        state.dealTotal = result.total || 0;
       }
 
       function renderLeads() {
@@ -4071,6 +4516,260 @@
         ])).join(''));
       }
 
+      function renderExpandedLegacyScreens() {
+        renderBackgroundJobsScreen();
+        renderEmailLeadsScreen();
+        renderSendingScreen();
+        renderHistoriesScreen();
+        renderDealsScreen();
+        renderAnalyticsScreen();
+        renderSyncScreen();
+        renderGmailScreen();
+        renderAdminScreen();
+      }
+
+      function statCard(label, value, detail, tone) {
+        return `<div class="stat-card ${escapeHtml(tone || '')}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${detail ? `<small class="muted">${escapeHtml(detail)}</small>` : ''}</div>`;
+      }
+
+      function renderBackgroundJobsScreen() {
+        const jobs = state.jobs || [];
+        const queued = jobs.filter((job) => ['queued', 'running', '処理中', '待機中'].includes(String(job.status || '').toLowerCase())).length;
+        const failed = jobs.filter((job) => /failed|error|失敗|エラー/i.test(String(job.status || job.last_error || job.error_message || ''))).length;
+        document.getElementById('backgroundJobSummaryPill').textContent = `${formatNumber(jobs.length)}件`;
+        document.getElementById('backgroundJobStats').innerHTML = [
+          statCard('ジョブ総数', `${formatNumber(jobs.length)}件`, 'search_jobs / jobs', 'blue'),
+          statCard('待機/実行中', `${formatNumber(queued)}件`, 'advanceQueuedJobsで再開', queued > 0 ? 'amber' : 'green'),
+          statCard('失敗/要確認', `${formatNumber(failed)}件`, 'last_errorを確認', failed > 0 ? 'red' : 'green'),
+          statCard('GAS分割実行', '6分以内', '少量ずつ処理', 'amber'),
+        ].join('');
+        document.getElementById('backgroundJobCountPill').textContent = `${formatNumber(jobs.length)}件`;
+        document.getElementById('backgroundJobTable').innerHTML = table(['作成', '種類', '状態', '進捗', '次の処理', 'エラー'], jobs.map((job) => row([
+          ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
+          ['種類', escapeHtml(job.job_type || job.type || '-')],
+          ['状態', statusPill(job.status || '-')],
+          ['進捗', `${formatNumber(job.processed_count || job.processed || 0)} / ${formatNumber(job.total_count || job.total || 0)}`],
+          ['次の処理', escapeHtml(dateTimeLabel(job.next_run_at || job.updated_at) || '-')],
+          ['エラー', escapeHtml(job.error_message || job.last_error || '-')],
+        ])).join(''));
+      }
+
+      function renderEmailLeadsScreen() {
+        const leads = state.emailLeads || [];
+        const initial = leads.filter((lead) => !lead.last_sent_at).length;
+        document.getElementById('emailLeadStats').innerHTML = [
+          statCard('メール送信対象', `${formatNumber(state.emailTotal)}件`, '送信可能な営業先', 'blue'),
+          statCard('初回対象', `${formatNumber(initial)}件`, '表示中100件から算出', 'green'),
+          statCard('本日残り', `${formatNumber((state.dashboard || {}).todayRemaining || 0)}件`, 'Gmail送信枠', 'amber'),
+        ].join('');
+        document.getElementById('emailLeadCountPill').textContent = `${formatNumber(state.emailTotal)}件`;
+        document.getElementById('emailLeadTable').innerHTML = table(['会社', '屋号', 'ジャンル', 'メール', '送信区分', 'ステータス', '送信回数', '最新送信日', '履歴'], leads.map((lead) => row([
+          ['会社', `<strong>${escapeHtml(lead.company_name || '-')}</strong>`],
+          ['屋号', escapeHtml(lead.facility_name || '-')],
+          ['ジャンル', escapeHtml(lead.genre || '-')],
+          ['メール', escapeHtml(lead.email || '-')],
+          ['送信区分', lead.last_sent_at ? statusPill('送信済み') : '<span class="pill info">初回対象</span>'],
+          ['ステータス', statusPill(normalizeLeadStatusLabel(lead))],
+          ['送信回数', `${formatNumber(lead.send_count || 0)}回`],
+          ['最新送信日', escapeHtml(dateLabel(lead.last_sent_at) || '-')],
+          ['履歴', `<button type="button" class="table-link-button" onclick="editLead('${escapeJsString(lead.id)}')">履歴を見る</button>`],
+        ])).join(''));
+      }
+
+      function renderSendingScreen() {
+        const dashboard = state.dashboard || {};
+        const leads = state.emailLeads || [];
+        const planned = leads.slice(0, Math.min(10, dashboard.todayRemaining || 0));
+        const canSend = (dashboard.todayRemaining || 0) > 0 && leads.length > 0;
+        document.getElementById('sendingPlanPill').outerHTML = `<span class="pill ${canSend ? 'good' : 'warn'}" id="sendingPlanPill">${canSend ? '送信可能' : '要確認'}</span>`;
+        document.getElementById('sendingPlanGrid').innerHTML = [
+          ['初回対象', `${formatNumber(state.emailTotal)}件`],
+          ['今回予定', `${formatNumber(planned.length)}件`],
+          ['本日送信済み', `${formatNumber(dashboard.sentToday || 0)}件`],
+          ['本日残り', `${formatNumber(dashboard.todayRemaining || 0)}件`],
+          ['1回上限', `${formatNumber(Math.min(100, dashboard.todayRemaining || 0))}件`],
+        ].map(([label, value]) => `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`).join('');
+        const blocked = [
+          ['案件確認待ち', dashboard.reviewTargets || 0, "showTab('leads'); setLeadFilter('review')"],
+          ['除外/送信NG', dashboard.sendNg || 0, "showTab('leads'); setLeadFilter('send_ng')"],
+          ['テンプレートなし', (dashboard.productionInitialTemplates || 0) <= 0 ? state.emailTotal : 0, "showTab('templates')"],
+          ['送信済み', dashboard.sent || 0, "showTab('histories')"],
+        ].filter((item) => item[1] > 0);
+        document.getElementById('sendingBlockedReasons').innerHTML = blocked.map(([label, count, onclick]) => `<button type="button" class="send-blocked-reason" onclick="${onclick}"><small>${escapeHtml(label)}</small><strong>${formatNumber(count)}件</strong></button>`).join('');
+        document.getElementById('sendingPlanTable').innerHTML = table(['種別', '会社', '屋号', 'ジャンル', 'メール'], planned.map((lead) => row([
+          ['種別', '初回'],
+          ['会社', escapeHtml(lead.company_name || '-')],
+          ['屋号', escapeHtml(lead.facility_name || '-')],
+          ['ジャンル', escapeHtml(lead.genre || '-')],
+          ['メール', escapeHtml(lead.email || '-')],
+        ])).join(''));
+        document.getElementById('sendingLimitPills').innerHTML = [
+          `<span class="pill warn">1日${formatNumber(dashboard.dailyMailLimit || 100)}件まで</span>`,
+          `<span class="pill warn">1回${formatNumber(Math.min(100, dashboard.dailyMailLimit || 100))}件まで</span>`,
+          '<span class="pill good">プレーンテキストのみ</span>',
+          `<span class="pill ${dashboard.todayRemaining > 0 ? 'good' : 'bad'}">本日残り ${formatNumber(dashboard.todayRemaining || 0)}件</span>`,
+        ].join('');
+        document.getElementById('sendingLimitText').textContent = `現在の送信可能リストは${formatNumber(state.emailTotal)}件です。Apps Script版では手動送信と時間主導トリガーで送信上限を守ります。`;
+        const histories = (state.histories || []).slice(0, 5);
+        document.getElementById('sendingHistoryPill').textContent = `${formatNumber(histories.length)}件`;
+        document.getElementById('sendingHistoryTable').innerHTML = table(['日時', '種別', '宛先', '結果'], histories.map((history) => row([
+          ['日時', escapeHtml(dateTimeLabel(history.sent_at || history.created_at) || '-')],
+          ['種別', escapeHtml(history.send_type || '-')],
+          ['宛先', escapeHtml(history.to_email || '-')],
+          ['結果', history.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="pill bad">${escapeHtml(history.send_result || '失敗')}</span>`],
+        ])).join(''));
+      }
+
+      function renderHistoriesScreen() {
+        const histories = state.histories || [];
+        const success = histories.filter((history) => history.send_result === '成功').length;
+        const failed = histories.filter((history) => history.send_result && history.send_result !== '成功').length;
+        const test = histories.filter((history) => String(history.send_type || '').includes('テスト')).length;
+        document.getElementById('historyStats').innerHTML = [
+          statCard('履歴総数', `${formatNumber(histories.length)}件`, '最新100件', 'blue'),
+          statCard('本番送信', `${formatNumber(histories.length - test)}件`, '初回/フォロー', 'green'),
+          statCard('成功', `${formatNumber(success)}件`, 'send_result=成功', 'green'),
+          statCard('失敗', `${formatNumber(failed)}件`, '要確認', failed > 0 ? 'red' : 'green'),
+          statCard('テスト送信', `${formatNumber(test)}件`, '確認用', 'amber'),
+        ].join('');
+        document.getElementById('sendHistoryScreenPill').textContent = `${formatNumber(histories.length)}件`;
+        document.getElementById('sendHistoryScreenTable').innerHTML = table(['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名', 'Gmail'], histories.map((item) => row([
+          ['送信日時', `<span class="history-date-cell"><strong>${escapeHtml(dateTimeLabel(item.sent_at || item.created_at) || '-')}</strong><small>日本時間</small></span>`],
+          ['結果', item.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="history-error"><span class="pill bad">${escapeHtml(item.send_result || '失敗')}</span><small>${escapeHtml(item.error_message || '')}</small></span>`],
+          ['種別', statusPill(item.send_type || '-')],
+          ['送信先', `<span class="history-recipient-cell"><strong>${escapeHtml(item.to_email || '-')}</strong><small>${escapeHtml(item.gmail_message_id ? `Gmail: ${item.gmail_message_id}` : 'Gmail IDなし')}</small></span>`],
+          ['営業先', `<span class="history-lead-cell"><strong>${escapeHtml(item.facility_name || item.company_name || '-')}</strong><small>${escapeHtml(item.company_name && item.facility_name ? item.company_name : '会社名未取得')}</small></span>`],
+          ['ジャンル', escapeHtml(item.genre || '-')],
+          ['テンプレート', escapeHtml(item.template_name || '-')],
+          ['件名', escapeHtml(item.subject || '-')],
+          ['Gmail', escapeHtml(item.gmail_thread_id || '-')],
+        ])).join(''));
+      }
+
+      function renderDealsScreen() {
+        const dashboard = state.dashboard || {};
+        const leads = state.dealLeads || [];
+        const scheduled = leads.filter((lead) => lead.deal_status === '商談予定').length;
+        const done = leads.filter((lead) => lead.deal_status === '商談済み').length;
+        const won = leads.filter((lead) => lead.deal_status === '受注' || lead.status === '受注').length;
+        const lost = leads.filter((lead) => lead.deal_status === '失注' || lead.status === '失注').length;
+        document.getElementById('dealStats').innerHTML = [
+          statCard('返信あり', `${formatNumber(dashboard.replies || 0)}件`, '返信チェック済み', 'blue'),
+          statCard('商談予定', `${formatNumber(scheduled)}件`, 'Calendar登録候補', 'amber'),
+          statCard('商談済み', `${formatNumber(done)}件`, 'フォロー対象', 'amber'),
+          statCard('受注', `${formatNumber(won)}件`, '成約', 'green'),
+          statCard('失注', `${formatNumber(lost)}件`, '分析対象', 'red'),
+        ].join('');
+        document.getElementById('dealCountPill').textContent = `${formatNumber(state.dealTotal)}件`;
+        document.getElementById('dealTable').innerHTML = table(['会社', '屋号', '返信', '商談状態', '商談日時', '担当者', 'Meet', 'メモ', '操作'], leads.map((lead) => row([
+          ['会社', escapeHtml(lead.company_name || '-')],
+          ['屋号', escapeHtml(lead.facility_name || '-')],
+          ['返信', normalizeBooleanLike(lead.reply_checked) ? '<span class="pill good">返信あり</span>' : '<span class="pill">未確認</span>'],
+          ['商談状態', statusPill(lead.deal_status || lead.status || '-')],
+          ['商談日時', escapeHtml(dateTimeLabel(lead.meeting_start_at) || '-')],
+          ['担当者', escapeHtml(lead.contact_name || '-')],
+          ['Meet', lead.google_meet_url ? `<a class="table-link-button" href="${escapeHtml(externalUrl(lead.google_meet_url))}" target="_blank" rel="noopener">Meet</a>` : '-'],
+          ['メモ', escapeHtml(lead.meeting_memo || '-')],
+          ['操作', `<button type="button" class="table-link-button" onclick="editLead('${escapeJsString(lead.id)}')">編集</button>`],
+        ])).join(''));
+      }
+
+      function renderAnalyticsScreen() {
+        const dashboard = state.dashboard || {};
+        const month = dashboard.thisMonth || {};
+        const histories = state.histories || [];
+        const success = histories.filter((history) => history.send_result === '成功').length;
+        const failed = histories.filter((history) => history.send_result && history.send_result !== '成功').length;
+        const replyRate = dashboard.sent ? ((dashboard.replies || 0) / dashboard.sent) * 100 : 0;
+        const dealRate = dashboard.replies ? ((dashboard.deals || 0) / dashboard.replies) * 100 : 0;
+        document.getElementById('analyticsMonthTitle').textContent = `${month.label || '今月'} の営業成果`;
+        document.getElementById('analyticsSummaryGrid').innerHTML = [
+          ['今月追加', `${formatNumber(month.addedLeads || 0)}件`, '営業リスト', 'blue'],
+          ['今月送信', `${formatNumber(month.sent || 0)}件`, '送信成功', 'green'],
+          ['今月返信', `${formatNumber(month.replies || 0)}件`, `返信率 ${formatPercent(month.replyRate || 0)}`, ''],
+          ['今月商談', `${formatNumber(month.deals || 0)}件`, '返信から商談', 'amber'],
+          ['今月成約', `${formatNumber(month.contracts || 0)}件`, '商談から成約', 'green'],
+        ].map(([label, value, detail, tone]) => `<div class="analytics-summary-card ${escapeHtml(tone)}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
+        document.getElementById('analyticsFunnel').innerHTML = [
+          ['営業リスト', dashboard.leadsTotal, '累計'],
+          ['送信成功', dashboard.sent || success, 'メール送信'],
+          ['返信・反応', dashboard.replies || 0, formatPercent(replyRate)],
+          ['商談', dashboard.deals || 0, formatPercent(dealRate)],
+          ['成約', dashboard.won || 0, '受注'],
+        ].map(([label, value, detail]) => `<div class="analytics-funnel-step"><span>${escapeHtml(label)}</span><strong>${formatNumber(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
+        document.getElementById('analyticsGenreTable').innerHTML = table(['ジャンル', '営業リスト'], Object.entries(dashboard.byGenre || {}).slice(0, 20).map(([genre, count]) => row([
+          ['ジャンル', escapeHtml(genre)],
+          ['営業リスト', formatNumber(count)],
+        ])).join(''));
+        document.getElementById('analyticsQualityPill').outerHTML = `<span class="pill ${failed > 0 ? 'warn' : 'good'}" id="analyticsQualityPill">${failed > 0 ? '要確認' : '正常'}</span>`;
+        document.getElementById('analyticsQualityTable').innerHTML = table(['項目', '数値'], [
+          ['送信成功', `${formatNumber(success)}件`],
+          ['送信失敗', `${formatNumber(failed)}件`],
+          ['未返信', `${formatNumber(Math.max((dashboard.sent || 0) - (dashboard.replies || 0), 0))}件`],
+          ['失注', `${formatNumber(dashboard.lost || 0)}件`],
+          ['送信NG', `${formatNumber(dashboard.sendNg || 0)}件`],
+        ].map(([label, value]) => row([['項目', escapeHtml(label)], ['数値', escapeHtml(value)]])).join(''));
+      }
+
+      function renderSyncScreen() {
+        const logs = state.syncLogs || [];
+        document.getElementById('syncScreenPill').textContent = `${formatNumber(logs.length)}件`;
+        document.getElementById('syncScreenTable').innerHTML = table(['日時', 'ソース', '追加', '補完', '重複', 'エラー', '詳細'], logs.map((log) => row([
+          ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
+          ['ソース', escapeHtml(log.source || log.log_type || '-')],
+          ['追加', formatNumber(log.added_count || log.added || 0)],
+          ['補完', formatNumber(log.filled_count || log.updated_count || 0)],
+          ['重複', formatNumber(log.duplicate_skip_count || log.skipped || 0)],
+          ['エラー', log.error_count > 0 || log.level === 'error' ? '<span class="pill bad">あり</span>' : '<span class="pill good">なし</span>'],
+          ['詳細', escapeHtml(log.message || log.detail || log.error_message || '-')],
+        ])).join(''));
+      }
+
+      function renderGmailScreen() {
+        const dashboard = state.dashboard || {};
+        const integrations = dashboard.integrations || {};
+        document.getElementById('gmailStatusPills').innerHTML = [
+          `<span class="pill ${integrations.gmail !== false ? 'good' : 'warn'}">Gmail ${integrations.gmail !== false ? 'OK' : '要確認'}</span>`,
+          `<span class="pill ${integrations.calendar !== false ? 'good' : 'warn'}">Calendar ${integrations.calendar !== false ? 'OK' : '要確認'}</span>`,
+          `<span class="pill info">本日残り ${formatNumber(dashboard.mailQuotaRemaining || dashboard.todayRemaining || 0)}件</span>`,
+          `<span class="pill ${dashboard.triggerCount > 0 ? 'good' : 'warn'}">Trigger ${formatNumber(dashboard.triggerCount || 0)}件</span>`,
+        ].join('');
+      }
+
+      function renderAdminScreen() {
+        const dashboard = state.dashboard || {};
+        const integrations = dashboard.integrations || {};
+        const items = [
+          ['Google Sheets', true, `${formatNumber(dashboard.leadsTotal || 0)}件`],
+          ['Gmail', integrations.gmail !== false, `残り ${formatNumber(dashboard.mailQuotaRemaining || 0)}件`],
+          ['Calendar', integrations.calendar !== false, '商談作成'],
+          ['Serper', Boolean(dashboard.serperConfigured), dashboard.serperKeyMask || '未設定'],
+          ['Trigger', Boolean(dashboard.triggerCount), `${formatNumber(dashboard.triggerCount || 0)}件`],
+          ['Cache', true, 'dashboard_cache'],
+        ];
+        document.getElementById('adminStatusGrid').innerHTML = items.map(([label, ready, detail]) => `
+          <div class="settings-status-item">
+            <div><strong>${escapeHtml(label)}</strong><br><span>${escapeHtml(detail)}</span></div>
+            <span class="pill ${ready ? 'good' : 'warn'}">${ready ? 'OK' : '要確認'}</span>
+          </div>
+        `).join('');
+        const readyCount = items.filter((item) => item[1]).length;
+        document.getElementById('adminReadinessPanel').innerHTML = `
+          <div class="dashboard-section-heading">
+            <div><span class="dashboard-kicker">Production readiness</span><h2>本番公開前チェック</h2></div>
+            <span class="pill ${readyCount === items.length ? 'good' : 'warn'}">${readyCount}/${items.length}</span>
+          </div>
+          <div class="readiness-list">
+            ${items.map(([label, ready, detail]) => `
+              <div class="readiness-item">
+                <div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(detail)}</small></div>
+                <span class="pill ${ready ? 'good' : 'warn'}">${ready ? 'OK' : '要確認'}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
       async function checkReplies() {
         const result = await api('checkRepliesForLeads', { maxThreads: 100 });
         message(`返信チェック: ${result.replies}件`, 'ok');
@@ -4098,7 +4797,9 @@
 
       async function importCsv(event) {
         event.preventDefault();
-        const result = await api('importLeadsFromCsv', document.getElementById('csvText').value, { source: 'csv' });
+        const textarea = event.currentTarget ? event.currentTarget.querySelector('textarea') : null;
+        const csvText = textarea ? textarea.value : document.getElementById('csvText').value;
+        const result = await api('importLeadsFromCsv', csvText, { source: 'csv' });
         message(`CSV: 追加 ${result.added} / スキップ ${result.skipped}`, result.errors.length ? 'error' : 'ok');
         await refreshAll();
       }

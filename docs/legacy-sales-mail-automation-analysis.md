@@ -21,6 +21,7 @@
 - `components/FormOutreachBoard.tsx`: フォーム送信対象テーブル、作業バー、本文プレビュー
 - `components/ProspectingActivityPanel.tsx`, `components/ProspectingCollectionTool.tsx`: 営業リスト収集ツールの指標、収集ルート、実行カード
 - `app/background-jobs/page.tsx`, `app/sync/page.tsx`, `app/admin/page.tsx`, `app/histories/page.tsx`: 運用、ジョブ、同期ログ、送信履歴、管理系の見せ方
+- `app/email-leads/page.tsx`, `app/sending/page.tsx`, `app/deals/page.tsx`, `app/analytics/page.tsx`, `app/integrations/gmail/page.tsx`: メール送信リスト、送信プレビュー、商談、分析、Gmail連携の見せ方
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
 ## GAS版へ反映したUI
@@ -37,6 +38,8 @@
 - フォーム送信画面を旧 `FormOutreachBoard` に寄せ、対象サマリー、作業バー、リスト、本文プレビューの構成へ変更。
 - 営業リスト収集ツールに旧 `ProspectingActivityPanel` / `ProspectingCollectionTool` の指標、収集ルート、コスト管理、使用量ログを追加。
 - 管理/運用画面に準備状況、実行アクション、送信履歴、ジョブ一覧、同期ログを集約。
+- 旧 `AppFrame` のサイドバー導線に合わせ、`バックグラウンド進捗`、`メール送信リスト`、`送信プレビュー`、`送信履歴`、`商談`、`分析`、`同期`、`Gmail連携`、`管理` を独立タブとして追加。
+- 旧アプリの各ページをApps Script/Sheets運用に読み替え、送信予定、送信履歴、商談ステータス、営業ファネル、同期ルール、Gmail承認状態、本番公開前チェックを表示。
 
 ## GAS版へ反映した機能
 
@@ -57,3 +60,4 @@
 
 - 検索ジョブ結果レビュー画面。
 - Gmail連携専用画面の詳細ステータス。
+- 送信プレビュー内の個別メール本文プレビューとテスト送信先管理。

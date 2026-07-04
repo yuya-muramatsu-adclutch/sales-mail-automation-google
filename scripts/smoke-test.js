@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260704_apps_script_full_workflow_v13_full_menu_ui_fidelity'), 'v13 app version missing');
+assert(code.includes('20260704_apps_script_full_workflow_v14_nav_parity_ui'), 'v14 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -116,6 +116,33 @@ assert(html.includes('opsReadinessPanel'), 'legacy operations readiness panel mi
 assert(html.includes('opsStatusGrid'), 'legacy operations status grid missing');
 assert(html.includes('jobTable'), 'operations job table missing');
 assert(html.includes('syncLogTable'), 'operations sync log table missing');
+[
+  'backgroundJobs',
+  'emailLeads',
+  'sending',
+  'histories',
+  'deals',
+  'analytics',
+  'sync',
+  'gmail',
+  'admin',
+].forEach((tabId) => {
+  assert(html.includes(`data-tab="${tabId}"`), `legacy nav tab missing: ${tabId}`);
+  assert(html.includes(`id="${tabId}"`), `legacy section missing: ${tabId}`);
+});
+[
+  'backgroundJobTable',
+  'emailLeadTable',
+  'sendingPlanTable',
+  'sendHistoryScreenTable',
+  'dealTable',
+  'analyticsFunnel',
+  'syncScreenTable',
+  'gmailStatusPills',
+  'adminReadinessPanel',
+].forEach((marker) => {
+  assert(html.includes(marker), `legacy expanded UI marker missing: ${marker}`);
+});
 const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), html.indexOf('async function showStartupError'));
 assert(refreshAllBlock.includes("api('getInitialData')"), 'refreshAll should load initial data');
 assert(!refreshAllBlock.includes("api('getAuthorizationStatus')"), 'refreshAll should not preflight authorization');
