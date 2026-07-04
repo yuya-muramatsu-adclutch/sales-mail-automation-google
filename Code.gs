@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260705_apps_script_full_workflow_v26_admin_master_managers';
+const APP_VERSION = '20260705_apps_script_full_workflow_v27_lead_detail_controls';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -310,6 +310,9 @@ const DEFAULT_REASONS = Object.freeze([
   { category: 'no_action_reason', name: '対象外業種' },
   { category: 'no_action_reason', name: '重複施設' },
   { category: 'no_action_reason', name: '問い合わせ不可' },
+  { category: 'decline_reason', name: '今回は見送り' },
+  { category: 'decline_reason', name: '担当者不在' },
+  { category: 'decline_reason', name: '連絡を希望しない' },
 ]);
 
 const DEFAULT_SETTINGS = Object.freeze([

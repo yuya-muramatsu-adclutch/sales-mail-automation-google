@@ -34,6 +34,7 @@
 - `components/ListViewSettingsPanel.tsx`, `components/CustomFieldDefinitionForm.tsx`, `components/CustomFieldsInputs.tsx`: 表示項目設定、カスタム項目定義、リード詳細内のカスタム項目入力
 - `components/TemplateTagMenu.tsx`, `components/TemplateActions.tsx`, `components/TemplateCreateForm.tsx`: テンプレート差し込みタグ、テンプレートサンプル、作成/編集フォーム
 - `components/GenreManager.tsx`, `components/ReasonMasterManager.tsx`: 管理画面のジャンル追加/編集/削除、送信NG/失注/対応不要理由の追加/編集/有効無効管理
+- `components/LeadEditForm.tsx`, `components/MeetingScheduleForm.tsx`: リード詳細のステータス編集、送信NG理由/メモ、フォーム対応、商談ステータス、Calendar登録、Meetリンク表示
 - `app/api/display-settings/route.ts`, `app/api/custom-fields/route.ts`, `supabase/schema.sql`: `list_view_settings` / `custom_field_definitions` の保存APIとスキーマ
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
@@ -72,6 +73,8 @@
 - 旧 `ProspectingCollectionTool` 系のタブ式操作に合わせ、営業リスト収集ツール内へ `0 自動運用`, `1 ジャンル×エリア`, `2 キーワード検索`, `3 ファイル収集`, `4 まとめサイトURL` の5モードパネルを追加した。GAS版では `settings`, `runSmallSearchJob`, `importLeadsFromCsv` に読み替えて実操作できるようにした。
 - 管理に旧 `GenreManager` 相当のジャンル管理を追加し、追加、テーブル内編集、削除確認をUUID `id` 更新で操作できるようにした。GAS版では履歴整合性のため削除は `active=false` の安全な無効化に読み替える。
 - 管理に旧 `ReasonMasterManager` 相当の選択肢管理を追加し、送信NG理由、失注理由、対応不要理由、辞退理由の追加、テーブル内編集、有効/無効切替を `reasons` シートへ保存できるようにした。
+- リード詳細ドロワーに旧 `LeadEditForm` の「対応ステータス」セクションを追加し、自動ステータス説明、手動ステータス選択、フォーム対応、送信NG理由/メモ、商談ステータス、辞退理由を同じ流れで編集できるようにした。
+- リード詳細ドロワーのカレンダー枠を旧 `MeetingScheduleForm` に寄せ、開始/終了日時、場所、商談メモ、Google Calendar登録ボタン、Meetリンク表示の構成へ変更した。
 
 ## GAS版へ反映した機能
 
@@ -83,6 +86,7 @@
 - GAS版で安全に実行できる範囲として、表示中リードの複数選択、確認待ち選択、選択リードのステータス更新、表示中リードCSV出力、個別公式サイト探索の導線を追加。
 - `custom_field_definitions` と `list_view_settings` をSheets DBへ追加し、旧Supabase版のカスタム項目/表示項目設定をUUID付き行として保持。
 - `genres` / `reasons` に管理画面からの追加・更新・無効化APIを追加し、旧アプリのマスター管理操作をSheets DB上で再現。
+- リード保存時に `form_status`, `send_ng_reason`, `send_ng_memo`, `decline_reason` も更新できるようにし、旧アプリの詳細編集で扱っていたステータス補足情報をSheets DBへ反映。
 - `Email.gs` のテンプレート置換を日本語タグとカスタム項目に対応させ、`{{会社名}}`, `{{担当者名}}`, `{{WEBサイトURL}}`, `{{差出人名}}`, `{{カスタム項目キー}}` を送信時にも置換できるようにした。
 
 ## そのまま移植しないもの

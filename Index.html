@@ -1569,6 +1569,109 @@
         padding: 18px;
       }
 
+      .lead-status-control-panel,
+      .lead-meeting-panel {
+        display: grid;
+        gap: 12px;
+        grid-column: 1 / -1;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .lead-status-control-panel h3,
+      .lead-meeting-panel h3 {
+        margin: 0;
+        font-size: 14px;
+        letter-spacing: 0;
+      }
+
+      .quick-status-layout {
+        display: grid;
+        grid-template-columns: minmax(200px, 0.85fr) minmax(220px, 1fr) minmax(180px, 0.7fr);
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .quick-status-layout .field {
+        align-self: stretch;
+      }
+
+      .quick-full-field {
+        grid-column: 1 / -1;
+      }
+
+      .status-lock-box {
+        display: grid;
+        gap: 4px;
+        min-height: 104px;
+        padding: 10px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+      }
+
+      .status-lock-box span {
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .status-lock-box strong {
+        color: var(--text);
+      }
+
+      .status-lock-box p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .meeting-form {
+        display: grid;
+        gap: 10px;
+      }
+
+      .icon-text-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      .form-message,
+      .success-message {
+        margin: 0;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.55;
+      }
+
+      .form-message {
+        border: 1px solid #fecdd3;
+        background: #fff1f2;
+        color: #be123c;
+      }
+
+      .success-message {
+        border: 1px solid #bbf7d0;
+        background: #ecfdf5;
+        color: #047857;
+      }
+
       #leadTable {
         min-width: 1040px;
       }
@@ -3544,10 +3647,9 @@
                   <label>公式サイト<input id="leadWebsite" type="url"></label>
                   <label>フォームURL<input id="leadFormUrl" type="url"></label>
                   <label>住所<input id="leadAddress"></label>
-                  <label>ステータス<select id="leadEditStatus"></select></label>
-                  <label>商談ステータス<select id="leadDealStatus"></select></label>
                   <label>担当者<input id="leadContact"></label>
                   <label>メモ<textarea id="leadNotes"></textarea></label>
+                  <section id="leadStatusControlPanel" class="lead-status-control-panel"></section>
                   <section id="leadCustomFieldsPanel" class="custom-fields-inputs"></section>
                   <div class="toolbar">
                     <button type="submit" class="primary">保存</button>
@@ -3568,13 +3670,20 @@
                   </form>
                 </div>
                 <div class="action-block">
-                  <h3>カレンダー登録</h3>
-                  <form id="leadCalendarForm" class="grid" onsubmit="createSelectedLeadCalendarEvent(event)">
-                    <label>開始<input id="meetingStart" type="datetime-local"></label>
-                    <label>終了<input id="meetingEnd" type="datetime-local"></label>
-                    <label>場所<input id="meetingLocation"></label>
-                    <label>メモ<input id="meetingMemo"></label>
-                    <button type="submit" class="primary">登録</button>
+                  <h3>カレンダー</h3>
+                  <p class="muted">商談予定が決まったらGoogle Calendarへ登録します。Meetリンクも自動発行します。</p>
+                  <form id="leadCalendarForm" class="meeting-form" onsubmit="createSelectedLeadCalendarEvent(event)">
+                    <div class="form-grid">
+                      <label>開始日時<input id="meetingStart" type="datetime-local" required></label>
+                      <label>終了日時<input id="meetingEnd" type="datetime-local" required></label>
+                      <label>場所<input id="meetingLocation"></label>
+                      <label>商談メモ<input id="meetingMemo"></label>
+                    </div>
+                    <div class="toolbar">
+                      <button type="submit" class="primary">Google Calendarに登録</button>
+                      <a id="leadMeetLink" class="icon-text-button" href="#" target="_blank" rel="noopener" hidden>Google Meetを開く</a>
+                    </div>
+                    <p id="leadCalendarMessage" class="success-message" hidden></p>
                   </form>
                 </div>
                 <datalist id="genreList"></datalist>
@@ -4421,8 +4530,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.genres = genres || [];
         fillSelect('leadStatus', [''].concat(enums.leadStatuses || []));
         fillSelect('leadGenreFilter', [''].concat((genres || []).map((genre) => genre.name)));
-        fillSelect('leadEditStatus', enums.leadStatuses || []);
-        fillSelect('leadDealStatus', enums.dealStatuses || []);
         const datalist = document.getElementById('genreList');
         datalist.innerHTML = (genres || []).map((genre) => `<option value="${escapeHtml(genre.name)}"></option>`).join('');
         renderGenreBar();
@@ -4431,6 +4538,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function fillSelect(id, values) {
         const select = document.getElementById(id);
+        if (!select) return;
         select.innerHTML = values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value || 'すべて')}</option>`).join('');
       }
 
@@ -5210,14 +5318,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('leadWebsite').value = lead.website_url || '';
         document.getElementById('leadFormUrl').value = lead.form_url || '';
         document.getElementById('leadAddress').value = lead.address || '';
-        document.getElementById('leadEditStatus').value = lead.status || '未対応';
-        document.getElementById('leadDealStatus').value = lead.deal_status || '未設定';
         document.getElementById('leadContact').value = lead.contact_name || '';
         document.getElementById('leadNotes').value = lead.notes || '';
         document.getElementById('meetingStart').value = toDatetimeLocalValue(lead.meeting_start_at);
         document.getElementById('meetingEnd').value = toDatetimeLocalValue(lead.meeting_end_at);
         document.getElementById('meetingLocation').value = lead.address || '';
         document.getElementById('meetingMemo').value = lead.meeting_memo || '';
+        renderLeadStatusControlPanel(lead);
+        renderLeadCalendarMeta(lead);
         renderLeadQuickSummary(lead);
         renderLeadCustomFieldsPanel(lead);
         openLeadDialog();
@@ -5229,8 +5337,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('leadSendForm').reset();
         document.getElementById('leadCalendarForm').reset();
         document.getElementById('leadId').value = '';
-        document.getElementById('leadEditStatus').value = '未対応';
-        document.getElementById('leadDealStatus').value = '未設定';
+        renderLeadStatusControlPanel(null);
+        renderLeadCalendarMeta(null);
         renderLeadQuickSummary(null);
         renderLeadCustomFieldsPanel(null);
         renderLeadSendTemplateOptions();
@@ -5272,6 +5380,93 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function quickSummaryItem(label, value) {
         return `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`;
+      }
+
+      function renderLeadStatusControlPanel(lead) {
+        const target = document.getElementById('leadStatusControlPanel');
+        if (!target) return;
+        const status = (lead && lead.status) || '未対応';
+        const hasSentHistory = Boolean(lead && (lead.last_sent_at || Number(lead.send_count || 0) > 0));
+        const currentStatusIsSystem = isSystemLeadStatus(status);
+        const statusOptions = editableStatusOptionsClient(hasSentHistory);
+        const currentStatusInOptions = statusOptions.includes(status);
+        const sendNgReasons = reasonOptionsForCategory('send_ng_reason');
+        const declineReasons = reasonOptionsForCategory('decline_reason');
+        target.innerHTML = `
+          <h3>対応ステータス</h3>
+          <div class="quick-status-layout">
+            <div class="status-lock-box">
+              <span>自動ステータス</span>
+              <strong>${escapeHtml(currentStatusIsSystem ? status : hasSentHistory ? '送信履歴あり' : '未送信')}</strong>
+              <p>${escapeHtml(hasSentHistory ? '送信済みの営業先は未対応・対応中に戻せません。誤判定の修正時は初回メール送信済みに戻せます。' : '未送信の営業先は通常ステータスを選べます。')}</p>
+            </div>
+            <label class="field">ステータス<select id="leadEditStatus" onchange="syncLeadStatusDependentFields()">
+              ${currentStatusIsSystem && !currentStatusInOptions ? `<option value="${escapeHtml(status)}">${escapeHtml(status)}（自動・固定）</option>` : ''}
+              ${statusOptions.map((option) => `<option value="${escapeHtml(option)}" ${option === status ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+            </select></label>
+            <label class="field">フォーム対応<select id="leadFormStatus">
+              ${(state.enums.formStatuses || ['未対応', '対応中', '対応済み', '対応不要']).map((option) => `<option value="${escapeHtml(option)}" ${option === ((lead && lead.form_status) || '未対応') ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+            </select></label>
+          </div>
+          <div class="form-grid">
+            <label>送信NG理由<select id="leadSendNgReason">
+              <option value="">未選択</option>
+              ${sendNgReasons.map((reason) => `<option value="${escapeHtml(reason.name)}" ${reason.name === (lead && lead.send_ng_reason) ? 'selected' : ''}>${escapeHtml(reason.name)}</option>`).join('')}
+            </select><small class="muted">ステータスを送信NGにした時だけ保存されます。</small></label>
+            <label>商談ステータス<select id="leadDealStatus">
+              ${(state.enums.dealStatuses || ['未設定', '商談予定', '商談済み', '受注', '失注']).map((option) => `<option value="${escapeHtml(option)}" ${option === ((lead && lead.deal_status) || '未設定') ? 'selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+            </select></label>
+            <label>辞退/断り理由<select id="leadDeclineReason">
+              <option value="">未選択</option>
+              ${declineReasons.map((reason) => `<option value="${escapeHtml(reason.name)}" ${reason.name === (lead && lead.decline_reason) ? 'selected' : ''}>${escapeHtml(reason.name)}</option>`).join('')}
+            </select></label>
+          </div>
+          <label class="quick-full-field">送信NGメモ<input id="leadSendNgMemo" value="${escapeHtml((lead && lead.send_ng_memo) || '')}" placeholder="必要に応じて補足を入力"></label>
+        `;
+        syncLeadStatusDependentFields();
+      }
+
+      function isSystemLeadStatus(status) {
+        return ['初回メール送信済み', '2ヶ月後メール送信済み'].includes(status);
+      }
+
+      function editableStatusOptionsClient(hasSentHistory) {
+        return hasSentHistory
+          ? ['初回メール送信済み', '返信あり', '商談予定', '商談済み', '受注', '失注', '対応不要', '送信NG']
+          : ['未対応', '対応中', 'フォーム対応中', 'フォーム対応済み', '返信あり', '商談予定', '商談済み', '受注', '失注', '対応不要', '送信NG'];
+      }
+
+      function reasonOptionsForCategory(category) {
+        return (state.reasons || [])
+          .filter((reason) => reason.category === category && isActiveClient(reason))
+          .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ja'));
+      }
+
+      function syncLeadStatusDependentFields() {
+        const status = document.getElementById('leadEditStatus')?.value || '';
+        const reason = document.getElementById('leadSendNgReason');
+        const memo = document.getElementById('leadSendNgMemo');
+        const sendNg = status === '送信NG';
+        if (reason) reason.disabled = !sendNg;
+        if (memo) memo.disabled = !sendNg;
+      }
+
+      function renderLeadCalendarMeta(lead) {
+        const link = document.getElementById('leadMeetLink');
+        const messageTarget = document.getElementById('leadCalendarMessage');
+        if (link) {
+          if (lead && lead.google_meet_url) {
+            link.hidden = false;
+            link.href = externalUrl(lead.google_meet_url);
+          } else {
+            link.hidden = true;
+            link.href = '#';
+          }
+        }
+        if (messageTarget) {
+          messageTarget.hidden = true;
+          messageTarget.textContent = '';
+        }
       }
 
       function renderLeadCustomFieldsPanel(lead) {
@@ -5373,6 +5568,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           address: document.getElementById('leadAddress').value,
           status: document.getElementById('leadEditStatus').value,
           deal_status: document.getElementById('leadDealStatus').value,
+          form_status: document.getElementById('leadFormStatus').value,
+          send_ng_reason: document.getElementById('leadSendNgReason').value,
+          send_ng_memo: document.getElementById('leadSendNgMemo').value,
+          decline_reason: document.getElementById('leadDeclineReason').value,
           contact_name: document.getElementById('leadContact').value,
           notes: document.getElementById('leadNotes').value,
           custom_fields_json: JSON.stringify(customFields),
@@ -5662,6 +5861,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             location: document.getElementById('meetingLocation').value,
             memo: document.getElementById('meetingMemo').value,
           });
+          const messageTarget = document.getElementById('leadCalendarMessage');
+          if (messageTarget) {
+            messageTarget.hidden = false;
+            messageTarget.textContent = '商談予定を登録しました。営業リストと送信対象にも反映しています。';
+          }
           message(`カレンダー登録: ${result.title}`, 'ok');
           await refreshAll();
         } catch (error) {
