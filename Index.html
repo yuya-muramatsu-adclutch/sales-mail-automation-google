@@ -495,6 +495,199 @@
         color: #1d4ed8;
       }
 
+      .background-center-button {
+        position: fixed;
+        left: calc(var(--sidebar-width) + 18px);
+        bottom: 18px;
+        z-index: 79;
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        min-height: 40px;
+        padding: 0 14px;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        background: #101827;
+        color: #ffffff;
+        font-weight: 900;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+      }
+
+      .background-center-button:hover {
+        border-color: #93c5fd;
+        background: #111827;
+        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.28);
+      }
+
+      .background-center-button span {
+        color: #bfdbfe;
+        font-size: 16px;
+      }
+
+      .background-toast-stack {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 80;
+        display: grid;
+        width: min(420px, calc(100vw - 36px));
+        gap: 10px;
+        pointer-events: none;
+      }
+
+      .background-toast-stack:empty {
+        display: none;
+      }
+
+      .background-toast {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+        pointer-events: auto;
+      }
+
+      .background-toast.completed {
+        border-color: #bbf7d0;
+      }
+
+      .background-toast.failed,
+      .background-toast.cancelled {
+        border-color: #fecaca;
+      }
+
+      .background-toast-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: var(--blue);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .background-toast.completed .background-toast-icon {
+        background: #dcfce7;
+        color: #15803d;
+      }
+
+      .background-toast.failed .background-toast-icon,
+      .background-toast.cancelled .background-toast-icon {
+        background: #fee2e2;
+        color: var(--red);
+      }
+
+      .background-toast-body {
+        display: grid;
+        gap: 7px;
+        min-width: 0;
+      }
+
+      .background-toast-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .background-toast-title strong {
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .background-toast-title button {
+        width: 24px;
+        height: 24px;
+        min-height: 24px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        box-shadow: none;
+      }
+
+      .background-toast-title button:hover {
+        background: #f1f5f9;
+        box-shadow: none;
+        transform: none;
+      }
+
+      .background-toast p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .background-toast-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .background-toast-meta span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .background-toast-meta button {
+        flex: 0 0 auto;
+        min-height: 28px;
+        padding: 3px 8px;
+        border: 0;
+        background: transparent;
+        color: var(--blue);
+        box-shadow: none;
+        font-size: 11px;
+      }
+
+      .background-toast-meta button:hover {
+        background: #eff6ff;
+        box-shadow: none;
+        transform: none;
+      }
+
+      .background-progress-track {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+
+      .background-progress-track span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--blue);
+        transition: width 0.25s ease;
+      }
+
+      .background-toast.completed .background-progress-track span {
+        background: var(--green);
+      }
+
+      .background-toast.failed .background-progress-track span,
+      .background-toast.cancelled .background-progress-track span {
+        background: var(--red);
+      }
+
       .section {
         display: none;
       }
@@ -2708,6 +2901,17 @@
           display: none;
         }
 
+        .background-center-button {
+          left: 14px;
+          bottom: 14px;
+        }
+
+        .background-toast-stack {
+          right: 14px;
+          bottom: 66px;
+          width: calc(100vw - 28px);
+        }
+
         .main {
           padding: 20px 14px 34px;
         }
@@ -2917,6 +3121,9 @@
             <button type="button" class="tab nav-item" data-tab="backgroundJobs" onclick="showTab('backgroundJobs')">
               <span class="nav-icon">BG</span><span>バックグラウンド進捗</span>
             </button>
+            <button type="button" class="tab nav-item" data-tab="backgroundActivity" onclick="showTab('backgroundActivity')">
+              <span class="nav-icon">RS</span><span>直近実行結果</span>
+            </button>
             <button type="button" class="tab nav-item" data-tab="emailLeads" onclick="showTab('emailLeads')">
               <span class="nav-icon">ML</span><span>メール送信リスト</span>
             </button>
@@ -2931,6 +3138,12 @@
             </button>
             <button type="button" class="tab nav-item" data-tab="sync" onclick="showTab('sync')">
               <span class="nav-icon">SY</span><span>同期</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="sendNg" onclick="showTab('sendNg')">
+              <span class="nav-icon">NG</span><span>送信NG</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="exclusions" onclick="showTab('exclusions')">
+              <span class="nav-icon">EX</span><span>除外ドメイン</span>
             </button>
             <button type="button" class="tab nav-item" data-tab="templates" onclick="showTab('templates')">
               <span class="nav-icon">TP</span><span>テンプレート</span>
@@ -2947,11 +3160,11 @@
             <button type="button" class="tab nav-item" data-tab="gmail" onclick="showTab('gmail')">
               <span class="nav-icon">GM</span><span>Gmail連携</span>
             </button>
-            <button type="button" class="tab nav-item" data-tab="masters" onclick="showTab('masters')">
-              <span class="nav-icon">NG</span><span>NG/除外</span>
-            </button>
             <button type="button" class="tab nav-item" data-tab="admin" onclick="showTab('admin')">
               <span class="nav-icon">AD</span><span>管理</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="errors" onclick="showTab('errors')">
+              <span class="nav-icon">ER</span><span>エラー詳細</span>
             </button>
             <button type="button" class="tab nav-item" data-tab="ops" onclick="showTab('ops')">
               <span class="nav-icon">OP</span><span>管理/運用</span>
@@ -3247,42 +3460,52 @@
           </section>
         </section>
 
-        <section id="masters" class="section">
+        <section id="sendNg" class="section">
           <header class="section-header">
             <div>
-              <p class="eyebrow">Do not contact / Search filtering</p>
-              <h1>NG/除外</h1>
+              <p class="eyebrow">Do not contact</p>
+              <h1>送信NG</h1>
             </div>
+            <button type="button" onclick="showTab('exclusions')">除外ドメインへ</button>
           </header>
-          <section id="mastersHero" class="exclusion-hero-panel"></section>
-          <div class="content-grid">
-            <section class="panel">
-              <div class="panel-head"><h2>送信NG管理</h2><span class="pill bad" id="ngCountPill">0件</span></div>
-              <div class="panel-body">
-                <form class="grid" onsubmit="saveNg(event)">
-                  <input type="hidden" id="ngId">
-                  <label>メール<input id="ngEmail" type="email"></label>
-                  <label>ドメイン<input id="ngDomain"></label>
-                  <label>会社名<input id="ngCompany"></label>
-                  <label>理由<input id="ngReason"></label>
-                  <button type="submit" class="primary">保存</button>
-                </form>
-              </div>
-              <div class="table-wrap"><table id="ngTable"></table></div>
-            </section>
-            <section class="panel">
-              <div class="panel-head"><h2>除外ドメイン管理</h2><span class="pill info" id="excludedCountPill">0件</span></div>
-              <div class="panel-body">
-                <form class="grid" onsubmit="saveExcluded(event)">
-                  <input type="hidden" id="excludedId">
-                  <label>ドメイン<input id="excludedDomain" required></label>
-                  <label>理由<input id="excludedReason" required></label>
-                  <button type="submit" class="primary">保存</button>
-                </form>
-              </div>
-              <div class="table-wrap"><table id="excludedTable"></table></div>
-            </section>
-          </div>
+          <section id="sendNgHero" class="exclusion-hero-panel"></section>
+          <section class="panel">
+            <div class="panel-head"><h2>送信NG管理</h2><span class="pill bad" id="ngCountPill">0件</span></div>
+            <div class="panel-body">
+              <form class="grid" onsubmit="saveNg(event)">
+                <input type="hidden" id="ngId">
+                <label>メール<input id="ngEmail" type="email"></label>
+                <label>ドメイン<input id="ngDomain"></label>
+                <label>会社名<input id="ngCompany"></label>
+                <label>理由<input id="ngReason"></label>
+                <button type="submit" class="primary">保存</button>
+              </form>
+            </div>
+            <div class="table-wrap"><table id="ngTable"></table></div>
+          </section>
+        </section>
+
+        <section id="exclusions" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Search filtering</p>
+              <h1>除外ドメイン</h1>
+            </div>
+            <button type="button" onclick="showTab('sendNg')">送信NGへ</button>
+          </header>
+          <section id="exclusionsHero" class="exclusion-hero-panel"></section>
+          <section class="panel">
+            <div class="panel-head"><h2>除外ドメイン管理</h2><span class="pill info" id="excludedCountPill">0件</span></div>
+            <div class="panel-body">
+              <form class="grid" onsubmit="saveExcluded(event)">
+                <input type="hidden" id="excludedId">
+                <label>ドメイン<input id="excludedDomain" required></label>
+                <label>理由<input id="excludedReason" required></label>
+                <button type="submit" class="primary">保存</button>
+              </form>
+            </div>
+            <div class="table-wrap"><table id="excludedTable"></table></div>
+          </section>
         </section>
 
         <section id="forms" class="section">
@@ -3393,7 +3616,10 @@
               <p class="eyebrow">Background progress</p>
               <h1>バックグラウンド進捗</h1>
             </div>
-            <button type="button" onclick="showTab('search')">収集設定へ</button>
+            <div class="toolbar">
+              <button type="button" onclick="showTab('backgroundActivity')">直近実行結果</button>
+              <button type="button" onclick="showTab('search')">収集設定へ</button>
+            </div>
           </header>
           <div class="stack">
             <section class="panel">
@@ -3408,6 +3634,36 @@
               <div class="table-wrap"><table id="backgroundJobTable"></table></div>
             </section>
           </div>
+        </section>
+
+        <section id="backgroundActivity" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Background results</p>
+              <h1>直近3日間の実行結果</h1>
+            </div>
+            <button type="button" onclick="showTab('backgroundJobs')">バックグラウンド進捗へ</button>
+          </header>
+          <section class="prospecting-activity-panel" aria-label="直近3日間に実行したバックグラウンドジョブ">
+            <div class="prospecting-activity-head">
+              <div>
+                <p class="eyebrow">Executed jobs</p>
+                <h2>何を実行したか</h2>
+                <p class="muted">ジョブ単位で、実行内容・進捗・得られた結果を表示します。</p>
+              </div>
+              <span class="pill info">直近3日</span>
+            </div>
+            <div id="backgroundActivityStats" class="prospecting-activity-metrics"></div>
+            <div class="prospecting-activity-section">
+              <div class="prospecting-activity-section-head">
+                <div><h3>ジョブ実行履歴</h3></div>
+                <span id="backgroundActivityErrorPill">エラー含む 0件</span>
+              </div>
+              <div class="table-wrap prospecting-activity-table-wrap">
+                <table id="backgroundActivityTable" class="prospecting-activity-table background-activity-table"></table>
+              </div>
+            </div>
+          </section>
         </section>
 
         <section id="emailLeads" class="section">
@@ -3626,6 +3882,24 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
         </section>
 
+        <section id="errors" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Operation errors</p>
+              <h1>エラー詳細</h1>
+            </div>
+            <button type="button" onclick="showTab('dashboard')">ダッシュボードへ</button>
+          </header>
+          <section class="stats-grid compact-stats" id="errorsStats"></section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>最近のエラー内容</h2>
+              <span class="pill" id="errorsStatusPill">確認中</span>
+            </div>
+            <div class="table-wrap"><table id="errorDetailsTable"></table></div>
+          </section>
+        </section>
+
         <section id="ops" class="section">
           <header class="section-header">
             <div>
@@ -3667,6 +3941,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
         </section>
       </main>
+      <button type="button" class="background-center-button" onclick="goBackFromBackgroundCenter()" aria-label="1つ前の画面に戻る">
+        <span aria-hidden="true">←</span>戻る
+      </button>
+      <div id="backgroundToastStack" class="background-toast-stack" aria-live="polite"></div>
     </div>
 
     <script>
@@ -3674,6 +3952,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         dashboard: 'ダッシュボード',
         leads: '営業リスト',
         backgroundJobs: 'バックグラウンド進捗',
+        backgroundActivity: '直近実行結果',
         emailLeads: 'メール送信リスト',
         sending: '送信プレビュー',
         histories: '送信履歴',
@@ -3683,14 +3962,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         gmail: 'Gmail連携',
         admin: '管理',
         templates: 'テンプレート',
+        sendNg: '送信NG',
+        exclusions: '除外ドメイン',
         masters: 'NG/除外',
+        errors: 'エラー詳細',
         search: '営業リスト収集ツール',
         forms: 'フォーム送信リスト',
         ops: '管理/運用',
       };
 
       const TOP_SHORTCUT_TABS = ['leads', 'backgroundJobs', 'search', 'forms', 'sending', 'emailLeads'];
+      const RECENT_BACKGROUND_JOB_MS = 10 * 60 * 1000;
       let routeProgressTimer = null;
+      let currentTab = 'dashboard';
+      let suppressTabHistory = false;
+      const tabHistory = [];
 
       const LEAD_QUICK_VIEW_GROUPS = [
         {
@@ -3739,6 +4025,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         duplicateGroups: [],
         duplicateSummary: null,
         duplicateLoading: false,
+        dismissedBackgroundJobKeys: [],
         selectedFormLeadId: '',
         selectedLeadIds: [],
         searchResults: [],
@@ -3785,12 +4072,27 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function showTab(name) {
+        if (name === 'masters') name = 'sendNg';
         showRouteProgress();
+        if (currentTab !== name) {
+          if (!suppressTabHistory && currentTab) {
+            tabHistory.push(currentTab);
+            if (tabHistory.length > 12) tabHistory.shift();
+          }
+          currentTab = name;
+        }
         document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
         document.querySelectorAll('.section').forEach((section) => section.classList.toggle('active', section.id === name));
         const title = document.getElementById('activeViewTitle');
         if (title) title.textContent = TAB_TITLES[name] || name;
         updateTopShortcutBar(name);
+      }
+
+      function goBackFromBackgroundCenter() {
+        const previous = tabHistory.pop();
+        suppressTabHistory = true;
+        showTab(previous || 'dashboard');
+        suppressTabHistory = false;
       }
 
       function showRouteProgress() {
@@ -5226,15 +5528,26 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const activeExcluded = state.excludedDomains.filter((item) => item.active !== false && item.active !== 'false');
         document.getElementById('ngCountPill').textContent = `${formatNumber(activeNg.length)}件`;
         document.getElementById('excludedCountPill').textContent = `${formatNumber(activeExcluded.length)}件`;
-        document.getElementById('mastersHero').innerHTML = `
+        document.getElementById('sendNgHero').innerHTML = `
           <div>
-            <h2>検索収集・メール送信から外す対象を管理します</h2>
-            <p>営業リストの送信NG、会社名、メール、除外ドメインをここで管理します。有効なドメインは収集候補と送信対象から除外する前提で扱います。</p>
+            <h2>メール送信から外す対象を管理します</h2>
+            <p>営業リストの送信NG、会社名、メールを管理します。有効なNG条件は送信プレビューと自動送信対象から除外する前提で扱います。</p>
           </div>
           <div class="exclusion-hero-stats" aria-label="NG除外概要">
             <span><small>送信NG</small><strong>${formatNumber(activeNg.length)}</strong></span>
             <span><small>除外ドメイン</small><strong>${formatNumber(activeExcluded.length)}</strong></span>
             <span><small>合計</small><strong>${formatNumber(activeNg.length + activeExcluded.length)}</strong></span>
+          </div>
+        `;
+        document.getElementById('exclusionsHero').innerHTML = `
+          <div>
+            <h2>検索収集から外すドメインを管理します</h2>
+            <p>営業候補検索、公式サイト探索、問い合わせフォーム探索で再検索しないドメインをここで管理します。送信NGとは分けて、検索精度とコストを守ります。</p>
+          </div>
+          <div class="exclusion-hero-stats" aria-label="除外ドメイン概要">
+            <span><small>除外ドメイン</small><strong>${formatNumber(activeExcluded.length)}</strong></span>
+            <span><small>送信NG</small><strong>${formatNumber(activeNg.length)}</strong></span>
+            <span><small>管理合計</small><strong>${formatNumber(activeNg.length + activeExcluded.length)}</strong></span>
           </div>
         `;
         document.getElementById('ngTable').innerHTML = table(['メール', 'ドメイン', '会社名', '理由', '状態'], state.ngMasters.map((item) => row([
@@ -5733,7 +6046,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             </div>
             <div class="toolbar">
               <button type="button" onclick="document.getElementById('serperKey').focus()">Serperキー</button>
-              <button type="button" onclick="showTab('masters')">除外ドメイン</button>
+              <button type="button" onclick="showTab('exclusions')">除外ドメイン</button>
             </div>
           </div>
           <div class="collection-status-bar">
@@ -5783,6 +6096,143 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderHistoryTable();
         renderJobTable();
         renderSyncLogTable();
+        renderBackgroundJobWidgets();
+      }
+
+      function renderBackgroundJobWidgets() {
+        const stack = document.getElementById('backgroundToastStack');
+        if (!stack) return;
+        const visibleJobs = backgroundWidgetJobs();
+        stack.innerHTML = visibleJobs.slice(0, 4).map((job) => renderBackgroundToast(job)).join('');
+      }
+
+      function backgroundWidgetJobs() {
+        const now = Date.now();
+        return (state.jobs || [])
+          .map(normalizeBackgroundJob)
+          .filter((job) => {
+            if (state.dismissedBackgroundJobKeys.includes(job.key)) return false;
+            if (job.active) return true;
+            return job.timeMs && now - job.timeMs < RECENT_BACKGROUND_JOB_MS;
+          })
+          .sort((left, right) => {
+            if (left.active !== right.active) return left.active ? -1 : 1;
+            return (right.timeMs || 0) - (left.timeMs || 0);
+          });
+      }
+
+      function normalizeBackgroundJob(job) {
+        const type = job.job_type || job.type || 'background';
+        const status = normalizeBackgroundJobStatus(job.status || '');
+        const processed = Number(job.processed_count || job.processed || 0);
+        const total = Math.max(Number(job.total_count || job.total || 0), processed, 0);
+        const timeValue = job.updated_at || job.finished_at || job.created_at || job.started_at || '';
+        const timeMs = new Date(timeValue).getTime();
+        return {
+          raw: job,
+          key: `${type}:${job.id || job.job_id || timeValue}`,
+          id: job.id || job.job_id || '',
+          label: backgroundJobTypeLabel(type),
+          type,
+          status,
+          statusLabel: backgroundJobStatusLabel(status),
+          sourceLabel: job.current_query || job.query || job.keyword || job.source || '',
+          active: ['queued', 'running'].includes(status),
+          processed,
+          total,
+          percent: total ? Math.min(100, Math.round((processed / total) * 100)) : (status === 'completed' ? 100 : 8),
+          message: backgroundJobMessage(job, status, processed, total),
+          meta: backgroundJobMeta(job),
+          timeMs: Number.isFinite(timeMs) ? timeMs : 0,
+        };
+      }
+
+      function backgroundJobStatusLabel(status) {
+        if (status === 'completed') return '完了';
+        if (status === 'failed') return '失敗';
+        if (status === 'cancelled') return '中止';
+        if (status === 'running') return '実行中';
+        return '待機中';
+      }
+
+      function normalizeBackgroundJobStatus(status) {
+        const text = String(status || '').toLowerCase();
+        if (/completed|done|完了/.test(text)) return 'completed';
+        if (/failed|error|失敗|エラー/.test(text)) return 'failed';
+        if (/cancel|中止/.test(text)) return 'cancelled';
+        if (/running|処理中/.test(text)) return 'running';
+        return 'queued';
+      }
+
+      function backgroundJobTypeLabel(type) {
+        const text = String(type || '');
+        if (/lead_official_site/.test(text)) return '公式サイト探索';
+        if (/lead_form_url/.test(text)) return 'フォームURL探索';
+        if (/prospecting/.test(text)) return '営業リスト収集';
+        if (/email/.test(text)) return 'メール/フォーム取得';
+        if (/duplicate/.test(text)) return '重複整理';
+        if (/sync|import/.test(text)) return '営業リスト同期';
+        return 'バックグラウンド処理';
+      }
+
+      function backgroundJobMessage(job, status, processed, total) {
+        if (status === 'completed') return '完了しました';
+        if (status === 'cancelled') return '中止しました';
+        if (status === 'failed') return job.last_error || job.error_message || '失敗しました';
+        const current = job.current_query || job.query || job.keyword || '';
+        const progress = total ? `${formatNumber(processed)} / ${formatNumber(total)}件` : '開始準備中';
+        return current ? `${progress}: ${current}` : `${progress}を処理中`;
+      }
+
+      function backgroundJobMeta(job) {
+        return [
+          job.added_count ? `追加 ${formatNumber(job.added_count)}` : '',
+          job.updated_count ? `更新 ${formatNumber(job.updated_count)}` : '',
+          job.duplicate_skip_count ? `重複 ${formatNumber(job.duplicate_skip_count)}` : '',
+          job.error_count ? `エラー ${formatNumber(job.error_count)}` : '',
+          job.job_limit ? `上限 ${formatNumber(job.job_limit)}` : '',
+        ].filter(Boolean).join(' / ') || 'GAS分割実行';
+      }
+
+      function backgroundJobResultItems(job) {
+        const items = [
+          ['追加', job.added_count || job.stats_added_count || job.added || 0],
+          ['補完', job.filled_count || job.updated_count || job.filled || 0],
+          ['メール', job.email_found_count || job.email_count || 0],
+          ['フォーム', job.form_found_count || job.form_count || 0],
+          ['重複', job.duplicate_skip_count || job.duplicate_count || job.skipped || 0],
+          ['除外', job.excluded_count || 0],
+          ['エラー', job.error_count || (/failed|error|失敗|エラー/i.test(String(job.status || job.last_error || job.error_message || '')) ? 1 : 0)],
+        ].filter((item) => Number(item[1]) > 0);
+        return items.length ? items.map(([label, value]) => ({ label, value: Number(value) || 0 })) : [{ label: '記録', value: 0 }];
+      }
+
+      function renderBackgroundToast(job) {
+        const icon = job.status === 'completed' ? '✓' : (job.status === 'failed' || job.status === 'cancelled') ? '!' : '…';
+        return `
+          <div class="background-toast ${escapeHtml(job.status)}">
+            <div class="background-toast-icon">${escapeHtml(icon)}</div>
+            <div class="background-toast-body">
+              <div class="background-toast-title">
+                <strong>${escapeHtml(job.label)}</strong>
+                <button type="button" aria-label="閉じる" onclick="dismissBackgroundToast('${escapeJsString(job.key)}')">×</button>
+              </div>
+              <p>${escapeHtml(job.message)}</p>
+              <div class="background-toast-meta">
+                <span>${escapeHtml(job.meta)}</span>
+                <button type="button" onclick="showTab('backgroundJobs')">進捗を見る</button>
+              </div>
+              <div class="background-progress-track"><span style="width:${job.percent}%"></span></div>
+            </div>
+          </div>
+        `;
+      }
+
+      function dismissBackgroundToast(key) {
+        if (!state.dismissedBackgroundJobKeys.includes(key)) {
+          state.dismissedBackgroundJobKeys.push(key);
+        }
+        renderBackgroundJobWidgets();
       }
 
       function renderOpsStatusGrid() {
@@ -5877,6 +6327,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderExpandedLegacyScreens() {
         renderBackgroundJobsScreen();
+        renderBackgroundActivityScreen();
         renderEmailLeadsScreen();
         renderSendingScreen();
         renderEmailPreviewPanel();
@@ -5895,6 +6346,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderCustomFieldDefinitionPanel();
         renderDuplicateLeadManagerPanel();
         renderAdminErrorDetailsPanel();
+        renderErrorDetailsScreen();
       }
 
       function statCard(label, value, detail, tone) {
@@ -5920,6 +6372,35 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['進捗', `${formatNumber(job.processed_count || job.processed || 0)} / ${formatNumber(job.total_count || job.total || 0)}`],
           ['次の処理', escapeHtml(dateTimeLabel(job.next_run_at || job.updated_at) || '-')],
           ['エラー', escapeHtml(job.error_message || job.last_error || '-')],
+        ])).join(''));
+      }
+
+      function renderBackgroundActivityScreen() {
+        const target = document.getElementById('backgroundActivityTable');
+        if (!target) return;
+        const since = Date.now() - 3 * 24 * 60 * 60 * 1000;
+        const rows = (state.jobs || [])
+          .map(normalizeBackgroundJob)
+          .filter((job) => !job.timeMs || job.timeMs >= since)
+          .sort((left, right) => (right.timeMs || 0) - (left.timeMs || 0));
+        const completed = rows.filter((item) => item.status === 'completed').length;
+        const active = rows.filter((item) => item.active).length;
+        const errorCount = rows.filter((item) => item.status === 'failed' || /エラー|error|失敗/i.test(item.meta + item.message)).length;
+        const processed = rows.reduce((sum, item) => sum + Number(item.processed || 0), 0);
+        document.getElementById('backgroundActivityStats').innerHTML = [
+          `<div><span>実行ジョブ</span><strong>${formatNumber(rows.length)}件</strong></div>`,
+          `<div><span>完了</span><strong>${formatNumber(completed)}件</strong></div>`,
+          `<div><span>実行中</span><strong>${formatNumber(active)}件</strong></div>`,
+          `<div><span>処理済み</span><strong>${formatNumber(processed)}件</strong></div>`,
+        ].join('');
+        document.getElementById('backgroundActivityErrorPill').textContent = `エラー含む ${formatNumber(errorCount)}件`;
+        target.innerHTML = table(['更新', '種別', '実行内容', '進捗', '得られた結果', '詳細'], rows.map((job) => row([
+          ['更新', `<span>${escapeHtml(dateTimeLabel(job.timeMs ? new Date(job.timeMs).toISOString() : '') || '-')}</span><small>${escapeHtml(job.statusLabel)}</small>`],
+          ['種別', `${statusPill(job.label)}<small>${escapeHtml(job.statusLabel)}</small>`],
+          ['実行内容', `<strong>${escapeHtml(job.message)}</strong><small>${escapeHtml(job.sourceLabel || job.type || '-')}</small>`],
+          ['進捗', `<strong>${formatNumber(job.processed)} / ${formatNumber(job.total)}</strong><small>${formatNumber(job.percent)}%</small>`],
+          ['得られた結果', `<div class="background-activity-result-list">${backgroundJobResultItems(job.raw).map((item) => `<span>${escapeHtml(item.label)} <strong>${formatNumber(item.value)}</strong></span>`).join('')}</div>`],
+          ['詳細', `<button type="button" class="table-link-button" onclick="showTab('backgroundJobs')">詳細を見る</button>`],
         ])).join(''));
       }
 
@@ -6926,29 +7407,54 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderAdminErrorDetailsPanel() {
         const target = document.getElementById('adminErrorDetailsPanel');
         if (!target) return;
-        const today = new Date().toISOString().slice(0, 10);
-        const logs = (state.syncLogs || []).filter((log) => ['error', 'warn'].includes(String(log.level || '').toLowerCase()));
-        const todayLogs = logs.filter((log) => String(log.created_at || '').slice(0, 10) === today);
+        const detail = getErrorDetailRows();
         target.innerHTML = `
           <div class="section-title-row">
             <div>
               <h2>エラー詳細</h2>
               <p class="muted">旧エラー詳細ページの最近のエラー内容を、GAS版では sync_logs から表示します。</p>
             </div>
-            <span class="pill ${logs.length ? 'warn' : 'good'}">${logs.length ? '要確認' : 'エラーなし'}</span>
+            <span class="pill ${detail.logs.length ? 'warn' : 'good'}">${detail.logs.length ? '要確認' : 'エラーなし'}</span>
           </div>
           <div class="error-detail-grid">
-            <span><small>本日のエラー発生数</small><strong>${formatNumber(todayLogs.length)}件</strong></span>
-            <span><small>最近の要確認ログ</small><strong>${formatNumber(logs.length)}件</strong></span>
+            <span><small>本日のエラー発生数</small><strong>${formatNumber(detail.todayLogs.length)}件</strong></span>
+            <span><small>最近の要確認ログ</small><strong>${formatNumber(detail.logs.length)}件</strong></span>
             <span><small>監視対象</small><strong>sync_logs</strong></span>
           </div>
-          <div class="table-wrap"><table>${table(['日時', '種別', '内容', '詳細'], logs.slice(0, 12).map((log) => row([
+          <div class="table-wrap"><table>${table(['日時', '種別', '内容', '詳細'], detail.logs.slice(0, 12).map((log) => row([
             ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
             ['種別', statusPill(log.level || 'warn')],
             ['内容', escapeHtml(log.operation || log.event_type || '-')],
             ['詳細', escapeHtml(log.message || log.stack || log.context_json || '-')],
           ])).join(''))}</table></div>
         `;
+      }
+
+      function getErrorDetailRows() {
+        const today = new Date().toISOString().slice(0, 10);
+        const logs = (state.syncLogs || []).filter((log) => ['error', 'warn'].includes(String(log.level || '').toLowerCase()));
+        const todayLogs = logs.filter((log) => String(log.created_at || '').slice(0, 10) === today);
+        return { logs, todayLogs };
+      }
+
+      function renderErrorDetailsScreen() {
+        const tableTarget = document.getElementById('errorDetailsTable');
+        if (!tableTarget) return;
+        const detail = getErrorDetailRows();
+        document.getElementById('errorsStats').innerHTML = [
+          statCard('本日のエラー発生数', `${formatNumber(detail.todayLogs.length)}件`, 'sync_logs', detail.todayLogs.length ? 'red' : 'green'),
+          statCard('最近の要確認ログ', `${formatNumber(detail.logs.length)}件`, 'warn / error', detail.logs.length ? 'amber' : 'green'),
+          statCard('監視対象', 'sync_logs', 'Apps Script実行ログ', 'blue'),
+        ].join('');
+        const pill = document.getElementById('errorsStatusPill');
+        pill.className = `pill ${detail.logs.length ? 'warn' : 'good'}`;
+        pill.textContent = detail.logs.length ? '要確認' : 'エラーなし';
+        tableTarget.innerHTML = table(['日時', '種別', '内容', '詳細'], detail.logs.map((log) => row([
+          ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
+          ['種別', statusPill(log.level || 'warn')],
+          ['内容', escapeHtml(log.operation || log.event_type || '-')],
+          ['詳細', escapeHtml(log.message || log.stack || log.context_json || '-')],
+        ])).join(''));
       }
 
       function renderAdminScreen() {

@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260704_apps_script_full_workflow_v22_app_frame_shortcuts'), 'v22 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v24_menu_parity'), 'v24 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -94,6 +94,8 @@ assert(html.includes('class="section-header"'), 'section header UI missing');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
 assert(html.includes('toolbar-shortcut'), 'legacy top shortcut bar missing');
+assert(html.includes('backgroundToastStack'), 'legacy background job toast stack missing');
+assert(html.includes('background-center-button'), 'legacy background center button missing');
 assert(html.includes('row-send-ng'), 'lead row status styling missing');
 assert(html.includes('dashboard-hero-grid'), 'legacy-style dashboard hero missing');
 assert(html.includes('dashboard-signal-grid'), 'legacy-style dashboard signals missing');
@@ -106,7 +108,8 @@ assert(html.includes('table-link-button'), 'legacy lead table action button miss
 assert(html.includes('lead-select-cell'), 'legacy lead table select cell missing');
 assert(html.includes('templateSafetyPanel'), 'legacy template safety panel missing');
 assert(html.includes('templateSenderBanner'), 'legacy template sender banner missing');
-assert(html.includes('mastersHero'), 'legacy NG/exclusion hero missing');
+assert(html.includes('sendNgHero'), 'legacy send NG hero missing');
+assert(html.includes('exclusionsHero'), 'legacy exclusions hero missing');
 assert(html.includes('formOutreachSummary'), 'legacy form outreach summary missing');
 assert(html.includes('form-work-panel'), 'form outreach panel missing');
 assert(html.includes('form-board-grid'), 'legacy form board layout missing');
@@ -120,6 +123,7 @@ assert(html.includes('jobTable'), 'operations job table missing');
 assert(html.includes('syncLogTable'), 'operations sync log table missing');
 [
   'backgroundJobs',
+  'backgroundActivity',
   'emailLeads',
   'sending',
   'histories',
@@ -128,12 +132,16 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'sync',
   'gmail',
   'admin',
+  'sendNg',
+  'exclusions',
+  'errors',
 ].forEach((tabId) => {
   assert(html.includes(`data-tab="${tabId}"`), `legacy nav tab missing: ${tabId}`);
   assert(html.includes(`id="${tabId}"`), `legacy section missing: ${tabId}`);
 });
 [
   'backgroundJobTable',
+  'backgroundActivityTable',
   'emailLeadTable',
   'sendingPlanTable',
   'sendHistoryScreenTable',
@@ -142,6 +150,7 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'syncScreenTable',
   'gmailStatusPills',
   'adminReadinessPanel',
+  'errorDetailsTable',
 ].forEach((marker) => {
   assert(html.includes(marker), `legacy expanded UI marker missing: ${marker}`);
 });
@@ -164,8 +173,13 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'insertTemplateTag',
   'applyTemplateSample',
   'renderTemplateVariablePreview',
+  'renderBackgroundJobWidgets',
+  'goBackFromBackgroundCenter',
+  'dismissBackgroundToast',
   'duplicateLeadManagerPanel',
   'adminErrorDetailsPanel',
+  'renderBackgroundActivityScreen',
+  'renderErrorDetailsScreen',
 ].forEach((marker) => {
   assert(html.includes(marker), `legacy v22 UI marker missing: ${marker}`);
 });

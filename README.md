@@ -36,6 +36,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `CustomFieldDefinitionForm` / `CustomFieldsInputs` に寄せたカスタム項目定義とリード詳細入力
 - 旧Next/Supabase版の `TemplateTagMenu` に寄せたテンプレート差し込みメニュー、サンプル文面、差し込み値プレビュー
 - 旧Next/Supabase版の `AppSafetyStrip` / `AppTopShortcutBar` / `AppRouteProgress` に寄せた運用ステータスバー、上部ショートカット、タブ切替進行バー
+- 旧Next/Supabase版の `BackgroundJobWidgets` / `BackgroundJobToasts` / `BackgroundJobCenter` に寄せた共通ジョブ通知と戻るボタン
+- 旧Next/Supabase版のメニュー構成に寄せた `送信NG` / `除外ドメイン` / `直近実行結果` / `エラー詳細` の独立タブ
 
 ## ファイル
 
@@ -66,7 +68,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @21 / code v22: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @23 / code v24: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -114,6 +116,10 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - v20は `clasp deploy -V 20` で既存Web app URLへ反映済み。ローカルスモークで `leadListViewSettingsPanel`, `customFieldDefinitionPanel`, `renderListViewSettingsPanel`, `renderCustomFieldDefinitionPanel` を確認済み
 - Apps Script Version 21 / code v22で旧Next/Supabase版の `TemplateTagMenu`, `AppSafetyStrip`, `AppTopShortcutBar`, `AppRouteProgress` に寄せたテンプレート差し込みメニュー、運用ステータスバー、上部ショートカット、タブ切替進行バーを追加済み
 - Version 21は `clasp deploy -V 21 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `templateTagMenuPanel`, `appSafetyStrip`, `appRouteProgress`, `toolbar-shortcut` を確認済み
+- Apps Script Version 22 / code v23で旧Next/Supabase版の `BackgroundJobWidgets`, `BackgroundJobToasts`, `BackgroundJobCenter` に寄せた右下ジョブ通知、進捗バー、全画面共通の戻るボタンを追加済み
+- Version 22は `clasp deploy -V 22 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `backgroundToastStack`, `background-center-button`, `renderBackgroundJobWidgets` を確認済み
+- Apps Script Version 23 / code v24で旧Next/Supabase版の `ng-master`, `exclusions`, `background-jobs/activity`, `errors` のページ分割に寄せ、`送信NG`, `除外ドメイン`, `直近実行結果`, `エラー詳細` を独立タブ化済み
+- Version 23は `clasp deploy -V 23 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `sendNgHero`, `exclusionsHero`, `backgroundActivityTable`, `errorDetailsTable` を確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 
@@ -228,6 +234,7 @@ Web appの `doPost` は次の形のJSONを受け付けます。
 - `components/EmailPreviewPanel.tsx` / `components/TemplateTestRecipientManager.tsx` / `components/JobResultsReviewTable.tsx` / `components/GmailConnectionCheck.tsx` / `components/GoogleCredentialsManager.tsx` / `components/MailSendLockPanel.tsx`: 送信前確認、テスト送信先、検索結果レビュー、Gmail/Google認証状態、送信ロックのUI構成
 - `components/SendWindowSettingsForm.tsx` / `components/BackgroundWorkerSettingsForm.tsx` / `components/DuplicateLeadManager.tsx` / `app/errors/page.tsx`: 自動運用設定、重複リスト管理、エラー詳細のUI構成
 - `components/TemplateTagMenu.tsx` / `components/AppSafetyStrip.tsx` / `components/AppTopShortcutBar.tsx` / `components/AppRouteProgress.tsx`: 差し込みタグ操作、運用ステータス、上部ショートカット、画面遷移フィードバックのUI構成
+- `components/BackgroundJobWidgets.tsx` / `components/BackgroundJobToasts.tsx` / `components/BackgroundJobCenter.tsx`: 共通ジョブ通知、進捗バー、戻るボタンのUI構成
 
 持ち込まないもの:
 

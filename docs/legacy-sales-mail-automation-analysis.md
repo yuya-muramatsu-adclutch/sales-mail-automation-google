@@ -1,6 +1,6 @@
 # 旧 sales-mail-automation 反映分析
 
-最終更新: 2026-07-04
+最終更新: 2026-07-05
 
 参照元: `/Users/muramatsuyuuya/Documents/自動営業システム`
 
@@ -9,6 +9,7 @@
 - `app/globals.css`: 色、余白、パネル、テーブル、サイドバー、ダッシュボード、営業リスト、収集ツールのスタイル
 - `components/AppFrame.tsx`: サイドバー、ナビグループ、ブランド表現、上部ショートカット
 - `components/AppSafetyStrip.tsx`, `components/AppTopShortcutBar.tsx`, `components/AppRouteProgress.tsx`: 運用ステータスバー、よく使う操作、画面遷移フィードバック
+- `components/BackgroundJobWidgets.tsx`, `components/BackgroundJobToasts.tsx`, `components/BackgroundJobCenter.tsx`: 共通ジョブ通知、進捗バー、戻る操作
 - `app/page.tsx`: 営業ダッシュボード、今日の送信キュー、API連携、次の作業、今月の動き
 - `app/leads/page.tsx`: 営業リスト、ジャンル、検索、クイックビュー、KPI、色分け、ページング
 - `components/LeadQuickViews.tsx`: 作業/状態別の即時フィルタ
@@ -22,6 +23,7 @@
 - `components/FormOutreachBoard.tsx`: フォーム送信対象テーブル、作業バー、本文プレビュー
 - `components/ProspectingActivityPanel.tsx`, `components/ProspectingCollectionTool.tsx`: 営業リスト収集ツールの指標、収集ルート、実行カード
 - `app/background-jobs/page.tsx`, `app/sync/page.tsx`, `app/admin/page.tsx`, `app/histories/page.tsx`: 運用、ジョブ、同期ログ、送信履歴、管理系の見せ方
+- `app/background-jobs/activity/page.tsx`, `app/errors/page.tsx`: 直近実行結果、ジョブ別結果、運用エラー詳細の見せ方
 - `app/email-leads/page.tsx`, `app/sending/page.tsx`, `app/deals/page.tsx`, `app/analytics/page.tsx`, `app/integrations/gmail/page.tsx`: メール送信リスト、送信プレビュー、商談、分析、Gmail連携の見せ方
 - `components/EmailPreviewPanel.tsx`: テンプレート/営業先選択、差し込み後の件名・本文、送信不可理由、対象リスト自動送信の見せ方
 - `components/TemplateTestRecipientManager.tsx`: テスト送信先の現在値、営業リストからの宛先選択、保存導線
@@ -64,6 +66,8 @@
 - テンプレート画面に旧 `TemplateTagMenu` 相当の差し込みメニューを追加し、件名/本文へのタグ挿入、初回メール例、フォーム営業例、使用中タグ表示を追加した。
 - 送信プレビューに差し込み後の本文だけでなく、使用タグごとの置換値プレビューを追加した。
 - 旧 `AppFrame` の上部フレームに合わせ、運用ステータスバー、よく使う操作ショートカット、タブ切替進行バーを追加した。
+- 旧 `BackgroundJobWidgets` 相当として、右下のジョブ通知スタック、進捗バー、閉じる操作、バックグラウンド進捗タブへの導線、全画面共通の戻るボタンを追加した。GAS版では `jobs` / `search_jobs` の現在値に読み替えて表示する。
+- 旧 `ng-master` / `exclusions` / `background-jobs/activity` / `errors` のページ分割に合わせ、送信NG、除外ドメイン、直近実行結果、エラー詳細を独立タブとして追加した。
 
 ## GAS版へ反映した機能
 
@@ -79,7 +83,7 @@
 ## そのまま移植しないもの
 
 - Supabase、Vercel、Cron、Next.jsルーティング、React Server Components、RLS、PostgreSQL固有の高速検索。
-- 旧アプリの重いバックグラウンドワーカーUIは、GASの6分制限に合わせて `search_jobs` と `advanceQueuedJobs()` の進捗表示へ読み替える。
+- 旧アプリの重いバックグラウンドワーカーAPIは、GASの6分制限に合わせて `search_jobs` と `advanceQueuedJobs()` の進捗表示へ読み替える。
 - Gmail API OAuthの詳細管理画面は、現行MVPではApps Scriptの `MailApp` / `GmailApp` 承認モデルを正とする。
 
 ## 次に移す候補
