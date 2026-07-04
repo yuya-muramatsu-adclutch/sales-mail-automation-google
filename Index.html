@@ -42,6 +42,100 @@
         text-rendering: optimizeLegibility;
       }
 
+      .login-panel {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        padding: 24px;
+        background:
+          linear-gradient(180deg, rgba(248, 250, 252, 0.82), rgba(241, 245, 249, 0.96)),
+          var(--bg);
+      }
+
+      .login-panel[hidden] {
+        display: none;
+      }
+
+      .login-card {
+        width: min(440px, 100%);
+        padding: 30px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.1);
+      }
+
+      .login-card h1 {
+        margin: 12px 0 18px;
+        font-size: 26px;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      .login-card p {
+        margin: 0;
+      }
+
+      .login-icon {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        background: #dbeafe;
+        color: var(--blue);
+        font-size: 16px;
+        font-weight: 900;
+      }
+
+      .login-actions {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .button-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 9px 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 900;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .button-link.primary {
+        border-color: var(--teal);
+        background: var(--teal);
+        color: #fff;
+      }
+
+      .auth-gate-meta {
+        display: grid;
+        gap: 8px;
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .auth-gate-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .auth-gate-meta b {
+        color: var(--text);
+      }
+
       button,
       input,
       select,
@@ -3587,7 +3681,24 @@
     </style>
   </head>
   <body>
-    <div class="app">
+    <section id="authGate" class="login-panel" hidden>
+      <div class="login-card">
+        <div class="login-icon" aria-hidden="true">LK</div>
+        <h1>Google承認</h1>
+        <p class="muted">Google Sheets / Gmail / Calendar を使うため、初回だけGoogleの承認が必要です。</p>
+        <div id="authGateMessage" class="form-message" style="margin-top:18px">承認状態を確認しています。</div>
+        <div class="login-actions">
+          <a id="authGateLink" class="button-link primary" href="#" target="_blank" rel="noopener">Googleの承認画面を開く</a>
+          <button type="button" onclick="refreshAll()">承認後に再読み込み</button>
+        </div>
+        <div class="auth-gate-meta">
+          <span><b>保存先</b> Script Properties / Google Sheets DB</span>
+          <span><b>公開範囲</b> Apps Script Web app</span>
+        </div>
+      </div>
+    </section>
+
+    <div id="appShell" class="app">
       <aside class="sidebar" aria-label="アプリナビゲーション">
         <div class="brand">
           <div class="brand-mark">S</div>
@@ -4681,9 +4792,30 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return `<span class="pill ${escapeHtml(tone || '')}">${escapeHtml(label)}</span>`;
       }
 
+      function hideAuthorizationGate() {
+        const gate = document.getElementById('authGate');
+        const shell = document.getElementById('appShell');
+        if (gate) gate.hidden = true;
+        if (shell) shell.hidden = false;
+      }
+
+      function renderAuthorizationGate(authorizationUrl, errorMessage) {
+        const gate = document.getElementById('authGate');
+        const shell = document.getElementById('appShell');
+        const link = document.getElementById('authGateLink');
+        const messageTarget = document.getElementById('authGateMessage');
+        if (shell) shell.hidden = true;
+        if (gate) gate.hidden = false;
+        if (link) link.href = authorizationUrl || '#';
+        if (messageTarget) {
+          messageTarget.textContent = errorMessage || '初回承認が必要です。承認後にこの画面へ戻り、再読み込みしてください。';
+        }
+      }
+
       async function refreshAll() {
         try {
           message('読み込み中...');
+          hideAuthorizationGate();
           const initial = await api('getInitialData');
           state.app = initial.app;
           state.enums = initial.enums;
@@ -4716,7 +4848,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             const auth = await api('getAuthorizationStatus');
             if (auth && auth.required && auth.authorizationUrl) {
               document.getElementById('appMeta').textContent = '初回承認が必要です';
-              document.getElementById('globalMessage').innerHTML = `初回承認が必要です。<a href="${escapeHtml(auth.authorizationUrl)}" target="_blank" rel="noopener">Googleの承認画面を開く</a>`;
+              renderAuthorizationGate(auth.authorizationUrl, '初回承認が必要です。Googleの承認画面を開いて、権限を許可してください。');
               return;
             }
           } catch (authError) {

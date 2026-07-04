@@ -8,6 +8,7 @@
 
 - `app/globals.css`: 色、余白、パネル、テーブル、サイドバー、ダッシュボード、営業リスト、収集ツールのスタイル
 - `components/AppFrame.tsx`: サイドバー、ナビグループ、ブランド表現、上部ショートカット
+- `app/login/page.tsx`, `components/LoginForm.tsx`: ログイン画面、中央カード、認証導線
 - `components/AppSafetyStrip.tsx`, `components/AppTopShortcutBar.tsx`, `components/AppRouteProgress.tsx`: 運用ステータスバー、よく使う操作、画面遷移フィードバック
 - `components/BackgroundJobWidgets.tsx`, `components/BackgroundJobToasts.tsx`, `components/BackgroundJobCenter.tsx`: 共通ジョブ通知、進捗バー、戻る操作
 - `app/page.tsx`: 営業ダッシュボード、今日の送信キュー、API連携、次の作業、今月の動き
@@ -83,6 +84,7 @@
 - リード詳細ドロワーに旧 `DuplicateResolutionDialog` 相当の重複候補セクションを追加し、同じ会社名・メール・ドメインの候補を確認しながら、既存候補を残す/編集中の営業先を残す操作を選べるようにした。
 - フォーム送信リストに旧 `FormOutreachBoard` の送信済みチェック、一覧行の送信済み/解除ボタン、作業バー内の送信済み解除導線を追加した。
 - 送信済み更新時は `custom_fields_json` に `form_send_count`, `last_form_sent_at`, `last_form_body`, `form_send_events` を保存し、リード詳細のフォーム送信履歴と同じデータを参照するようにした。
+- 初回承認/認証エラー時の画面を旧 `LoginForm` の中央カード構成に寄せ、GAS版ではGoogle承認リンクと承認後再読み込み導線に読み替えた。
 
 ## GAS版へ反映した機能
 

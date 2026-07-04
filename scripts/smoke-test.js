@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v32_form_send_state'), 'v32 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v33_auth_gate_ui'), 'v33 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -89,6 +89,9 @@ assert(html.includes('createSelectedLeadCalendarEvent'), 'calendar event handler
 assert(html.includes('id="leadPager"'), 'lead pager UI missing');
 assert(html.includes('全 ${total} 件中'), 'lead pager total display missing');
 assert(html.includes('class="sidebar"'), 'sidebar layout missing');
+assert(html.includes('authGate'), 'legacy login/auth gate missing');
+assert(html.includes('login-card'), 'legacy login card styling missing');
+assert(html.includes('renderAuthorizationGate'), 'authorization gate renderer missing');
 assert(html.includes('class="tab nav-item active"'), 'sidebar nav item missing');
 assert(html.includes('class="section-header"'), 'section header UI missing');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
