@@ -705,6 +705,39 @@
         color: #fff;
       }
 
+      .prospecting-review-guide {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 13px 14px;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        background: #fffbeb;
+      }
+
+      .prospecting-review-guide[hidden] {
+        display: none;
+      }
+
+      .prospecting-review-guide > div {
+        display: grid;
+        gap: 3px;
+      }
+
+      .prospecting-review-guide strong {
+        color: #78350f;
+        font-size: 14px;
+      }
+
+      .prospecting-review-guide p,
+      .prospecting-origin-note {
+        margin: 0;
+        color: #92400e;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
       .list-count-bar {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -859,6 +892,300 @@
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fff;
+      }
+
+      .lead-pagination-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .leads-bulk-table {
+        display: grid;
+        gap: 12px;
+      }
+
+      .bulk-action-bar {
+        position: sticky;
+        z-index: 10;
+        top: 58px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: rgba(248, 251, 255, 0.94);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+        backdrop-filter: blur(14px);
+      }
+
+      .bulk-action-status {
+        display: grid;
+        gap: 3px;
+      }
+
+      .bulk-action-status strong {
+        color: var(--text);
+        font-size: 15px;
+      }
+
+      .bulk-action-status span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .bulk-action-metrics,
+      .bulk-action-controls,
+      .bulk-primary-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .bulk-action-metrics {
+        margin-top: 5px;
+      }
+
+      .bulk-action-metrics span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 3px 8px;
+        border: 1px solid #dbeafe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .bulk-action-controls {
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      .bulk-primary-actions {
+        align-items: center;
+        padding: 4px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+      }
+
+      .bulk-action-divider {
+        width: 1px;
+        height: 32px;
+        background: var(--line);
+      }
+
+      .compact-button {
+        min-height: 38px;
+      }
+
+      .table-checkbox,
+      .lead-select-cell,
+      .lead-action-cell,
+      .contact-channel-cell,
+      .send-summary-cell,
+      .status-stack {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .table-checkbox,
+      .lead-select-cell {
+        justify-content: center;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .table-checkbox input,
+      .lead-select-cell input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--blue);
+      }
+
+      .lead-action-cell,
+      .contact-channel-cell {
+        flex-wrap: wrap;
+      }
+
+      .table-link-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 5px 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--blue);
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .facility-cell,
+      .status-stack,
+      .send-summary-cell {
+        display: flex;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .facility-title-line {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 100%;
+        min-width: 0;
+      }
+
+      .facility-main-line {
+        overflow: hidden;
+        color: var(--text);
+        font-weight: 900;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mini-text-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 3px 7px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1e40af;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .status-stack small,
+      .send-summary-cell small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .send-summary-cell strong {
+        font-size: 13px;
+      }
+
+      .lead-detail-backdrop {
+        position: fixed;
+        z-index: 80;
+        inset: 0;
+        display: none;
+        align-items: stretch;
+        justify-content: flex-end;
+        background: rgba(15, 23, 42, 0.36);
+      }
+
+      .lead-detail-backdrop.open {
+        display: flex;
+      }
+
+      .lead-detail-dialog {
+        width: min(760px, 100%);
+        height: 100%;
+        overflow: auto;
+        border-left: 1px solid var(--line-strong);
+        background: var(--surface);
+        box-shadow: -18px 0 50px rgba(15, 23, 42, 0.18);
+      }
+
+      .quick-dialog-header {
+        position: sticky;
+        z-index: 2;
+        top: 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 18px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(12px);
+      }
+
+      .quick-dialog-header h2 {
+        margin: 0;
+      }
+
+      .dialog-close-button {
+        width: 38px;
+        min-height: 38px;
+        padding: 0;
+        border-radius: 999px;
+      }
+
+      .quick-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        padding: 14px 18px 0;
+      }
+
+      .quick-summary-grid span {
+        display: grid;
+        gap: 3px;
+        min-height: 62px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .quick-summary-grid strong {
+        overflow: hidden;
+        color: var(--text);
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .lead-detail-body {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+      }
+
+      #leadTable {
+        min-width: 1040px;
+      }
+
+      #leadTable th:first-child,
+      #leadTable td:first-child {
+        width: 86px;
+      }
+
+      #leadTable th:nth-child(2),
+      #leadTable td:nth-child(2) {
+        width: 132px;
+      }
+
+      #leadTable th:nth-child(4),
+      #leadTable td:nth-child(4),
+      #leadTable th:nth-child(6),
+      #leadTable td:nth-child(6),
+      #leadTable th:nth-child(7),
+      #leadTable td:nth-child(7) {
+        width: 150px;
       }
 
       .form-work-panel {
@@ -1164,6 +1491,16 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
+        .bulk-action-bar {
+          position: static;
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .bulk-action-controls {
+          justify-content: flex-start;
+        }
+
         .side {
           position: static;
         }
@@ -1197,6 +1534,10 @@
         .dashboard-action-grid,
         .lead-kpi-grid,
         .list-count-bar {
+          grid-template-columns: 1fr;
+        }
+
+        .quick-summary-grid {
           grid-template-columns: 1fr;
         }
 
@@ -1389,7 +1730,10 @@
               <p class="eyebrow">Sales list</p>
               <h1>営業リスト</h1>
             </div>
-            <button type="button" class="primary" onclick="newLead()">手動追加</button>
+            <div class="toolbar">
+              <button type="button" onclick="exportVisibleLeadsCsv()">CSV出力</button>
+              <button type="button" class="primary" onclick="newLead()">手動追加</button>
+            </div>
           </header>
           <div class="filter-bar" id="genreBar"></div>
           <div class="list-filter-panel">
@@ -1398,6 +1742,7 @@
               <option value="all">すべて</option>
               <option value="email">メール対象</option>
               <option value="form">フォーム対象</option>
+              <option value="review">確認待ち</option>
               <option value="unsent">未送信だけ</option>
               <option value="sent">送信済み</option>
               <option value="reply">返信あり</option>
@@ -1408,7 +1753,7 @@
               <option value="lost">失注だけ</option>
             </select></label>
             <label>ステータス<select id="leadStatus"></select></label>
-            <label>ジャンル<select id="leadGenre"></select></label>
+            <label>ジャンル<select id="leadGenreFilter"></select></label>
             <label>並び替え<select id="leadSort">
               <option value="updated_desc">更新が新しい順</option>
               <option value="created_desc">作成が新しい順</option>
@@ -1419,38 +1764,51 @@
             <button type="button" onclick="filterLeads()">適用</button>
           </div>
           <div class="lead-quick-views" id="leadQuickViews"></div>
-          <div class="split">
-            <div class="panel">
-              <div class="panel-head">
-                <h2>リード一覧</h2>
+          <section id="leadReviewGuide" class="prospecting-review-guide" hidden></section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>リード一覧</h2>
+              <div class="toolbar">
+                <label>表示件数<select id="leadLimit">
+                  <option value="100">100件</option>
+                  <option value="500" selected>500件</option>
+                  <option value="1000">1000件</option>
+                  <option value="2000">2000件</option>
+                </select></label>
+                <button type="button" onclick="exportVisibleLeadsCsv()">CSV出力</button>
+                <button type="button" onclick="clearLeadFilters()">クリア</button>
                 <button type="button" class="primary" onclick="newLead()">新規</button>
               </div>
-              <div class="panel-body">
-                <div class="toolbar">
-                  <label>表示件数<select id="leadLimit">
-                    <option value="100">100件</option>
-                    <option value="500" selected>500件</option>
-                    <option value="1000">1000件</option>
-                    <option value="2000">2000件</option>
-                  </select></label>
-                  <button type="button" onclick="clearLeadFilters()">クリア</button>
-                </div>
-                <div id="leadCountBar" class="list-count-bar"></div>
-                <div id="leadKpiGrid" class="lead-kpi-grid"></div>
-                <div id="leadStatusLegend" class="lead-status-legend"></div>
-                <div id="leadPager" class="lead-pagination"></div>
-              </div>
-              <div class="table-wrap"><table id="leadTable"></table></div>
             </div>
+            <div class="panel-body leads-bulk-table">
+              <div id="leadCountBar" class="list-count-bar"></div>
+              <div id="leadPager" class="lead-pagination"></div>
+              <div id="leadKpiGrid" class="lead-kpi-grid"></div>
+              <div id="leadStatusLegend" class="lead-status-legend"></div>
+              <div id="leadBulkActionBar" class="bulk-action-bar"></div>
+            </div>
+            <div class="table-wrap"><table id="leadTable"></table></div>
+            <div class="panel-body">
+              <div id="leadPagerBottom" class="lead-pagination"></div>
+            </div>
+          </section>
 
-            <div class="panel side">
-              <div class="panel-head"><h2 id="leadFormTitle">リード編集</h2></div>
-              <div class="panel-body">
+          <div id="leadDetailDialog" class="lead-detail-backdrop" onclick="closeLeadDialogOnBackdrop(event)">
+            <aside class="lead-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="leadFormTitle">
+              <header class="quick-dialog-header">
+                <div>
+                  <p class="eyebrow">Lead detail</p>
+                  <h2 id="leadFormTitle">リード編集</h2>
+                </div>
+                <button type="button" class="dialog-close-button" aria-label="閉じる" onclick="closeLeadDialog()">×</button>
+              </header>
+              <div id="leadQuickSummary" class="quick-summary-grid"></div>
+              <div class="lead-detail-body">
                 <form id="leadForm" class="grid" onsubmit="saveLead(event)">
                   <input type="hidden" id="leadId">
                   <label>会社名<input id="leadCompany" required></label>
                   <label>施設名<input id="leadFacility"></label>
-                  <label>ジャンル<input id="leadGenre" list="genreList"></label>
+                  <label>ジャンル<input id="leadEditGenre" list="genreList"></label>
                   <label>メール<input id="leadEmail" type="email"></label>
                   <label>電話<input id="leadPhone"></label>
                   <label>公式サイト<input id="leadWebsite" type="url"></label>
@@ -1490,7 +1848,7 @@
                 </div>
                 <datalist id="genreList"></datalist>
               </div>
-            </div>
+            </aside>
           </div>
         </section>
 
@@ -1713,6 +2071,7 @@
             ['all', 'すべて'],
             ['email', 'メール対象'],
             ['form', 'フォーム対象'],
+            ['review', '確認待ち'],
             ['no_contact', '連絡先なし'],
           ],
         },
@@ -1741,6 +2100,7 @@
         formLeads: [],
         formTotal: 0,
         selectedFormLeadId: '',
+        selectedLeadIds: [],
         leadPage: {
           limit: 500,
           offset: 0,
@@ -1830,7 +2190,7 @@
       function renderSelects(enums, genres) {
         state.genres = genres || [];
         fillSelect('leadStatus', [''].concat(enums.leadStatuses || []));
-        fillSelect('leadGenre', [''].concat((genres || []).map((genre) => genre.name)));
+        fillSelect('leadGenreFilter', [''].concat((genres || []).map((genre) => genre.name)));
         fillSelect('leadEditStatus', enums.leadStatuses || []);
         fillSelect('leadDealStatus', enums.dealStatuses || []);
         const datalist = document.getElementById('genreList');
@@ -1991,7 +2351,7 @@
         document.getElementById('leadSearch').value = '';
         document.getElementById('leadQuickFilter').value = 'all';
         document.getElementById('leadStatus').value = '';
-        document.getElementById('leadGenre').value = '';
+        document.getElementById('leadGenreFilter').value = '';
         document.getElementById('leadSort').value = 'updated_desc';
         filterLeads();
       }
@@ -2002,12 +2362,12 @@
       }
 
       function setLeadGenre(genre) {
-        document.getElementById('leadGenre').value = genre || '';
+        document.getElementById('leadGenreFilter').value = genre || '';
         filterLeads();
       }
 
       function renderGenreBar() {
-        const active = document.getElementById('leadGenre') ? document.getElementById('leadGenre').value : '';
+        const active = document.getElementById('leadGenreFilter') ? document.getElementById('leadGenreFilter').value : '';
         const topGenres = (state.genres || []).slice(0, 12);
         document.getElementById('genreBar').innerHTML = [
           '<span>ジャンル</span>',
@@ -2032,11 +2392,12 @@
         if (typeof offset === 'number') {
           state.leadPage.offset = Math.max(offset, 0);
         }
+        state.selectedLeadIds = [];
         state.leadPage.limit = Number(document.getElementById('leadLimit').value || 500);
         const result = await api('listLeads', {
           search: document.getElementById('leadSearch').value,
           status: document.getElementById('leadStatus').value,
-          genre: document.getElementById('leadGenre').value,
+          genre: document.getElementById('leadGenreFilter').value,
           filter: document.getElementById('leadQuickFilter').value,
           sort: document.getElementById('leadSort').value,
           limit: state.leadPage.limit,
@@ -2056,24 +2417,164 @@
       function renderLeads() {
         renderLeadPager();
         renderLeadInsights();
-        const rows = state.leads.map((lead) => {
-          const className = leadRowClass(lead);
-          return `<tr class="${className}">` + [
-            ['操作', `<button type="button" onclick="editLead('${escapeHtml(lead.id)}')">編集</button>`],
-            ['会社/施設', `<strong>${escapeHtml(lead.company_name)}</strong><br><span class="muted">${escapeHtml(lead.facility_name || '')}</span>`],
-            ['ジャンル', escapeHtml(lead.genre || '')],
-            ['状態', statusPill(lead.status)],
-            ['連絡先', `${escapeHtml(lead.email || '')}<br><span class="muted">${escapeHtml(lead.form_url || lead.website_url || '')}</span>`],
-            ['更新', escapeHtml(lead.updated_at || '')],
+        renderLeadBulkActionBar();
+        renderLeadRowsTable();
+      }
+
+      function renderLeadRowsTable() {
+        const visibleIds = state.leads.map((lead) => lead.id);
+        const visibleSelected = visibleIds.length > 0 && visibleIds.every((id) => state.selectedLeadIds.includes(id));
+        const rows = state.leads.map((lead, index) => {
+          const rowNumber = (state.leadPage.offset || 0) + index + 1;
+          return `<tr class="${leadRowClass(lead)}">` + [
+            ['No.', renderLeadSelectCell(lead, rowNumber)],
+            ['操作', renderLeadActionCell(lead)],
+            ['屋号', renderFacilityCell(lead)],
+            ['連絡先', contactChannelCell(lead)],
+            ['ジャンル名', escapeHtml(lead.genre || '-')],
+            ['ステータス', statusStack(lead)],
+            ['送信状況', sendSummaryCell(lead)],
           ].map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
         }).join('');
-        document.getElementById('leadTable').innerHTML = table(['操作', '会社/施設', 'ジャンル', '状態', '連絡先', '更新'], rows);
+        const emptyRow = `<tr><td data-column="" colspan="7" class="empty">営業リストはありません</td></tr>`;
+        document.getElementById('leadTable').innerHTML = `
+          <thead>
+            <tr>
+              <th>
+                <label class="table-checkbox">
+                  <input id="leadSelectAll" type="checkbox" onchange="toggleVisibleLeadSelection()" ${visibleSelected ? 'checked' : ''}>
+                  <span>No.</span>
+                </label>
+              </th>
+              <th>操作</th>
+              <th>屋号</th>
+              <th>連絡先</th>
+              <th>ジャンル名</th>
+              <th>ステータス</th>
+              <th>送信状況</th>
+            </tr>
+          </thead>
+          <tbody>${rows || emptyRow}</tbody>
+        `;
+      }
+
+      function renderLeadBulkActionBar() {
+        const selected = getSelectedVisibleLeads();
+        const reviewIds = state.leads.filter(isReviewPendingLead).map((lead) => lead.id);
+        const selectedReviewCount = selected.filter(isReviewPendingLead).length;
+        const selectedDomainCount = selected.filter((lead) => lead.website_domain || lead.website_url || lead.email_domain).length;
+        const selectedWebsiteCount = selected.filter((lead) => lead.website_url).length;
+        const emailTargets = selected.length > 0 ? selected.filter(canEmailLead).length : state.leads.filter(canEmailLead).length;
+        const summaryText = selected.length > 0
+          ? '選択した営業先だけ操作します。'
+          : `確認待ち ${formatNumber(reviewIds.length)}件`;
+        document.getElementById('leadBulkActionBar').innerHTML = `
+          <div class="bulk-action-status">
+            <strong>${formatNumber(selected.length)}件選択中</strong>
+            <span>${escapeHtml(summaryText)}</span>
+            <div class="bulk-action-metrics" aria-label="選択中の操作対象">
+              <span>確認済み対象 ${formatNumber(selectedReviewCount)}件</span>
+              <span>除外対象 ${formatNumber(selectedDomainCount)}件</span>
+              <span>公式再探索 ${formatNumber(selectedWebsiteCount)}件</span>
+            </div>
+          </div>
+          <div class="bulk-action-controls">
+            <div class="bulk-primary-actions" aria-label="よく使う操作">
+              <button type="button" class="compact-button" onclick="selectReviewPendingLeads()" ${reviewIds.length === 0 ? 'disabled' : ''}>確認待ちを選択</button>
+              <button type="button" class="primary compact-button" onclick="bulkUpdateSelectedLeads({ status: '対応中' }, '確認済み')" ${selectedReviewCount === 0 ? 'disabled' : ''}>確認済みにする</button>
+              <button type="button" class="danger compact-button" onclick="bulkUpdateSelectedLeads({ status: '対応不要' }, '対応不要')" ${selected.length === 0 ? 'disabled' : ''}>除外削除</button>
+              <button type="button" class="compact-button" onclick="selectLeadsByFilter('website')" ${selectedWebsiteCount === 0 && state.leads.filter((lead) => lead.website_url).length === 0 ? 'disabled' : ''}>リンク切れ抽出</button>
+            </div>
+            <span class="bulk-action-divider" aria-hidden="true"></span>
+            <button type="button" class="compact-button" onclick="setLeadFilter('email')" ${emailTargets === 0 ? 'disabled' : ''}>メール取得</button>
+            <button type="button" class="compact-button" onclick="showBulkActionHint()">一括操作</button>
+            <button type="button" class="compact-button" onclick="clearLeadSelection()" ${selected.length === 0 ? 'disabled' : ''}>解除</button>
+          </div>
+        `;
+      }
+
+      function renderLeadSelectCell(lead, rowNumber) {
+        return `
+          <label class="lead-select-cell">
+            <input type="checkbox" onchange="toggleLeadSelection('${escapeJsString(lead.id)}')" ${state.selectedLeadIds.includes(lead.id) ? 'checked' : ''}>
+            <span>${formatNumber(rowNumber)}</span>
+          </label>
+        `;
+      }
+
+      function renderLeadActionCell(lead) {
+        const searchButton = isReviewPendingLead(lead) && !lead.website_url
+          ? `<button type="button" class="table-link-button" onclick="queueLeadSearch('${escapeJsString(lead.id)}')" title="このリードを公式サイト探索の対象にします">公式再探索</button>`
+          : '';
+        return `
+          <span class="lead-action-cell">
+            <button type="button" class="table-link-button" onclick="editLead('${escapeJsString(lead.id)}')">履歴・編集</button>
+            ${searchButton}
+          </span>
+        `;
+      }
+
+      function renderFacilityCell(lead) {
+        const name = lead.facility_name || lead.company_name || '-';
+        const company = lead.facility_name && lead.company_name ? `<small class="muted">${escapeHtml(lead.company_name)}</small>` : '';
+        const website = lead.website_url
+          ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener" title="${escapeHtml(lead.website_url)}">WEBサイト</a>`
+          : '';
+        const address = lead.address ? `<small class="muted">${escapeHtml(lead.address)}</small>` : '';
+        const review = isReviewPendingLead(lead) ? '<small class="prospecting-origin-note">検索追加候補</small>' : '';
+        return `
+          <span class="facility-cell">
+            <span class="facility-title-line">
+              <span class="facility-main-line">${escapeHtml(name)}</span>
+              ${website}
+            </span>
+            ${company}
+            ${address}
+            ${review}
+          </span>
+        `;
+      }
+
+      function contactChannelCell(lead) {
+        if (!lead.email && !lead.form_url) {
+          return '<span class="muted">なし</span>';
+        }
+        return `
+          <span class="contact-channel-cell">
+            ${lead.email ? '<span class="pill info">メールあり</span>' : ''}
+            ${lead.form_url ? '<span class="pill good">フォームあり</span>' : ''}
+          </span>
+        `;
+      }
+
+      function statusStack(lead) {
+        if (isReviewPendingLead(lead)) {
+          return '<span class="status-stack"><span class="pill warn">確認待ち</span><small>検索追加候補</small></span>';
+        }
+        const formStatus = lead.form_status && lead.form_status !== '未対応' && !lead.email && lead.form_url
+          ? `<small>フォーム${escapeHtml(lead.form_status)}</small>`
+          : '';
+        const dealStatus = lead.deal_status && lead.deal_status !== '未設定'
+          ? `<small>${escapeHtml(lead.deal_status)}</small>`
+          : '';
+        return `<span class="status-stack">${statusPill(normalizeLeadStatusLabel(lead))}${dealStatus}${formStatus}</span>`;
+      }
+
+      function sendSummaryCell(lead) {
+        return `
+          <span class="send-summary-cell">
+            <strong>${formatNumber(lead.send_count || 0)}回</strong>
+            ${lead.last_sent_at ? `<small>最新 ${escapeHtml(dateLabel(lead.last_sent_at))}</small>` : '<small>未送信</small>'}
+            ${lead.next_send_at ? `<small>次回 ${escapeHtml(dateLabel(lead.next_send_at))}</small>` : ''}
+          </span>
+        `;
       }
 
       function renderLeadInsights() {
         const stats = state.leadPage.stats || {};
         const filtered = state.leadPage.filteredStats || {};
-        const genre = document.getElementById('leadGenre').value || '全ジャンル';
+        const genre = document.getElementById('leadGenreFilter').value || '全ジャンル';
+        renderLeadReviewGuide(stats.reviewPending || 0);
         document.getElementById('leadCountBar').innerHTML = [
           ['営業リスト累計', `${formatNumber(stats.totalLeadCount || 0)}件`],
           ['表示中', `${formatNumber(state.leadPage.total || 0)}件`],
@@ -2097,11 +2598,30 @@
           <span>色分け</span>
           <div>
             <span class="lead-status-legend-item"><i></i>通常</span>
+            <span class="lead-status-legend-item"><i class="review"></i>確認待ち</span>
             <span class="lead-status-legend-item"><i class="reply"></i>返信あり</span>
             <span class="lead-status-legend-item"><i class="ng"></i>送信NG</span>
             <span class="lead-status-legend-item"><i class="lost"></i>失注</span>
             <span class="lead-status-legend-item"><i class="won"></i>成約/商談</span>
           </div>
+        `;
+      }
+
+      function renderLeadReviewGuide(reviewCount) {
+        const target = document.getElementById('leadReviewGuide');
+        if (!target) return;
+        if (!reviewCount) {
+          target.hidden = true;
+          target.innerHTML = '';
+          return;
+        }
+        target.hidden = false;
+        target.innerHTML = `
+          <div>
+            <strong>確認待ち候補が${formatNumber(reviewCount)}件あります</strong>
+            <p>検索で追加された候補を確認し、連絡先や公式サイトを整えてから送信対象に進めます。</p>
+          </div>
+          <button type="button" onclick="setLeadFilter('review')">確認待ちを開く</button>
         `;
       }
 
@@ -2118,10 +2638,129 @@
           <button type="button" onclick="loadLeads(${previousOffset})" ${offset <= 0 ? 'disabled' : ''}>前へ</button>
           <button type="button" onclick="loadLeads(${nextOffset})" ${nextOffset >= total ? 'disabled' : ''}>次へ</button>
         `;
+        const bottom = document.getElementById('leadPagerBottom');
+        if (bottom) bottom.innerHTML = document.getElementById('leadPager').innerHTML;
+      }
+
+      function getSelectedVisibleLeads() {
+        const selectedSet = new Set(state.selectedLeadIds || []);
+        return state.leads.filter((lead) => selectedSet.has(lead.id));
+      }
+
+      function toggleLeadSelection(id) {
+        const selectedSet = new Set(state.selectedLeadIds || []);
+        if (selectedSet.has(id)) selectedSet.delete(id);
+        else selectedSet.add(id);
+        state.selectedLeadIds = Array.from(selectedSet);
+        renderLeads();
+      }
+
+      function toggleVisibleLeadSelection() {
+        const visibleIds = state.leads.map((lead) => lead.id);
+        const allSelected = visibleIds.length > 0 && visibleIds.every((id) => state.selectedLeadIds.includes(id));
+        const selectedSet = new Set(state.selectedLeadIds || []);
+        visibleIds.forEach((id) => {
+          if (allSelected) selectedSet.delete(id);
+          else selectedSet.add(id);
+        });
+        state.selectedLeadIds = Array.from(selectedSet);
+        renderLeads();
+      }
+
+      function clearLeadSelection() {
+        state.selectedLeadIds = [];
+        renderLeads();
+      }
+
+      function selectReviewPendingLeads() {
+        const selectedSet = new Set(state.selectedLeadIds || []);
+        state.leads.filter(isReviewPendingLead).forEach((lead) => selectedSet.add(lead.id));
+        state.selectedLeadIds = Array.from(selectedSet);
+        renderLeads();
+      }
+
+      function selectLeadsByFilter(kind) {
+        const predicates = {
+          email: canEmailLead,
+          form: (lead) => Boolean(lead.form_url),
+          website: (lead) => Boolean(lead.website_url),
+          no_contact: (lead) => !lead.email && !lead.form_url,
+        };
+        const predicate = predicates[kind] || (() => false);
+        const ids = state.leads.filter(predicate).map((lead) => lead.id);
+        state.selectedLeadIds = ids;
+        renderLeads();
+        const label = kind === 'website' ? 'WEBサイトあり' : kind;
+        message(`${label}の表示中リードを${formatNumber(ids.length)}件選択しました`, ids.length ? 'ok' : 'error');
+      }
+
+      async function bulkUpdateSelectedLeads(patch, label) {
+        const selected = getSelectedVisibleLeads();
+        if (selected.length === 0) {
+          message('営業先を選択してください', 'error');
+          return;
+        }
+        const actionLabel = label || '更新';
+        const suffix = patch && patch.status === '対応中' ? '（GAS版では確認済みを「対応中」として保存します）' : '';
+        if (!confirm(`${selected.length}件を${actionLabel}に更新しますか。${suffix}`)) return;
+        let success = 0;
+        let failed = 0;
+        for (const lead of selected) {
+          try {
+            await api('updateLead', lead.id, patch);
+            success += 1;
+          } catch (error) {
+            failed += 1;
+          }
+        }
+        state.selectedLeadIds = [];
+        message(`${actionLabel}: 更新 ${formatNumber(success)}件 / 失敗 ${formatNumber(failed)}件`, failed ? 'error' : 'ok');
+        await refreshAll();
+      }
+
+      function showBulkActionHint() {
+        message('一括操作は、表示中の行を選択して「確認済みにする」「除外削除」「CSV出力」から実行できます。', 'ok');
+      }
+
+      async function queueLeadSearch(id) {
+        const lead = state.leads.find((item) => item.id === id);
+        if (!lead) return;
+        if (!confirm(`${lead.facility_name || lead.company_name || 'このリード'}の公式サイトをSerperで再探索しますか。`)) return;
+        try {
+          const result = await api('runSmallSearchJob', {
+            job_type: 'lead_official_site',
+            leadId: id,
+            maxItems: 1,
+          });
+          message(`公式サイト探索: ${formatNumber(result.processed || 0)}件処理しました`, result.errors && result.errors.length ? 'error' : 'ok');
+          await refreshAll();
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      function exportVisibleLeadsCsv() {
+        const headers = ['id', '会社名', '屋号', 'ジャンル', 'ステータス', 'メール', 'フォームURL', '公式サイト', '送信回数', '最終送信', '住所'];
+        const lines = [headers].concat(state.leads.map((lead) => [
+          lead.id,
+          lead.company_name,
+          lead.facility_name,
+          lead.genre,
+          normalizeLeadStatusLabel(lead),
+          lead.email,
+          lead.form_url,
+          lead.website_url,
+          lead.send_count || 0,
+          lead.last_sent_at,
+          lead.address,
+        ])).map((values) => values.map(csvValue).join(','));
+        const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        downloadText(`sales-leads-${date}.csv`, lines.join('\n'));
       }
 
       function newLead() {
         clearLeadForm();
+        openLeadDialog();
         document.getElementById('leadCompany').focus();
       }
 
@@ -2132,7 +2771,7 @@
         document.getElementById('leadId').value = lead.id || '';
         document.getElementById('leadCompany').value = lead.company_name || '';
         document.getElementById('leadFacility').value = lead.facility_name || '';
-        document.getElementById('leadGenre').value = lead.genre || '';
+        document.getElementById('leadEditGenre').value = lead.genre || '';
         document.getElementById('leadEmail').value = lead.email || '';
         document.getElementById('leadPhone').value = lead.phone || '';
         document.getElementById('leadWebsite').value = lead.website_url || '';
@@ -2146,6 +2785,8 @@
         document.getElementById('meetingEnd').value = toDatetimeLocalValue(lead.meeting_end_at);
         document.getElementById('meetingLocation').value = lead.address || '';
         document.getElementById('meetingMemo').value = lead.meeting_memo || '';
+        renderLeadQuickSummary(lead);
+        openLeadDialog();
       }
 
       function clearLeadForm() {
@@ -2156,7 +2797,46 @@
         document.getElementById('leadId').value = '';
         document.getElementById('leadEditStatus').value = '未対応';
         document.getElementById('leadDealStatus').value = '未設定';
+        renderLeadQuickSummary(null);
         renderLeadSendTemplateOptions();
+      }
+
+      function openLeadDialog() {
+        document.getElementById('leadDetailDialog').classList.add('open');
+      }
+
+      function closeLeadDialog() {
+        document.getElementById('leadDetailDialog').classList.remove('open');
+      }
+
+      function closeLeadDialogOnBackdrop(event) {
+        if (event.target && event.target.id === 'leadDetailDialog') closeLeadDialog();
+      }
+
+      function renderLeadQuickSummary(lead) {
+        const target = document.getElementById('leadQuickSummary');
+        if (!target) return;
+        if (!lead) {
+          target.innerHTML = [
+            quickSummaryItem('ステータス', '未対応'),
+            quickSummaryItem('連絡先', '未設定'),
+            quickSummaryItem('送信', '0回'),
+          ].join('');
+          return;
+        }
+        const contact = [lead.email ? 'メール' : '', lead.form_url ? 'フォーム' : '', lead.phone ? '電話' : ''].filter(Boolean).join(' / ') || 'なし';
+        target.innerHTML = [
+          quickSummaryItem('ステータス', normalizeLeadStatusLabel(lead)),
+          quickSummaryItem('ジャンル', lead.genre || '-'),
+          quickSummaryItem('連絡先', contact),
+          quickSummaryItem('送信', `${formatNumber(lead.send_count || 0)}回`),
+          quickSummaryItem('最終送信', dateLabel(lead.last_sent_at) || '-'),
+          quickSummaryItem('更新', dateLabel(lead.updated_at) || '-'),
+        ].join('');
+      }
+
+      function quickSummaryItem(label, value) {
+        return `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`;
       }
 
       async function saveLead(event) {
@@ -2165,7 +2845,7 @@
         const payload = {
           company_name: document.getElementById('leadCompany').value,
           facility_name: document.getElementById('leadFacility').value,
-          genre: document.getElementById('leadGenre').value,
+          genre: document.getElementById('leadEditGenre').value,
           email: document.getElementById('leadEmail').value,
           phone: document.getElementById('leadPhone').value,
           website_url: document.getElementById('leadWebsite').value,
@@ -2180,6 +2860,7 @@
           if (id) await api('updateLead', id, payload);
           else await api('createLead', payload);
           clearLeadForm();
+          closeLeadDialog();
           await refreshAll();
         } catch (error) {
           message(error.message || String(error), 'error');
@@ -2192,6 +2873,7 @@
         if (!confirm('このリードを対応不要にしますか。')) return;
         await api('deleteLead', id);
         clearLeadForm();
+        closeLeadDialog();
         await refreshAll();
       }
 
@@ -2563,6 +3245,30 @@
         return '';
       }
 
+      function isReviewPendingLead(lead) {
+        return lead && lead.status === '未対応' && ['serper', 'search_job', 'prospecting'].includes(String(lead.source || ''));
+      }
+
+      function canEmailLead(lead) {
+        if (!lead || !lead.email || !String(lead.email).includes('@')) return false;
+        if (normalizeBooleanLike(lead.send_ng) || lead.status === '送信NG' || lead.status === '対応不要') return false;
+        if (normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり') return false;
+        if (lead.deal_status && lead.deal_status !== '未設定') return false;
+        return true;
+      }
+
+      function normalizeBooleanLike(value) {
+        if (value === true || value === false) return value;
+        const text = String(value || '').trim().toLowerCase();
+        return ['true', '1', 'yes', 'y', 'on', 'はい'].includes(text);
+      }
+
+      function normalizeLeadStatusLabel(lead) {
+        if (!lead) return '未設定';
+        if (normalizeBooleanLike(lead.send_ng)) return '送信NG';
+        return lead.status || '未設定';
+      }
+
       function formatNumber(value) {
         return Number(value || 0).toLocaleString('ja-JP');
       }
@@ -2579,6 +3285,41 @@
         } catch (error) {
           return String(value);
         }
+      }
+
+      function externalUrl(value) {
+        const text = String(value || '').trim();
+        if (!text) return '';
+        if (/^https?:\/\//i.test(text)) return text;
+        return `https://${text}`;
+      }
+
+      function dateLabel(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime())) return String(value).slice(0, 10);
+        return date.toLocaleDateString('ja-JP', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+      }
+
+      function csvValue(value) {
+        const text = String(value ?? '').replace(/\r?\n/g, ' ');
+        return `"${text.replace(/"/g, '""')}"`;
+      }
+
+      function downloadText(filename, text) {
+        const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
       }
 
       function escapeJsString(value) {

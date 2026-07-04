@@ -27,6 +27,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - `sync_logs` へのエラーログ保存
 - 旧Next/Supabase版のUIに寄せたサイドバー、パネル、テーブル、ステータス表示
 - 旧Next/Supabase版の営業リストUIに寄せたクイックビュー、ジャンル、KPI、色分け凡例、フォーム送信リスト
+- 旧Next/Supabase版の営業リストに寄せた選択バー、No/操作/屋号/連絡先/ジャンル/ステータス/送信状況テーブル、詳細ドロワー
 
 ## ファイル
 
@@ -57,7 +58,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment v11: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment v12: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -85,6 +86,10 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - v11で旧Next/Supabase版を追加分析し、ダッシュボード、営業リストのクイックビュー/KPI、フォーム送信リスト、Serper検索概要を反映済み
 - v11 Web app `doPost` 経由の `getInitialData` でバージョン `20260704_apps_script_full_workflow_v11_legacy_ui_deep_port`、`leadsTotal=5441`、`sendTargets=2016`、`formTargets=1161` を確認済み
 - v11 `listLeads({filter:"email"})` が `total=2016`、`listLeads({filter:"form", formStatus:"active"})` が `total=1065` を返すことを確認済み
+- v12で営業リスト画面を旧 `LeadsBulkTable` に寄せ、CSV/手動追加ヘッダー、確認待ちガイド、固定バルク操作バー、旧列構成、詳細ドロワーを反映済み
+- v12 Web app `doPost` 経由の `getInitialData` でバージョン `20260704_apps_script_full_workflow_v12_leads_ui_fidelity`、`leadsTotal=5441`、`sendTargets=2016`、`formTargets=1161`、`reviewTargets=1136` を確認済み
+- v12 Web app HTMLに `leadBulkActionBar`, `leadDetailDialog`, `prospecting-review-guide`, `table-link-button`, `lead-select-cell` が含まれることを確認済み
+- v12 Chrome確認で営業リストの列が `No.`, `操作`, `屋号`, `連絡先`, `ジャンル名`, `ステータス`, `送信状況` になり、詳細ドロワーが開くことを確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 

@@ -95,6 +95,11 @@ assert(html.includes('dashboard-hero-grid'), 'legacy-style dashboard hero missin
 assert(html.includes('dashboard-signal-grid'), 'legacy-style dashboard signals missing');
 assert(html.includes('lead-quick-views'), 'lead quick views missing');
 assert(html.includes('lead-kpi-grid'), 'lead KPI grid missing');
+assert(html.includes('leadBulkActionBar'), 'legacy lead bulk action bar missing');
+assert(html.includes('leadDetailDialog'), 'legacy lead detail dialog missing');
+assert(html.includes('prospecting-review-guide'), 'legacy review guide missing');
+assert(html.includes('table-link-button'), 'legacy lead table action button missing');
+assert(html.includes('lead-select-cell'), 'legacy lead table select cell missing');
 assert(html.includes('form-work-panel'), 'form outreach panel missing');
 assert(html.includes('searchOverview'), 'Serper search overview missing');
 const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), html.indexOf('async function showStartupError'));
