@@ -1206,6 +1206,443 @@
         white-space: pre-wrap;
       }
 
+      .content-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .template-sender-banner,
+      .exclusion-hero-panel,
+      .prospecting-activity-panel,
+      .collection-command-center,
+      .ops-readiness-panel {
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .template-sender-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px;
+        background: linear-gradient(180deg, #fff, #f8fbff);
+      }
+
+      .template-sender-banner span,
+      .template-safety-card span,
+      .settings-status-item span,
+      .readiness-item small,
+      .form-outreach-summary-card span,
+      .collection-status-item span,
+      .history-date-cell small,
+      .history-recipient-cell small,
+      .history-lead-cell small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .template-sender-banner strong {
+        display: block;
+        margin-top: 3px;
+        font-size: 20px;
+      }
+
+      .template-safety-panel,
+      .prospecting-activity-panel,
+      .ops-readiness-panel {
+        display: grid;
+        gap: 14px;
+        padding: 16px;
+      }
+
+      .template-safety-grid,
+      .settings-status-grid,
+      .readiness-list,
+      .form-outreach-summary-grid,
+      .collection-status-bar,
+      .collection-main-actions,
+      .ops-action-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .template-safety-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .template-safety-card {
+        display: grid;
+        gap: 5px;
+        min-height: 118px;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: linear-gradient(180deg, #fff, #f8fafc);
+        border-top: 4px solid #64748b;
+      }
+
+      .template-safety-card.ok { border-top-color: var(--green); }
+      .template-safety-card.warn { border-top-color: var(--amber); }
+      .template-safety-card.bad { border-top-color: var(--red); }
+      .template-safety-card.info { border-top-color: var(--blue); }
+
+      .template-safety-card strong,
+      .form-outreach-summary-card strong,
+      .collection-status-item strong,
+      .readiness-item strong {
+        color: var(--text);
+        font-size: 20px;
+        line-height: 1.1;
+      }
+
+      .template-safety-card small,
+      .collection-status-item small,
+      .form-outreach-summary-card small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.35;
+      }
+
+      .template-safety-list,
+      .template-tag-list,
+      .template-body,
+      .ops-note-box {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .template-safety-list div {
+        display: grid;
+        gap: 3px;
+      }
+
+      .template-body {
+        min-height: 160px;
+        white-space: pre-wrap;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .template-tag-list {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      }
+
+      .template-tag-list span,
+      .source-chip {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        min-height: 24px;
+        padding: 3px 8px;
+        border: 1px solid #dbeafe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .exclusion-hero-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 0.45fr);
+        gap: 14px;
+        align-items: center;
+        padding: 16px;
+        background: linear-gradient(180deg, #fff, #f8fafc);
+      }
+
+      .exclusion-hero-panel h2 {
+        margin: 0 0 6px;
+        font-size: 20px;
+      }
+
+      .exclusion-hero-panel p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.65;
+      }
+
+      .exclusion-hero-stats,
+      .prospecting-activity-metrics,
+      .form-outreach-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 10px;
+      }
+
+      .exclusion-hero-stats span,
+      .prospecting-activity-metrics div,
+      .form-outreach-summary-card {
+        display: grid;
+        gap: 4px;
+        min-height: 70px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .exclusion-hero-stats small,
+      .prospecting-activity-metrics span,
+      .prospecting-route-item dt,
+      .prospecting-usage-note {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .exclusion-hero-stats strong,
+      .prospecting-activity-metrics strong {
+        color: var(--text);
+        font-size: 26px;
+        line-height: 1;
+      }
+
+      .form-outreach-toolbar {
+        position: sticky;
+        z-index: 12;
+        top: 58px;
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.96);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+        backdrop-filter: blur(14px);
+      }
+
+      .form-outreach-summary-card.primary {
+        border-color: #93c5fd;
+        background: #eff6ff;
+      }
+
+      .form-outreach-summary-card.warn {
+        border-color: #fde68a;
+        background: #fffbeb;
+      }
+
+      .form-board-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .form-work-panel {
+        position: sticky;
+        top: 178px;
+        z-index: 11;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: rgba(239, 246, 255, 0.96);
+        box-shadow: 0 18px 34px rgba(37, 99, 235, 0.1);
+        backdrop-filter: blur(14px);
+      }
+
+      .form-work-panel::before {
+        content: "";
+        align-self: stretch;
+        width: 4px;
+        border-radius: 999px;
+        background: var(--blue);
+      }
+
+      .form-work-main {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .form-work-main strong {
+        overflow: hidden;
+        font-size: 16px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .form-outreach-row-active td {
+        background: #eff6ff;
+      }
+
+      .prospecting-activity-head,
+      .prospecting-activity-section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .prospecting-route-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 10px;
+      }
+
+      .prospecting-route-item {
+        display: grid;
+        gap: 10px;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .prospecting-route-item dl {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin: 0;
+      }
+
+      .prospecting-route-item dd {
+        margin: 0;
+        color: var(--text);
+        font-size: 16px;
+        font-weight: 900;
+      }
+
+      .collection-command-center {
+        overflow: hidden;
+      }
+
+      .collection-simple-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+        background: #f8fafc;
+      }
+
+      .collection-simple-head span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .collection-simple-head strong {
+        display: block;
+        margin-top: 3px;
+        font-size: 18px;
+      }
+
+      .collection-status-bar {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0;
+        border-bottom: 1px solid var(--line);
+        background: #f8fafc;
+      }
+
+      .collection-status-item {
+        display: grid;
+        gap: 4px;
+        min-height: 78px;
+        padding: 14px 16px;
+        border-right: 1px solid var(--line);
+      }
+
+      .collection-status-item:last-child {
+        border-right: 0;
+      }
+
+      .collection-main-actions {
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        padding: 14px;
+        background: #fff;
+      }
+
+      .collection-main-action {
+        display: grid;
+        gap: 4px;
+        min-height: 72px;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .collection-main-action.active {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: inset 0 0 0 1px #bfdbfe;
+      }
+
+      .settings-status-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .settings-status-item,
+      .readiness-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        min-height: 52px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .readiness-list {
+        gap: 10px;
+      }
+
+      .ops-action-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+
+      .ops-action-card {
+        display: grid;
+        gap: 7px;
+        min-height: 114px;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: linear-gradient(180deg, #fff, #f8fafc);
+        text-align: left;
+      }
+
+      .ops-action-card strong {
+        font-size: 20px;
+      }
+
+      .history-date-cell,
+      .history-recipient-cell,
+      .history-lead-cell,
+      .history-error {
+        display: grid;
+        gap: 3px;
+      }
+
       .panel {
         border: 1px solid var(--line-strong);
         border-radius: 8px;
@@ -1481,14 +1918,29 @@
         .dashboard-lower-grid,
         .dashboard-send-queue,
         .form-work-panel,
+        .form-board-grid,
+        .content-grid,
+        .template-safety-grid,
+        .exclusion-hero-panel,
+        .prospecting-route-grid,
+        .collection-command-center,
+        .ops-action-grid,
         .list-filter-panel {
           grid-template-columns: 1fr;
         }
 
         .dashboard-signal-grid,
         .dashboard-action-grid,
-        .lead-kpi-grid {
+        .lead-kpi-grid,
+        .form-outreach-summary-grid,
+        .settings-status-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .form-outreach-toolbar,
+        .collection-status-bar {
+          flex-direction: column;
+          align-items: stretch;
         }
 
         .bulk-action-bar {
@@ -1533,6 +1985,8 @@
         .dashboard-signal-grid,
         .dashboard-action-grid,
         .lead-kpi-grid,
+        .form-outreach-summary-grid,
+        .settings-status-grid,
         .list-count-bar {
           grid-template-columns: 1fr;
         }
@@ -1633,10 +2087,10 @@
               <span class="nav-icon">LD</span><span>営業リスト</span>
             </button>
             <button type="button" class="tab nav-item" data-tab="search" onclick="showTab('search')">
-              <span class="nav-icon">SP</span><span>Serper検索</span>
+              <span class="nav-icon">SP</span><span>営業リスト収集ツール</span>
             </button>
             <button type="button" class="tab nav-item" data-tab="forms" onclick="showTab('forms')">
-              <span class="nav-icon">FM</span><span>フォーム送信</span>
+              <span class="nav-icon">FM</span><span>フォーム送信リスト</span>
             </button>
           </div>
           <div class="nav-group">
@@ -1648,7 +2102,7 @@
               <span class="nav-icon">NG</span><span>NG/除外</span>
             </button>
             <button type="button" class="tab nav-item" data-tab="ops" onclick="showTab('ops')">
-              <span class="nav-icon">OP</span><span>運用</span>
+              <span class="nav-icon">OP</span><span>管理/運用</span>
             </button>
           </div>
         </nav>
@@ -1855,20 +2309,25 @@
         <section id="templates" class="section">
           <header class="section-header">
             <div>
-              <p class="eyebrow">Mail templates</p>
-              <h1>テンプレート</h1>
+              <p class="eyebrow">Template governance</p>
+              <h1>メールテンプレート</h1>
             </div>
+            <button type="button" class="primary" onclick="newTemplate()">テンプレート追加</button>
           </header>
-          <div class="split">
-            <div class="panel">
-              <div class="panel-head">
-                <h2>メールテンプレート</h2>
-                <button type="button" class="primary" onclick="newTemplate()">新規</button>
-              </div>
-              <div class="table-wrap"><table id="templateTable"></table></div>
+
+          <section id="templateSenderBanner" class="template-sender-banner">
+            <div>
+              <span>Gmail送信時の差出人名</span>
+              <strong id="templateSenderName">営業担当</strong>
             </div>
-            <div class="panel side">
-              <div class="panel-head"><h2 id="templateFormTitle">テンプレート編集</h2></div>
+            <span class="pill good">初回メール・テスト送信に反映</span>
+          </section>
+
+          <section id="templateSafetyPanel" class="template-safety-panel"></section>
+
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-head"><h2 id="templateFormTitle">テンプレート作成・編集</h2></div>
               <div class="panel-body">
                 <form id="templateForm" class="grid" onsubmit="saveTemplate(event)">
                   <input type="hidden" id="templateId">
@@ -1891,20 +2350,36 @@
                   </div>
                 </form>
               </div>
-            </div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h2>テンプレート一覧</h2>
+                <span class="pill info" id="templateCountPill">0件</span>
+              </div>
+              <div class="table-wrap"><table id="templateTable"></table></div>
+            </section>
           </div>
+
+          <section class="panel">
+            <div class="panel-head"><h2>テンプレート例</h2><span class="pill" id="templateExamplePill">未選択</span></div>
+            <div class="panel-body">
+              <div id="templateTagList" class="template-tag-list"></div>
+              <div id="templateExampleBody" class="template-body">テンプレートを登録してください。</div>
+            </div>
+          </section>
         </section>
 
         <section id="masters" class="section">
           <header class="section-header">
             <div>
-              <p class="eyebrow">Block lists</p>
+              <p class="eyebrow">Do not contact / Search filtering</p>
               <h1>NG/除外</h1>
             </div>
           </header>
-          <div class="split">
-            <div class="panel">
-              <div class="panel-head"><h2>送信NG</h2></div>
+          <section id="mastersHero" class="exclusion-hero-panel"></section>
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>送信NG管理</h2><span class="pill bad" id="ngCountPill">0件</span></div>
               <div class="panel-body">
                 <form class="grid" onsubmit="saveNg(event)">
                   <input type="hidden" id="ngId">
@@ -1916,9 +2391,9 @@
                 </form>
               </div>
               <div class="table-wrap"><table id="ngTable"></table></div>
-            </div>
-            <div class="panel">
-              <div class="panel-head"><h2>除外ドメイン</h2></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>除外ドメイン管理</h2><span class="pill info" id="excludedCountPill">0件</span></div>
               <div class="panel-body">
                 <form class="grid" onsubmit="saveExcluded(event)">
                   <input type="hidden" id="excludedId">
@@ -1928,7 +2403,7 @@
                 </form>
               </div>
               <div class="table-wrap"><table id="excludedTable"></table></div>
-            </div>
+            </section>
           </div>
         </section>
 
@@ -1940,30 +2415,34 @@
             </div>
             <button type="button" class="primary" onclick="showTab('templates')">フォーム用テンプレート</button>
           </header>
-          <div class="list-filter-panel">
-            <label>検索<input id="formSearch" type="search" placeholder="会社名、施設名、フォームURL"></label>
-            <label>フォーム状態<select id="formStatusFilter">
-              <option value="active">未対応/対応中</option>
-              <option value="未対応">未対応</option>
-              <option value="対応中">対応中</option>
-              <option value="対応済み">対応済み</option>
-              <option value="対応不要">対応不要</option>
-              <option value="all">すべて</option>
-            </select></label>
-            <label>表示件数<select id="formLimit">
-              <option value="50">50件</option>
-              <option value="100" selected>100件</option>
-              <option value="300">300件</option>
-            </select></label>
-            <button type="button" onclick="loadFormLeads()">適用</button>
-          </div>
-          <div class="form-work-panel">
-            <div class="panel">
-              <div class="panel-head"><h2>フォーム対象</h2><span class="pill info" id="formLeadCount">0件</span></div>
-              <div class="table-wrap"><table id="formLeadTable"></table></div>
+          <div class="form-outreach-toolbar">
+            <div id="formOutreachSummary" class="form-outreach-summary-grid"></div>
+            <div class="list-filter-panel">
+              <label>検索<input id="formSearch" type="search" placeholder="会社名、施設名、フォームURL"></label>
+              <label>フォーム状態<select id="formStatusFilter">
+                <option value="active">未対応/対応中</option>
+                <option value="未対応">未対応</option>
+                <option value="対応中">対応中</option>
+                <option value="対応済み">対応済み</option>
+                <option value="対応不要">対応不要</option>
+                <option value="all">すべて</option>
+              </select></label>
+              <label>表示件数<select id="formLimit">
+                <option value="50">50件</option>
+                <option value="100" selected>100件</option>
+                <option value="300">300件</option>
+              </select></label>
+              <button type="button" onclick="loadFormLeads()">適用</button>
             </div>
-            <div class="panel side">
-              <div class="panel-head"><h2>本文プレビュー</h2></div>
+          </div>
+          <div id="formWorkPanel" class="form-work-panel"></div>
+          <div class="form-board-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>フォーム対象</h2><span class="pill info" id="formLeadCount">0件</span></div>
+              <div class="table-wrap table-form-outreach"><table id="formLeadTable"></table></div>
+            </section>
+            <section class="panel side">
+              <div class="panel-head"><h2>本文プレビュー</h2><span class="pill" id="formTemplatePill">未選択</span></div>
               <div class="panel-body">
                 <p class="muted" id="formPreviewMeta">対象を選択してください</p>
                 <div class="form-template-preview" id="formTemplatePreview">フォーム送信用テンプレートがここに表示されます。</div>
@@ -1974,20 +2453,23 @@
                   <button type="button" class="danger" onclick="markSelectedFormLead('対応不要')">対応不要</button>
                 </div>
               </div>
-            </div>
+            </section>
           </div>
         </section>
 
         <section id="search" class="section">
           <header class="section-header">
             <div>
-              <p class="eyebrow">Prospecting search</p>
-              <h1>Serper検索</h1>
+              <p class="eyebrow">Lead collection system</p>
+              <h1>営業リスト収集ツール</h1>
             </div>
+            <span class="pill" id="serperStatusPill">確認中</span>
           </header>
           <div class="dashboard-action-grid" id="searchOverview"></div>
-          <div class="split">
-            <div class="panel">
+          <section id="searchActivityPanel" class="prospecting-activity-panel"></section>
+          <section id="collectionCommandCenter" class="collection-command-center"></section>
+          <div class="content-grid">
+            <section class="panel">
               <div class="panel-head"><h2>Serper API</h2></div>
               <div class="panel-body">
                 <form class="grid" onsubmit="saveSerper(event)">
@@ -1997,8 +2479,8 @@
                 </form>
                 <p id="serperInfo" class="muted"></p>
               </div>
-            </div>
-            <div class="panel">
+            </section>
+            <section class="panel">
               <div class="panel-head"><h2>小規模検索ジョブ</h2></div>
               <div class="panel-body">
                 <form class="grid" onsubmit="runSearch(event)">
@@ -2014,40 +2496,56 @@
                   <button type="submit" class="blue">実行</button>
                 </form>
               </div>
-            </div>
+            </section>
           </div>
           <div class="panel">
-            <div class="panel-head"><h2>検索結果</h2></div>
+            <div class="panel-head"><h2>検索結果</h2><span class="pill info" id="searchResultCountPill">0件</span></div>
             <div class="table-wrap"><table id="searchResultsTable"></table></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Serper使用量ログ</h2><span class="pill" id="searchUsageCountPill">0件</span></div>
+            <div class="table-wrap"><table id="searchUsageTable"></table></div>
           </div>
         </section>
 
         <section id="ops" class="section">
           <header class="section-header">
             <div>
-              <p class="eyebrow">Operations</p>
-              <h1>運用</h1>
+              <p class="eyebrow">Settings / Background progress</p>
+              <h1>管理/運用</h1>
             </div>
           </header>
-          <div class="panel">
-            <div class="panel-head"><h2>運用</h2></div>
-            <div class="panel-body">
-              <div class="toolbar">
-                <button type="button" onclick="checkReplies()">返信チェック</button>
-                <button type="button" onclick="advanceJobs()">ジョブを進める</button>
-                <button type="button" onclick="installTriggers()">定期トリガー作成</button>
-                <button type="button" onclick="createBackup()">バックアップ作成</button>
-              </div>
-              <hr>
+          <section id="opsStatusGrid" class="settings-status-grid"></section>
+          <section id="opsReadinessPanel" class="ops-readiness-panel"></section>
+          <section class="ops-action-grid">
+            <button type="button" class="ops-action-card" onclick="checkReplies()"><span>返信チェック</span><strong>Gmail返信確認</strong><small>送信履歴のGmail Thread IDから返信ありを更新</small></button>
+            <button type="button" class="ops-action-card" onclick="advanceJobs()"><span>バックグラウンド</span><strong>ジョブを進める</strong><small>queued/runningの検索ジョブを少量ずつ処理</small></button>
+            <button type="button" class="ops-action-card" onclick="installTriggers()"><span>自動運用</span><strong>定期トリガー作成</strong><small>Apps Script時間主導トリガーをセット</small></button>
+            <button type="button" class="ops-action-card" onclick="createBackup()"><span>Drive</span><strong>バックアップ作成</strong><small>SpreadsheetをDriveへコピー</small></button>
+          </section>
+          <div class="content-grid">
+            <section class="panel">
+              <div class="panel-head"><h2>営業リスト同期</h2><span class="pill good">空欄補完優先</span></div>
+              <div class="panel-body">
+                <p class="muted">既存データは上書きせず、CSVから空欄を補完します。会社名、メール、ドメイン重複はスキップします。</p>
               <form class="grid" onsubmit="importCsv(event)">
                 <label style="grid-column:1/-1">CSV貼り付け<textarea id="csvText" placeholder="会社名,メール,公式サイト"></textarea></label>
                 <button type="submit" class="primary">CSVインポート</button>
               </form>
-            </div>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="panel-head"><h2>バックグラウンド進捗</h2><span class="pill info" id="jobCountPill">0件</span></div>
+              <div class="table-wrap"><table id="jobTable"></table></div>
+            </section>
           </div>
           <div class="panel">
-            <div class="panel-head"><h2>送信履歴</h2></div>
+            <div class="panel-head"><h2>送信履歴</h2><span class="pill info" id="historyCountPill">0件</span></div>
             <div class="table-wrap"><table id="historyTable"></table></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>同期ログ</h2><span class="pill" id="syncLogCountPill">0件</span></div>
+            <div class="table-wrap"><table id="syncLogTable"></table></div>
           </div>
         </section>
       </main>
@@ -2059,9 +2557,9 @@
         leads: '営業リスト',
         templates: 'テンプレート',
         masters: 'NG/除外',
-        search: 'Serper検索',
-        forms: 'フォーム送信',
-        ops: '運用',
+        search: '営業リスト収集ツール',
+        forms: 'フォーム送信リスト',
+        ops: '管理/運用',
       };
 
       const LEAD_QUICK_VIEW_GROUPS = [
@@ -2101,6 +2599,13 @@
         formTotal: 0,
         selectedFormLeadId: '',
         selectedLeadIds: [],
+        searchResults: [],
+        searchUsageLogs: [],
+        searchJobs: [],
+        histories: [],
+        jobs: [],
+        syncLogs: [],
+        settings: [],
         leadPage: {
           limit: 500,
           offset: 0,
@@ -2148,11 +2653,12 @@
           const initial = await api('getInitialData');
           state.app = initial.app;
           state.enums = initial.enums;
+          state.settings = initial.settings || [];
           document.getElementById('appMeta').textContent = `${initial.app.version} / ${initial.app.spreadsheetUrl}`;
           renderSelects(initial.enums, initial.genres);
           renderDashboard(initial.dashboard);
           renderSerper(initial.serper);
-          await Promise.all([loadLeads(), loadTemplates(), loadMasters(), loadSearchResults(), loadHistories()]);
+          await Promise.all([loadLeads(), loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData()]);
           await loadFormLeads();
           message('更新しました', 'ok');
         } catch (error) {
@@ -2884,15 +3390,103 @@
       }
 
       function renderTemplates() {
+        renderTemplateSafetyPanel();
         const rows = state.templates.map((template) => row([
-          ['操作', `<button type="button" onclick="editTemplate('${escapeHtml(template.id)}')">編集</button>`],
-          ['名前', escapeHtml(template.name)],
-          ['ジャンル', escapeHtml(template.genre || '共通')],
-          ['種類', escapeHtml(template.template_type)],
-          ['状態', template.is_production === true || template.is_production === 'true' ? '<span class="pill good">本番</span>' : '<span class="pill">下書き</span>'],
+          ['名称', `<strong>${escapeHtml(template.name)}</strong><br><small class="muted">${escapeHtml(template.subject || '')}</small>`],
+          ['ジャンル', escapeHtml(template.genre || 'ジャンル未設定')],
+          ['種別', statusPill(templateTypeLabel(template.template_type))],
+          ['タグ', renderTemplateTags(template)],
+          ['テスト', template.last_test_sent_at ? `<span class="pill good">${escapeHtml(dateLabel(template.last_test_sent_at))}</span>` : '<span class="pill warn">未実施</span>'],
+          ['本番', isProductionTemplate(template) ? '<span class="pill good">本番ON</span>' : '<span class="pill">下書き</span>'],
+          ['版', `v${escapeHtml(template.version || 1)}`],
+          ['操作', `<button type="button" class="table-link-button" onclick="editTemplate('${escapeJsString(template.id)}')">編集</button>`],
         ])).join('');
-        document.getElementById('templateTable').innerHTML = table(['操作', '名前', 'ジャンル', '種類', '状態'], rows);
+        document.getElementById('templateCountPill').textContent = `${formatNumber(state.templates.length)}件`;
+        document.getElementById('templateTable').innerHTML = table(['名称', 'ジャンル', '種別', 'タグ', 'テスト', '本番', '版', '操作'], rows);
+        renderTemplateExample(state.templates[0]);
         renderLeadSendTemplateOptions();
+      }
+
+      function renderTemplateSafetyPanel() {
+        const production = state.templates.filter(isProductionTemplate);
+        const initialProduction = production.filter((template) => template.template_type === 'initial');
+        const formProduction = production.filter((template) => template.template_type === 'form');
+        const productionWithoutGenre = production.filter((template) => !template.genre);
+        const duplicateKeys = new Set();
+        const duplicateGroups = [];
+        production.forEach((template) => {
+          const key = `${template.template_type || ''}:${template.genre || ''}`;
+          if (!template.genre || duplicateKeys.has(key)) {
+            if (template.genre) duplicateGroups.push(key);
+          }
+          duplicateKeys.add(key);
+        });
+        const missingInitialGenres = (state.genres || []).filter((genre) => !initialProduction.some((template) => template.genre === genre.name));
+        const dangerCount = productionWithoutGenre.length + duplicateGroups.length;
+        document.getElementById('templateSafetyPanel').innerHTML = `
+          <div class="dashboard-section-heading">
+            <div>
+              <span class="dashboard-kicker">Accident prevention</span>
+              <h2>テンプレート事故防止チェック</h2>
+            </div>
+            <span class="pill ${dangerCount > 0 ? 'bad' : 'good'}">${dangerCount > 0 ? `${formatNumber(dangerCount)}件確認` : '安全'}</span>
+          </div>
+          <div class="template-safety-grid">
+            ${templateSafetyCard('本番ON条件', dangerCount > 0 ? '確認が必要' : 'OK', 'ジャンル固定・重複なし', dangerCount > 0 ? 'bad' : 'ok')}
+            ${templateSafetyCard('ジャンル固定', productionWithoutGenre.length > 0 ? `${formatNumber(productionWithoutGenre.length)}件` : 'OK', '本番ONはジャンル固定を推奨', productionWithoutGenre.length > 0 ? 'bad' : 'ok')}
+            ${templateSafetyCard('フォーム用', `${formatNumber(formProduction.length)}件`, 'フォーム送信リストで使用', formProduction.length > 0 ? 'ok' : 'warn')}
+            ${templateSafetyCard('未整備ジャンル', `${formatNumber(missingInitialGenres.length)}件`, '初回メール本番ONなし', missingInitialGenres.length > 0 ? 'warn' : 'ok')}
+          </div>
+          <div class="template-safety-list">
+            <div><strong>本番テンプレート</strong><span>${production.length ? production.map((template) => escapeHtml(template.name)).join('、') : '本番ONのテンプレートはありません。'}</span></div>
+            <div><strong>フォーム営業テンプレート</strong><span>${formProduction.length ? formProduction.map((template) => escapeHtml(template.name)).join('、') : 'フォーム用テンプレートを追加してください。'}</span></div>
+          </div>
+        `;
+      }
+
+      function templateSafetyCard(label, value, detail, tone) {
+        return `<div class="template-safety-card ${escapeHtml(tone)}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`;
+      }
+
+      function renderTemplateExample(template) {
+        const target = document.getElementById('templateExampleBody');
+        const pill = document.getElementById('templateExamplePill');
+        const tagList = document.getElementById('templateTagList');
+        if (!template) {
+          pill.textContent = '未選択';
+          tagList.innerHTML = '';
+          target.textContent = 'テンプレートを登録してください。';
+          return;
+        }
+        pill.textContent = template.name || 'テンプレート';
+        tagList.innerHTML = collectTemplateTags(`${template.subject || ''}\n${template.body || ''}`).map((tag) => `<span>${escapeHtml(tag)}</span>`).join('') || '<span>タグなし</span>';
+        target.textContent = [`件名: ${template.subject || '-'}`, '', template.body || '本文がありません。'].join('\n');
+      }
+
+      function renderTemplateTags(template) {
+        const tags = collectTemplateTags(`${template.subject || ''}\n${template.body || ''}`);
+        if (!tags.length) return '<span class="muted">-</span>';
+        return tags.slice(0, 4).map((tag) => `<span class="source-chip">${escapeHtml(tag)}</span>`).join(' ');
+      }
+
+      function collectTemplateTags(text) {
+        const tags = [];
+        String(text || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => {
+          if (!tags.includes(key)) tags.push(key);
+          return '';
+        });
+        return tags;
+      }
+
+      function templateTypeLabel(type) {
+        if (type === 'initial') return '初回メール';
+        if (type === 'followup_2m') return '2ヶ月後メール';
+        if (type === 'form') return 'フォーム営業';
+        return type || '未設定';
+      }
+
+      function isProductionTemplate(template) {
+        return template.is_production === true || template.is_production === 'true';
       }
 
       function renderLeadSendTemplateOptions() {
@@ -2968,6 +3562,7 @@
         document.getElementById('templateProduction').value = String(template.is_production === true || template.is_production === 'true');
         document.getElementById('templateSubject').value = template.subject || '';
         document.getElementById('templateBody').value = template.body || '';
+        renderTemplateExample(template);
       }
 
       function clearTemplateForm() {
@@ -3004,15 +3599,33 @@
       }
 
       function renderMasters() {
-        document.getElementById('ngTable').innerHTML = table(['会社', 'メール', 'ドメイン', '理由'], state.ngMasters.map((item) => row([
-          ['会社', escapeHtml(item.company_name || '')],
-          ['メール', escapeHtml(item.email || '')],
-          ['ドメイン', escapeHtml(item.domain || '')],
-          ['理由', escapeHtml(item.reason || '')],
+        const activeNg = state.ngMasters.filter((item) => item.active !== false && item.active !== 'false');
+        const activeExcluded = state.excludedDomains.filter((item) => item.active !== false && item.active !== 'false');
+        document.getElementById('ngCountPill').textContent = `${formatNumber(activeNg.length)}件`;
+        document.getElementById('excludedCountPill').textContent = `${formatNumber(activeExcluded.length)}件`;
+        document.getElementById('mastersHero').innerHTML = `
+          <div>
+            <h2>検索収集・メール送信から外す対象を管理します</h2>
+            <p>営業リストの送信NG、会社名、メール、除外ドメインをここで管理します。有効なドメインは収集候補と送信対象から除外する前提で扱います。</p>
+          </div>
+          <div class="exclusion-hero-stats" aria-label="NG除外概要">
+            <span><small>送信NG</small><strong>${formatNumber(activeNg.length)}</strong></span>
+            <span><small>除外ドメイン</small><strong>${formatNumber(activeExcluded.length)}</strong></span>
+            <span><small>合計</small><strong>${formatNumber(activeNg.length + activeExcluded.length)}</strong></span>
+          </div>
+        `;
+        document.getElementById('ngTable').innerHTML = table(['メール', 'ドメイン', '会社名', '理由', '状態'], state.ngMasters.map((item) => row([
+          ['メール', escapeHtml(item.email || '-')],
+          ['ドメイン', escapeHtml(item.domain || '-')],
+          ['会社名', escapeHtml(item.company_name || '-')],
+          ['理由', escapeHtml(item.reason || '-')],
+          ['状態', item.active === false || item.active === 'false' ? '<span class="pill">無効</span>' : '<span class="pill bad">有効</span>'],
         ])).join(''));
-        document.getElementById('excludedTable').innerHTML = table(['ドメイン', '理由'], state.excludedDomains.map((item) => row([
-          ['ドメイン', escapeHtml(item.domain || '')],
-          ['理由', escapeHtml(item.reason || '')],
+        document.getElementById('excludedTable').innerHTML = table(['ドメイン', '理由', '状態', '登録日'], state.excludedDomains.map((item) => row([
+          ['ドメイン', `<strong class="domain-cell">${escapeHtml(item.domain || '-')}</strong>`],
+          ['理由', escapeHtml(item.reason || '-')],
+          ['状態', item.active === false || item.active === 'false' ? '<span class="pill">無効</span>' : '<span class="pill info">有効</span>'],
+          ['登録日', escapeHtml(dateLabel(item.created_at) || '-')],
         ])).join(''));
       }
 
@@ -3058,15 +3671,18 @@
 
       function renderFormLeads(total) {
         document.getElementById('formLeadCount').textContent = `${formatNumber(total)}件`;
+        renderFormOutreachSummary(total);
         const rows = state.formLeads.map((lead) => row([
-          ['選択', `<button type="button" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '選択中' : '選択'}</button>`],
-          ['会社/施設', `<strong>${escapeHtml(lead.company_name)}</strong><br><span class="muted">${escapeHtml(lead.facility_name || '')}</span>`],
-          ['ジャンル', escapeHtml(lead.genre || '')],
-          ['状態', statusPill(lead.form_status || lead.status || '未対応')],
-          ['フォーム', lead.form_url ? `<a href="${escapeHtml(lead.form_url)}" target="_blank" rel="noopener">${escapeHtml(compactUrl(lead.form_url))}</a>` : '<span class="muted">未取得</span>'],
-          ['操作', `<button type="button" onclick="selectFormLead('${escapeJsString(lead.id)}'); copySelectedFormMessage()">コピー</button>`],
+          ['選択', `<button type="button" class="table-link-button" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '作業中' : '選択'}</button>`],
+          ['営業先', `<span class="facility-cell"><strong>${escapeHtml(lead.facility_name || lead.company_name || '-')}</strong><small class="muted">${escapeHtml(lead.company_name || '')}</small></span>`],
+          ['ジャンル', escapeHtml(lead.genre || '-')],
+          ['フォーム状態', statusPill(lead.form_status || '未対応')],
+          ['営業状態', statusPill(lead.status || '未対応')],
+          ['送信回数', sendSummaryCell(lead)],
+          ['フォームURL', lead.form_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(lead.form_url))}</a>` : '<span class="muted">未取得</span>'],
+          ['操作', `<button type="button" class="table-link-button" onclick="selectFormLead('${escapeJsString(lead.id)}'); copySelectedFormMessage()">本文コピー</button>`],
         ])).join('');
-        document.getElementById('formLeadTable').innerHTML = table(['選択', '会社/施設', 'ジャンル', '状態', 'フォーム', '操作'], rows);
+        document.getElementById('formLeadTable').innerHTML = table(['選択', '営業先', 'ジャンル', 'フォーム状態', '営業状態', '送信回数', 'フォームURL', '操作'], rows);
         renderSelectedFormLead();
       }
 
@@ -3075,16 +3691,53 @@
         renderFormLeads(state.formTotal);
       }
 
+      function renderFormOutreachSummary(total) {
+        const active = state.formLeads.filter((lead) => !['対応済み', '対応不要'].includes(String(lead.form_status || '未対応'))).length;
+        const sent = state.formLeads.filter((lead) => lead.form_status === '対応済み').length;
+        const noAction = state.formLeads.filter((lead) => lead.form_status === '対応不要').length;
+        const hasForm = state.formLeads.filter((lead) => Boolean(lead.form_url)).length;
+        const ready = state.formLeads.filter((lead) => lead.form_url && findFormTemplateForLead(lead) && !['対応済み', '対応不要'].includes(String(lead.form_status || '未対応'))).length;
+        const missingTemplate = state.formLeads.filter((lead) => lead.form_url && !findFormTemplateForLead(lead)).length;
+        document.getElementById('formOutreachSummary').innerHTML = [
+          formSummaryCard('表示中', state.formLeads.length, `${formatNumber(total)}件中`, 'primary'),
+          formSummaryCard('作業中', active, '未対応/対応中', 'primary'),
+          formSummaryCard('送信済み', sent, '対応済み', ''),
+          formSummaryCard('対応不要', noAction, '除外', 'warn'),
+          formSummaryCard('フォームあり', hasForm, 'URL取得済み', ''),
+          formSummaryCard('テンプレ不足', missingTemplate, '本番フォーム用なし', missingTemplate > 0 ? 'warn' : ''),
+          formSummaryCard('コピー準備', ready, '本文生成可能', 'primary'),
+        ].join('');
+      }
+
+      function formSummaryCard(label, value, detail, tone) {
+        return `<div class="form-outreach-summary-card ${escapeHtml(tone || '')}"><span>${escapeHtml(label)}</span><strong>${formatNumber(value)}</strong><small>${escapeHtml(detail || '')}</small></div>`;
+      }
+
       function renderSelectedFormLead() {
         const lead = state.formLeads.find((item) => item.id === state.selectedFormLeadId);
         if (!lead) {
           document.getElementById('formPreviewMeta').textContent = '対象を選択してください';
           document.getElementById('formTemplatePreview').textContent = 'フォーム送信用テンプレートがここに表示されます。';
+          document.getElementById('formTemplatePill').textContent = '未選択';
+          document.getElementById('formWorkPanel').innerHTML = '<div class="form-work-main"><strong>作業対象を選択してください</strong><small class="muted">左のフォーム対象から1件選びます。</small></div>';
           return;
         }
         const template = findFormTemplateForLead(lead);
         document.getElementById('formPreviewMeta').textContent = `${lead.company_name || ''} / ${lead.genre || '共通'} / ${template ? template.name : 'テンプレート未設定'}`;
         document.getElementById('formTemplatePreview').textContent = template ? renderClientTemplate(template.body || '', lead) : '本番ONのフォーム用テンプレートがありません。テンプレート画面で template_type=form を作成してください。';
+        document.getElementById('formTemplatePill').textContent = template ? template.name : 'テンプレート未設定';
+        document.getElementById('formWorkPanel').innerHTML = `
+          <div class="form-work-main">
+            <span class="muted">次に作業するフォーム営業先</span>
+            <strong>${escapeHtml(lead.facility_name || lead.company_name || '-')}</strong>
+            <small class="muted">${escapeHtml(lead.genre || '共通')} / ${escapeHtml(lead.form_status || '未対応')} / ${template ? escapeHtml(template.name) : 'テンプレート未設定'}</small>
+          </div>
+          <div class="toolbar">
+            ${lead.form_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">フォームURL</a>` : '<span class="pill warn">フォーム未取得</span>'}
+            <button type="button" class="primary" onclick="copySelectedFormMessage()">本文コピー</button>
+            <button type="button" onclick="markSelectedFormLead('対応済み')">送信済み</button>
+          </div>
+        `;
       }
 
       function findFormTemplateForLead(lead) {
@@ -3139,6 +3792,13 @@
 
       function renderSerper(info) {
         document.getElementById('serperInfo').textContent = info.configured ? `設定済み: ${info.key_mask}` : '未設定';
+        const pill = document.getElementById('serperStatusPill');
+        if (pill) {
+          pill.className = `pill ${info.configured ? 'good' : 'warn'}`;
+          pill.textContent = info.configured ? `Serper設定済み ${info.key_mask || ''}` : 'Serper未設定';
+        }
+        renderSearchActivityPanel();
+        renderCollectionCommandCenter(info);
       }
 
       async function saveSerper(event) {
@@ -3167,22 +3827,247 @@
       }
 
       async function loadSearchResults() {
-        const result = await api('listSheetRecords', 'search_results', { limit: 100, includeInactive: true });
-        document.getElementById('searchResultsTable').innerHTML = table(['種類', 'タイトル', 'URL', '作成'], (result.items || []).map((item) => row([
-          ['種類', escapeHtml(item.result_type || '')],
-          ['タイトル', escapeHtml(item.title || '')],
-          ['URL', escapeHtml(item.url || '')],
-          ['作成', escapeHtml(item.created_at || '')],
+        const [results, usage, jobs] = await Promise.all([
+          api('listSheetRecords', 'search_results', { limit: 100, includeInactive: true }),
+          api('listSheetRecords', 'search_usage_logs', { limit: 100, includeInactive: true }),
+          api('listSheetRecords', 'search_jobs', { limit: 100, includeInactive: true }),
+        ]);
+        state.searchResults = results.items || [];
+        state.searchUsageLogs = usage.items || [];
+        state.searchJobs = jobs.items || [];
+        renderSearchTables();
+        renderSearchActivityPanel();
+        renderCollectionCommandCenter(state.serper || {});
+      }
+
+      function renderSearchTables() {
+        document.getElementById('searchResultCountPill').textContent = `${formatNumber(state.searchResults.length)}件`;
+        document.getElementById('searchUsageCountPill').textContent = `${formatNumber(state.searchUsageLogs.length)}件`;
+        document.getElementById('searchResultsTable').innerHTML = table(['種類', 'タイトル', 'URL', '根拠', '作成'], state.searchResults.map((item) => row([
+          ['種類', statusPill(item.result_type || '検索結果')],
+          ['タイトル', escapeHtml(item.title || '-')],
+          ['URL', item.url ? `<a href="${escapeHtml(externalUrl(item.url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.url))}</a>` : '<span class="muted">-</span>'],
+          ['根拠', escapeHtml(item.snippet || item.reason || '-')],
+          ['作成', escapeHtml(dateLabel(item.created_at) || '-')],
+        ])).join(''));
+        document.getElementById('searchUsageTable').innerHTML = table(['日時', '用途', '検索語', '件数', '状態'], state.searchUsageLogs.map((item) => row([
+          ['日時', escapeHtml(dateLabel(item.created_at || item.used_at) || '-')],
+          ['用途', escapeHtml(item.purpose || item.job_type || '-')],
+          ['検索語', escapeHtml(item.query || item.keyword || '-')],
+          ['件数', formatNumber(item.result_count || item.results_count || item.count || 0)],
+          ['状態', statusPill(item.status || item.result || '記録')],
         ])).join(''));
       }
 
+      function renderSearchActivityPanel() {
+        const dashboard = state.dashboard || {};
+        const jobs = state.searchJobs || [];
+        const queued = jobs.filter((job) => ['queued', 'running'].includes(String(job.status || ''))).length;
+        const completed = jobs.filter((job) => job.status === 'completed').length;
+        const failed = jobs.filter((job) => job.status === 'failed').length;
+        const latestResults = (state.searchResults || []).slice(0, 8);
+        const target = document.getElementById('searchActivityPanel');
+        if (!target) return;
+        target.innerHTML = `
+          <div class="prospecting-activity-head">
+            <div>
+              <p class="eyebrow">Collection activity</p>
+              <h2>収集状況</h2>
+              <p class="muted">検索結果、Serper利用、ジョブ進行をまとめて確認します。</p>
+            </div>
+            <span class="pill info">取得経路別</span>
+          </div>
+          <div class="prospecting-activity-metrics">
+            <div><span>リスト追加</span><strong>${formatNumber(dashboard.leadsTotal || 0)}件</strong></div>
+            <div><span>WEB取得済み</span><strong>${formatNumber((dashboard.sendTargets || 0) + (dashboard.formTargets || 0))}件</strong></div>
+            <div><span>メール対象</span><strong>${formatNumber(dashboard.sendTargets || 0)}件</strong></div>
+            <div><span>フォーム対象</span><strong>${formatNumber(dashboard.formTargets || 0)}件</strong></div>
+          </div>
+          <div class="prospecting-route-grid">
+            ${prospectingRouteItem('ジャンル×エリア', dashboard.serperToday || 0, dashboard.sendTargets || 0, dashboard.formTargets || 0, dashboard.reviewTargets || 0)}
+            ${prospectingRouteItem('公式サイト探索', state.searchResults.filter((item) => item.result_type === 'official_site').length, 0, 0, queued)}
+            ${prospectingRouteItem('フォーム探索', state.searchResults.filter((item) => item.result_type === 'form_url').length, 0, dashboard.formTargets || 0, 0)}
+            ${prospectingRouteItem('ジョブ', jobs.length, completed, failed, queued)}
+          </div>
+          <div class="prospecting-activity-section">
+            <div class="prospecting-activity-section-head"><h3>直近検索結果</h3><span>${formatNumber(latestResults.length)}件表示</span></div>
+            <div class="table-wrap"><table>${table(['種類', 'タイトル', 'URL'], latestResults.map((item) => row([
+              ['種類', escapeHtml(item.result_type || '-')],
+              ['タイトル', escapeHtml(item.title || '-')],
+              ['URL', item.url ? `<a href="${escapeHtml(externalUrl(item.url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.url))}</a>` : '<span class="muted">-</span>'],
+            ])).join(''))}</table></div>
+          </div>
+        `;
+      }
+
+      function prospectingRouteItem(label, added, website, form, review) {
+        return `
+          <div class="prospecting-route-item">
+            <div><span class="pill info">${escapeHtml(label)}</span><strong>${formatNumber(added)}件</strong></div>
+            <dl>
+              <div><dt>WEB</dt><dd>${formatNumber(website)}</dd></div>
+              <div><dt>メール</dt><dd>${formatNumber(added)}</dd></div>
+              <div><dt>フォーム</dt><dd>${formatNumber(form)}</dd></div>
+              <div><dt>確認待ち</dt><dd>${formatNumber(review)}</dd></div>
+            </dl>
+          </div>
+        `;
+      }
+
+      function renderCollectionCommandCenter(info) {
+        state.serper = info || state.serper || {};
+        const dashboard = state.dashboard || {};
+        const searchReady = Boolean(state.serper.configured);
+        const target = document.getElementById('collectionCommandCenter');
+        if (!target) return;
+        target.innerHTML = `
+          <div class="collection-simple-head">
+            <div>
+              <span>営業リスト収集</span>
+              <strong>収集条件と実行設定</strong>
+              <small>Serper ${searchReady ? (state.serper.key_mask || '設定済み') : '未設定'} / ジャンル ${formatNumber((state.genres || []).length)}件</small>
+            </div>
+            <div class="toolbar">
+              <button type="button" onclick="document.getElementById('serperKey').focus()">Serperキー</button>
+              <button type="button" onclick="showTab('masters')">除外ドメイン</button>
+            </div>
+          </div>
+          <div class="collection-status-bar">
+            <div class="collection-status-item ${searchReady ? 'ok' : 'warn'}"><span>検索API</span><strong>${searchReady ? 'ON' : 'OFF'}</strong><small>${searchReady ? 'APIキー保存済み' : 'APIキーを保存してください'}</small></div>
+            <div class="collection-status-item ${dashboard.serperTodayRemaining > 0 ? 'ok' : 'warn'}"><span>本日残り</span><strong>${formatNumber(dashboard.serperTodayRemaining || 0)}件</strong><small>${formatNumber(dashboard.serperToday || 0)} / ${formatNumber(dashboard.serperDailyLimit || 0)}</small></div>
+            <div class="collection-status-item ${dashboard.serperMonthRemaining > 0 ? 'ok' : 'warn'}"><span>月間残り</span><strong>${formatNumber(dashboard.serperMonthRemaining || 0)}件</strong><small>${formatNumber(dashboard.serperMonth || 0)} / ${formatNumber(dashboard.serperMonthlyLimit || 0)}</small></div>
+          </div>
+          <div class="collection-main-actions">
+            ${collectionAction('0 自動運用', 'Apps Scriptトリガーとジョブ処理', 'ops')}
+            ${collectionAction('1 ジャンル×エリア', '業種と地域から営業候補検索', 'prospecting')}
+            ${collectionAction('2 キーワード検索', '会社名・問い合わせ検索', 'lead_official_site')}
+            ${collectionAction('3 ファイル収集', 'CSVインポートは運用へ', 'ops')}
+            ${collectionAction('4 まとめサイトURL', 'URLから公式サイト探索', 'lead_form_url')}
+          </div>
+        `;
+      }
+
+      function collectionAction(label, description, mode) {
+        const onclick = mode === 'ops'
+          ? "showTab('ops')"
+          : mode === 'prospecting'
+            ? "document.getElementById('searchJobType').value='prospecting'; document.getElementById('searchGenre').focus()"
+            : `document.getElementById('searchJobType').value='${mode}'; document.getElementById('searchLeadId').focus()`;
+        return `<button type="button" class="collection-main-action" onclick="${onclick}"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></button>`;
+      }
+
+      async function loadOpsData() {
+        const [histories, syncLogs, jobs, searchJobs] = await Promise.all([
+          api('listSheetRecords', 'send_histories', { limit: 100, includeInactive: true }),
+          api('listSheetRecords', 'sync_logs', { limit: 100, includeInactive: true }),
+          api('listSheetRecords', 'jobs', { limit: 100, includeInactive: true }),
+          api('listSheetRecords', 'search_jobs', { limit: 100, includeInactive: true }),
+        ]);
+        state.histories = histories.items || [];
+        state.syncLogs = syncLogs.items || [];
+        state.jobs = (jobs.items || []).concat(searchJobs.items || []);
+        renderOpsPanels();
+      }
+
       async function loadHistories() {
-        const result = await api('listSheetRecords', 'send_histories', { limit: 100, includeInactive: true });
-        document.getElementById('historyTable').innerHTML = table(['日時', '宛先', '件名', '結果'], (result.items || []).map((item) => row([
-          ['日時', escapeHtml(item.sent_at || '')],
-          ['宛先', escapeHtml(item.to_email || '')],
-          ['件名', escapeHtml(item.subject || '')],
-          ['結果', escapeHtml(item.send_result || '')],
+        await loadOpsData();
+      }
+
+      function renderOpsPanels() {
+        renderOpsStatusGrid();
+        renderOpsReadinessPanel();
+        renderHistoryTable();
+        renderJobTable();
+        renderSyncLogTable();
+      }
+
+      function renderOpsStatusGrid() {
+        const dashboard = state.dashboard || {};
+        const integrations = dashboard.integrations || {};
+        const items = [
+          ['Sheets', true, 'DB'],
+          ['Gmail', integrations.gmail !== false, `残り ${formatNumber(dashboard.mailQuotaRemaining || 0)}件`],
+          ['Calendar', integrations.calendar !== false, '商談作成'],
+          ['Serper', Boolean(dashboard.serperConfigured), dashboard.serperKeyMask || '未設定'],
+          ['Trigger', Boolean(dashboard.triggerCount), `${formatNumber(dashboard.triggerCount || 0)}件`],
+          ['Cache', true, 'dashboard_cache'],
+        ];
+        document.getElementById('opsStatusGrid').innerHTML = items.map(([label, ready, detail]) => `
+          <div class="settings-status-item">
+            <div><strong>${escapeHtml(label)}</strong><br><span>${escapeHtml(detail)}</span></div>
+            <span class="pill ${ready ? 'good' : 'warn'}">${ready ? 'OK' : '要確認'}</span>
+          </div>
+        `).join('');
+      }
+
+      function renderOpsReadinessPanel() {
+        const dashboard = state.dashboard || {};
+        const readyItems = [
+          ['Google Sheets DB', true, `${formatNumber(dashboard.leadsTotal || 0)}件`],
+          ['Gmail送信枠', (dashboard.todayRemaining || 0) > 0, `本日残り ${formatNumber(dashboard.todayRemaining || 0)}件`],
+          ['Serper API', Boolean(dashboard.serperConfigured), dashboard.serperKeyMask || '未設定'],
+          ['本番テンプレート', (dashboard.productionTemplates || 0) > 0, `${formatNumber(dashboard.productionTemplates || 0)}件`],
+          ['フォーム対象', (dashboard.formTargets || 0) > 0, `${formatNumber(dashboard.formTargets || 0)}件`],
+          ['ジョブ待ち', ((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0)) === 0, `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件`],
+        ];
+        const readyCount = readyItems.filter((item) => item[1]).length;
+        document.getElementById('opsReadinessPanel').innerHTML = `
+          <div class="dashboard-section-heading">
+            <div>
+              <span class="dashboard-kicker">Production readiness</span>
+              <h2>本番運用チェック</h2>
+            </div>
+            <span class="pill ${readyCount === readyItems.length ? 'good' : 'warn'}">${readyCount}/${readyItems.length}</span>
+          </div>
+          <div class="readiness-list">
+            ${readyItems.map(([label, ready, detail]) => `
+              <div class="readiness-item">
+                <div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(detail)}</small></div>
+                <span class="pill ${ready ? 'good' : 'warn'}">${ready ? 'OK' : '要確認'}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      function renderHistoryTable() {
+        const histories = state.histories || [];
+        document.getElementById('historyCountPill').textContent = `${formatNumber(histories.length)}件`;
+        document.getElementById('historyTable').innerHTML = table(['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名'], histories.map((item) => row([
+          ['送信日時', `<span class="history-date-cell"><strong>${escapeHtml(dateTimeLabel(item.sent_at || item.created_at) || '-')}</strong><small>日本時間</small></span>`],
+          ['結果', item.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="history-error"><span class="pill bad">${escapeHtml(item.send_result || '失敗')}</span><small>${escapeHtml(item.error_message || '')}</small></span>`],
+          ['種別', statusPill(item.send_type || '-')],
+          ['送信先', `<span class="history-recipient-cell"><strong>${escapeHtml(item.to_email || '-')}</strong><small>${escapeHtml(item.gmail_message_id ? `Gmail: ${item.gmail_message_id}` : 'Gmail IDなし')}</small></span>`],
+          ['営業先', `<span class="history-lead-cell"><strong>${escapeHtml(item.facility_name || item.company_name || '-')}</strong><small>${escapeHtml(item.company_name && item.facility_name ? item.company_name : '会社名未取得')}</small></span>`],
+          ['ジャンル', escapeHtml(item.genre || '-')],
+          ['テンプレート', escapeHtml(item.template_name || '-')],
+          ['件名', escapeHtml(item.subject || '-')],
+        ])).join(''));
+      }
+
+      function renderJobTable() {
+        const jobs = state.jobs || [];
+        document.getElementById('jobCountPill').textContent = `${formatNumber(jobs.length)}件`;
+        document.getElementById('jobTable').innerHTML = table(['作成', '種類', '状態', '進捗', 'エラー'], jobs.map((job) => row([
+          ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
+          ['種類', escapeHtml(job.job_type || job.type || '-')],
+          ['状態', statusPill(job.status || '-')],
+          ['進捗', `${formatNumber(job.processed_count || job.processed || 0)} / ${formatNumber(job.total_count || job.total || 0)}`],
+          ['エラー', escapeHtml(job.error_message || job.last_error || '-')],
+        ])).join(''));
+      }
+
+      function renderSyncLogTable() {
+        const logs = state.syncLogs || [];
+        document.getElementById('syncLogCountPill').textContent = `${formatNumber(logs.length)}件`;
+        document.getElementById('syncLogTable').innerHTML = table(['日時', 'ソース', '追加', '補完', '重複', 'エラー', '詳細'], logs.map((log) => row([
+          ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
+          ['ソース', escapeHtml(log.source || log.log_type || '-')],
+          ['追加', formatNumber(log.added_count || log.added || 0)],
+          ['補完', formatNumber(log.filled_count || log.updated_count || 0)],
+          ['重複', formatNumber(log.duplicate_skip_count || log.skipped || 0)],
+          ['エラー', formatNumber(log.error_count || (log.level === 'error' ? 1 : 0))],
+          ['詳細', escapeHtml(log.message || log.detail || log.error_message || '-')],
         ])).join(''));
       }
 
@@ -3302,6 +4187,19 @@
           year: 'numeric',
           month: '2-digit',
           day: '2-digit',
+        });
+      }
+
+      function dateTimeLabel(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime())) return String(value).slice(0, 19).replace('T', ' ');
+        return date.toLocaleString('ja-JP', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
         });
       }
 

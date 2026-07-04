@@ -28,6 +28,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版のUIに寄せたサイドバー、パネル、テーブル、ステータス表示
 - 旧Next/Supabase版の営業リストUIに寄せたクイックビュー、ジャンル、KPI、色分け凡例、フォーム送信リスト
 - 旧Next/Supabase版の営業リストに寄せた選択バー、No/操作/屋号/連絡先/ジャンル/ステータス/送信状況テーブル、詳細ドロワー
+- 旧Next/Supabase版のテンプレート、送信NG/除外、フォーム送信、営業リスト収集、管理/運用メニューに寄せたパネル、集計、履歴テーブル
 
 ## ファイル
 
@@ -58,7 +59,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment v12: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment v13: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -90,6 +91,9 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - v12 Web app `doPost` 経由の `getInitialData` でバージョン `20260704_apps_script_full_workflow_v12_leads_ui_fidelity`、`leadsTotal=5441`、`sendTargets=2016`、`formTargets=1161`、`reviewTargets=1136` を確認済み
 - v12 Web app HTMLに `leadBulkActionBar`, `leadDetailDialog`, `prospecting-review-guide`, `table-link-button`, `lead-select-cell` が含まれることを確認済み
 - v12 Chrome確認で営業リストの列が `No.`, `操作`, `屋号`, `連絡先`, `ジャンル名`, `ステータス`, `送信状況` になり、詳細ドロワーが開くことを確認済み
+- v13でテンプレート、送信NG/除外、フォーム送信、営業リスト収集ツール、管理/運用タブを旧Next/Supabase版に寄せた画面構成へ反映済み
+- v13 Web app HTMLに `templateSafetyPanel`, `mastersHero`, `formOutreachSummary`, `collectionCommandCenter`, `searchActivityPanel`, `opsReadinessPanel`, `jobTable`, `syncLogTable` が含まれることを確認済み
+- v13 Chrome確認でテンプレート/NG・除外/フォーム送信/営業リスト収集ツール/管理・運用の各タブが旧アプリ風の業務パネルとテーブルを表示することを確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 
@@ -200,7 +204,7 @@ Web appの `doPost` は次の形のJSONを受け付けます。
 - `lib/domain.ts`: ドメイン正規化の考え方
 - `lib/company-normalize.ts`: 会社名正規化の考え方
 - `app/globals.css` / `components/AppFrame.tsx` / `app/leads/page.tsx`: サイドバー、パネル、テーブル、ステータスPill、営業リスト画面のUIトーン
-- `app/page.tsx` / `components/LeadQuickViews.tsx` / `components/ListSearchFilters.tsx` / `components/LeadStatusLegend.tsx` / `app/forms/page.tsx` / `app/prospecting/page.tsx`: ダッシュボード、クイックビュー、フォーム送信、Serper収集画面の情報設計
+- `app/page.tsx` / `components/LeadQuickViews.tsx` / `components/ListSearchFilters.tsx` / `components/LeadStatusLegend.tsx` / `app/forms/page.tsx` / `app/prospecting/page.tsx` / `app/templates/page.tsx` / `app/ng-master/page.tsx` / `app/exclusions/page.tsx` / `app/background-jobs/page.tsx` / `app/admin/page.tsx`: ダッシュボード、クイックビュー、フォーム送信、Serper収集、テンプレート、NG/除外、運用画面の情報設計
 
 持ち込まないもの:
 

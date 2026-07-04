@@ -16,6 +16,11 @@
 - `components/MailSendingControlCard.tsx`: メール送信状態の見せ方
 - `app/forms/page.tsx`: フォーム送信リスト、フォーム状態、テンプレート導線
 - `app/prospecting/page.tsx`: Serperを使う営業リスト収集ツール
+- `app/templates/page.tsx`: テンプレート管理、差出人バナー、安全チェック、テンプレート例
+- `app/ng-master/page.tsx`, `app/exclusions/page.tsx`: 送信NG/除外ドメイン管理、集計、履歴テーブル
+- `components/FormOutreachBoard.tsx`: フォーム送信対象テーブル、作業バー、本文プレビュー
+- `components/ProspectingActivityPanel.tsx`, `components/ProspectingCollectionTool.tsx`: 営業リスト収集ツールの指標、収集ルート、実行カード
+- `app/background-jobs/page.tsx`, `app/sync/page.tsx`, `app/admin/page.tsx`, `app/histories/page.tsx`: 運用、ジョブ、同期ログ、送信履歴、管理系の見せ方
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
 ## GAS版へ反映したUI
@@ -27,6 +32,11 @@
 - リード編集を旧アプリの「履歴・編集」導線に寄せ、一覧横の常設フォームではなく右側詳細ドロワーで開くように変更。
 - フォーム送信リストを新規タブとして追加し、フォーム対象の一覧、本文プレビュー、コピー、対応状態更新を追加。
 - Serper検索タブにAPI設定、日次/月次残量、検索ジョブ状況の概要カードを追加。
+- テンプレート画面に差出人バナー、安全チェック、テンプレート例、テスト/本番/版数の一覧列を追加。
+- 送信NG/除外画面に旧アプリ風の集計ヒーロー、状態Pill、理由/登録日列を追加。
+- フォーム送信画面を旧 `FormOutreachBoard` に寄せ、対象サマリー、作業バー、リスト、本文プレビューの構成へ変更。
+- 営業リスト収集ツールに旧 `ProspectingActivityPanel` / `ProspectingCollectionTool` の指標、収集ルート、コスト管理、使用量ログを追加。
+- 管理/運用画面に準備状況、実行アクション、送信履歴、ジョブ一覧、同期ログを集約。
 
 ## GAS版へ反映した機能
 
@@ -45,6 +55,5 @@
 
 ## 次に移す候補
 
-- フォーム送信リストの送信日時/送信回数カウント。
 - 検索ジョブ結果レビュー画面。
-- テンプレート本番化の安全チェック表示。
+- Gmail連携専用画面の詳細ステータス。
