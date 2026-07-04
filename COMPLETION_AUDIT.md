@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app v7: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app v8: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260704_apps_script_full_workflow_v7`
+- Code version: `20260704_apps_script_full_workflow_v8`
 
 ## 計画書との対応
 
@@ -15,9 +15,9 @@
 | --- | --- | --- |
 | Google Sheets DB | 完了 | `setup()` で `Auto Sales List App DB` を作成済み |
 | 主要タブ作成 | 完了 | 17タブ作成済み |
-| Apps Script HTML Service画面 | 完了 | v7 Web app GETでHTML返却を確認済み |
+| Apps Script HTML Service画面 | 完了 | v8 Web app GETでHTML返却を確認済み |
 | カスタムメニュー | 完了 | `onOpen()` / `showSidebar()` 実装済み |
-| `leads` CRUD | 完了 | v7 `doPost` で作成・更新・検索・物理削除を確認済み |
+| `leads` CRUD | 完了 | v8 `doPost` で作成・更新・検索・物理削除を確認済み |
 | ID更新ルール | 完了 | 更新・削除は `findRowById_()` 経由 |
 | UUID | 完了 | `appendSheetRecord_()` / `createLead()` でUUID付与 |
 | LockService | 完了 | 書き込み系関数で `withScriptLock_()` 使用 |
@@ -36,7 +36,8 @@
 | CSVインポート | 完了 | 運用UIと `importLeadsFromCsv()` 実装済み |
 | バッチ再開 | 完了 | `search_jobs` の `processed_count` と `advanceQueuedJobs()` 実装済み |
 | Driveバックアップ | 完了 | `createSpreadsheetBackup()` 実装済み |
-| `doPost` API | 完了 | v7でリード、テンプレート、マスター、検索、運用系アクションを公開 |
+| `doPost` API | 完了 | v8でリード、テンプレート、マスター、検索、運用系アクションを公開 |
+| 旧アプリからの営業リスト移行 | 完了 | Supabase `sales_leads` 5,441件を `leads` へ移行済み |
 
 ## 検証済み
 
@@ -53,6 +54,13 @@
 - v7 `doPost` のテンプレート/NG/除外/履歴読み取りAPI成功
 - v7 `doPost` のリード作成・更新・検索・物理削除成功
 - CRUDスモーク用一時リードは削除後0件であることを確認
+- `clasp deploy -d apps-script-full-workflow-v8-lead-migration-api` 成功
+- 既存Web app URLを `clasp deploy -V 8 -i ...` でv8へ再デプロイ済み
+- `node scripts/migrate-sales-leads.js --dry-run` 成功
+- `node scripts/migrate-sales-leads.js` 成功
+- 移行結果: `migratedRows=5441`, `expectedRows=5441`, `targetTotal=5441`
+- `leads` タブは最大行5442で、ヘッダー1行 + データ5,441件であることを確認
+- `sync_logs` に移行完了ログが記録されていることを確認
 
 ## 運用時に確認する外部依存
 

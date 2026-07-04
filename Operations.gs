@@ -228,3 +228,135 @@ function createSpreadsheetBackup() {
 
   return result;
 }
+
+function prepareLeadMigration(input) {
+  return withScriptLock_('prepareLeadMigration', function () {
+    const source = input && typeof input === 'object' ? input : {};
+    const totalRows = Math.max(Number(source.totalRows || source.total_rows) || 0, 0);
+    const replace = source.replace === true;
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'leads');
+    const headers = getHeaders_(sheet);
+    const expectedHeaders = SHEET_DEFINITIONS.leads;
+    const mismatch = expectedHeaders.find(function (header, index) {
+      return headers[index] !== header;
+    });
+
+    if (mismatch) {
+      throw new Error('leads header mismatch: ' + mismatch);
+    }
+
+    const existingRows = countNonBlankSheetRows_(sheet, expectedHeaders.length);
+    if (existingRows > 0 && !replace) {
+      throw new Error('leads already has rows: ' + existingRows);
+    }
+
+    ensureSheetGridSize_(sheet, Math.max(totalRows + 1, 2), expectedHeaders.length);
+    if (sheet.getMaxRows() > 1) {
+      sheet.getRange(2, 1, sheet.getMaxRows() - 1, expectedHeaders.length).clearContent();
+    }
+    clearRuntimeCaches_('leads');
+
+    return {
+      ok: true,
+      totalRows: totalRows,
+      existingRows: existingRows,
+      replace: replace,
+      headers: expectedHeaders,
+    };
+  });
+}
+
+function writeLeadMigrationRows(input) {
+  return withScriptLock_('writeLeadMigrationRows', function () {
+    const source = input && typeof input === 'object' ? input : {};
+    const rows = Array.isArray(source.rows) ? source.rows : [];
+    const startRow = Math.max(Number(source.startRow || source.start_row) || 2, 2);
+    const headers = SHEET_DEFINITIONS.leads;
+
+    if (rows.length === 0) {
+      return {
+        ok: true,
+        written: 0,
+        startRow: startRow,
+      };
+    }
+    if (rows.length > 500) {
+      throw new Error('writeLeadMigrationRows accepts up to 500 rows per call.');
+    }
+
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'leads');
+    ensureSheetGridSize_(sheet, startRow + rows.length - 1, headers.length);
+    const values = rows.map(function (row) {
+      return normalizeMigratedLeadRow_(row, headers.length);
+    });
+    sheet.getRange(startRow, 1, values.length, headers.length).setValues(values);
+    clearRuntimeCaches_('leads');
+
+    return {
+      ok: true,
+      written: values.length,
+      startRow: startRow,
+      endRow: startRow + values.length - 1,
+    };
+  });
+}
+
+function finalizeLeadMigration(input) {
+  return withScriptLock_('finalizeLeadMigration', function () {
+    const source = input && typeof input === 'object' ? input : {};
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'leads');
+    const migratedRows = countNonBlankSheetRows_(sheet, SHEET_DEFINITIONS.leads.length);
+    const result = {
+      ok: true,
+      migratedRows: migratedRows,
+      expectedRows: Number(source.expectedRows || source.expected_rows || 0),
+      source: String(source.source || ''),
+      finishedAt: nowIso_(),
+    };
+
+    appendSheetRecord_('sync_logs', {
+      event_type: 'migration',
+      operation: 'finalizeLeadMigration',
+      target_sheet: 'leads',
+      target_id: '',
+      level: result.expectedRows && result.expectedRows !== migratedRows ? 'warn' : 'info',
+      message: 'Lead migration finished. migrated=' + migratedRows + ', expected=' + result.expectedRows,
+      stack: '',
+      context_json: safeJsonStringify_(result),
+    });
+    clearRuntimeCaches_('leads');
+    return result;
+  });
+}
+
+function ensureSheetGridSize_(sheet, rowCount, columnCount) {
+  if (sheet.getMaxRows() < rowCount) {
+    sheet.insertRowsAfter(sheet.getMaxRows(), rowCount - sheet.getMaxRows());
+  }
+  if (sheet.getMaxColumns() < columnCount) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), columnCount - sheet.getMaxColumns());
+  }
+}
+
+function normalizeMigratedLeadRow_(row, columnCount) {
+  const source = Array.isArray(row) ? row : [];
+  const values = [];
+  for (let index = 0; index < columnCount; index += 1) {
+    values.push(valueOrBlank_(source[index]));
+  }
+  return values;
+}
+
+function countNonBlankSheetRows_(sheet, columnCount) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return 0;
+  const values = sheet.getRange(2, 1, lastRow - 1, columnCount).getValues();
+  return values.filter(function (row) {
+    return row.some(function (cell) {
+      return String(cell || '').trim() !== '';
+    });
+  }).length;
+}

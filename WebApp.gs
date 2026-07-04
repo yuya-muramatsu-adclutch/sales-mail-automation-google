@@ -75,6 +75,9 @@ function dispatchPostAction_(action, data) {
   if (action === 'installDefaultTriggers') return installDefaultTriggers();
   if (action === 'createSpreadsheetBackup') return createSpreadsheetBackup();
   if (action === 'setSettingValue') return setSettingValue(data.key, data.value, data.valueType || data.value_type, data.description);
+  if (action === 'prepareLeadMigration') return prepareLeadMigration(data);
+  if (action === 'writeLeadMigrationRows') return writeLeadMigrationRows(data);
+  if (action === 'finalizeLeadMigration') return finalizeLeadMigration(data);
 
   throw new Error('Unknown action: ' + action);
 }

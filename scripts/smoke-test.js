@@ -103,6 +103,9 @@ const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
   'createCalendarEventForLead',
   'importLeadsFromCsv',
   'createSpreadsheetBackup',
+  'prepareLeadMigration',
+  'writeLeadMigrationRows',
+  'finalizeLeadMigration',
 ].forEach((action) => {
   assert(webApp.includes(`action === '${action}'`), `doPost action missing: ${action}`);
 });
