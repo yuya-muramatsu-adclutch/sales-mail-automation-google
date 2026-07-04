@@ -35,7 +35,7 @@
 - `components/TemplateTagMenu.tsx`, `components/TemplateActions.tsx`, `components/TemplateCreateForm.tsx`: テンプレート差し込みタグ、テンプレートサンプル、作成/編集フォーム
 - `components/GenreManager.tsx`, `components/ReasonMasterManager.tsx`: 管理画面のジャンル追加/編集/削除、送信NG/失注/対応不要理由の追加/編集/有効無効管理
 - `components/LeadEditForm.tsx`, `components/MeetingScheduleForm.tsx`: リード詳細のステータス編集、送信NG理由/メモ、フォーム対応、商談ステータス、Calendar登録、Meetリンク表示
-- `components/QuickLeadEditButton.tsx`: 営業リスト上の履歴・編集ダイアログ、送信履歴カード、本文詳細、フォーム送信履歴の見せ方
+- `components/QuickLeadEditButton.tsx`, `components/DuplicateResolutionDialog.tsx`: 営業リスト上の履歴・編集ダイアログ、送信履歴カード、本文詳細、フォーム送信履歴、重複候補確認の見せ方
 - `app/api/display-settings/route.ts`, `app/api/custom-fields/route.ts`, `supabase/schema.sql`: `list_view_settings` / `custom_field_definitions` の保存APIとスキーマ
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
@@ -79,6 +79,7 @@
 - リード詳細ドロワーに旧 `QuickLeadEditButton` の送信履歴セクションを追加し、ダイアログ内で送信日時、送信種別、件名、成功/失敗、本文詳細を確認できるようにした。
 - リード詳細ドロワーに旧 `QuickLeadEditButton` のフォーム送信履歴セクションを追加し、`custom_fields_json` の `form_send_events`, `last_form_sent_at`, `form_send_count`, `last_form_body` から最新送信、状態、本文プレビュー、本文コピーを表示できるようにした。
 - リード詳細ドロワー下部に旧 `QuickLeadEditButton` の危険操作セクションを追加し、除外ドメイン登録して営業対象から外す操作、営業先削除確認を同じ流れで実行できるようにした。
+- リード詳細ドロワーに旧 `DuplicateResolutionDialog` 相当の重複候補セクションを追加し、同じ会社名・メール・ドメインの候補を確認しながら、既存候補を残す/編集中の営業先を残す操作を選べるようにした。
 
 ## GAS版へ反映した機能
 

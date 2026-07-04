@@ -43,6 +43,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `LeadEditForm` / `MeetingScheduleForm` に寄せたリード詳細のステータス、送信NG理由、商談/Calendar登録UI
 - 旧Next/Supabase版の `QuickLeadEditButton` に寄せたリード詳細内の送信履歴カード、フォーム送信履歴カード
 - 旧Next/Supabase版の `QuickLeadEditButton` に寄せたリード詳細下部の除外ドメイン登録、削除確認UI
+- 旧Next/Supabase版の `DuplicateResolutionDialog` に寄せたリード詳細内の重複候補確認、残す営業先選択UI
 
 ## ファイル
 
@@ -73,7 +74,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @29 / code v30: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @30 / code v31: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -137,6 +138,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Version 28は `clasp deploy -V 28 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `leadFormHistoryPanel`, `quick-form-history-summary`, `copyLeadFormHistoryBody` を確認済み
 - Apps Script code v30で旧Next/Supabase版の `QuickLeadEditButton` に寄せ、リード詳細ドロワー下部へ除外ドメイン登録、削除確認、営業対象から外す操作UIを追加済み
 - Version 29は `clasp deploy -V 29 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `leadDangerPanel`, `renderLeadDangerPanel`, `excludeSelectedLeadDomainAndArchive` を確認済み
+- Apps Script code v31で旧Next/Supabase版の `DuplicateResolutionDialog` に寄せ、リード詳細ドロワーへ重複候補確認、既存候補を残す/編集中の営業先を残す操作UIを追加済み
+- Version 30は `clasp deploy -V 30 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `leadDuplicatePanel`, `renderLeadDuplicatePanel`, `listLeadDuplicateCandidates` を確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 

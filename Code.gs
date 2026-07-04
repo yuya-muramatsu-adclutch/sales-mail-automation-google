@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260705_apps_script_full_workflow_v30_lead_danger_zone';
+const APP_VERSION = '20260705_apps_script_full_workflow_v31_duplicate_resolution';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -721,6 +721,63 @@ function deleteLead(id, options) {
   });
 }
 
+function listLeadDuplicateCandidates(leadId, options) {
+  const recordId = requireId_(leadId);
+  const query = options && typeof options === 'object' ? options : {};
+  const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const sheet = ensureSheet_(spreadsheet, 'leads');
+  const leads = readSheetRecords_(sheet).filter(function (lead) {
+    return !isArchivedLead_(lead);
+  });
+  const current = leads.find(function (lead) {
+    return String(lead.id || '') === recordId;
+  });
+
+  if (!current) {
+    throw new Error('Lead not found: ' + recordId);
+  }
+
+  const currentKeys = duplicateKeysForLead_(current);
+  const candidates = leads
+    .filter(function (lead) {
+      return String(lead.id || '') !== recordId;
+    })
+    .map(function (lead) {
+      const matched = duplicateMatchedKeys_(currentKeys, duplicateKeysForLead_(lead));
+      if (!matched.length) return null;
+      return {
+        id: lead.id,
+        company_name: lead.company_name,
+        facility_name: lead.facility_name,
+        email: lead.email,
+        website_url: lead.website_url,
+        reason: duplicateReasonLabels_(matched).join('・') || '重複候補',
+        reason_detail: matched.map(function (key) { return duplicateReasonDetail_(key); }).filter(Boolean).join(' / '),
+        send_count: lead.send_count,
+        status: lead.status,
+      };
+    })
+    .filter(Boolean)
+    .sort(function (a, b) {
+      return Number(b.send_count || 0) - Number(a.send_count || 0) || String(a.company_name || a.facility_name || '').localeCompare(String(b.company_name || b.facility_name || ''), 'ja');
+    })
+    .slice(0, limit);
+
+  return {
+    leadId: recordId,
+    current: {
+      id: current.id,
+      company_name: current.company_name,
+      facility_name: current.facility_name,
+      email: current.email,
+      website_url: current.website_url,
+    },
+    total: candidates.length,
+    items: candidates,
+  };
+}
+
 function saveSerperApiKey(apiKey) {
   const normalized = String(apiKey || '').trim();
 
@@ -1271,6 +1328,44 @@ function assertNoDuplicateLead_(sheet, lead) {
   if (duplicate) {
     throw new Error('Duplicate lead exists: ' + duplicate.id);
   }
+}
+
+function duplicateKeysForLead_(lead) {
+  const keys = [];
+  const email = String(lead.email || '').trim().toLowerCase();
+  const company = normalizeCompanyName_(lead.normalized_company_name || lead.company_name || lead.facility_name || '');
+  const domain = normalizeDomain_(lead.website_domain || lead.email_domain || lead.website_url || lead.form_url || '');
+  if (email && email.indexOf('@') !== -1) keys.push('email:' + email);
+  if (domain) keys.push('domain:' + domain);
+  if (company && domain) keys.push('company_domain:' + company + ':' + domain);
+  else if (company && company.length >= 4) keys.push('company:' + company);
+  return Array.from(new Set(keys));
+}
+
+function duplicateMatchedKeys_(leftKeys, rightKeys) {
+  const right = new Set(rightKeys || []);
+  return (leftKeys || []).filter(function (key) {
+    return right.has(key);
+  });
+}
+
+function duplicateReasonLabels_(keys) {
+  const labels = [];
+  (keys || []).forEach(function (key) {
+    if (key.indexOf('email:') === 0 && labels.indexOf('メール') === -1) labels.push('メール');
+    if ((key.indexOf('domain:') === 0 || key.indexOf('company_domain:') === 0) && labels.indexOf('ドメイン') === -1) labels.push('ドメイン');
+    if ((key.indexOf('company:') === 0 || key.indexOf('company_domain:') === 0) && labels.indexOf('会社名') === -1) labels.push('会社名');
+  });
+  return labels.length ? labels : ['重複候補'];
+}
+
+function duplicateReasonDetail_(key) {
+  const text = String(key || '');
+  if (text.indexOf('email:') === 0) return 'メール一致: ' + text.replace(/^email:/, '');
+  if (text.indexOf('domain:') === 0) return 'ドメイン一致: ' + text.replace(/^domain:/, '');
+  if (text.indexOf('company_domain:') === 0) return '会社名とドメインが一致';
+  if (text.indexOf('company:') === 0) return '会社名一致';
+  return '';
 }
 
 function normalizeUrl_(value) {

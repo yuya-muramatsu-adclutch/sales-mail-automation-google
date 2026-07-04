@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v30_lead_danger_zone'), 'v30 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v31_duplicate_resolution'), 'v31 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -213,6 +213,11 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'renderLeadDangerPanel',
   'excludeSelectedLeadDomainAndArchive',
   'archiveSelectedLeadFromDangerZone',
+  'leadDuplicatePanel',
+  'loadLeadDuplicateCandidatesForDialog',
+  'renderLeadDuplicatePanel',
+  'keepCurrentLeadFromDuplicatePanel',
+  'keepExistingLeadFromDuplicatePanel',
 ].forEach((marker) => {
   assert(html.includes(marker), `legacy UI marker missing: ${marker}`);
 });
@@ -248,6 +253,7 @@ assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflec
   'updateReason',
   'saveSerperApiKey',
   'listLeadSendHistories',
+  'listLeadDuplicateCandidates',
   'checkRepliesForLeads',
   'createCalendarEventForLead',
   'importLeadsFromCsv',

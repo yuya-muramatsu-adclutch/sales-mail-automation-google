@@ -53,6 +53,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'createLead') return createLead(data);
   if (action === 'updateLead') return updateLead(data.id, data.patch || data);
   if (action === 'deleteLead') return deleteLead(data.id, data.options || {});
+  if (action === 'listLeadDuplicateCandidates') return listLeadDuplicateCandidates(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'listSheetRecords') return listSheetRecords(data.sheetName || data.sheet_name, data.options || data);
   if (action === 'listEmailTemplates') return listEmailTemplates(data);
   if (action === 'saveEmailTemplate') return saveEmailTemplate(data);

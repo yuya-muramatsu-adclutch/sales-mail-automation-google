@@ -2359,6 +2359,80 @@
         font-style: normal;
       }
 
+      .duplicate-resolution-panel {
+        display: grid;
+        gap: 12px;
+        grid-column: 1 / -1;
+        padding: 12px;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        background: #fffbeb;
+      }
+
+      .duplicate-resolution-current {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px;
+        border: 1px solid #fcd34d;
+        border-radius: 8px;
+        background: #fff7ed;
+      }
+
+      .duplicate-resolution-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: #f59e0b;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 950;
+      }
+
+      .duplicate-resolution-current div,
+      .duplicate-resolution-item div {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .duplicate-resolution-current strong,
+      .duplicate-resolution-item strong {
+        color: var(--text);
+        overflow-wrap: anywhere;
+      }
+
+      .duplicate-resolution-current span,
+      .duplicate-resolution-item span,
+      .duplicate-resolution-item small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        overflow-wrap: anywhere;
+      }
+
+      .duplicate-resolution-list {
+        display: grid;
+        gap: 8px;
+        max-height: 280px;
+        overflow: auto;
+      }
+
+      .duplicate-resolution-item {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
       .template-sender-banner,
       .exclusion-hero-panel,
       .prospecting-activity-panel,
@@ -3731,6 +3805,7 @@
               <div class="lead-detail-body">
                 <section id="leadHistoryPanel" class="quick-history-section"></section>
                 <section id="leadFormHistoryPanel" class="quick-history-section"></section>
+                <section id="leadDuplicatePanel" class="duplicate-resolution-panel"></section>
                 <form id="leadForm" class="grid" onsubmit="saveLead(event)">
                   <input type="hidden" id="leadId">
                   <label>会社名<input id="leadCompany" required></label>
@@ -4428,6 +4503,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         editingReasonId: '',
         activeLeadHistoryLeadId: '',
         activeLeadFormHistories: [],
+        activeLeadDuplicateLeadId: '',
+        activeLeadDuplicateCandidates: [],
         leadDangerConfirmAction: '',
         dismissedBackgroundJobKeys: [],
         selectedFormLeadId: '',
@@ -5426,11 +5503,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderLeadCalendarMeta(lead);
         renderLeadHistoryPanel(lead, [], true);
         renderLeadFormHistoryPanel(lead);
+        renderLeadDuplicatePanel(lead, [], true);
         renderLeadDangerPanel(lead);
         renderLeadQuickSummary(lead);
         renderLeadCustomFieldsPanel(lead);
         openLeadDialog();
         loadLeadSendHistoriesForDialog(lead.id);
+        loadLeadDuplicateCandidatesForDialog(lead.id);
       }
 
       function clearLeadForm() {
@@ -5443,6 +5522,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderLeadCalendarMeta(null);
         renderLeadHistoryPanel(null, [], false);
         renderLeadFormHistoryPanel(null);
+        renderLeadDuplicatePanel(null, [], false);
         renderLeadDangerPanel(null);
         renderLeadQuickSummary(null);
         renderLeadCustomFieldsPanel(null);
@@ -5587,6 +5667,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
       }
 
+      async function loadLeadDuplicateCandidatesForDialog(leadId) {
+        state.activeLeadDuplicateLeadId = leadId;
+        try {
+          const result = await api('listLeadDuplicateCandidates', leadId, { limit: 10 });
+          if (state.activeLeadDuplicateLeadId !== leadId) return;
+          const lead = state.leads.find((item) => item.id === leadId);
+          renderLeadDuplicatePanel(lead, result.items || [], false);
+        } catch (error) {
+          if (state.activeLeadDuplicateLeadId !== leadId) return;
+          renderLeadDuplicatePanel(state.leads.find((item) => item.id === leadId), [], false, error.message || String(error));
+        }
+      }
+
       function renderLeadHistoryPanel(lead, histories, loading, errorMessage) {
         const target = document.getElementById('leadHistoryPanel');
         if (!target) return;
@@ -5627,6 +5720,121 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           ${histories.length ? `<div class="quick-history-list">${histories.map(renderLeadHistoryItem).join('')}</div>` : '<p class="muted">送信履歴はまだありません。</p>'}
         `;
+      }
+
+      function renderLeadDuplicatePanel(lead, candidates, loading, errorMessage) {
+        const target = document.getElementById('leadDuplicatePanel');
+        if (!target) return;
+        if (!lead) {
+          state.activeLeadDuplicateCandidates = [];
+          target.innerHTML = '';
+          target.hidden = true;
+          return;
+        }
+        target.hidden = false;
+        if (loading) {
+          target.innerHTML = `
+            <div class="section-title-row">
+              <div>
+                <h3>重複候補</h3>
+                <p class="muted">同じ会社名・メール・ドメインの営業先を確認しています。</p>
+              </div>
+              <span class="pill warn">確認中</span>
+            </div>
+          `;
+          return;
+        }
+        if (errorMessage) {
+          state.activeLeadDuplicateCandidates = [];
+          target.innerHTML = `
+            <div class="section-title-row">
+              <div>
+                <h3>重複候補</h3>
+                <p class="muted">重複候補を確認できませんでした。</p>
+              </div>
+              <span class="pill warn">確認失敗</span>
+            </div>
+            <p class="form-message">${escapeHtml(errorMessage)}</p>
+          `;
+          return;
+        }
+        state.activeLeadDuplicateCandidates = candidates || [];
+        if (!state.activeLeadDuplicateCandidates.length) {
+          target.innerHTML = '';
+          target.hidden = true;
+          return;
+        }
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h3>重複候補があります</h3>
+              <p class="muted">同じ会社名・屋号・メール・ドメインに該当する候補です。どちらを残すか選択してください。</p>
+            </div>
+            <span class="pill warn">${formatNumber(state.activeLeadDuplicateCandidates.length)}件</span>
+          </div>
+          <section class="duplicate-resolution-current">
+            <span class="duplicate-resolution-icon">!</span>
+            <div>
+              <strong>${escapeHtml(leadNameClient(lead))}</strong>
+              <span>この内容を残す場合、下の既存候補を削除してから保存します。</span>
+            </div>
+          </section>
+          <div class="duplicate-resolution-list">
+            ${state.activeLeadDuplicateCandidates.map(renderLeadDuplicateCandidateItem).join('')}
+          </div>
+          <div class="toolbar">
+            <button type="button" onclick="keepExistingLeadFromDuplicatePanel()">既存候補を残す</button>
+            <button type="button" class="danger" onclick="keepCurrentLeadFromDuplicatePanel()">編集中の営業先を残す</button>
+            <button type="button" onclick="dismissLeadDuplicatePanel()">キャンセル</button>
+          </div>
+        `;
+      }
+
+      function renderLeadDuplicateCandidateItem(candidate) {
+        return `
+          <article class="duplicate-resolution-item">
+            <div>
+              <strong>${escapeHtml(leadNameClient(candidate))}</strong>
+              <span>${escapeHtml([candidate.company_name, candidate.email, candidate.website_url].filter(Boolean).join(' / ') || '-')}</span>
+              ${candidate.reason_detail ? `<small>${escapeHtml(candidate.reason_detail)}</small>` : ''}
+            </div>
+            <span class="pill warn">${escapeHtml(candidate.reason || '重複候補')}</span>
+          </article>
+        `;
+      }
+
+      function dismissLeadDuplicatePanel() {
+        state.activeLeadDuplicateCandidates = [];
+        const lead = currentLeadFromDialog();
+        renderLeadDuplicatePanel(lead, [], false);
+      }
+
+      async function keepCurrentLeadFromDuplicatePanel() {
+        const lead = currentLeadFromDialog();
+        const candidates = state.activeLeadDuplicateCandidates || [];
+        if (!lead || !candidates.length) return;
+        if (!confirm(`${candidates.length}件の既存候補を営業対象から外し、編集中の営業先を残しますか。`)) return;
+        let success = 0;
+        for (const candidate of candidates) {
+          await api('deleteLead', candidate.id);
+          success += 1;
+        }
+        state.activeLeadDuplicateCandidates = [];
+        renderLeadDuplicatePanel(lead, [], false);
+        await loadLeads();
+        message(`重複候補を${formatNumber(success)}件、営業対象から外しました`, 'ok');
+      }
+
+      async function keepExistingLeadFromDuplicatePanel() {
+        const lead = currentLeadFromDialog();
+        if (!lead) return;
+        if (!confirm('既存候補を残し、編集中の営業先を営業対象から外しますか。')) return;
+        await api('deleteLead', lead.id);
+        state.activeLeadDuplicateCandidates = [];
+        clearLeadForm();
+        closeLeadDialog();
+        await refreshAll();
+        message('既存候補を残し、編集中の営業先を営業対象から外しました', 'ok');
       }
 
       function renderLeadHistoryItem(history) {
