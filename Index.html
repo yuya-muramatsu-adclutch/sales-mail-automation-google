@@ -1570,7 +1570,8 @@
       }
 
       .lead-status-control-panel,
-      .lead-meeting-panel {
+      .lead-meeting-panel,
+      .quick-history-section {
         display: grid;
         gap: 12px;
         grid-column: 1 / -1;
@@ -1581,10 +1582,53 @@
       }
 
       .lead-status-control-panel h3,
-      .lead-meeting-panel h3 {
+      .lead-meeting-panel h3,
+      .quick-history-section h3 {
         margin: 0;
         font-size: 14px;
         letter-spacing: 0;
+      }
+
+      .quick-history-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .quick-history-item {
+        display: grid;
+        gap: 6px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        white-space: normal;
+      }
+
+      .quick-history-item div {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .quick-history-item strong,
+      .quick-history-item span,
+      .quick-history-item small {
+        font-size: 12px;
+      }
+
+      .quick-history-item span,
+      .quick-history-item small {
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .quick-history-item p {
+        margin: 0;
+        color: var(--text);
+        font-weight: 800;
+        overflow-wrap: anywhere;
       }
 
       .quick-status-layout {
@@ -3637,6 +3681,7 @@
               </header>
               <div id="leadQuickSummary" class="quick-summary-grid"></div>
               <div class="lead-detail-body">
+                <section id="leadHistoryPanel" class="quick-history-section"></section>
                 <form id="leadForm" class="grid" onsubmit="saveLead(event)">
                   <input type="hidden" id="leadId">
                   <label>会社名<input id="leadCompany" required></label>
@@ -4331,6 +4376,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         editingGenreId: '',
         deleteConfirmGenreId: '',
         editingReasonId: '',
+        activeLeadHistoryLeadId: '',
         dismissedBackgroundJobKeys: [],
         selectedFormLeadId: '',
         selectedLeadIds: [],
@@ -5326,9 +5372,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('meetingMemo').value = lead.meeting_memo || '';
         renderLeadStatusControlPanel(lead);
         renderLeadCalendarMeta(lead);
+        renderLeadHistoryPanel(lead, [], true);
         renderLeadQuickSummary(lead);
         renderLeadCustomFieldsPanel(lead);
         openLeadDialog();
+        loadLeadSendHistoriesForDialog(lead.id);
       }
 
       function clearLeadForm() {
@@ -5339,6 +5387,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('leadId').value = '';
         renderLeadStatusControlPanel(null);
         renderLeadCalendarMeta(null);
+        renderLeadHistoryPanel(null, [], false);
         renderLeadQuickSummary(null);
         renderLeadCustomFieldsPanel(null);
         renderLeadSendTemplateOptions();
@@ -5467,6 +5516,77 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           messageTarget.hidden = true;
           messageTarget.textContent = '';
         }
+      }
+
+      async function loadLeadSendHistoriesForDialog(leadId) {
+        state.activeLeadHistoryLeadId = leadId;
+        try {
+          const result = await api('listLeadSendHistories', leadId, { limit: 20 });
+          if (state.activeLeadHistoryLeadId !== leadId) return;
+          const lead = state.leads.find((item) => item.id === leadId);
+          renderLeadHistoryPanel(lead, result.items || [], false);
+        } catch (error) {
+          if (state.activeLeadHistoryLeadId !== leadId) return;
+          renderLeadHistoryPanel(state.leads.find((item) => item.id === leadId), [], false, error.message || String(error));
+        }
+      }
+
+      function renderLeadHistoryPanel(lead, histories, loading, errorMessage) {
+        const target = document.getElementById('leadHistoryPanel');
+        if (!target) return;
+        if (!lead) {
+          target.innerHTML = `
+            <div class="section-title-row">
+              <h3>送信履歴</h3>
+              <span class="pill info">0回</span>
+            </div>
+            <p class="muted">営業先を選ぶと送信履歴が表示されます。</p>
+          `;
+          return;
+        }
+        if (loading) {
+          target.innerHTML = `
+            <div class="section-title-row">
+              <h3>送信履歴</h3>
+              <span class="pill info">${formatNumber(lead.send_count || 0)}回</span>
+            </div>
+            <p class="muted">送信履歴を読み込んでいます。</p>
+          `;
+          return;
+        }
+        if (errorMessage) {
+          target.innerHTML = `
+            <div class="section-title-row">
+              <h3>送信履歴</h3>
+              <span class="pill warn">確認失敗</span>
+            </div>
+            <p class="form-message">${escapeHtml(errorMessage)}</p>
+          `;
+          return;
+        }
+        target.innerHTML = `
+          <div class="section-title-row">
+            <h3>送信履歴</h3>
+            <span class="pill info">${formatNumber(lead.send_count || histories.length || 0)}回</span>
+          </div>
+          ${histories.length ? `<div class="quick-history-list">${histories.map(renderLeadHistoryItem).join('')}</div>` : '<p class="muted">送信履歴はまだありません。</p>'}
+        `;
+      }
+
+      function renderLeadHistoryItem(history) {
+        const success = history.send_result === '成功';
+        const result = success ? '成功' : `失敗${history.error_message ? `: ${history.error_message}` : ''}`;
+        return `
+          <div class="quick-history-item">
+            <div>
+              <strong>${escapeHtml(dateTimeLabel(history.sent_at || history.created_at) || '-')}</strong>
+              <span>${escapeHtml(history.send_type || '-')}</span>
+            </div>
+            <p>${escapeHtml(history.subject || '-')}</p>
+            <small>${escapeHtml(result)}</small>
+            ${history.body ? `<details class="history-detail"><summary>本文を見る</summary><pre>${escapeHtml(history.body)}</pre></details>` : ''}
+          </div>
+        `;
       }
 
       function renderLeadCustomFieldsPanel(lead) {

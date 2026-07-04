@@ -132,6 +132,26 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
   return { ok: true };
 }
 
+function listLeadSendHistories(leadId, options) {
+  const recordId = requireId_(leadId);
+  const query = options && typeof options === 'object' ? options : {};
+  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
+  const histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'))
+    .filter(function (history) {
+      return String(history.lead_id || '') === recordId;
+    })
+    .sort(function (a, b) {
+      return String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || ''));
+    })
+    .slice(0, limit);
+
+  return {
+    leadId: recordId,
+    total: histories.length,
+    items: histories,
+  };
+}
+
 function updateLeadAfterSend_(leadId, patch) {
   const spreadsheet = getOrCreateSpreadsheet_();
   const sheet = ensureSheet_(spreadsheet, 'leads');

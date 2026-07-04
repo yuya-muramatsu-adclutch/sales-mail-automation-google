@@ -35,6 +35,7 @@
 - `components/TemplateTagMenu.tsx`, `components/TemplateActions.tsx`, `components/TemplateCreateForm.tsx`: テンプレート差し込みタグ、テンプレートサンプル、作成/編集フォーム
 - `components/GenreManager.tsx`, `components/ReasonMasterManager.tsx`: 管理画面のジャンル追加/編集/削除、送信NG/失注/対応不要理由の追加/編集/有効無効管理
 - `components/LeadEditForm.tsx`, `components/MeetingScheduleForm.tsx`: リード詳細のステータス編集、送信NG理由/メモ、フォーム対応、商談ステータス、Calendar登録、Meetリンク表示
+- `components/QuickLeadEditButton.tsx`: 営業リスト上の履歴・編集ダイアログ、送信履歴カード、本文詳細、フォーム送信履歴の見せ方
 - `app/api/display-settings/route.ts`, `app/api/custom-fields/route.ts`, `supabase/schema.sql`: `list_view_settings` / `custom_field_definitions` の保存APIとスキーマ
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
@@ -75,6 +76,7 @@
 - 管理に旧 `ReasonMasterManager` 相当の選択肢管理を追加し、送信NG理由、失注理由、対応不要理由、辞退理由の追加、テーブル内編集、有効/無効切替を `reasons` シートへ保存できるようにした。
 - リード詳細ドロワーに旧 `LeadEditForm` の「対応ステータス」セクションを追加し、自動ステータス説明、手動ステータス選択、フォーム対応、送信NG理由/メモ、商談ステータス、辞退理由を同じ流れで編集できるようにした。
 - リード詳細ドロワーのカレンダー枠を旧 `MeetingScheduleForm` に寄せ、開始/終了日時、場所、商談メモ、Google Calendar登録ボタン、Meetリンク表示の構成へ変更した。
+- リード詳細ドロワーに旧 `QuickLeadEditButton` の送信履歴セクションを追加し、ダイアログ内で送信日時、送信種別、件名、成功/失敗、本文詳細を確認できるようにした。
 
 ## GAS版へ反映した機能
 
@@ -87,6 +89,7 @@
 - `custom_field_definitions` と `list_view_settings` をSheets DBへ追加し、旧Supabase版のカスタム項目/表示項目設定をUUID付き行として保持。
 - `genres` / `reasons` に管理画面からの追加・更新・無効化APIを追加し、旧アプリのマスター管理操作をSheets DB上で再現。
 - リード保存時に `form_status`, `send_ng_reason`, `send_ng_memo`, `decline_reason` も更新できるようにし、旧アプリの詳細編集で扱っていたステータス補足情報をSheets DBへ反映。
+- `listLeadSendHistories()` を追加し、旧 `/api/leads/[id]/send-histories` 相当としてリード単位の送信履歴を新しい順に取得できるようにした。
 - `Email.gs` のテンプレート置換を日本語タグとカスタム項目に対応させ、`{{会社名}}`, `{{担当者名}}`, `{{WEBサイトURL}}`, `{{差出人名}}`, `{{カスタム項目キー}}` を送信時にも置換できるようにした。
 
 ## そのまま移植しないもの

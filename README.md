@@ -41,6 +41,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `ProspectingCollectionTool` / `AutoProspectingSettingsPanel` / `ProspectingBatchPanel` / `ExclusionSearchPanel` / `CareFacilityFileProspectingPanel` / `SourcePageProspectingPanel` に寄せた営業リスト収集ツール内5モードUI
 - 旧Next/Supabase版の `GenreManager` / `ReasonMasterManager` に寄せた管理画面のジャンル管理、選択肢管理UI
 - 旧Next/Supabase版の `LeadEditForm` / `MeetingScheduleForm` に寄せたリード詳細のステータス、送信NG理由、商談/Calendar登録UI
+- 旧Next/Supabase版の `QuickLeadEditButton` に寄せたリード詳細内の送信履歴カード
 
 ## ファイル
 
@@ -71,7 +72,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @26 / code v27: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @27 / code v28: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -129,6 +130,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Version 25は `clasp deploy -V 25 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `genreManagerPanel`, `reasonMasterManagerPanel`, `saveGenreFromForm`, `saveReasonFromForm` を確認済み
 - Apps Script code v27で旧Next/Supabase版の `LeadEditForm` / `MeetingScheduleForm` に寄せ、リード詳細ドロワーへ自動ステータス説明、送信NG理由/メモ、フォーム対応、辞退理由、商談ステータス、Calendar登録/MeetリンクUIを追加済み
 - Version 26は `clasp deploy -V 26 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `leadStatusControlPanel`, `renderLeadStatusControlPanel`, `meeting-form`, `leadMeetLink` を確認済み
+- Apps Script code v28で旧Next/Supabase版の `QuickLeadEditButton` に寄せ、リード詳細ドロワーへ送信履歴カード、本文詳細、リード別送信履歴取得APIを追加済み
+- Version 27は `clasp deploy -V 27 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `leadHistoryPanel`, `quick-history-section`, `listLeadSendHistories` を確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 
