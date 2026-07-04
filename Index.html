@@ -1373,7 +1373,10 @@
       .preview-grid,
       .template-test-settings-grid,
       .admin-check-summary,
-      .job-result-contact-grid {
+      .job-result-contact-grid,
+      .automation-settings-grid,
+      .duplicate-summary-grid,
+      .error-detail-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 10px;
@@ -1384,7 +1387,10 @@
       .send-check-card,
       .admin-check-summary > div,
       .mail-send-lock-panel,
-      .job-result-card {
+      .job-result-card,
+      .automation-setting-card,
+      .duplicate-group-card,
+      .error-detail-card {
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fff;
@@ -1549,6 +1555,103 @@
         border: 1px dashed var(--line-strong);
         border-radius: 8px;
         background: #f8fafc;
+      }
+
+      .automation-setting-card,
+      .duplicate-group-card,
+      .error-detail-card {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .automation-setting-card header,
+      .duplicate-group-header,
+      .error-detail-card header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .automation-setting-card h3,
+      .duplicate-group-card h3,
+      .error-detail-card h3 {
+        margin: 0;
+        color: var(--ink);
+        font-size: 15px;
+      }
+
+      .setting-inline-controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 10px;
+      }
+
+      .setting-inline-controls label,
+      .check-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .check-row input {
+        width: auto;
+      }
+
+      .duplicate-summary-grid span,
+      .error-detail-grid span {
+        display: grid;
+        gap: 3px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .duplicate-summary-grid small,
+      .error-detail-grid small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .duplicate-summary-grid strong,
+      .error-detail-grid strong {
+        color: var(--ink);
+        font-size: 18px;
+      }
+
+      .duplicate-group-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .duplicate-keep-box,
+      .duplicate-delete-list {
+        display: grid;
+        gap: 5px;
+        padding: 10px;
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .duplicate-delete-list span {
+        display: grid;
+        gap: 2px;
+        padding: 8px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .duplicate-delete-list span:first-of-type {
+        border-top: 0;
+      }
+
+      .duplicate-delete-list em {
+        color: var(--muted);
+        font-size: 12px;
+        font-style: normal;
       }
 
       .template-sender-banner,
@@ -3088,6 +3191,9 @@ PropertiesService
           <section id="adminReadinessPanel" class="ops-readiness-panel"></section>
           <div class="grid">
             <section id="googleCredentialSummaryPanel" class="panel stack"></section>
+            <section id="adminAutomationSettingsPanel" class="panel stack"></section>
+            <section id="duplicateLeadManagerPanel" class="panel stack"></section>
+            <section id="adminErrorDetailsPanel" class="panel stack"></section>
             <section class="panel stack">
               <h2>運用アクション</h2>
               <button type="button" onclick="installTriggers()">定期トリガー作成</button>
@@ -3211,6 +3317,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         selectedTemplateTestLeadId: '',
         jobResultCategory: 'all',
         dismissedSearchResultIds: [],
+        duplicateGroups: [],
+        duplicateSummary: null,
+        duplicateLoading: false,
         selectedFormLeadId: '',
         selectedLeadIds: [],
         searchResults: [],
@@ -4878,6 +4987,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderGmailConnectionCheckPanel();
         renderMailSendLockPanel();
         renderGoogleCredentialSummaryPanel();
+        renderAdminAutomationSettingsPanel();
+        renderDuplicateLeadManagerPanel();
+        renderAdminErrorDetailsPanel();
       }
 
       function statCard(label, value, detail, tone) {
@@ -5419,6 +5531,352 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             </div>
             <button type="button" onclick="showTab('gmail')">Gmail連携</button>
           </div>
+        `;
+      }
+
+      function getClientSetting(key, fallback) {
+        const setting = (state.settings || []).find((item) => item.key === key);
+        if (!setting) return fallback;
+        if (setting.value_type === 'number') {
+          const value = Number(setting.value);
+          return Number.isFinite(value) ? value : fallback;
+        }
+        if (setting.value_type === 'boolean') return normalizeBooleanLike(setting.value);
+        if (setting.value_type === 'json') {
+          try {
+            return JSON.parse(String(setting.value || '{}'));
+          } catch (error) {
+            return fallback;
+          }
+        }
+        return setting.value === '' || setting.value === undefined || setting.value === null ? fallback : setting.value;
+      }
+
+      function renderAdminAutomationSettingsPanel() {
+        const target = document.getElementById('adminAutomationSettingsPanel');
+        if (!target) return;
+        const dashboard = state.dashboard || {};
+        const sendWindow = getClientSetting('email_send_window', { enabled: true, start: '07:00', end: '08:00', timezone: 'Asia/Tokyo' }) || {};
+        const replyCheck = getClientSetting('gmail_reply_check', { enabled: false, maxThreads: 200 }) || {};
+        const emailDiscovery = getClientSetting('email_discovery', { enabled: false, scheduleLabel: '03:00', skipRecentDays: 30 }) || {};
+        const batchBudget = Number(getClientSetting('batch_runtime_budget_ms', 300000)) || 300000;
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>自動運用設定</h2>
+              <p class="muted">旧管理画面の自動送信時間、返信チェック、メール自動取得、バックグラウンド実行をGAS版の設定に読み替えています。</p>
+            </div>
+            <span class="pill ${dashboard.triggerCount > 0 ? 'good' : 'warn'}">Trigger ${formatNumber(dashboard.triggerCount || 0)}件</span>
+          </div>
+          <div class="automation-settings-grid">
+            <article class="automation-setting-card">
+              <header>
+                <div><h3>自動送信時間</h3><p class="muted">手動の1件送信ではなく、まとめ送信時の安全窓です。</p></div>
+                <span class="pill ${sendWindow.enabled !== false ? 'good' : 'warn'}">${sendWindow.enabled !== false ? 'ON' : 'OFF'}</span>
+              </header>
+              <label class="check-row"><input id="adminSendWindowEnabled" type="checkbox" ${sendWindow.enabled !== false ? 'checked' : ''}><span>この時間帯だけ自動送信を許可する</span></label>
+              <div class="setting-inline-controls">
+                <label>開始<input id="adminSendWindowStart" type="time" value="${escapeHtml(sendWindow.start || '07:00')}"></label>
+                <label>終了<input id="adminSendWindowEnd" type="time" value="${escapeHtml(sendWindow.end || '08:00')}"></label>
+                <label>タイムゾーン<select id="adminSendWindowTimezone"><option value="Asia/Tokyo" ${String(sendWindow.timezone || 'Asia/Tokyo') === 'Asia/Tokyo' ? 'selected' : ''}>Asia/Tokyo</option><option value="UTC" ${sendWindow.timezone === 'UTC' ? 'selected' : ''}>UTC</option></select></label>
+              </div>
+              <button type="button" onclick="saveSendWindowSetting()">保存する</button>
+            </article>
+            <article class="automation-setting-card">
+              <header>
+                <div><h3>Gmail返信自動チェック</h3><p class="muted">時間主導トリガーで返信確認を回す設定です。</p></div>
+                <span class="pill ${replyCheck.enabled ? 'good' : 'info'}">${replyCheck.enabled ? 'ON' : 'OFF'}</span>
+              </header>
+              <label class="check-row"><input id="adminReplyCheckEnabled" type="checkbox" ${replyCheck.enabled ? 'checked' : ''}><span>返信自動チェックを有効にする</span></label>
+              <label>最大スレッド数<input id="adminReplyCheckMaxThreads" type="number" min="1" max="500" value="${escapeHtml(replyCheck.maxThreads || 200)}"></label>
+              <button type="button" onclick="saveReplyCheckSetting()">保存する</button>
+            </article>
+            <article class="automation-setting-card">
+              <header>
+                <div><h3>メール自動取得</h3><p class="muted">既存リストのWEBサイト/フォームURL確認ジョブをGASの分割処理で進めます。</p></div>
+                <span class="pill ${emailDiscovery.enabled ? 'good' : 'info'}">${emailDiscovery.enabled ? 'ON' : 'OFF'}</span>
+              </header>
+              <label class="check-row"><input id="adminEmailDiscoveryEnabled" type="checkbox" ${emailDiscovery.enabled ? 'checked' : ''}><span>メール/フォーム自動取得を有効にする</span></label>
+              <div class="setting-inline-controls">
+                <label>実行目安<input id="adminEmailDiscoverySchedule" value="${escapeHtml(emailDiscovery.scheduleLabel || '03:00')}"></label>
+                <label>直近スキップ日数<input id="adminEmailDiscoverySkipDays" type="number" min="0" max="365" value="${escapeHtml(emailDiscovery.skipRecentDays || 30)}"></label>
+              </div>
+              <button type="button" onclick="saveEmailDiscoverySetting()">保存する</button>
+            </article>
+            <article class="automation-setting-card">
+              <header>
+                <div><h3>バックグラウンド実行</h3><p class="muted">Apps Scriptの6分制限に近づく前に中断・再開する実行予算です。</p></div>
+                <span class="pill info">${formatNumber(Math.round(batchBudget / 1000))}秒</span>
+              </header>
+              <label>1回の最大実行時間（ms）<input id="adminBatchRuntimeBudget" type="number" min="10000" max="330000" step="1000" value="${escapeHtml(batchBudget)}"></label>
+              <div class="toolbar">
+                <button type="button" onclick="saveBatchRuntimeSetting()">実行予算を保存</button>
+                <button type="button" onclick="installTriggers()">定期トリガー作成</button>
+              </div>
+            </article>
+          </div>
+        `;
+      }
+
+      async function saveSendWindowSetting() {
+        const value = {
+          enabled: document.getElementById('adminSendWindowEnabled').checked,
+          start: document.getElementById('adminSendWindowStart').value || '07:00',
+          end: document.getElementById('adminSendWindowEnd').value || '08:00',
+          timezone: document.getElementById('adminSendWindowTimezone').value || 'Asia/Tokyo',
+        };
+        await api('setSettingValue', 'email_send_window', value, 'json', 'Default send window ported from the existing app.');
+        message('自動送信時間を保存しました', 'ok');
+        await refreshAll();
+      }
+
+      async function saveReplyCheckSetting() {
+        const value = {
+          enabled: document.getElementById('adminReplyCheckEnabled').checked,
+          maxThreads: Math.min(Math.max(Number(document.getElementById('adminReplyCheckMaxThreads').value) || 200, 1), 500),
+        };
+        await api('setSettingValue', 'gmail_reply_check', value, 'json', 'Reply check setting ported from the existing app.');
+        message('Gmail返信自動チェック設定を保存しました', 'ok');
+        await refreshAll();
+      }
+
+      async function saveEmailDiscoverySetting() {
+        const value = {
+          enabled: document.getElementById('adminEmailDiscoveryEnabled').checked,
+          scheduleLabel: document.getElementById('adminEmailDiscoverySchedule').value || '03:00',
+          skipRecentDays: Math.max(Number(document.getElementById('adminEmailDiscoverySkipDays').value) || 0, 0),
+        };
+        await api('setSettingValue', 'email_discovery', value, 'json', 'Email discovery setting ported from the existing app.');
+        message('メール自動取得設定を保存しました', 'ok');
+        await refreshAll();
+      }
+
+      async function saveBatchRuntimeSetting() {
+        const value = Math.min(Math.max(Number(document.getElementById('adminBatchRuntimeBudget').value) || 300000, 10000), 330000);
+        await api('setSettingValue', 'batch_runtime_budget_ms', value, 'number', 'Maximum runtime budget per batch. Apps Script hard limit is 6 minutes.');
+        message('バックグラウンド実行予算を保存しました', 'ok');
+        await refreshAll();
+      }
+
+      function renderDuplicateLeadManagerPanel() {
+        const target = document.getElementById('duplicateLeadManagerPanel');
+        if (!target) return;
+        const summary = state.duplicateSummary || { groupCount: 0, duplicateCount: 0, checkedCount: 0 };
+        const groups = state.duplicateGroups || [];
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>重複リスト管理</h2>
+              <p class="muted">会社名、メールアドレス、ドメインのどれかが一致する営業先を確認します。</p>
+            </div>
+            <button type="button" onclick="loadDuplicateCandidates()" ${state.duplicateLoading ? 'disabled' : ''}>${state.duplicateLoading ? '確認中' : '重複チェック'}</button>
+          </div>
+          <div class="duplicate-summary-grid">
+            <span><small>確認済み営業先</small><strong>${formatNumber(summary.checkedCount || 0)}件</strong></span>
+            <span><small>重複グループ</small><strong>${formatNumber(summary.groupCount || 0)}件</strong></span>
+            <span><small>削除候補</small><strong>${formatNumber(summary.duplicateCount || 0)}件</strong></span>
+          </div>
+          ${!summary.checkedCount ? '<div class="empty-state"><strong>未チェック</strong><p class="muted">重複チェックを押すと、営業リスト全件を読み込んで候補を表示します。</p></div>' : ''}
+          ${summary.checkedCount && groups.length === 0 ? '<div class="empty-state"><strong>重複リストは見つかりませんでした</strong><p class="muted">会社名、メール、ドメインで重複候補はありません。</p></div>' : ''}
+          ${groups.length ? `<div class="toolbar"><button type="button" class="danger" onclick="archiveAllDuplicateCandidates()">重複を一括削除</button><span class="muted">表示中の候補だけを対象にします</span></div>` : ''}
+          <div class="duplicate-group-list">
+            ${groups.slice(0, 12).map(renderDuplicateGroupCard).join('')}
+          </div>
+        `;
+      }
+
+      function renderDuplicateGroupCard(group) {
+        return `
+          <article class="duplicate-group-card">
+            <div class="duplicate-group-header">
+              <div>
+                <h3>${escapeHtml(group.reasonLabels.join('・'))} が一致</h3>
+                <p class="muted">${formatNumber(group.duplicateLeads.length)}件を削除候補として検出しました。</p>
+              </div>
+              <button type="button" class="danger" onclick="archiveDuplicateGroup('${escapeJsString(group.id)}')">この重複を削除</button>
+            </div>
+            <div class="duplicate-keep-box">
+              <small class="muted">残す営業先</small>
+              <strong>${escapeHtml(leadNameClient(group.keepLead))}</strong>
+              <span>${escapeHtml(leadMetaClient(group.keepLead) || '詳細情報なし')}</span>
+            </div>
+            <div class="duplicate-delete-list">
+              <small class="muted">削除候補</small>
+              ${group.duplicateLeads.map((lead) => `<span><strong>${escapeHtml(leadNameClient(lead))}</strong><em>${escapeHtml(leadMetaClient(lead) || '詳細情報なし')}</em></span>`).join('')}
+            </div>
+          </article>
+        `;
+      }
+
+      async function loadDuplicateCandidates() {
+        state.duplicateLoading = true;
+        renderDuplicateLeadManagerPanel();
+        try {
+          const leads = [];
+          let offset = 0;
+          const limit = 2000;
+          let total = 0;
+          do {
+            const page = await api('listLeads', { limit, offset, includeArchived: false });
+            leads.push(...(page.items || []));
+            total = page.total || leads.length;
+            offset += limit;
+          } while (leads.length < total && offset < 12000);
+          const groups = buildDuplicateGroupsClient(leads);
+          const duplicateCount = groups.reduce((count, group) => count + group.duplicateLeads.length, 0);
+          state.duplicateGroups = groups;
+          state.duplicateSummary = {
+            checkedCount: leads.length,
+            duplicateCount,
+            groupCount: groups.length,
+          };
+          message(`重複チェック: ${formatNumber(groups.length)}グループ / ${formatNumber(duplicateCount)}件`, groups.length ? 'error' : 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        } finally {
+          state.duplicateLoading = false;
+          renderDuplicateLeadManagerPanel();
+        }
+      }
+
+      function buildDuplicateGroupsClient(leads) {
+        const buckets = new Map();
+        leads.forEach((lead) => {
+          duplicateKeysForLead(lead).forEach((key) => {
+            if (!buckets.has(key)) buckets.set(key, []);
+            buckets.get(key).push(lead);
+          });
+        });
+        const groups = [];
+        const seen = new Set();
+        buckets.forEach((items, key) => {
+          const uniqueItems = Array.from(new Map(items.map((lead) => [lead.id, lead])).values());
+          if (uniqueItems.length < 2) return;
+          const keepLead = uniqueItems.slice().sort((a, b) => duplicateLeadScore(b) - duplicateLeadScore(a))[0];
+          const duplicateLeads = uniqueItems.filter((lead) => lead.id !== keepLead.id);
+          const signature = duplicateLeads.map((lead) => lead.id).sort().join('|');
+          if (seen.has(signature)) return;
+          seen.add(signature);
+          groups.push({
+            id: key.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80),
+            reasonLabels: duplicateReasonLabels(key),
+            keepLead,
+            duplicateLeads,
+          });
+        });
+        return groups.sort((a, b) => b.duplicateLeads.length - a.duplicateLeads.length).slice(0, 50);
+      }
+
+      function duplicateKeysForLead(lead) {
+        const keys = [];
+        const email = String(lead.email || '').trim().toLowerCase();
+        const company = normalizeDuplicateText(lead.normalized_company_name || lead.company_name || lead.facility_name || '');
+        const domain = normalizeDuplicateText(lead.website_domain || lead.email_domain || domainFromUrlClient(lead.website_url) || domainFromUrlClient(lead.form_url) || '');
+        if (email && email.includes('@')) keys.push('email:' + email);
+        if (domain) keys.push('domain:' + domain);
+        if (company && domain) keys.push('company_domain:' + company + ':' + domain);
+        else if (company && company.length >= 4) keys.push('company:' + company);
+        return Array.from(new Set(keys));
+      }
+
+      function duplicateReasonLabels(key) {
+        const labels = [];
+        if (key.indexOf('email:') === 0) labels.push('メール');
+        if (key.indexOf('domain:') === 0 || key.indexOf('company_domain:') === 0) labels.push('ドメイン');
+        if (key.indexOf('company:') === 0 || key.indexOf('company_domain:') === 0) labels.push('会社名');
+        return labels.length ? labels : ['重複候補'];
+      }
+
+      function duplicateLeadScore(lead) {
+        return [
+          lead.email,
+          lead.website_url,
+          lead.form_url,
+          lead.phone,
+          lead.address,
+          lead.notes,
+        ].filter(Boolean).length * 10 + Number(lead.send_count || 0);
+      }
+
+      async function archiveDuplicateGroup(groupId) {
+        const group = (state.duplicateGroups || []).find((item) => item.id === groupId);
+        if (!group) return;
+        if (!confirm(`${group.duplicateLeads.length}件の重複候補を対応不要にしますか。残す営業先は変更しません。`)) return;
+        let success = 0;
+        for (const lead of group.duplicateLeads) {
+          await api('deleteLead', lead.id);
+          success += 1;
+        }
+        message(`重複候補を${formatNumber(success)}件対応不要にしました`, 'ok');
+        state.duplicateGroups = state.duplicateGroups.filter((item) => item.id !== groupId);
+        renderDuplicateLeadManagerPanel();
+        await loadLeads();
+      }
+
+      async function archiveAllDuplicateCandidates() {
+        const ids = Array.from(new Set((state.duplicateGroups || []).flatMap((group) => group.duplicateLeads.map((lead) => lead.id))));
+        if (!ids.length) return;
+        if (!confirm(`${ids.length}件の重複候補を対応不要にしますか。表示中の候補だけを対象にします。`)) return;
+        let success = 0;
+        for (const id of ids) {
+          await api('deleteLead', id);
+          success += 1;
+        }
+        message(`重複候補を${formatNumber(success)}件対応不要にしました`, 'ok');
+        state.duplicateGroups = [];
+        state.duplicateSummary = Object.assign({}, state.duplicateSummary, { duplicateCount: 0, groupCount: 0 });
+        renderDuplicateLeadManagerPanel();
+        await loadLeads();
+      }
+
+      function leadNameClient(lead) {
+        return lead.company_name || lead.facility_name || lead.email || lead.website_url || lead.form_url || '名称未入力';
+      }
+
+      function leadMetaClient(lead) {
+        return [lead.facility_name, lead.email, lead.website_url ? 'WEBサイトあり' : '', `${formatNumber(lead.send_count || 0)}回送信`].filter(Boolean).join(' / ');
+      }
+
+      function normalizeDuplicateText(value) {
+        return String(value || '').toLowerCase().replace(/[ \t\n\r　]+/g, '').replace(/[・･.,，．、。'"“”‘’()（）[\]【】\-ー_／/]/g, '').trim();
+      }
+
+      function domainFromUrlClient(value) {
+        const text = String(value || '').trim();
+        if (!text) return '';
+        try {
+          const url = new URL(/^https?:\/\//i.test(text) ? text : 'https:' + String.fromCharCode(47, 47) + text);
+          return url.hostname.replace(/^www\./, '').toLowerCase();
+        } catch (error) {
+          return '';
+        }
+      }
+
+      function renderAdminErrorDetailsPanel() {
+        const target = document.getElementById('adminErrorDetailsPanel');
+        if (!target) return;
+        const today = new Date().toISOString().slice(0, 10);
+        const logs = (state.syncLogs || []).filter((log) => ['error', 'warn'].includes(String(log.level || '').toLowerCase()));
+        const todayLogs = logs.filter((log) => String(log.created_at || '').slice(0, 10) === today);
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>エラー詳細</h2>
+              <p class="muted">旧エラー詳細ページの最近のエラー内容を、GAS版では sync_logs から表示します。</p>
+            </div>
+            <span class="pill ${logs.length ? 'warn' : 'good'}">${logs.length ? '要確認' : 'エラーなし'}</span>
+          </div>
+          <div class="error-detail-grid">
+            <span><small>本日のエラー発生数</small><strong>${formatNumber(todayLogs.length)}件</strong></span>
+            <span><small>最近の要確認ログ</small><strong>${formatNumber(logs.length)}件</strong></span>
+            <span><small>監視対象</small><strong>sync_logs</strong></span>
+          </div>
+          <div class="table-wrap"><table>${table(['日時', '種別', '内容', '詳細'], logs.slice(0, 12).map((log) => row([
+            ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
+            ['種別', statusPill(log.level || 'warn')],
+            ['内容', escapeHtml(log.operation || log.event_type || '-')],
+            ['詳細', escapeHtml(log.message || log.stack || log.context_json || '-')],
+          ])).join(''))}</table></div>
         `;
       }
 

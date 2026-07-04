@@ -26,6 +26,8 @@
 - `components/TemplateTestRecipientManager.tsx`: テスト送信先の現在値、営業リストからの宛先選択、保存導線
 - `components/JobResultsReviewTable.tsx`: 検索ジョブ結果のカテゴリ別レビュー、確認済み操作、メール/フォーム/URLの根拠表示
 - `components/GmailConnectionCheck.tsx`, `components/GoogleCredentialsManager.tsx`, `components/MailSendLockPanel.tsx`: Gmail連携テスト、Google認証状態、送信ロック、本番前チェックの見せ方
+- `components/SendWindowSettingsForm.tsx`, `components/GmailReplyCheckSettingsForm.tsx`, `components/EmailDiscoverySettingsForm.tsx`, `components/BackgroundWorkerSettingsForm.tsx`: 自動送信時間、返信自動チェック、メール自動取得、重い処理の設定UI
+- `components/DuplicateLeadManager.tsx`, `app/errors/page.tsx`: 重複リスト管理、エラー詳細の運用UI
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
 ## GAS版へ反映したUI
@@ -49,6 +51,9 @@
 - 営業リスト収集ツールに旧 `JobResultsReviewTable` の結果一覧、結果カテゴリ、確認済み操作、メール/フォーム/URLの根拠表示を追加。
 - Gmail連携に旧 `GmailConnectionCheck` と `MailSendLockPanel` の連携テスト、必要権限、送信ロック状態を追加。
 - 管理に旧 `GoogleCredentialsManager` のGoogle/Gmail APIキー管理、OAuth/Refresh Token/送信元の状態表示をApps Script承認モデルへ読み替えて追加。
+- 管理に旧 `SendWindowSettingsForm`, `GmailReplyCheckSettingsForm`, `EmailDiscoverySettingsForm`, `BackgroundWorkerSettingsForm` の自動運用設定を追加し、GAS版では `settings` シート、時間主導トリガー、`batch_runtime_budget_ms` に読み替えた。
+- 管理に旧 `DuplicateLeadManager` の重複チェックUIを追加し、全営業リストをページ取得して会社名/メール/ドメイン一致を表示できるようにした。
+- 管理に旧 `errors/page.tsx` のエラー詳細を追加し、GAS版では `sync_logs` の warn/error を表示するようにした。
 
 ## GAS版へ反映した機能
 
@@ -70,3 +75,4 @@
 - 旧アプリのメール本文プレビューで使っているテンプレート変数の詳細説明と差分ハイライト。
 - 検索結果レビューから営業リストへ新規追加する確定フロー。
 - Gmail連携での実テストメール送信履歴と失敗理由の詳細表示。
+- 営業リストの表示項目設定とカスタム項目定義。

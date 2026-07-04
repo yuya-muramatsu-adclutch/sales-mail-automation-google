@@ -31,6 +31,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版のテンプレート、送信NG/除外、フォーム送信、営業リスト収集、管理/運用メニューに寄せたパネル、集計、履歴テーブル
 - 旧Next/Supabase版のサイドバー構成に寄せた `バックグラウンド進捗` / `メール送信リスト` / `送信プレビュー` / `送信履歴` / `商談` / `分析` / `同期` / `Gmail連携` / `管理` タブ
 - 旧Next/Supabase版の送信プレビュー、検索結果レビュー、Gmail連携テスト、送信ロック、Google認証管理に寄せた詳細パネル
+- 旧Next/Supabase版の管理画面に寄せた自動運用設定、重複リスト管理、エラー詳細パネル
 
 ## ファイル
 
@@ -61,7 +62,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment v18: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment v19: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -102,6 +103,9 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - v18で旧Next/Supabase版の `EmailPreviewPanel`, `TemplateTestRecipientManager`, `JobResultsReviewTable`, `GmailConnectionCheck`, `MailSendLockPanel`, `GoogleCredentialsManager` に寄せた詳細UIを追加済み
 - v18 Web app `doPost` 経由の `getAppInfo` / `getInitialData` でバージョン `20260704_apps_script_full_workflow_v18_preview_review_gmail_ui`、`leadsTotal=5441`、`sendTargets=2016`、`formTargets=1161` を確認済み
 - v18 Chrome確認で `送信プレビュー`, `営業リスト収集ツール`, `Gmail連携`, `管理` タブをクリックし、差し込みプレビュー、検索結果カテゴリ、Gmail連携テスト、送信ロック、Google/Gmail APIキー管理の表示を確認済み
+- v19で旧Next/Supabase版の `SendWindowSettingsForm`, `GmailReplyCheckSettingsForm`, `EmailDiscoverySettingsForm`, `BackgroundWorkerSettingsForm`, `DuplicateLeadManager`, `errors/page.tsx` に寄せた管理UIを追加済み
+- v19 Web app `doPost` 経由の `getAppInfo` / `getInitialData` でバージョン `20260704_apps_script_full_workflow_v19_admin_settings_ui`、`leadsTotal=5441`、`settings=9` を確認済み
+- v19 Chrome確認で管理タブの `自動運用設定`, `重複リスト管理`, `エラー詳細` を確認し、重複チェックが全5,441件から22グループ/22件を検出することを確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 
@@ -214,6 +218,7 @@ Web appの `doPost` は次の形のJSONを受け付けます。
 - `app/globals.css` / `components/AppFrame.tsx` / `app/leads/page.tsx`: サイドバー、パネル、テーブル、ステータスPill、営業リスト画面のUIトーン
 - `app/page.tsx` / `components/LeadQuickViews.tsx` / `components/ListSearchFilters.tsx` / `components/LeadStatusLegend.tsx` / `app/forms/page.tsx` / `app/prospecting/page.tsx` / `app/templates/page.tsx` / `app/ng-master/page.tsx` / `app/exclusions/page.tsx` / `app/background-jobs/page.tsx` / `app/admin/page.tsx`: ダッシュボード、クイックビュー、フォーム送信、Serper収集、テンプレート、NG/除外、運用画面の情報設計
 - `components/EmailPreviewPanel.tsx` / `components/TemplateTestRecipientManager.tsx` / `components/JobResultsReviewTable.tsx` / `components/GmailConnectionCheck.tsx` / `components/GoogleCredentialsManager.tsx` / `components/MailSendLockPanel.tsx`: 送信前確認、テスト送信先、検索結果レビュー、Gmail/Google認証状態、送信ロックのUI構成
+- `components/SendWindowSettingsForm.tsx` / `components/BackgroundWorkerSettingsForm.tsx` / `components/DuplicateLeadManager.tsx` / `app/errors/page.tsx`: 自動運用設定、重複リスト管理、エラー詳細のUI構成
 
 持ち込まないもの:
 
