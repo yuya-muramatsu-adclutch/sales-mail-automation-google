@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @27 / code v28: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @28 / code v29: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v28_quick_history_panel`
+- Code version: `20260705_apps_script_full_workflow_v29_form_history_panel`
 
 ## 計画書との対応
 
@@ -55,6 +55,7 @@
 | 旧アプリ管理マスター反映 | 完了 | 旧 `GenreManager` / `ReasonMasterManager` に合わせ、code v26でジャンル管理、選択肢管理、追加/編集/削除確認/有効無効操作を管理画面へ反映 |
 | 旧アプリリード詳細反映 | 完了 | 旧 `LeadEditForm` / `MeetingScheduleForm` に合わせ、code v27で対応ステータス、送信NG理由/メモ、フォーム対応、辞退理由、商談ステータス、Calendar登録/Meet導線をリード詳細ドロワーへ反映 |
 | 旧アプリクイック履歴反映 | 完了 | 旧 `QuickLeadEditButton` に合わせ、code v28でリード詳細ドロワー内の送信履歴カード、本文詳細、リード別履歴取得APIを反映 |
+| 旧アプリフォーム履歴反映 | 完了 | 旧 `QuickLeadEditButton` に合わせ、code v29でリード詳細ドロワー内のフォーム送信履歴、最新送信/状態サマリー、本文コピー導線を反映 |
 
 ## 検証済み
 
@@ -173,6 +174,9 @@
 - `clasp push -f` 成功、`clasp version "apps-script-full-workflow-v28-quick-history-panel"` でVersion 27作成済み
 - 既存Web app URLを `clasp deploy -V 27 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 27へ再デプロイ済み
 - code v28ローカルスモークで `leadHistoryPanel`, `quick-history-section`, `quick-history-item`, `loadLeadSendHistoriesForDialog`, `renderLeadHistoryPanel`, `listLeadSendHistories` が含まれることを確認
+- `clasp push -f` 成功、`clasp version "apps-script-full-workflow-v29-form-history-panel"` でVersion 28作成済み
+- 既存Web app URLを `clasp deploy -V 28 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 28へ再デプロイ済み
+- code v29ローカルスモークで `leadFormHistoryPanel`, `quick-form-history-summary`, `formHistoryItemsClient`, `copyLeadFormHistoryBody` が含まれることを確認
 - `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 
 ## 運用時に確認する外部依存

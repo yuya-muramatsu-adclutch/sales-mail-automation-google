@@ -77,6 +77,7 @@
 - リード詳細ドロワーに旧 `LeadEditForm` の「対応ステータス」セクションを追加し、自動ステータス説明、手動ステータス選択、フォーム対応、送信NG理由/メモ、商談ステータス、辞退理由を同じ流れで編集できるようにした。
 - リード詳細ドロワーのカレンダー枠を旧 `MeetingScheduleForm` に寄せ、開始/終了日時、場所、商談メモ、Google Calendar登録ボタン、Meetリンク表示の構成へ変更した。
 - リード詳細ドロワーに旧 `QuickLeadEditButton` の送信履歴セクションを追加し、ダイアログ内で送信日時、送信種別、件名、成功/失敗、本文詳細を確認できるようにした。
+- リード詳細ドロワーに旧 `QuickLeadEditButton` のフォーム送信履歴セクションを追加し、`custom_fields_json` の `form_send_events`, `last_form_sent_at`, `form_send_count`, `last_form_body` から最新送信、状態、本文プレビュー、本文コピーを表示できるようにした。
 
 ## GAS版へ反映した機能
 

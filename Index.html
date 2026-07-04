@@ -1631,6 +1631,35 @@
         overflow-wrap: anywhere;
       }
 
+      .quick-form-history-summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .quick-form-history-summary span {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .quick-form-history-summary strong {
+        color: var(--text);
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+
+      .form-history-actions {
+        justify-content: flex-start !important;
+      }
+
       .quick-status-layout {
         display: grid;
         grid-template-columns: minmax(200px, 0.85fr) minmax(220px, 1fr) minmax(180px, 0.7fr);
@@ -3682,6 +3711,7 @@
               <div id="leadQuickSummary" class="quick-summary-grid"></div>
               <div class="lead-detail-body">
                 <section id="leadHistoryPanel" class="quick-history-section"></section>
+                <section id="leadFormHistoryPanel" class="quick-history-section"></section>
                 <form id="leadForm" class="grid" onsubmit="saveLead(event)">
                   <input type="hidden" id="leadId">
                   <label>会社名<input id="leadCompany" required></label>
@@ -4377,6 +4407,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         deleteConfirmGenreId: '',
         editingReasonId: '',
         activeLeadHistoryLeadId: '',
+        activeLeadFormHistories: [],
         dismissedBackgroundJobKeys: [],
         selectedFormLeadId: '',
         selectedLeadIds: [],
@@ -5373,6 +5404,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderLeadStatusControlPanel(lead);
         renderLeadCalendarMeta(lead);
         renderLeadHistoryPanel(lead, [], true);
+        renderLeadFormHistoryPanel(lead);
         renderLeadQuickSummary(lead);
         renderLeadCustomFieldsPanel(lead);
         openLeadDialog();
@@ -5388,6 +5420,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderLeadStatusControlPanel(null);
         renderLeadCalendarMeta(null);
         renderLeadHistoryPanel(null, [], false);
+        renderLeadFormHistoryPanel(null);
         renderLeadQuickSummary(null);
         renderLeadCustomFieldsPanel(null);
         renderLeadSendTemplateOptions();
@@ -5587,6 +5620,107 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ${history.body ? `<details class="history-detail"><summary>本文を見る</summary><pre>${escapeHtml(history.body)}</pre></details>` : ''}
           </div>
         `;
+      }
+
+      function renderLeadFormHistoryPanel(lead) {
+        const target = document.getElementById('leadFormHistoryPanel');
+        if (!target) return;
+        if (!lead) {
+          state.activeLeadFormHistories = [];
+          target.innerHTML = `
+            <div class="section-title-row">
+              <h3>フォーム送信履歴</h3>
+              <span class="pill info">0回</span>
+            </div>
+            <p class="muted">営業先を選ぶとフォーム送信履歴が表示されます。</p>
+          `;
+          return;
+        }
+        const histories = formHistoryItemsClient(lead);
+        state.activeLeadFormHistories = histories;
+        const latestFormAt = latestFormSentAtClient(lead);
+        target.innerHTML = `
+          <div class="section-title-row">
+            <h3>フォーム送信履歴</h3>
+            <span class="pill info">${formatNumber(formSendCountClient(lead))}回</span>
+          </div>
+          <div class="quick-form-history-summary">
+            <span>最新送信<strong>${escapeHtml(dateTimeLabel(latestFormAt) || '-')}</strong></span>
+            <span>状態<strong>${escapeHtml(lead.form_status || '未対応')}</strong></span>
+          </div>
+          ${histories.length ? `<div class="quick-history-list">${histories.map(renderLeadFormHistoryItem).join('')}</div>` : '<p class="muted">フォーム送信履歴はまだありません。</p>'}
+        `;
+      }
+
+      function renderLeadFormHistoryItem(event, index) {
+        const body = formHistoryBodyPreviewClient(event.body);
+        const label = event.type === 'sent' ? '送信済み' : '解除';
+        const fallback = event.type === 'sent' ? '本文保存なし' : '送信済み解除';
+        return `
+          <div class="quick-history-item form-history-item">
+            <div>
+              <strong>${escapeHtml(dateTimeLabel(event.at) || '-')}</strong>
+              <span>${escapeHtml(label)}</span>
+            </div>
+            ${body ? `<p>${escapeHtml(body)}</p>` : `<p class="muted">${escapeHtml(fallback)}</p>`}
+            ${event.body ? `<div class="form-history-actions"><button type="button" onclick="copyLeadFormHistoryBody(${index})">本文コピー</button></div>` : ''}
+          </div>
+        `;
+      }
+
+      function formHistoryItemsClient(lead) {
+        const events = formSendEventsClient(lead);
+        if (events.length > 0) return events;
+        const lastSentAt = latestFormSentAtClient(lead);
+        if (!lastSentAt) return [];
+        const values = parseCustomFieldsClient(lead && lead.custom_fields_json);
+        const body = typeof values.last_form_body === 'string' ? values.last_form_body : '';
+        return [{ at: lastSentAt, body, type: 'sent' }];
+      }
+
+      function formSendEventsClient(lead) {
+        const values = parseCustomFieldsClient(lead && lead.custom_fields_json);
+        const raw = values.form_send_events;
+        if (!Array.isArray(raw)) return [];
+        return raw
+          .filter((event) => event && typeof event === 'object' && !Array.isArray(event) && (event.type === 'sent' || event.type === 'unsent') && typeof event.at === 'string' && event.at)
+          .map((event) => ({
+            at: event.at,
+            body: typeof event.body === 'string' ? event.body : '',
+            type: event.type,
+          }))
+          .sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime());
+      }
+
+      function formSendCountClient(lead) {
+        const values = parseCustomFieldsClient(lead && lead.custom_fields_json);
+        const parsed = Number(values.form_send_count || 0);
+        return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
+      }
+
+      function latestFormSentAtClient(lead) {
+        const values = parseCustomFieldsClient(lead && lead.custom_fields_json);
+        return typeof values.last_form_sent_at === 'string' && values.last_form_sent_at ? values.last_form_sent_at : '';
+      }
+
+      function formHistoryBodyPreviewClient(body) {
+        const text = String(body || '');
+        return text.length > 120 ? text.slice(0, 120) + '...' : text;
+      }
+
+      async function copyLeadFormHistoryBody(index) {
+        const event = state.activeLeadFormHistories[index];
+        const text = event && event.body ? String(event.body) : '';
+        if (!text) {
+          message('コピーできるフォーム本文がありません', 'error');
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          message('フォーム送信履歴の本文をコピーしました', 'ok');
+        } catch (error) {
+          message('コピーできませんでした。本文を選択してコピーしてください。', 'error');
+        }
       }
 
       function renderLeadCustomFieldsPanel(lead) {
