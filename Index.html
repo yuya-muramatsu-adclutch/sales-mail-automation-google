@@ -6,16 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
       :root {
-        --bg: #f7f8fa;
-        --panel: #ffffff;
-        --line: #d9dee7;
-        --text: #18212f;
-        --muted: #687386;
-        --accent: #0f766e;
-        --accent-2: #1d4ed8;
-        --danger: #b42318;
-        --warn: #b45309;
-        --good: #15803d;
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --surface: #ffffff;
+        --surface-muted: #eef2f5;
+        --line: #d8dee5;
+        --line-strong: #c5ced8;
+        --text: #17202a;
+        --muted: #617083;
+        --blue: #2f6fed;
+        --green: #148f63;
+        --red: #c2413a;
+        --amber: #a96b12;
+        --teal: #0f766e;
+        --shadow: 0 18px 50px rgba(28, 39, 54, 0.08);
+        --shadow-soft: 0 10px 28px rgba(28, 39, 54, 0.06);
+        --shadow-focus: 0 0 0 3px rgba(47, 111, 237, 0.16);
+        --content-max: 1680px;
+        --sidebar-width: 260px;
       }
 
       * {
@@ -24,10 +32,14 @@
 
       body {
         margin: 0;
-        background: var(--bg);
+        background:
+          linear-gradient(180deg, #f8fafc 0, var(--bg) 220px),
+          var(--bg);
         color: var(--text);
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
         font-size: 14px;
+        line-height: 1.5;
+        text-rendering: optimizeLegibility;
       }
 
       button,
@@ -38,35 +50,67 @@
       }
 
       button {
-        min-height: 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 9px 13px;
         border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #fff;
+        border-radius: 8px;
+        background: var(--surface);
         color: var(--text);
         cursor: pointer;
-        padding: 6px 10px;
+        font-size: 13px;
+        font-weight: 900;
+        white-space: nowrap;
+        transition:
+          transform 0.12s ease,
+          box-shadow 0.12s ease,
+          border-color 0.12s ease,
+          background 0.12s ease;
+      }
+
+      button:hover {
+        border-color: #c5d3e3;
+        background: #f8fafc;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.1);
+        transform: translateY(-1px);
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible,
+      a:focus-visible {
+        outline: 2px solid rgba(47, 111, 237, 0.72);
+        outline-offset: 3px;
+        box-shadow: var(--shadow-focus);
       }
 
       button.primary {
-        border-color: var(--accent);
-        background: var(--accent);
+        border-color: var(--teal);
+        background: var(--teal);
         color: #fff;
       }
 
       button.blue {
-        border-color: var(--accent-2);
-        background: var(--accent-2);
+        border-color: var(--blue);
+        background: var(--blue);
         color: #fff;
       }
 
       button.danger {
-        border-color: var(--danger);
-        color: var(--danger);
+        border-color: var(--red);
+        background: var(--red);
+        color: #fff;
       }
 
       button:disabled {
         cursor: not-allowed;
         opacity: 0.55;
+        transform: none;
+        box-shadow: none;
       }
 
       input,
@@ -74,10 +118,10 @@
       textarea {
         width: 100%;
         border: 1px solid var(--line);
-        border-radius: 6px;
+        border-radius: 8px;
         background: #fff;
         color: var(--text);
-        padding: 8px 9px;
+        padding: 9px 10px;
       }
 
       textarea {
@@ -90,67 +134,194 @@
         gap: 5px;
         color: var(--muted);
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 800;
       }
 
       .app {
         min-height: 100vh;
         display: grid;
-        grid-template-rows: auto auto 1fr;
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
       }
 
-      .topbar {
+      .sidebar {
+        position: sticky;
+        top: 0;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 14px 18px;
-        border-bottom: 1px solid var(--line);
-        background: var(--panel);
+        flex-direction: column;
+        height: 100vh;
+        overflow-y: auto;
+        padding: 20px 14px;
+        border-right: 1px solid rgba(148, 163, 184, 0.16);
+        background:
+          linear-gradient(180deg, #0f172a 0%, #111827 54%, #0f172a 100%),
+          #111827;
+        color: #eef2ff;
       }
 
       .brand {
-        display: grid;
-        gap: 2px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 58px;
+        padding: 8px 10px 18px;
       }
 
-      .brand h1 {
-        margin: 0;
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+        color: #fff;
         font-size: 18px;
+        font-weight: 900;
+      }
+
+      .brand h1,
+      .brand strong {
+        display: block;
+        margin: 0;
+        color: #f8fafc;
+        font-size: 15px;
         line-height: 1.25;
       }
 
-      .brand span {
-        color: var(--muted);
+      .brand span,
+      .brand small {
+        display: block;
+        margin-top: 3px;
+        color: #aeb9ca;
         font-size: 12px;
       }
 
       .tabs {
-        display: flex;
-        gap: 4px;
-        padding: 8px 18px;
-        border-bottom: 1px solid var(--line);
-        background: #eef2f7;
-        overflow-x: auto;
+        display: grid;
+        gap: 18px;
       }
 
-      .tab {
+      .nav-group {
+        display: grid;
+        gap: 5px;
+      }
+
+      .nav-group-label {
+        padding: 8px 12px 5px;
+        color: #8fa0b7;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .tab.nav-item {
+        position: relative;
+        justify-content: flex-start;
+        width: 100%;
+        min-height: 42px;
+        padding: 10px 12px;
         border: 0;
+        border-radius: 8px;
         background: transparent;
-        color: #334155;
-        white-space: nowrap;
+        color: #cbd5e1;
+        box-shadow: none;
+        text-align: left;
+        transform: none;
       }
 
-      .tab.active {
-        background: #fff;
-        border: 1px solid var(--line);
+      .tab.nav-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        box-shadow: none;
+      }
+
+      .tab.nav-item.active {
+        background: #ffffff;
         color: var(--text);
+        box-shadow: 0 12px 26px rgba(0, 0, 0, 0.18);
+      }
+
+      .tab.nav-item.active::before {
+        content: "";
+        position: absolute;
+        left: -14px;
+        top: 9px;
+        width: 4px;
+        height: calc(100% - 18px);
+        border-radius: 999px;
+        background: #60a5fa;
+      }
+
+      .nav-icon {
+        display: grid;
+        flex: 0 0 auto;
+        place-items: center;
+        width: 26px;
+        color: inherit;
+        font-size: 13px;
+      }
+
+      .sidebar-footer {
+        display: grid;
+        gap: 9px;
+        margin-top: auto;
+        padding: 16px 8px 0;
+      }
+
+      .sidebar-meta {
+        min-height: 36px;
+        overflow: hidden;
+        color: #aeb9ca;
+        font-size: 11px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        word-break: break-all;
+      }
+
+      .sidebar-footer button {
+        width: 100%;
+      }
+
+      .sidebar-footer button.primary {
+        background: var(--teal);
+        border-color: var(--teal);
       }
 
       .main {
-        padding: 16px 18px 28px;
+        width: 100%;
+        min-width: 0;
+        max-width: var(--content-max);
+        margin: 0 auto;
+        padding: 28px clamp(20px, 2.4vw, 36px) 44px;
         display: grid;
+        align-content: start;
+        gap: 18px;
+      }
+
+      .main-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 14px;
+        min-height: 58px;
+        margin: -28px calc(clamp(20px, 2.4vw, 36px) * -1) 2px;
+        padding: 12px clamp(20px, 2.4vw, 36px);
+        border-bottom: 1px solid rgba(197, 206, 216, 0.78);
+        background: rgba(246, 247, 249, 0.92);
+        backdrop-filter: blur(14px);
+      }
+
+      .main-toolbar strong {
+        display: block;
+        font-size: 16px;
+      }
+
+      .main-toolbar-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
       }
 
       .section {
@@ -160,6 +331,28 @@
       .section.active {
         display: grid;
         gap: 14px;
+      }
+
+      .section-header {
+        display: flex;
+        gap: 18px;
+        align-items: flex-end;
+        justify-content: space-between;
+        padding-bottom: 14px;
+        border-bottom: 1px solid rgba(197, 206, 216, 0.78);
+      }
+
+      .section-header h1 {
+        margin: 4px 0 0;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      .eyebrow {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
       }
 
       .toolbar {
@@ -175,51 +368,91 @@
 
       .stats {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         gap: 10px;
       }
 
       .stat {
+        position: relative;
+        overflow: hidden;
+        min-height: 106px;
         border: 1px solid var(--line);
         border-radius: 8px;
-        background: var(--panel);
-        padding: 12px;
+        background: var(--surface);
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+        padding: 16px 14px 14px;
+      }
+
+      .stat::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 4px;
+        background: var(--blue);
+      }
+
+      .stat:nth-child(2)::before,
+      .stat:nth-child(3)::before {
+        background: var(--green);
+      }
+
+      .stat:nth-child(4)::before,
+      .stat:nth-child(5)::before {
+        background: var(--teal);
+      }
+
+      .stat:nth-child(6)::before {
+        background: var(--amber);
+      }
+
+      .stat:nth-child(7)::before,
+      .stat:nth-child(8)::before {
+        background: var(--red);
+      }
+
+      .stat span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
       }
 
       .stat strong {
         display: block;
-        margin-top: 5px;
-        font-size: 22px;
+        margin-top: 12px;
+        font-size: 30px;
+        line-height: 1;
       }
 
       .panel {
-        border: 1px solid var(--line);
+        border: 1px solid var(--line-strong);
         border-radius: 8px;
-        background: var(--panel);
+        background: var(--surface);
+        box-shadow: var(--shadow-soft);
         overflow: hidden;
       }
 
       .panel-head {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 12px;
-        padding: 10px 12px;
+        padding: 16px 16px 12px;
         border-bottom: 1px solid var(--line);
       }
 
       .panel-head h2 {
         margin: 0;
-        font-size: 15px;
+        font-size: 18px;
+        letter-spacing: 0;
       }
 
       .panel-body {
-        padding: 12px;
+        padding: 16px;
       }
 
       .action-block {
         margin-top: 14px;
-        padding-top: 12px;
+        padding-top: 14px;
         border-top: 1px solid var(--line);
         display: grid;
         gap: 10px;
@@ -233,34 +466,80 @@
       table {
         width: 100%;
         border-collapse: collapse;
+        background: var(--surface);
+        font-size: 13px;
       }
 
       th,
       td {
-        border-bottom: 1px solid #eef1f5;
-        padding: 8px 9px;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 12px;
         text-align: left;
-        vertical-align: top;
+        vertical-align: middle;
+        line-height: 1.45;
       }
 
       th {
         color: var(--muted);
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 900;
         background: #f8fafc;
       }
 
       tr:hover td {
-        background: #fafafa;
+        background: #f8fbff;
+      }
+
+      tr.row-send-ng td {
+        background: #fff1f2;
+      }
+
+      tr.row-send-ng:hover td {
+        background: #ffe4e6;
+      }
+
+      tr.row-reply td {
+        background: #eff6ff;
+      }
+
+      tr.row-reply:hover td {
+        background: #dbeafe;
+      }
+
+      tr.row-deal td {
+        background: #ecfdf5;
+      }
+
+      tr.row-deal:hover td {
+        background: #d1fae5;
+      }
+
+      tr.row-muted td {
+        background: #f1f5f9;
+      }
+
+      tr.row-muted:hover td {
+        background: #e2e8f0;
+      }
+
+      td a {
+        color: #1d4ed8;
+        font-weight: 900;
       }
 
       .table-wrap {
         overflow: auto;
+        border-top: 1px solid var(--line);
+        scrollbar-gutter: stable;
+      }
+
+      .panel-body.table-wrap {
+        padding: 0;
       }
 
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 10px;
       }
 
@@ -273,7 +552,7 @@
 
       .side {
         position: sticky;
-        top: 12px;
+        top: 78px;
       }
 
       .pill {
@@ -281,30 +560,33 @@
         align-items: center;
         min-height: 24px;
         border-radius: 999px;
-        padding: 2px 8px;
-        border: 1px solid #cbd5e1;
-        background: #f8fafc;
-        color: #334155;
+        padding: 3px 9px;
+        border: 0;
+        background: #e5e7eb;
+        color: #475569;
         font-size: 12px;
+        font-weight: 800;
         white-space: nowrap;
       }
 
       .pill.good {
-        color: var(--good);
-        border-color: #bbf7d0;
-        background: #f0fdf4;
+        color: #166534;
+        background: #dcfce7;
       }
 
       .pill.warn {
-        color: var(--warn);
-        border-color: #fed7aa;
-        background: #fff7ed;
+        color: #92400e;
+        background: #fef3c7;
       }
 
       .pill.bad {
-        color: var(--danger);
-        border-color: #fecaca;
-        background: #fef2f2;
+        color: #991b1b;
+        background: #fee2e2;
+      }
+
+      .pill.info {
+        color: #1e40af;
+        background: #dbeafe;
       }
 
       .muted {
@@ -314,14 +596,15 @@
       .message {
         min-height: 22px;
         color: var(--muted);
+        font-weight: 800;
       }
 
       .message.error {
-        color: var(--danger);
+        color: var(--red);
       }
 
       .message.ok {
-        color: var(--good);
+        color: var(--green);
       }
 
       .empty {
@@ -330,7 +613,75 @@
         text-align: center;
       }
 
+      hr {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 16px 0;
+      }
+
       @media (max-width: 900px) {
+        .app {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          z-index: 30;
+          height: auto;
+          max-height: 48vh;
+          padding: 12px;
+          border-right: 0;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .brand {
+          min-height: 46px;
+          padding: 4px 6px 10px;
+        }
+
+        .tabs {
+          display: flex;
+          gap: 10px;
+          overflow-x: auto;
+          padding-bottom: 4px;
+        }
+
+        .nav-group {
+          display: flex;
+          flex: 0 0 auto;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .nav-group-label {
+          padding: 0 4px;
+          white-space: nowrap;
+        }
+
+        .tab.nav-item {
+          flex: 0 0 auto;
+          width: auto;
+          min-height: 38px;
+          padding: 8px 10px;
+          white-space: nowrap;
+        }
+
+        .tab.nav-item.active::before {
+          display: none;
+        }
+
+        .sidebar-footer {
+          display: none;
+        }
+
+        .main {
+          padding: 20px 14px 34px;
+        }
+
+        .main-toolbar {
+          margin: -20px -14px 2px;
+          padding: 12px 14px;
+        }
+
         .split {
           grid-template-columns: 1fr;
         }
@@ -339,39 +690,170 @@
           position: static;
         }
 
-        .topbar {
+        .section-header,
+        .main-toolbar {
           align-items: stretch;
           flex-direction: column;
+        }
+
+        .toolbar,
+        .main-toolbar-actions {
+          align-items: stretch;
+          width: 100%;
+        }
+
+        .toolbar > *,
+        .main-toolbar-actions > button {
+          flex: 1 1 160px;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .section-header h1 {
+          font-size: 24px;
+        }
+
+        .stats,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .table-wrap {
+          border-top: 0;
+        }
+
+        table,
+        thead,
+        tbody,
+        tr,
+        th,
+        td {
+          display: block;
+        }
+
+        thead {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip: rect(0 0 0 0);
+          white-space: nowrap;
+        }
+
+        tbody {
+          display: grid;
+          gap: 10px;
+        }
+
+        tr {
+          display: grid;
+          padding: 8px 10px;
+          border: 1px solid var(--line-strong);
+          border-radius: 8px;
+          background: #fff;
+          box-shadow: var(--shadow-soft);
+        }
+
+        tr:hover td {
+          background: transparent;
+        }
+
+        td {
+          display: grid;
+          grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+          gap: 10px;
+          align-items: start;
+          padding: 9px 0;
+          border-bottom: 1px solid #edf2f7;
+          white-space: normal;
+        }
+
+        td:last-child {
+          border-bottom: 0;
+        }
+
+        td::before {
+          content: attr(data-column);
+          color: var(--muted);
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        td[data-column=""] {
+          grid-template-columns: 1fr;
+        }
+
+        td[data-column=""]::before {
+          display: none;
         }
       }
     </style>
   </head>
   <body>
     <div class="app">
-      <header class="topbar">
+      <aside class="sidebar" aria-label="アプリナビゲーション">
         <div class="brand">
-          <h1>自動営業リスト</h1>
-          <span id="appMeta">読み込み中</span>
+          <div class="brand-mark">S</div>
+          <div>
+            <h1>自動営業リスト</h1>
+            <span>MVP Operations</span>
+          </div>
         </div>
-        <div class="toolbar">
+
+        <nav class="tabs">
+          <div class="nav-group">
+            <div class="nav-group-label">リスト</div>
+            <button type="button" class="tab nav-item active" data-tab="dashboard" onclick="showTab('dashboard')">
+              <span class="nav-icon">DB</span><span>ダッシュボード</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="leads" onclick="showTab('leads')">
+              <span class="nav-icon">LD</span><span>営業リスト</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="search" onclick="showTab('search')">
+              <span class="nav-icon">SP</span><span>Serper検索</span>
+            </button>
+          </div>
+          <div class="nav-group">
+            <div class="nav-group-label">運用</div>
+            <button type="button" class="tab nav-item" data-tab="templates" onclick="showTab('templates')">
+              <span class="nav-icon">TP</span><span>テンプレート</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="masters" onclick="showTab('masters')">
+              <span class="nav-icon">NG</span><span>NG/除外</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="ops" onclick="showTab('ops')">
+              <span class="nav-icon">OP</span><span>運用</span>
+            </button>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div id="appMeta" class="sidebar-meta">読み込み中</div>
           <button type="button" onclick="refreshAll()">更新</button>
           <button type="button" class="primary" onclick="runSetup()">setup</button>
         </div>
-      </header>
-
-      <nav class="tabs">
-        <button type="button" class="tab active" data-tab="dashboard" onclick="showTab('dashboard')">ダッシュボード</button>
-        <button type="button" class="tab" data-tab="leads" onclick="showTab('leads')">リード</button>
-        <button type="button" class="tab" data-tab="templates" onclick="showTab('templates')">テンプレート</button>
-        <button type="button" class="tab" data-tab="masters" onclick="showTab('masters')">NG/除外</button>
-        <button type="button" class="tab" data-tab="search" onclick="showTab('search')">Serper検索</button>
-        <button type="button" class="tab" data-tab="ops" onclick="showTab('ops')">運用</button>
-      </nav>
+      </aside>
 
       <main class="main">
+        <div class="main-toolbar">
+          <div>
+            <p class="eyebrow">Google Sheets / Apps Script</p>
+            <strong id="activeViewTitle">ダッシュボード</strong>
+          </div>
+          <div class="main-toolbar-actions">
+            <button type="button" onclick="refreshAll()">更新</button>
+            <button type="button" class="primary" onclick="runSetup()">setup</button>
+          </div>
+        </div>
         <div id="globalMessage" class="message"></div>
 
         <section id="dashboard" class="section active">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Sales overview</p>
+              <h1>ダッシュボード</h1>
+            </div>
+          </header>
           <div class="stats" id="stats"></div>
           <div class="split">
             <div class="panel">
@@ -386,6 +868,13 @@
         </section>
 
         <section id="leads" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Sales list</p>
+              <h1>営業リスト</h1>
+            </div>
+            <button type="button" class="primary" onclick="newLead()">手動追加</button>
+          </header>
           <div class="split">
             <div class="panel">
               <div class="panel-head">
@@ -461,6 +950,12 @@
         </section>
 
         <section id="templates" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Mail templates</p>
+              <h1>テンプレート</h1>
+            </div>
+          </header>
           <div class="split">
             <div class="panel">
               <div class="panel-head">
@@ -498,6 +993,12 @@
         </section>
 
         <section id="masters" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Block lists</p>
+              <h1>NG/除外</h1>
+            </div>
+          </header>
           <div class="split">
             <div class="panel">
               <div class="panel-head"><h2>送信NG</h2></div>
@@ -529,6 +1030,12 @@
         </section>
 
         <section id="search" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Prospecting search</p>
+              <h1>Serper検索</h1>
+            </div>
+          </header>
           <div class="split">
             <div class="panel">
               <div class="panel-head"><h2>Serper API</h2></div>
@@ -566,6 +1073,12 @@
         </section>
 
         <section id="ops" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Operations</p>
+              <h1>運用</h1>
+            </div>
+          </header>
           <div class="panel">
             <div class="panel-head"><h2>運用</h2></div>
             <div class="panel-body">
@@ -591,6 +1104,15 @@
     </div>
 
     <script>
+      const TAB_TITLES = {
+        dashboard: 'ダッシュボード',
+        leads: '営業リスト',
+        templates: 'テンプレート',
+        masters: 'NG/除外',
+        search: 'Serper検索',
+        ops: '運用',
+      };
+
       const state = {
         app: null,
         enums: {},
@@ -635,6 +1157,8 @@
       function showTab(name) {
         document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
         document.querySelectorAll('.section').forEach((section) => section.classList.toggle('active', section.id === name));
+        const title = document.getElementById('activeViewTitle');
+        if (title) title.textContent = TAB_TITLES[name] || name;
       }
 
       async function refreshAll() {
@@ -711,7 +1235,10 @@
       }
 
       function renderObjectTable(id, object) {
-        const rows = Object.keys(object).sort().map((key) => `<tr><td>${escapeHtml(key)}</td><td>${object[key]}</td></tr>`).join('');
+        const rows = Object.keys(object).sort().map((key) => row([
+          ['項目', escapeHtml(key)],
+          ['件数', escapeHtml(object[key])],
+        ])).join('');
         document.getElementById(id).innerHTML = '<thead><tr><th>項目</th><th>件数</th></tr></thead><tbody>' + rows + '</tbody>';
       }
 
@@ -740,16 +1267,17 @@
 
       function renderLeads() {
         renderLeadPager();
-        const rows = state.leads.map((lead) => `
-          <tr>
-            <td><button type="button" onclick="editLead('${lead.id}')">編集</button></td>
-            <td><strong>${escapeHtml(lead.company_name)}</strong><br><span class="muted">${escapeHtml(lead.facility_name || '')}</span></td>
-            <td>${escapeHtml(lead.genre || '')}</td>
-            <td>${statusPill(lead.status)}</td>
-            <td>${escapeHtml(lead.email || '')}<br><span class="muted">${escapeHtml(lead.form_url || lead.website_url || '')}</span></td>
-            <td>${escapeHtml(lead.updated_at || '')}</td>
-          </tr>
-        `).join('');
+        const rows = state.leads.map((lead) => {
+          const className = leadRowClass(lead);
+          return `<tr class="${className}">` + [
+            ['操作', `<button type="button" onclick="editLead('${escapeHtml(lead.id)}')">編集</button>`],
+            ['会社/施設', `<strong>${escapeHtml(lead.company_name)}</strong><br><span class="muted">${escapeHtml(lead.facility_name || '')}</span>`],
+            ['ジャンル', escapeHtml(lead.genre || '')],
+            ['状態', statusPill(lead.status)],
+            ['連絡先', `${escapeHtml(lead.email || '')}<br><span class="muted">${escapeHtml(lead.form_url || lead.website_url || '')}</span>`],
+            ['更新', escapeHtml(lead.updated_at || '')],
+          ].map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
+        }).join('');
         document.getElementById('leadTable').innerHTML = table(['操作', '会社/施設', 'ジャンル', '状態', '連絡先', '更新'], rows);
       }
 
@@ -850,15 +1378,13 @@
       }
 
       function renderTemplates() {
-        const rows = state.templates.map((template) => `
-          <tr>
-            <td><button type="button" onclick="editTemplate('${template.id}')">編集</button></td>
-            <td>${escapeHtml(template.name)}</td>
-            <td>${escapeHtml(template.genre || '共通')}</td>
-            <td>${escapeHtml(template.template_type)}</td>
-            <td>${template.is_production === true || template.is_production === 'true' ? '<span class="pill good">本番</span>' : '<span class="pill">下書き</span>'}</td>
-          </tr>
-        `).join('');
+        const rows = state.templates.map((template) => row([
+          ['操作', `<button type="button" onclick="editTemplate('${escapeHtml(template.id)}')">編集</button>`],
+          ['名前', escapeHtml(template.name)],
+          ['ジャンル', escapeHtml(template.genre || '共通')],
+          ['種類', escapeHtml(template.template_type)],
+          ['状態', template.is_production === true || template.is_production === 'true' ? '<span class="pill good">本番</span>' : '<span class="pill">下書き</span>'],
+        ])).join('');
         document.getElementById('templateTable').innerHTML = table(['操作', '名前', 'ジャンル', '種類', '状態'], rows);
         renderLeadSendTemplateOptions();
       }
@@ -972,12 +1498,16 @@
       }
 
       function renderMasters() {
-        document.getElementById('ngTable').innerHTML = table(['会社', 'メール', 'ドメイン', '理由'], state.ngMasters.map((item) => `
-          <tr><td>${escapeHtml(item.company_name || '')}</td><td>${escapeHtml(item.email || '')}</td><td>${escapeHtml(item.domain || '')}</td><td>${escapeHtml(item.reason || '')}</td></tr>
-        `).join(''));
-        document.getElementById('excludedTable').innerHTML = table(['ドメイン', '理由'], state.excludedDomains.map((item) => `
-          <tr><td>${escapeHtml(item.domain || '')}</td><td>${escapeHtml(item.reason || '')}</td></tr>
-        `).join(''));
+        document.getElementById('ngTable').innerHTML = table(['会社', 'メール', 'ドメイン', '理由'], state.ngMasters.map((item) => row([
+          ['会社', escapeHtml(item.company_name || '')],
+          ['メール', escapeHtml(item.email || '')],
+          ['ドメイン', escapeHtml(item.domain || '')],
+          ['理由', escapeHtml(item.reason || '')],
+        ])).join(''));
+        document.getElementById('excludedTable').innerHTML = table(['ドメイン', '理由'], state.excludedDomains.map((item) => row([
+          ['ドメイン', escapeHtml(item.domain || '')],
+          ['理由', escapeHtml(item.reason || '')],
+        ])).join(''));
       }
 
       async function saveNg(event) {
@@ -1035,16 +1565,22 @@
 
       async function loadSearchResults() {
         const result = await api('listSheetRecords', 'search_results', { limit: 100, includeInactive: true });
-        document.getElementById('searchResultsTable').innerHTML = table(['種類', 'タイトル', 'URL', '作成'], (result.items || []).map((item) => `
-          <tr><td>${escapeHtml(item.result_type || '')}</td><td>${escapeHtml(item.title || '')}</td><td>${escapeHtml(item.url || '')}</td><td>${escapeHtml(item.created_at || '')}</td></tr>
-        `).join(''));
+        document.getElementById('searchResultsTable').innerHTML = table(['種類', 'タイトル', 'URL', '作成'], (result.items || []).map((item) => row([
+          ['種類', escapeHtml(item.result_type || '')],
+          ['タイトル', escapeHtml(item.title || '')],
+          ['URL', escapeHtml(item.url || '')],
+          ['作成', escapeHtml(item.created_at || '')],
+        ])).join(''));
       }
 
       async function loadHistories() {
         const result = await api('listSheetRecords', 'send_histories', { limit: 100, includeInactive: true });
-        document.getElementById('historyTable').innerHTML = table(['日時', '宛先', '件名', '結果'], (result.items || []).map((item) => `
-          <tr><td>${escapeHtml(item.sent_at || '')}</td><td>${escapeHtml(item.to_email || '')}</td><td>${escapeHtml(item.subject || '')}</td><td>${escapeHtml(item.send_result || '')}</td></tr>
-        `).join(''));
+        document.getElementById('historyTable').innerHTML = table(['日時', '宛先', '件名', '結果'], (result.items || []).map((item) => row([
+          ['日時', escapeHtml(item.sent_at || '')],
+          ['宛先', escapeHtml(item.to_email || '')],
+          ['件名', escapeHtml(item.subject || '')],
+          ['結果', escapeHtml(item.send_result || '')],
+        ])).join(''));
       }
 
       async function checkReplies() {
@@ -1080,16 +1616,29 @@
       }
 
       function table(headers, rows) {
-        if (!rows) rows = `<tr><td colspan="${headers.length}" class="empty">データがありません</td></tr>`;
+        if (!rows) rows = `<tr><td data-column="" colspan="${headers.length}" class="empty">データがありません</td></tr>`;
         return `<thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody>`;
+      }
+
+      function row(cells) {
+        return '<tr>' + cells.map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
       }
 
       function statusPill(status) {
         const danger = ['送信NG', '失注', '対応不要'];
         const warn = ['フォーム対応中', 'フォーム対応済み'];
         const good = ['返信あり', '商談予定', '商談済み', '受注'];
-        const tone = danger.includes(status) ? 'bad' : warn.includes(status) ? 'warn' : good.includes(status) ? 'good' : '';
+        const info = ['対応中', '送信済み'];
+        const tone = danger.includes(status) ? 'bad' : warn.includes(status) ? 'warn' : good.includes(status) ? 'good' : info.includes(status) ? 'info' : '';
         return `<span class="pill ${tone}">${escapeHtml(status || '未設定')}</span>`;
+      }
+
+      function leadRowClass(lead) {
+        if (['送信NG', '失注', '対応不要'].includes(lead.status)) return 'row-send-ng';
+        if (['返信あり'].includes(lead.status)) return 'row-reply';
+        if (['商談予定', '商談済み', '受注'].includes(lead.status) || ['受注'].includes(lead.deal_status)) return 'row-deal';
+        if (['失注'].includes(lead.deal_status)) return 'row-muted';
+        return '';
       }
 
       function toDatetimeLocalValue(value) {

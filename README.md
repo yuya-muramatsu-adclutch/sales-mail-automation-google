@@ -25,6 +25,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script時間主導トリガー作成
 - `LockService` による書き込み系処理の同時実行ガード
 - `sync_logs` へのエラーログ保存
+- 旧Next/Supabase版のUIに寄せたサイドバー、パネル、テーブル、ステータス表示
 
 ## ファイル
 
@@ -54,7 +55,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment v9: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment v10: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -76,6 +77,9 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - v8で起動時の承認事前判定修正、リード詳細アクション、旧Supabase版からの営業リスト移行APIを反映済み
 - 旧Supabase版 `sales_leads` 5,441件を `leads` タブへ移行済み
 - v9でダッシュボード集計を全リード対象に修正し、リード一覧に総件数表示とページングを追加済み
+- v10で旧Next/Supabase版に寄せたサイドバー型UI、業務パネル、ステータス色分け、モバイル用テーブルラベルを反映済み
+- v10 Web app `doPost` 経由の `getInitialData` でバージョン `20260704_apps_script_full_workflow_v10_design_alignment` と `leadsTotal=5441` を確認済み
+- v10 Web app HTMLにサイドバー、ナビ、セクションヘッダー、ステータス行色分けのUIマーカーが含まれることを確認済み
 
 `clasp run` と `clasp logs` は、Apps Script Execution API / GCP project設定の影響でCLI側だけ失敗する場合があります。Web appとApps Script editorの実行経路は別なので、運用確認はWeb app URLまたはApps Script editorから行います。
 
@@ -185,6 +189,7 @@ Web appの `doPost` は次の形のJSONを受け付けます。
 - `lib/types.ts`: リード入力の別名、送信履歴、テンプレートの型
 - `lib/domain.ts`: ドメイン正規化の考え方
 - `lib/company-normalize.ts`: 会社名正規化の考え方
+- `app/globals.css` / `components/AppFrame.tsx` / `app/leads/page.tsx`: サイドバー、パネル、テーブル、ステータスPill、営業リスト画面のUIトーン
 
 持ち込まないもの:
 
