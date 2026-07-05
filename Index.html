@@ -4472,8 +4472,57 @@
       .form-send-state-actions {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: 8px;
         justify-content: flex-end;
+      }
+
+      .form-work-actions .icon-text-button,
+      .form-work-actions .compact-button {
+        min-height: 38px;
+      }
+
+      .form-work-actions .form-url-link {
+        max-width: min(100%, 420px);
+      }
+
+      .table-form-outreach tr.form-outreach-row-active td {
+        background: #eff6ff;
+      }
+
+      .facility-copy-cell {
+        align-items: center;
+      }
+
+      .facility-copy-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+        max-width: min(260px, 100%);
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #1d4ed8;
+        cursor: pointer;
+        font-weight: 900;
+        line-height: 1.4;
+        text-align: left;
+      }
+
+      .facility-copy-button span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .facility-copy-button:hover span {
+        text-decoration: underline;
+      }
+
+      .facility-copy-button svg {
+        flex: 0 0 auto;
+        color: var(--green);
       }
 
       .form-send-state-actions {
@@ -6759,11 +6808,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       });
 
       const LEGACY_UI_ICON_SVGS = Object.freeze({
+        arrowRight: iconSvg('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'),
         chevronFirst: iconSvg('<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>'),
         chevronLast: iconSvg('<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>'),
         chevronLeft: iconSvg('<path d="m15 18-6-6 6-6"/>'),
         chevronRight: iconSvg('<path d="m9 18 6-6-6-6"/>'),
+        check: iconSvg('<path d="M20 6 9 17l-5-5"/>'),
+        checkCircle: iconSvg('<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'),
+        clipboard: iconSvg('<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>'),
         external: iconSvg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'),
+        mousePointer: iconSvg('<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>'),
         reset: iconSvg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/>'),
         search: NAV_ICON_SVGS.SP,
         sliders: iconSvg('<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>'),
@@ -6857,6 +6911,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         dismissedBackgroundJobKeys: [],
         selectedFormLeadId: '',
         formUpdatingLeadId: '',
+        copiedFormFacilityId: '',
         selectedLeadIds: [],
         searchResults: [],
         searchUsageLogs: [],
@@ -9205,6 +9260,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const rows = state.formLeads.map((lead) => {
           const sent = isFormLeadSent(lead);
           const updating = state.formUpdatingLeadId === lead.id;
+          const displayName = lead.facility_name || lead.company_name || '-';
           const classes = [
             state.selectedFormLeadId === lead.id ? 'form-outreach-row-active' : '',
             sent ? 'form-outreach-row-sent' : '',
@@ -9212,12 +9268,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           const cells = [
             ['選択', `<button type="button" class="table-link-button" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '作業中' : '選択'}</button>`],
             ['送信済み', renderFormSentCheck(lead, sent, updating)],
-            ['営業先', `<span class="facility-cell"><strong>${escapeHtml(lead.facility_name || lead.company_name || '-')}</strong><small class="muted">${escapeHtml(lead.company_name || '')}</small></span>`],
+            ['営業先', `<span class="company-cell facility-copy-cell"><button type="button" class="facility-copy-button" onclick="copyFormLeadFacilityName('${escapeJsString(lead.id)}')">${state.copiedFormFacilityId === lead.id ? legacyUiIcon('check') : ''}<span>${escapeHtml(displayName)}</span></button>${lead.company_name && lead.company_name !== displayName ? `<small class="muted">${escapeHtml(lead.company_name)}</small>` : ''}<button type="button" class="mini-text-link mini-button-reset" onclick="selectFormLead('${escapeJsString(lead.id)}')">作業</button></span>`],
             ['ジャンル', escapeHtml(lead.genre || '-')],
             ['フォーム状態', statusPill(lead.form_status || '未対応')],
             ['営業状態', statusPill(lead.status || '未対応')],
             ['フォーム送信', formSendSummaryCell(lead)],
-            ['フォームURL', lead.form_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(lead.form_url))}</a>` : '<span class="muted">未取得</span>'],
+            ['フォームURL', lead.form_url ? formUrlMiniLink(lead.form_url) : '<span class="muted">未取得</span>'],
             ['操作', renderFormLeadActionCell(lead, sent, updating)],
           ];
           return `<tr class="${escapeHtml(classes)}">` + cells.map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
@@ -9243,10 +9299,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const id = escapeJsString(lead.id);
         return `
           <span class="table-action-row">
-            <button type="button" class="table-link-button" onclick="selectFormLead('${id}'); copySelectedFormMessage()" ${updating ? 'disabled' : ''}>本文コピー</button>
+            <button type="button" class="table-link-button" onclick="selectFormLead('${id}'); copySelectedFormMessage()" ${updating ? 'disabled' : ''}>${legacyUiIcon('clipboard')}本文コピー</button>
             ${sent
               ? `<button type="button" class="table-link-button" onclick="unmarkFormLeadSent('${id}')" ${updating ? 'disabled' : ''}>解除</button>`
-              : `<button type="button" class="table-link-button" onclick="markFormLeadSent('${id}')" ${updating || !lead.form_url ? 'disabled' : ''}>送信済み</button>`}
+              : `<button type="button" class="table-link-button" onclick="markFormLeadSent('${id}')" ${updating || !lead.form_url ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}送信済み</button>`}
           </span>
         `;
       }
@@ -9254,6 +9310,29 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function selectFormLead(id) {
         state.selectedFormLeadId = id;
         renderFormLeads(state.formTotal);
+      }
+
+      async function copyFormLeadFacilityName(id) {
+        const lead = state.formLeads.find((item) => item.id === id);
+        const text = lead ? (lead.facility_name || lead.company_name || '') : '';
+        if (!text) {
+          message('コピーできる屋号がありません', 'error');
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          state.copiedFormFacilityId = id;
+          renderFormLeads(state.formTotal);
+          window.setTimeout(() => {
+            if (state.copiedFormFacilityId === id) {
+              state.copiedFormFacilityId = '';
+              renderFormLeads(state.formTotal);
+            }
+          }, 1500);
+          message('屋号をコピーしました', 'ok');
+        } catch (error) {
+          message('コピーできませんでした。屋号を選択してコピーしてください。', 'error');
+        }
       }
 
       function renderFormOutreachSummary(total) {
@@ -9297,18 +9376,41 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('formTemplatePill').textContent = template ? template.name : 'テンプレート未設定';
         document.getElementById('formWorkPanel').innerHTML = `
           <div class="form-work-main">
-            <span class="muted">次に作業するフォーム営業先</span>
-            <strong>${escapeHtml(lead.facility_name || lead.company_name || '-')}</strong>
-            <small class="muted">${escapeHtml(lead.genre || '共通')} / ${escapeHtml(lead.form_status || '未対応')} / ${formatNumber(formCount)}回${latestFormAt ? ' / 最新 ' + escapeHtml(dateTimeLabel(latestFormAt)) : ''} / ${template ? escapeHtml(template.name) : 'テンプレート未設定'}</small>
+            ${statusTonePill('作業中', formStatusToneClient(lead.form_status || '未対応'))}
+            <div>
+              <strong>${escapeHtml(lead.facility_name || lead.company_name || '-')}</strong>
+              <small class="muted">${escapeHtml(lead.genre || '共通')} / ${escapeHtml(lead.form_status || '未対応')} / ${formatNumber(formCount)}回${latestFormAt ? ' / 最新 ' + escapeHtml(dateTimeLabel(latestFormAt)) : ''} / ${template ? escapeHtml(template.name) : 'テンプレート未設定'}</small>
+            </div>
           </div>
           <div class="form-work-actions">
-            ${lead.form_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">フォームURL</a>` : '<span class="pill warn">フォーム未取得</span>'}
-            <button type="button" class="primary" onclick="copySelectedFormMessage()">本文コピー</button>
+            <button type="button" class="icon-text-button secondary" onclick="copyFormLeadFacilityName('${escapeJsString(lead.id)}')">${state.copiedFormFacilityId === lead.id ? legacyUiIcon('check') : legacyUiIcon('mousePointer')}屋号コピー</button>
+            ${lead.form_url ? formUrlMiniLink(lead.form_url) : '<span class="pill warn">フォーム未取得</span>'}
+            <button type="button" class="icon-text-button" onclick="copySelectedFormMessage()">${legacyUiIcon('clipboard')}本文コピー</button>
             ${sent
-              ? `<button type="button" onclick="unmarkSelectedFormLeadSent()" ${updating ? 'disabled' : ''}>送信済み解除</button>`
-              : `<button type="button" onclick="markSelectedFormLeadSent()" ${updating || !lead.form_url ? 'disabled' : ''}>送信済み</button>`}
+              ? `<button type="button" class="icon-text-button secondary" onclick="unmarkSelectedFormLeadSent()" ${updating ? 'disabled' : ''}>送信済み解除</button>`
+              : `<button type="button" class="icon-text-button" onclick="markSelectedFormLeadSent()" ${updating || !lead.form_url ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}送信済み</button>`}
+            <button type="button" class="button secondary compact-button" onclick="selectNextFormLead()">${legacyUiIcon('arrowRight')}次へ</button>
           </div>
         `;
+      }
+
+      function formUrlMiniLink(url) {
+        return `<a class="url-mini-link form-url-link" href="${escapeHtml(externalUrl(url))}" target="_blank" rel="noopener" title="${escapeHtml(url)}">${legacyUiIcon('external')}<span>フォームURL</span><small>${escapeHtml(compactUrl(url))}</small></a>`;
+      }
+
+      function formStatusToneClient(status) {
+        if (status === '対応済み') return 'good';
+        if (status === '対応中') return 'warn';
+        if (status === '対応不要') return 'bad';
+        return 'info';
+      }
+
+      function selectNextFormLead() {
+        if (!state.formLeads.length) return;
+        const currentIndex = state.formLeads.findIndex((lead) => lead.id === state.selectedFormLeadId);
+        const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % state.formLeads.length : 0;
+        state.selectedFormLeadId = state.formLeads[nextIndex].id;
+        renderFormLeads(state.formTotal);
       }
 
       function findFormTemplateForLead(lead) {

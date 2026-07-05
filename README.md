@@ -47,6 +47,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `QuickLeadEditButton` に寄せたリード詳細下部の除外ドメイン登録、削除確認UI
 - 旧Next/Supabase版の `DuplicateResolutionDialog` に寄せたリード詳細内の重複候補確認、残す営業先選択UI
 - 旧Next/Supabase版の `FormOutreachBoard` に寄せたフォーム送信リストの送信済みチェック、送信済み解除、フォーム送信イベント保存
+- 旧Next/Supabase版の `FormOutreachBoard` に寄せた作業中バー、屋号コピー、フォームURLミニリンク、本文コピー、送信済み、次へ操作
 - 旧Next/Supabase版の `LoginForm` に寄せた初回Google承認ゲート
 - 旧Next/Supabase版の `SerperApiKeyManager` / `SerperSetupGuide` に寄せたSerper APIキー管理、検索テスト、マスク済みキー一覧
 - 旧Next/Supabase版の `AdminReadinessRunner` / `SchemaStatusPanel` に寄せた本番前確認、DB追加項目チェック
@@ -86,7 +87,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @55 / code v55: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @56 / code v56: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -179,6 +180,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Version 54は `clasp deploy -V 54 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `LEGACY_UI_ICON_SVGS`, `hydrateLegacyUtilityIcons`, `list-filter-panel-icon`, `data-table-empty-cell` を確認済み
 - Apps Script code v55で旧Next/Supabase版の `LeadPagination` に寄せ、営業リストのページングを先頭/前/ページ番号/次/最後の `mini-button` 構成に変更済み。`url-mini-link` と一次ボタン色も旧アプリ寄せへ調整済み
 - Version 55は `clasp deploy -V 55 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `lead-pagination-pages`, `chevronFirst`, `url-mini-link`, `button.primary` を確認済み
+- Apps Script code v56で旧Next/Supabase版の `FormOutreachBoard` に寄せ、フォーム送信リストの作業中バー、屋号コピー、フォームURLミニリンク、本文コピー、送信済み、次へ操作を旧アイコン付きボタン構成へ変更済み
+- Version 56は `clasp deploy -V 56 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `facility-copy-button`, `copyFormLeadFacilityName`, `formUrlMiniLink`, `selectNextFormLead` を確認済み
 - Version 49は `clasp deploy -V 49 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `analyticsTemplateTable`, `buildClientAnalyticsData`, `メール文別返信率` を確認済み
 - Version 48は `clasp deploy -V 48 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `historyFilterPanel`, `filteredSendHistories`, `本文/Gmail` を確認済み
 - Version 47は `clasp deploy -V 47 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `template-subject-diff-panel`, `件名差分`, `テンプレート件名` を確認済み

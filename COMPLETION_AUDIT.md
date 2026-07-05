@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @55 / code v55: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @56 / code v56: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v55_pagination_link_button_parity`
+- Code version: `20260705_apps_script_full_workflow_v56_form_work_action_parity`
 
 ## 計画書との対応
 
@@ -72,6 +72,7 @@
 | 旧アプリ共通UI部品再現 | 完了 | code v53で旧 `StatusPill` / `DataTable` / `.button` / `.mini-button` / `.table-link-button` に寄せ、Pill色/枠線、テーブル密度、フォーカス行、行内操作ボタンを全メニュー共通へ反映 |
 | 旧アプリ検索フィルタ/空状態再現 | 完了 | code v54で旧 `ListSearchFilters` / `DataTable` 空状態に寄せ、検索パネルのスライダーアイコン、適用/クリア導線、空テーブルの点線枠メッセージを反映 |
 | 旧アプリページング/小リンク再現 | 完了 | code v55で旧 `LeadPagination` / `url-mini-link` / `button.primary` に寄せ、営業リストページング、URL小リンク、一次ボタン色を反映 |
+| 旧アプリフォーム作業UI再現 | 完了 | code v56で旧 `FormOutreachBoard` の作業中バー、屋号コピー、フォームURLミニリンク、本文コピー、送信済み、次へ操作を反映 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |
@@ -84,6 +85,12 @@
 
 ## 検証済み
 
+- `clasp push -f` 成功
+- `clasp version "apps-script-full-workflow-v56-form-work-action-parity"` でVersion 56を作成済み
+- 既存Web app URLを `clasp deploy -V 56 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 56へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@56 - apps-script-full-workflow-v56-form-work-action-parity-on-existing-url` を指すことを確認
+- code v56ローカルスモークで `facility-copy-button`, `copyFormLeadFacilityName`, `formUrlMiniLink`, `selectNextFormLead`, v56バージョンマーカーを確認済み
+- `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp version "apps-script-full-workflow-v55-pagination-link-button-parity"` でVersion 55を作成済み
 - 既存Web app URLを `clasp deploy -V 55 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 55へ再デプロイ済み

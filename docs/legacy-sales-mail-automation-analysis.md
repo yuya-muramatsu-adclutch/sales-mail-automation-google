@@ -9,7 +9,7 @@
 - `app/globals.css`: 色、余白、パネル、テーブル、サイドバー、ダッシュボード、営業リスト、収集ツールのスタイル
 - `app/globals.css` の `StatusPill` / `table-wrap` / `DataTable` / `.button` / `.mini-button` / `.table-link-button`: 共通Pill、テーブル密度、行フォーカス、行内操作ボタンの見た目
 - `components/ListSearchFilters.tsx`, `components/DataTable.tsx`: 検索フォーム、絞り込み、リセット導線、空状態セルの見た目
-- `components/LeadPagination.tsx`, `components/FormOutreachBoard.tsx`: ページングのmini-button構成、URL小リンク、フォーム作業ボタンの見た目
+- `components/LeadPagination.tsx`, `components/FormOutreachBoard.tsx`: ページングのmini-button構成、URL小リンク、フォーム作業バー、屋号コピー、本文コピー、送信済み操作の見た目
 - `components/AppFrame.tsx`: サイドバー、ナビグループ、リスト/運用の項目順序、ブランド表現、上部ショートカット
 - `components/AppNavLink.tsx`: サイドバーの線アイコン、active表示、一次メニューの見え方
 - `app/login/page.tsx`, `components/LoginForm.tsx`: ログイン画面、中央カード、認証導線
@@ -54,6 +54,7 @@
 - 旧アプリの `StatusPill` / `DataTable` / `.button` / `.mini-button` / `.table-link-button` に合わせ、GAS版の全メニュー共通でPill色/枠線、横スクロールテーブル、フォーカス行、リンク装飾、行内操作ボタンの密度を再調整した。
 - 旧 `ListSearchFilters` に合わせ、営業リスト、フォーム送信、送信履歴の検索パネルへスライダー線アイコン、適用/クリアのボタン列、フォーカス時の青いリングを追加した。旧 `DataTable` に合わせ、空テーブルは点線枠のメッセージで表示するようにした。
 - 旧 `LeadPagination` に合わせ、営業リストのページングを先頭/前/ページ番号/次/最後のmini-button構成に変更した。旧 `url-mini-link` に合わせ、WEB/フォームURLを外部リンクアイコン付きの小リンクに変更し、一次ボタン色を旧アプリの黒系へ揃えた。
+- 旧 `FormOutreachBoard` の作業中バーに合わせ、フォーム送信リストの固定作業パネルを `作業中` Pill、屋号コピー、フォームURLミニリンク、本文コピー、送信済み、次へ操作のアイコン付きボタン構成へ揃えた。
 - ダッシュボードを旧アプリの情報設計に寄せ、今日の送信キュー、API連携、重要指標、次の作業、今月の動き、運用サマリーを追加。
 - ダッシュボードの重要指標、次の作業、今月の動き、運用サマリーを旧 `DashboardSignalCard` / `DashboardActionCard` / `DashboardCompactStat` に寄せ、左アイコン、数値のトーンカラー、白カード、ホバー浮きの見た目へ変更した。
 - ダッシュボード下段に旧 `MailSendingControlCard` の自動送信ON/OFFカードを追加し、GAS版では `settings.mail_sending_control` に読み替えて保存するようにした。
@@ -107,6 +108,7 @@
 - リード詳細ドロワー下部に旧 `QuickLeadEditButton` の危険操作セクションを追加し、除外ドメイン登録して営業対象から外す操作、営業先削除確認を同じ流れで実行できるようにした。
 - リード詳細ドロワーに旧 `DuplicateResolutionDialog` 相当の重複候補セクションを追加し、同じ会社名・メール・ドメインの候補を確認しながら、既存候補を残す/編集中の営業先を残す操作を選べるようにした。
 - フォーム送信リストに旧 `FormOutreachBoard` の送信済みチェック、一覧行の送信済み/解除ボタン、作業バー内の送信済み解除導線を追加した。
+- フォーム送信リストの一覧行に旧 `FormOutreachBoard` の屋号コピーリンク、作業対象ハイライト、フォームURL小リンクを追加し、作業バーと同じコピー状態を共有するようにした。
 - 送信済み更新時は `custom_fields_json` に `form_send_count`, `last_form_sent_at`, `last_form_body`, `form_send_events` を保存し、リード詳細のフォーム送信履歴と同じデータを参照するようにした。
 - 初回承認/認証エラー時の画面を旧 `LoginForm` の中央カード構成に寄せ、GAS版ではGoogle承認リンクと承認後再読み込み導線に読み替えた。
 - 営業リスト収集ツールに旧 `SerperApiKeyManager` / `SerperSetupGuide` のSerper APIキー管理カード、セットアップ手順、残量確認、検索APIテスト、マスク済みキー一覧を追加した。

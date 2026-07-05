@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v55_pagination_link_button_parity'), 'v55 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v56_form_work_action_parity'), 'v56 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -117,6 +117,15 @@ assert(html.includes('data-table-empty-cell'), 'legacy DataTable empty state mis
 assert(html.includes('table-wrap::-webkit-scrollbar'), 'legacy table scrollbar styling missing');
 assert(html.includes('url-mini-link'), 'legacy URL mini link style missing');
 assert(html.includes("legacyUiIcon('external')"), 'legacy URL external icon missing');
+assert(html.includes('formUrlMiniLink'), 'legacy form URL mini link helper missing');
+assert(html.includes('facility-copy-button'), 'legacy facility copy button style missing');
+assert(html.includes('copyFormLeadFacilityName'), 'legacy facility copy handler missing');
+assert(html.includes('selectNextFormLead'), 'legacy form work next action missing');
+assert(html.includes('formStatusToneClient'), 'legacy form work status tone helper missing');
+assert(html.includes("legacyUiIcon('mousePointer')"), 'legacy form work facility copy icon missing');
+assert(html.includes("legacyUiIcon('clipboard')"), 'legacy form work clipboard icon missing');
+assert(html.includes("legacyUiIcon('checkCircle')"), 'legacy form work sent icon missing');
+assert(html.includes('.form-work-actions .form-url-link'), 'legacy form work URL link sizing missing');
 assert(html.includes('button.primary,'), 'legacy primary button tone override missing');
 assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
