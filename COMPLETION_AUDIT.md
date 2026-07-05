@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @41 / code v41: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @42 / code v42: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v41_appframe_nav_parity`
+- Code version: `20260705_apps_script_full_workflow_v42_mail_sending_control_dashboard`
 
 ## 計画書との対応
 
@@ -67,9 +67,16 @@
 | 旧アプリGmail返信/Calendar設定反映 | 完了 | 旧 `GmailReplyCheckPanel` / `CalendarAutoCreateSettingsForm` に合わせ、code v39で返信チェック結果サマリー、誤判定候補確認/復元、Calendar自動登録設定を反映 |
 | 旧アプリ管理チェック/テンプレート操作反映 | 完了 | 旧 `AdminReadinessRunner` / `SchemaStatusPanel` / `TemplateProductionStatus` / `TemplateActions` に合わせ、code v40で本番前確認、DB追加項目チェック、テンプレート本番ON/OFF、行内テスト送信/削除操作を反映 |
 | 旧アプリAppFrameナビ順序反映 | 完了 | 旧 `AppFrame` の `listNavItems` / `navItems` に合わせ、code v41でサイドバーのグループ順序を旧ナビ順へ調整し、追加内部ページをセカンダリ表示にした |
+| 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 
 ## 検証済み
 
+- `clasp push -f` 成功
+- `clasp version "apps-script-full-workflow-v42-mail-sending-control-dashboard"` でVersion 42を作成済み
+- 既存Web app URLを `clasp deploy -V 42 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 42へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@42 - apps-script-full-workflow-v42-mail-sending-control-dashboard-on-existing-url` を指すことを確認
+- code v42ローカルスモークで `dashboardMailSendingControl`, `toggleMailSendingControl`, `mail_sending_control`, `setMailSendingControl`, `dashboardProspectingStatus` を確認済み
+- `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp version "apps-script-full-workflow-v41-appframe-nav-parity"` でVersion 41を作成済み
 - 既存Web app URLを `clasp deploy -V 41 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 41へ再デプロイ済み

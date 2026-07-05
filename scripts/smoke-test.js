@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v41_appframe_nav_parity'), 'v41 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v42_mail_sending_control_dashboard'), 'v42 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -125,6 +125,10 @@ assert(fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8').includes('listR
 assert(html.includes('row-send-ng'), 'lead row status styling missing');
 assert(html.includes('dashboard-hero-grid'), 'legacy-style dashboard hero missing');
 assert(html.includes('dashboard-signal-grid'), 'legacy-style dashboard signals missing');
+assert(html.includes('dashboardMailSendingControl'), 'legacy mail sending control card missing');
+assert(html.includes('dashboardProspectingStatus'), 'legacy dashboard prospecting status card missing');
+assert(html.includes('toggleMailSendingControl'), 'legacy mail sending toggle missing');
+assert(code.includes('mail_sending_control'), 'mail sending control default setting missing');
 assert(html.includes('lead-quick-views'), 'lead quick views missing');
 assert(html.includes('lead-kpi-grid'), 'lead KPI grid missing');
 assert(html.includes('leadBulkActionBar'), 'legacy lead bulk action bar missing');
@@ -263,6 +267,11 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'sendTemplateTestFromRow',
   'toggleTemplateProduction',
   'deleteTemplateFromRow',
+  'mail-sending-control',
+  'mail-sending-status',
+  'dashboard-prospecting-stats',
+  'renderDashboardMailSendingControl',
+  'renderDashboardProspectingStatus',
 ].forEach((marker) => {
   assert(html.includes(marker), `legacy UI marker missing: ${marker}`);
 });
@@ -312,6 +321,7 @@ assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflec
 [
   'saveEmailTemplate',
   'setEmailTemplateProduction',
+  'setMailSendingControl',
   'saveNgMaster',
   'saveExcludedDomain',
   'listGenres',

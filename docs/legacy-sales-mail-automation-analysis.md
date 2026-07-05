@@ -47,6 +47,8 @@
 
 - 旧アプリの濃紺サイドバー、白パネル、8px角丸、薄いグレー背景、業務向けテーブル密度を `Index.html` へ反映。
 - ダッシュボードを旧アプリの情報設計に寄せ、今日の送信キュー、API連携、重要指標、次の作業、今月の動き、運用サマリーを追加。
+- ダッシュボード下段に旧 `MailSendingControlCard` の自動送信ON/OFFカードを追加し、GAS版では `settings.mail_sending_control` に読み替えて保存するようにした。
+- ダッシュボード下段に旧 `ProspectingStatusCard` 相当の自動営業リスト収集状況カードを追加し、GAS版では `search_jobs` / `sync_logs` から追加、重複、除外を集計するようにした。
 - 営業リストにジャンルバー、検索/ビュー/ステータス/ジャンル/並び替え、クイックビュー、リスト件数バー、KPIグリッド、色分け凡例を追加。
 - 営業リストを旧 `LeadsBulkTable` の情報設計に寄せ、CSV/手動追加ヘッダー、確認待ちガイド、固定バルク操作バー、`No.` / `操作` / `屋号` / `連絡先` / `ジャンル名` / `ステータス` / `送信状況` の列構成を追加。
 - リード編集を旧アプリの「履歴・編集」導線に寄せ、一覧横の常設フォームではなく右側詳細ドロワーで開くように変更。
@@ -120,6 +122,7 @@
 - `checkRepliesForLeads()` の戻り値を旧 `GmailReplyCheckPanel` 相当のサマリーに拡張し、`listReplyFalsePositiveCandidates()` / `restoreReplyFalsePositiveCandidates()` を追加して自動返信・配信エラーの誤判定候補を確認/復元できるようにした。
 - `getSchemaStatus()` を追加し、GAS版の主要シート列と運用設定キーを管理画面から確認できるようにした。
 - `setEmailTemplateProduction()` を追加し、同一テンプレート種別/ジャンルの本番ON重複を自動でOFFにしながら、テンプレートの本番化をUUID `id` 更新で保存できるようにした。
+- `setMailSendingControl()` を追加し、旧 `/api/settings/mail-sending` 相当として自動送信だけを稼働/停止できる状態を `settings` シートへ保存できるようにした。
 
 ## そのまま移植しないもの
 

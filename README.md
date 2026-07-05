@@ -50,6 +50,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `SerperApiKeyManager` / `SerperSetupGuide` に寄せたSerper APIキー管理、検索テスト、マスク済みキー一覧
 - 旧Next/Supabase版の `AdminReadinessRunner` / `SchemaStatusPanel` に寄せた本番前確認、DB追加項目チェック
 - 旧Next/Supabase版の `TemplateProductionStatus` / `TemplateActions` に寄せたテンプレート本番ON/OFF、テスト送信、削除操作
+- 旧Next/Supabase版の `MailSendingControlCard` に寄せたダッシュボードの自動送信ON/OFFカード
 
 ## ファイル
 
@@ -80,7 +81,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @41 / code v41: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @42 / code v42: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -154,6 +155,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script code v39で旧Next/Supabase版の `GmailReplyCheckPanel` / `CalendarAutoCreateSettingsForm` に寄せ、返信チェック結果サマリー、誤判定候補確認/復元、Calendar自動登録設定を追加済み
 - Apps Script code v40で旧Next/Supabase版の `AdminReadinessRunner` / `SchemaStatusPanel` / `TemplateProductionStatus` / `TemplateActions` に寄せ、管理画面の安全な本番前確認、DB追加項目チェック、テンプレート本番ON/OFF、行内テスト送信/削除操作を追加済み
 - Apps Script code v41で旧Next/Supabase版の `AppFrame` に寄せ、サイドバーのグループ順序を `リスト` / `運用` と旧ナビ順へ合わせ、追加内部ページをセカンダリ表示に調整済み
+- Apps Script code v42で旧Next/Supabase版の `MailSendingControlCard` とダッシュボード下段に寄せ、`mail_sending_control` 設定、自動送信ON/OFFカード、収集状況カード、送信停止時の安全バー表示を追加済み
+- Version 42は `clasp deploy -V 42 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `dashboardMailSendingControl`, `toggleMailSendingControl`, `mail_sending_control`, `dashboardProspectingStatus` を確認済み
 - Version 41は `clasp deploy -V 41 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで旧AppFrameのナビ順序を確認済み
 - Version 40は `clasp deploy -V 40 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `adminReadinessRunnerPanel`, `schemaStatusPanel`, `renderTemplateActionCell`, `setEmailTemplateProduction`, `getSchemaStatus` を確認済み
 - Version 30は `clasp deploy -V 30 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `leadDuplicatePanel`, `renderLeadDuplicatePanel`, `listLeadDuplicateCandidates` を確認済み

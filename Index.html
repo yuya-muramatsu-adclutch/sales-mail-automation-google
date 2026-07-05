@@ -1764,6 +1764,146 @@
         font-size: 12px;
       }
 
+      .mail-sending-control {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 18px;
+        box-shadow: inset 4px 0 0 #64748b;
+      }
+
+      .mail-sending-control.stopped {
+        border-color: #fecaca;
+        background:
+          linear-gradient(90deg, #fff7f7 0%, #ffffff 48%),
+          #ffffff;
+        box-shadow:
+          inset 4px 0 0 var(--red),
+          0 10px 26px rgba(194, 65, 58, 0.08);
+      }
+
+      .mail-sending-control.running {
+        border-color: #bbf7d0;
+        background:
+          linear-gradient(90deg, #f0fdf4 0%, #ffffff 48%),
+          #ffffff;
+        box-shadow:
+          inset 4px 0 0 var(--green),
+          0 10px 26px rgba(20, 143, 99, 0.08);
+      }
+
+      .mail-sending-status {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        min-width: 0;
+      }
+
+      .mail-sending-icon {
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .mail-sending-control.running .mail-sending-icon {
+        background: #dcfce7;
+        color: var(--green);
+      }
+
+      .mail-sending-control.stopped .mail-sending-icon {
+        background: #fee2e2;
+        color: var(--red);
+      }
+
+      .mail-sending-copy {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .mail-sending-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .mail-sending-status strong {
+        color: var(--text);
+        font-size: 26px;
+        line-height: 1.1;
+      }
+
+      .mail-sending-copy p {
+        max-width: 760px;
+        margin: 0;
+        color: #475569;
+        font-weight: 800;
+        line-height: 1.7;
+      }
+
+      .mail-sending-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 2px;
+      }
+
+      .mail-sending-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 28px;
+        padding: 5px 9px;
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .mail-sending-meta b {
+        color: var(--text);
+      }
+
+      .mail-sending-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 0 0 auto;
+      }
+
+      .mail-sending-control .success-message,
+      .mail-sending-control .form-message {
+        grid-column: 1 / -1;
+        margin: 0;
+      }
+
+      .prospecting-status-card {
+        display: grid;
+        gap: 12px;
+        border-top: 4px solid var(--green);
+      }
+
+      .prospecting-status-card.bad {
+        border-top-color: var(--red);
+      }
+
+      .prospecting-status-card.info {
+        border-top-color: var(--teal);
+      }
+
+      .dashboard-prospecting-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
       .list-filter-panel {
         position: relative;
         display: grid;
@@ -4815,6 +4955,10 @@
           </section>
           <div class="stats" id="stats"></div>
           <div class="dashboard-lower-grid">
+            <section id="dashboardMailSendingControl" class="mail-sending-control stopped"></section>
+            <section id="dashboardProspectingStatus" class="prospecting-status-card"></section>
+          </div>
+          <div class="dashboard-lower-grid">
             <section class="dashboard-summary-panel">
               <div class="dashboard-section-heading"><h2>今月の動き</h2></div>
               <div class="dashboard-compact-grid" id="dashboardMonth"></div>
@@ -5778,11 +5922,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const integrations = data.integrations || {};
         const sendWindow = data.sendWindow || {};
         const gmailReady = integrations.gmail !== false;
+        const mailControlEnabled = data.mailSendingEnabled !== false;
         const mailReady = gmailReady && (data.todayRemaining || 0) > 0;
         const sendWindowAllowed = sendWindow.allowed !== false && sendWindow.enabled !== false;
-        const sendingEnabled = mailReady && sendWindowAllowed;
+        const sendingEnabled = mailControlEnabled && mailReady && sendWindowAllowed;
         const reason = sendingEnabled
           ? '自動送信だけ時間制限内で実行します'
+          : !mailControlEnabled
+            ? (data.mailSendingReason || '安全のため自動送信を停止しています')
           : !gmailReady
             ? 'Gmail送信枠または承認状態を確認してください'
             : (data.todayRemaining || 0) <= 0
@@ -5800,6 +5947,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           <div class="app-safety-strip-items">
             <span class="app-safety-chip">送信時間 ${statusTonePill(sendWindow.label || '確認中', sendWindowAllowed ? 'good' : 'warn')}</span>
+            <span class="app-safety-chip">自動送信 ${statusTonePill(mailControlEnabled ? '稼働中' : '停止中', mailControlEnabled ? 'good' : 'bad')}</span>
             <span class="app-safety-chip">Gmail ${statusTonePill(gmailReady ? 'OK' : '確認', gmailReady ? 'good' : 'bad')}</span>
             <span class="app-safety-chip">Calendar ${statusTonePill(integrations.calendar !== false ? 'OK' : '確認', integrations.calendar !== false ? 'good' : 'warn')}</span>
             <span class="app-safety-chip">Serper残量 ${statusTonePill(serperLabel, serperReady ? ((data.serperTodayRemaining || 0) > 0 ? 'good' : 'warn') : 'warn')}</span>
@@ -5920,6 +6068,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderDashboardHero(dashboard);
         renderDashboardSignals(dashboard);
         renderDashboardActions(dashboard);
+        renderDashboardMailSendingControl(dashboard);
+        renderDashboardProspectingStatus(dashboard);
         renderDashboardCompact(dashboard);
         renderSearchOverview(dashboard);
         renderObjectTable('statusTable', dashboard.byStatus || {});
@@ -5927,10 +6077,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderDashboardHero(dashboard) {
-        const canSend = dashboard.sendTargets > 0 && dashboard.todayRemaining > 0;
+        const mailControlEnabled = dashboard.mailSendingEnabled !== false;
+        const sendWindowAllowed = !dashboard.sendWindow || dashboard.sendWindow.allowed !== false;
+        const todayTargets = mailControlEnabled ? Math.min(dashboard.sendTargets || 0, dashboard.todayRemaining || 0) : 0;
+        const canSend = mailControlEnabled && sendWindowAllowed && todayTargets > 0;
         const sendReason = !canSend
-          ? dashboard.todayRemaining <= 0
+          ? !mailControlEnabled
+            ? (dashboard.mailSendingReason || 'メール送信機能が停止中です')
+          : dashboard.todayRemaining <= 0
             ? '本日の送信上限に達しています'
+          : !sendWindowAllowed
+            ? '自動送信時間外です'
             : '今日送れる営業先がありません'
           : '送信前チェックへ進めます';
         document.getElementById('dashboardSendQueue').innerHTML = `
@@ -5939,7 +6096,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <div><span class="dashboard-kicker">メール送信対象</span><h2>今日の送信キュー</h2></div>
               ${statusPill(canSend ? '送信可能' : '要確認')}
             </div>
-            <div class="dashboard-send-queue-count"><strong>${formatNumber(Math.min(dashboard.sendTargets || 0, dashboard.todayRemaining || 0))}</strong><span>件</span></div>
+            <div class="dashboard-send-queue-count"><strong>${formatNumber(todayTargets)}</strong><span>件</span></div>
             <p>${escapeHtml(sendReason)}</p>
           </div>
           <div class="dashboard-mini-metrics">
@@ -5974,8 +6131,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const month = dashboard.thisMonth || {};
         const apiOk = Object.values(dashboard.integrations || {}).filter(Boolean).length;
         const apiTotal = Object.keys(dashboard.integrations || {}).length || 5;
+        const todayTargets = dashboard.mailSendingEnabled === false ? 0 : Math.min(dashboard.sendTargets || 0, dashboard.todayRemaining || 0);
         document.getElementById('dashboardSignals').innerHTML = [
-          signalCard('メール送信対象', `${formatNumber(Math.min(dashboard.sendTargets || 0, dashboard.todayRemaining || 0))}件`, `送信可能 ${formatNumber(dashboard.sendTargets)}件`, '送信リストへ', 'blue', "showTab('leads'); setLeadFilter('email')"),
+          signalCard('メール送信対象', `${formatNumber(todayTargets)}件`, dashboard.mailSendingEnabled === false ? '自動送信停止中' : `送信可能 ${formatNumber(dashboard.sendTargets)}件`, '送信リストへ', dashboard.mailSendingEnabled === false ? 'red' : 'blue', "showTab('emailLeads')"),
           signalCard('API連携', `${apiOk}/${apiTotal}`, `Serper本日残り ${formatNumber(dashboard.serperTodayRemaining)}件`, '運用へ', apiOk === apiTotal ? 'green' : 'amber', "showTab('ops')"),
           signalCard('今月新規リスト', `${formatNumber(month.addedLeads || 0)}件`, `累計 ${formatNumber(dashboard.leadsTotal)}件`, '収集へ', 'green', "showTab('search')"),
           signalCard('今月返信', `${formatNumber(month.replies || 0)}件`, `返信率 ${formatPercent(month.replyRate || 0)}`, '返信を見る', 'ink', "showTab('leads'); setLeadFilter('reply')"),
@@ -5984,11 +6142,80 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderDashboardActions(dashboard) {
         document.getElementById('dashboardActions').innerHTML = [
-          actionCard('送信前チェック', `${formatNumber(dashboard.todayRemaining)}件`, '本日残り送信枠', dashboard.todayRemaining > 0 ? 'ok' : 'bad', "showTab('leads'); setLeadFilter('email')"),
+          actionCard('送信前チェック', dashboard.mailSendingEnabled === false ? '停止中' : `${formatNumber(dashboard.todayRemaining)}件`, dashboard.mailSendingEnabled === false ? 'メール送信機能' : '本日残り送信枠', dashboard.mailSendingEnabled === false ? 'bad' : dashboard.todayRemaining > 0 ? 'ok' : 'bad', "showTab('sending')"),
           actionCard('フォーム対象', `${formatNumber(dashboard.formTargets)}件`, 'メールなし・フォームあり', dashboard.formTargets > 0 ? 'info' : 'ok', "showTab('forms')"),
           actionCard('確認待ち/未対応', `${formatNumber((dashboard.byStatus || {})['未対応'] || 0)}件`, '未対応リード確認', 'warn', "showTab('leads'); setLeadFilter('all'); document.getElementById('leadStatus').value='未対応'; filterLeads()"),
           actionCard('異常確認', `${formatNumber(dashboard.errorCount)}件`, 'sync_logs warn/error', dashboard.errorCount > 0 ? 'bad' : 'ok', "showTab('ops')"),
         ].join('');
+      }
+
+      function renderDashboardMailSendingControl(dashboard) {
+        const target = document.getElementById('dashboardMailSendingControl');
+        if (!target) return;
+        const enabled = dashboard.mailSendingEnabled !== false;
+        const updatedLabel = dashboard.mailSendingUpdatedAt ? dateTimeLabel(dashboard.mailSendingUpdatedAt) : '未更新';
+        const reason = dashboard.mailSendingReason || 'テンプレートや営業リストの準備中のため停止';
+        target.className = `mail-sending-control ${enabled ? 'running' : 'stopped'}`;
+        target.innerHTML = `
+          <div class="mail-sending-status">
+            <div class="mail-sending-icon" aria-hidden="true">${enabled ? 'ON' : 'ST'}</div>
+            <div class="mail-sending-copy">
+              <span class="mail-sending-label">メール送信機能</span>
+              <strong>${enabled ? '稼働中' : '停止中'}</strong>
+              <p>${enabled ? '自動送信が有効です。手動の1件送信は送信時間外でも実行できます。' : '停止中は自動送信だけ止まります。手動の1件送信は内容確認後に実行できます。'}</p>
+              <div class="mail-sending-meta">
+                ${enabled ? '' : `<span><b>停止理由</b>${escapeHtml(reason)}</span>`}
+                <span><b>最終更新</b>${escapeHtml(updatedLabel || '未更新')}</span>
+              </div>
+            </div>
+          </div>
+          <div class="mail-sending-actions">
+            <span class="pill ${enabled ? 'good' : 'bad'}">${enabled ? '稼働中' : '停止中'}</span>
+            <button type="button" class="${enabled ? 'danger' : 'primary'}" onclick="toggleMailSendingControl(${enabled ? 'false' : 'true'})">${enabled ? '送信を停止' : '送信を再開'}</button>
+          </div>
+        `;
+      }
+
+      function renderDashboardProspectingStatus(dashboard) {
+        const target = document.getElementById('dashboardProspectingStatus');
+        if (!target) return;
+        const tone = dashboard.prospectingTone || 'ok';
+        const label = dashboard.prospectingLabel || '待機中';
+        target.className = `prospecting-status-card ${escapeHtml(tone)}`;
+        target.innerHTML = `
+          <div class="dashboard-section-heading">
+            <div>
+              <span class="dashboard-kicker">自動営業リスト収集</span>
+              <h2>${escapeHtml(label)}</h2>
+            </div>
+            ${statusTonePill(label, tone === 'bad' ? 'bad' : tone === 'info' ? 'info' : 'good')}
+          </div>
+          <p>${escapeHtml(dashboard.prospectingReason || '現在は待機中です。必要に応じて収集ツールから実行できます。')}</p>
+          <div class="dashboard-prospecting-stats">
+            ${miniMetric('追加', `${formatNumber(dashboard.prospectingAddedCount || 0)}件`)}
+            ${miniMetric('重複', `${formatNumber(dashboard.prospectingDuplicateCount || 0)}件`)}
+            ${miniMetric('除外', `${formatNumber(dashboard.prospectingExcludedCount || 0)}件`)}
+          </div>
+          <small class="muted">${escapeHtml(dashboard.prospectingDetail || 'GAS版では search_jobs / sync_logs から直近成果を集計します。')}</small>
+          <button type="button" onclick="showTab('search')">収集ツールへ</button>
+        `;
+      }
+
+      async function toggleMailSendingControl(enabled) {
+        if (enabled && !confirm('メール送信機能を稼働中にします。自動送信時間内になると送信される可能性があります。再開しますか？')) return;
+        const result = await api('setMailSendingControl', {
+          enabled: Boolean(enabled),
+          reason: enabled ? null : 'テンプレートや営業リストの準備中のため停止',
+        });
+        state.dashboard = Object.assign({}, state.dashboard || {}, {
+          mailSendingEnabled: result.enabled,
+          mailSendingReason: result.reason,
+          mailSendingUpdatedAt: result.updatedAt,
+        });
+        renderDashboardMailSendingControl(state.dashboard);
+        renderAppSafetyStrip(state.dashboard);
+        message(result.enabled ? 'メール送信機能を稼働中にしました' : 'メール送信機能を停止しました', 'ok');
+        await refreshAll();
       }
 
       function renderDashboardCompact(dashboard) {
@@ -9827,7 +10054,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const dashboard = state.dashboard || {};
         const leads = state.emailLeads || [];
         const planned = leads.slice(0, Math.min(10, dashboard.todayRemaining || 0));
-        const canSend = (dashboard.todayRemaining || 0) > 0 && leads.length > 0;
+        const canSend = dashboard.mailSendingEnabled !== false && (dashboard.todayRemaining || 0) > 0 && leads.length > 0;
         document.getElementById('sendingPlanPill').outerHTML = `<span class="pill ${canSend ? 'good' : 'warn'}" id="sendingPlanPill">${canSend ? '送信可能' : '要確認'}</span>`;
         document.getElementById('sendingPlanGrid').innerHTML = [
           ['初回対象', `${formatNumber(state.emailTotal)}件`],
@@ -9851,6 +10078,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['メール', escapeHtml(lead.email || '-')],
         ])).join(''));
         document.getElementById('sendingLimitPills').innerHTML = [
+          `<span class="pill ${dashboard.mailSendingEnabled === false ? 'bad' : 'good'}">メール送信 ${dashboard.mailSendingEnabled === false ? '停止中' : '稼働中'}</span>`,
           `<span class="pill warn">1日${formatNumber(dashboard.dailyMailLimit || 100)}件まで</span>`,
           `<span class="pill warn">1回${formatNumber(Math.min(100, dashboard.dailyMailLimit || 100))}件まで</span>`,
           '<span class="pill good">プレーンテキストのみ</span>',
@@ -11763,13 +11991,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const calendarAuto = getClientSetting('calendar_auto_create', { enabled: false }) || {};
         const batchLimit = Number(getClientSetting('email_batch_send_limit', dashboard.emailBatchSendLimit || 20)) || 20;
         const dailyLimit = Number(dashboard.dailyMailLimit || getClientSetting('gmail_daily_send_limit', 80)) || 80;
+        const mailControlEnabled = dashboard.mailSendingEnabled !== false;
         const todaySent = Number(dashboard.sentToday || 0);
         const todayRemaining = Number(dashboard.todayRemaining || 0);
         const allLeads = uniqueReadinessLeads([].concat(state.emailLeads || [], state.leads || [], state.formLeads || []));
         const emailCandidates = allLeads.filter(canEmailLead);
         const productionInitialTemplates = (state.templates || []).filter((template) => template.template_type === 'initial' && isProductionTemplate(template));
         const initialTargets = emailCandidates.filter((lead) => productionInitialTemplates.some((template) => String(template.genre || '') === String(lead.genre || '')));
-        const availableSlots = Math.max(0, Math.min(initialTargets.length, batchLimit, todayRemaining));
+        const availableSlots = mailControlEnabled ? Math.max(0, Math.min(initialTargets.length, batchLimit, todayRemaining)) : 0;
         const selectedInitial = initialTargets.slice(0, availableSlots).map((lead) => ({
           id: lead.id || '',
           companyName: lead.company_name || lead.companyName || '',
@@ -11787,6 +12016,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const checks = [
           ['Google Sheets DB', true, `${formatNumber(dashboard.leadsTotal || allLeads.length)}件`],
           ['Gmail送信枠', integrations.gmail !== false && todayRemaining > 0, `本日残り ${formatNumber(todayRemaining)}件 / Gmail残り ${formatNumber(dashboard.mailQuotaRemaining || 0)}件`],
+          ['メール送信機能', mailControlEnabled, mailControlEnabled ? '稼働中' : (dashboard.mailSendingReason || '停止中')],
           ['自動送信時間', sendWindow.enabled !== false && sendWindow.allowed !== false, sendWindow.label || '送信時間設定を確認'],
           ['本番テンプレート', productionInitialTemplates.length > 0, `初回メール ${formatNumber(productionInitialTemplates.length)}件`],
           ['営業リスト送信候補', emailCandidates.length > 0, `${formatNumber(emailCandidates.length)}件`],

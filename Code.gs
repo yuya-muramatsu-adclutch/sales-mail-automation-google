@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260705_apps_script_full_workflow_v41_appframe_nav_parity';
+const APP_VERSION = '20260705_apps_script_full_workflow_v42_mail_sending_control_dashboard';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -339,6 +339,12 @@ const DEFAULT_SETTINGS = Object.freeze([
     description: 'Default send window ported from the existing app.',
   },
   {
+    key: 'mail_sending_control',
+    value: '{"enabled":false,"reason":"初期状態では安全のためメール送信を停止しています。","updatedAt":null}',
+    value_type: 'json',
+    description: 'Automatic mail sending control ported from the existing app.',
+  },
+  {
     key: 'gmail_reply_check',
     value: '{"enabled":false,"maxThreads":200}',
     value_type: 'json',
@@ -511,7 +517,7 @@ function getSchemaStatus() {
       key: 'settings-core',
       label: 'settings 運用設定キー',
       sheet: 'settings',
-      settingKeys: ['gmail_daily_send_limit', 'email_batch_send_limit', 'email_send_window', 'gmail_reply_check', 'calendar_auto_create', 'batch_runtime_budget_ms'],
+      settingKeys: ['gmail_daily_send_limit', 'email_batch_send_limit', 'email_send_window', 'mail_sending_control', 'gmail_reply_check', 'calendar_auto_create', 'batch_runtime_budget_ms'],
     },
   ];
   const checks = schemaChecks.map(function (check) {

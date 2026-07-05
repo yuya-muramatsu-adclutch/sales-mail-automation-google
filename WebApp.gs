@@ -95,6 +95,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'installDefaultTriggers') return installDefaultTriggers();
   if (action === 'createSpreadsheetBackup') return createSpreadsheetBackup();
   if (action === 'setSettingValue') return setSettingValue(data.key, data.value, data.valueType || data.value_type, data.description);
+  if (action === 'setMailSendingControl') return setMailSendingControl(data);
   if (action === 'listCustomFieldDefinitions') return listCustomFieldDefinitions(data);
   if (action === 'saveCustomFieldDefinition') return saveCustomFieldDefinition(data);
   if (action === 'updateCustomFieldDefinition') return updateCustomFieldDefinition(data.id, data.patch || data);
@@ -195,8 +196,17 @@ function getDashboardStats(options) {
   const serperDailyLimit = Number(getSettingValue_('serper_daily_search_limit', 100));
   const serperMonthlyLimit = Number(getSettingValue_('serper_monthly_search_limit', 1000));
   const mailQuota = getMailQuotaStatus_(dailyMailLimit);
+  const mailSendingControl = getMailSendingControl_();
+  const todayRemaining = Math.max(0, Math.min(dailyMailLimit - sentToday, mailQuota.remaining));
+  const todayEmailTargets = mailSendingControl.enabled ? Math.min(listStats.sendable, todayRemaining) : 0;
   const serperInfo = getSerperApiKeyInfo();
   const triggerCount = getProjectTriggerCount_();
+  const activeSearchJobs = searchJobs.filter(function (job) {
+    return job.status === 'queued' || job.status === 'running';
+  });
+  const failedSearchJobs = searchJobs.filter(function (job) {
+    return job.status === 'failed';
+  });
   const monthLeads = leads.filter(function (lead) {
     return !isArchivedLead_(lead) && String(lead.created_at || '').slice(0, 7) === month;
   });
@@ -242,9 +252,13 @@ function getDashboardStats(options) {
     productionInitialTemplates: templates.filter(function (template) { return template.template_type === 'initial' && normalizeBooleanLike_(template.is_production); }).length,
     productionFormTemplates: templates.filter(function (template) { return template.template_type === 'form' && normalizeBooleanLike_(template.is_production); }).length,
     dailyMailLimit: dailyMailLimit,
-    todayRemaining: Math.max(0, Math.min(dailyMailLimit - sentToday, mailQuota.remaining)),
+    todayRemaining: todayRemaining,
+    todayEmailTargets: todayEmailTargets,
     mailQuotaRemaining: mailQuota.remaining,
     mailQuotaAvailable: mailQuota.available,
+    mailSendingEnabled: mailSendingControl.enabled,
+    mailSendingReason: mailSendingControl.reason,
+    mailSendingUpdatedAt: mailSendingControl.updatedAt,
     sendWindow: sendWindow,
     serperConfigured: serperInfo.configured,
     serperKeyMask: serperInfo.key_mask,
@@ -254,9 +268,16 @@ function getDashboardStats(options) {
     serperMonthRemaining: Math.max(0, serperMonthlyLimit - serperMonth),
     queuedJobs: searchJobs.filter(function (job) { return job.status === 'queued'; }).length,
     runningJobs: searchJobs.filter(function (job) { return job.status === 'running'; }).length,
-    failedJobs: searchJobs.filter(function (job) { return job.status === 'failed'; }).length,
+    failedJobs: failedSearchJobs.length,
     completedJobs: searchJobs.filter(function (job) { return job.status === 'completed'; }).length,
     errorCount: syncLogs.filter(function (log) { return log.level === 'error' || log.level === 'warn'; }).length,
+    prospectingAddedCount: sumNumericFields_(syncLogs, ['added_count', 'added']),
+    prospectingDuplicateCount: sumNumericFields_(syncLogs, ['duplicate_skip_count', 'skipped']),
+    prospectingExcludedCount: sumNumericFields_(syncLogs, ['excluded_count', 'protected_skip_count']),
+    prospectingLabel: activeSearchJobs.length ? '実行中' : '待機中',
+    prospectingTone: failedSearchJobs.length ? 'bad' : activeSearchJobs.length ? 'info' : 'ok',
+    prospectingReason: activeSearchJobs.length ? '営業リスト収集ジョブを処理中です' : '現在は待機中です。必要に応じて収集ツールから実行できます。',
+    prospectingDetail: 'GAS版では search_jobs / sync_logs から直近成果を集計します。',
     integrations: {
       sheets: true,
       gmail: mailQuota.available,
@@ -274,6 +295,47 @@ function getDashboardStats(options) {
 
   writeDashboardStatsCache_(stats);
   return stats;
+}
+
+function getMailSendingControl_() {
+  const defaultControl = {
+    enabled: false,
+    reason: '初期状態では安全のためメール送信を停止しています。',
+    updatedAt: null,
+  };
+  const source = getSettingValue_('mail_sending_control', defaultControl);
+  const control = source && typeof source === 'object' ? source : defaultControl;
+  const enabled = control.enabled === true;
+
+  return {
+    enabled: enabled,
+    reason: enabled ? null : String(control.reason || defaultControl.reason),
+    updatedAt: control.updatedAt || control.updated_at || null,
+  };
+}
+
+function setMailSendingControl(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  if (typeof source.enabled !== 'boolean') {
+    throw new Error('enabled is required.');
+  }
+
+  const control = {
+    enabled: source.enabled,
+    reason: source.enabled ? null : String(source.reason || 'テンプレートや営業リストの準備中のため停止').trim(),
+    updatedAt: nowIso_(),
+  };
+  setSettingValue('mail_sending_control', control, 'json', 'Automatic mail sending control ported from the existing app.');
+  return control;
+}
+
+function sumNumericFields_(records, fields) {
+  return (records || []).reduce(function (sum, record) {
+    return sum + fields.reduce(function (innerSum, field) {
+      const value = Number(record[field] || 0);
+      return innerSum + (Number.isFinite(value) ? value : 0);
+    }, 0);
+  }, 0);
 }
 
 function todayText_() {
