@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v68_gmail_reply_panel_parity'), 'v68 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v69_template_action_dialog_parity'), 'v69 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -144,6 +144,14 @@ assert(html.includes("legacyUiIcon('rotateCcw')}候補を戻す"), 'legacy reply
 assert(html.includes('grid-template-columns: auto minmax(0, 1fr) auto;'), 'legacy reply note icon layout missing');
 assert(html.includes('background: #fffbeb;'), 'legacy reply false-positive warning card tone missing');
 assert(html.includes("legacyUiIcon('save')}保存する"), 'legacy calendar save icon missing');
+assert(html.includes('templateActionDialogHost'), 'legacy template action dialog host missing');
+assert(html.includes('openTemplateEditDialog'), 'legacy template edit dialog opener missing');
+assert(html.includes('template-edit-dialog'), 'legacy template edit dialog shell missing');
+assert(html.includes('template-test-dialog'), 'legacy template test dialog shell missing');
+assert(html.includes('template-test-recipient'), 'legacy template test recipient card missing');
+assert(html.includes('.template-test-layout,'), 'legacy template test dialog responsive rule missing');
+assert(html.includes('runTemplateTestSend'), 'legacy template test dialog send action missing');
+assert(html.includes("legacyUiIcon('send')}この内容でテスト送信"), 'legacy template test send icon button missing');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
 assert(html.includes("legacyUiIcon('shieldCheck')"), 'legacy safety strip shield icon missing');
 assert(html.includes("legacyUiIcon('clock3')"), 'legacy safety strip clock icon missing');

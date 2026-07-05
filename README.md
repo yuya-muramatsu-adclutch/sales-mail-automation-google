@@ -89,7 +89,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @68 / code v68: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @69 / code v69: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -205,6 +205,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script code v66で旧Next/Supabase版の `EmailDiscoverySettingsForm` に寄せ、自動運用設定カードのアイコン付きヘッダーと、メール自動取得のMailSearch/Clock/TimerReset/Historyステータス行を追加済み
 - Apps Script code v67で旧Next/Supabase版の `GmailConnectionCheck` / `GoogleCredentialsManager` / `MailSendLockPanel` に寄せ、Gmail連携テスト、Google認証サマリー、送信ロックのアイコン付き状態行と認可導線を追加済み
 - Apps Script code v68で旧Next/Supabase版の `GmailReplyCheckPanel` / `GmailReplyCheckSettingsForm` / `CalendarAutoCreateSettingsForm` に寄せ、返信チェック注意帯、返信チェック/誤判定修正ボタン、エラー行、Calendar保存ボタンをアイコン付きUIへ変更済み
+- Apps Script code v69で旧Next/Supabase版の `TemplateActions` に寄せ、テンプレート一覧の編集・テスト送信を中央ダイアログ化し、送信先カード、差し込み元、送信内容プレビュー、保存/テスト送信アクションを反映済み
+- Version 69は `clasp deploy -V 69 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `templateActionDialogHost`, `template-edit-dialog`, `template-test-dialog`, `template-test-recipient`, `runTemplateTestSend` を確認済み
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み
 - Version 67は `clasp deploy -V 67 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `keyRound`, `refreshCw`, `gmail-connection-status-grid`, `triangleAlert`, `lock` / `unlock` を確認済み
 - Version 66は `clasp deploy -V 66 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `automation-card-title`, `automation-status-grid`, `mailSearch`, `timerReset`, `history` を確認済み

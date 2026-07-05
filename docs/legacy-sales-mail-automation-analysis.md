@@ -109,6 +109,7 @@
 - 旧 `EmailDiscoverySettingsForm` に合わせ、自動運用設定のカードヘッダーを線画アイコン付きにし、メール自動取得カードへ自動取得、実行予定、再実行スキップ、最終更新の4ステータス行を追加した。
 - 旧 `GmailConnectionCheck` / `GoogleCredentialsManager` / `MailSendLockPanel` に合わせ、Gmail連携テスト、Google/Gmail認証サマリー、送信ロックをShield/Key/Refresh/Mail/Lock/Unlockアイコン付きの状態行と認可導線へ寄せた。
 - 旧 `GmailReplyCheckPanel` / `GmailReplyCheckSettingsForm` / `CalendarAutoCreateSettingsForm` に合わせ、返信チェックの注意帯、実行ボタン、誤判定候補確認/復元、エラー行、Calendar保存をMessageCircleReply/Refresh/Rotate/Saveアイコン付きUIへ寄せた。
+- 旧 `TemplateActions` に合わせ、テンプレート一覧の編集とテスト送信を中央ダイアログ化し、送信先カード、差し込み元/サンプル、送信内容プレビュー、保存/送信アクションを反映した。
 - 旧 `ng-master` / `exclusions` / `background-jobs/activity` / `errors` のページ分割に合わせ、送信NG、除外ドメイン、直近実行結果、エラー詳細を独立タブとして追加した。
 - 旧 `ProspectingCollectionTool` 系のタブ式操作に合わせ、営業リスト収集ツール内へ `0 自動運用`, `1 ジャンル×エリア`, `2 キーワード検索`, `3 ファイル収集`, `4 まとめサイトURL` の5モードパネルを追加した。GAS版では `settings`, `runSmallSearchJob`, `importLeadsFromCsv` に読み替えて実操作できるようにした。
 - 管理に旧 `GenreManager` 相当のジャンル管理を追加し、追加、テーブル内編集、削除確認をUUID `id` 更新で操作できるようにした。GAS版では履歴整合性のため削除は `active=false` の安全な無効化に読み替える。

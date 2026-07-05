@@ -3725,6 +3725,78 @@
         font-weight: 900;
       }
 
+      .template-edit-dialog,
+      .template-test-dialog {
+        gap: 18px;
+      }
+
+      .template-test-recipient {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+      }
+
+      .template-test-recipient div,
+      .template-test-lead-preview,
+      .template-test-preview {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .template-test-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 12px;
+        align-items: stretch;
+      }
+
+      .template-test-card {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .template-test-card h3 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0;
+      }
+
+      .template-test-recipient span:first-child,
+      .template-test-card h3,
+      .template-test-preview span,
+      .template-test-lead-preview span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.6;
+      }
+
+      .template-test-preview pre {
+        min-height: 180px;
+        max-height: 320px;
+        margin: 0;
+        overflow: auto;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: inherit;
+        font-size: 13px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+      }
+
       .inline-success {
         color: #0f766e;
       }
@@ -5788,6 +5860,8 @@
         .api-key-summary,
         .api-key-form,
         .api-key-item,
+        .template-test-layout,
+        .template-test-recipient,
         .template-safety-grid,
         .exclusion-hero-panel,
         .prospecting-route-grid,
@@ -6359,6 +6433,7 @@
               <div id="templateExampleBody" class="template-body">テンプレートを登録してください。</div>
             </div>
           </section>
+          <div id="templateActionDialogHost"></div>
         </section>
 
         <section id="sendNg" class="section">
@@ -7181,6 +7256,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           limit: 500,
           offset: 0,
           total: 0,
+        },
+        templateActionDialog: {
+          mode: '',
+          templateId: '',
+          message: '',
+          messageKind: '',
         },
       };
 
@@ -9019,6 +9100,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('templateTable').innerHTML = table(['名称', 'ジャンル', '種別', 'タグ', 'テスト', '本番', '版', '操作'], rows);
         renderTemplateExample(state.templates[0]);
         renderTemplateTagMenuPanel();
+        renderTemplateActionDialog();
         renderLeadSendTemplateOptions();
       }
 
@@ -9033,13 +9115,197 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const blockReason = productionOn ? '' : templateProductionBlockedReason(template);
         return `
           <span class="template-action-row">
-            <button type="button" class="table-link-button" onclick="editTemplate('${escapeJsString(template.id)}')">${legacyUiIcon('pencil')}編集</button>
+            <button type="button" class="table-link-button" onclick="openTemplateEditDialog('${escapeJsString(template.id)}')">${legacyUiIcon('pencil')}編集</button>
             <button type="button" class="table-link-button" onclick="sendTemplateTestFromRow('${escapeJsString(template.id)}')">${legacyUiIcon('eye')}テスト送信</button>
             <button type="button" class="table-link-button" onclick="toggleTemplateProduction('${escapeJsString(template.id)}')" ${blockReason ? `disabled title="${escapeHtml(blockReason)}"` : ''}>${legacyUiIcon('power')}${productionOn ? '本番OFF' : '本番ON'}</button>
             <button type="button" class="table-link-button danger" onclick="deleteTemplateFromRow('${escapeJsString(template.id)}')">${legacyUiIcon('trash2')}削除</button>
             ${blockReason ? `<span class="inline-error">${escapeHtml(blockReason)}</span>` : ''}
           </span>
         `;
+      }
+
+      function openTemplateEditDialog(id) {
+        state.templateActionDialog = { mode: 'edit', templateId: id, message: '', messageKind: '' };
+        renderTemplateActionDialog();
+      }
+
+      function closeTemplateActionDialog() {
+        state.templateActionDialog = { mode: '', templateId: '', message: '', messageKind: '' };
+        renderTemplateActionDialog();
+      }
+
+      function closeTemplateActionDialogOnBackdrop(event) {
+        if (event.target && event.target.classList && event.target.classList.contains('dialog-backdrop')) {
+          closeTemplateActionDialog();
+        }
+      }
+
+      function renderTemplateActionDialog() {
+        const target = document.getElementById('templateActionDialogHost');
+        if (!target) return;
+        const dialog = state.templateActionDialog || {};
+        const template = (state.templates || []).find((item) => item.id === dialog.templateId);
+        if (!dialog.mode || !template) {
+          target.innerHTML = '';
+          return;
+        }
+        target.innerHTML = dialog.mode === 'test' ? renderTemplateTestDialog(template, dialog) : renderTemplateEditDialog(template, dialog);
+        if (dialog.mode === 'test') refreshTemplateTestPreview();
+      }
+
+      function renderTemplateEditDialog(template, dialog) {
+        const usedTags = collectTemplateTags(`${template.subject || ''}\n${template.body || ''}`);
+        return `
+          <div class="dialog-backdrop" role="dialog" aria-modal="true" onclick="closeTemplateActionDialogOnBackdrop(event)">
+            <form class="dialog-panel wide-dialog template-edit-dialog" onsubmit="saveTemplateEditDialog(event)" onclick="event.stopPropagation()">
+              <header class="quick-dialog-header">
+                <div>
+                  <span class="dialog-eyebrow">メールテンプレート</span>
+                  <h2>テンプレート編集</h2>
+                  <p class="muted">保存すると本番OFFに戻ります。修正後はテスト送信してから本番ONにしてください。</p>
+                </div>
+                <button type="button" class="table-link-button" onclick="closeTemplateActionDialog()">${legacyUiIcon('x')}閉じる</button>
+              </header>
+              <div class="form-grid">
+                <label>ジャンル<input id="templateDialogGenre" value="${escapeHtml(template.genre || '')}"></label>
+                <label>種別<select id="templateDialogType">
+                  <option value="initial" ${template.template_type === 'initial' ? 'selected' : ''}>初回メール</option>
+                  <option value="form" ${template.template_type === 'form' ? 'selected' : ''}>フォーム営業用</option>
+                </select></label>
+                <label>テンプレート名<input id="templateDialogName" value="${escapeHtml(template.name || '')}" required></label>
+                <label>件名<input id="templateDialogSubject" value="${escapeHtml(template.subject || '')}"></label>
+                <label style="grid-column:1/-1">本文<textarea id="templateDialogBody" required>${escapeHtml(template.body || '')}</textarea></label>
+              </div>
+              <div class="row">
+                <span class="status-pill info">種別: ${escapeHtml(templateTypeLabel(template.template_type))}</span>
+                <span class="status-pill info">使用中タグ: ${escapeHtml(usedTags.join(', ') || 'なし')}</span>
+                <span class="status-pill warn">保存後は本番OFF</span>
+              </div>
+              ${dialog.message ? `<p class="${dialog.messageKind === 'error' ? 'form-message' : 'success-message'}">${escapeHtml(dialog.message)}</p>` : ''}
+              <div class="dialog-actions">
+                <button type="button" class="button secondary" onclick="closeTemplateActionDialog()">キャンセル</button>
+                <button type="submit" class="button">${legacyUiIcon('save')}変更を保存</button>
+              </div>
+            </form>
+          </div>
+        `;
+      }
+
+      function renderTemplateTestDialog(template, dialog) {
+        const selectedLead = selectedTemplateTestLead();
+        const sampleLead = templateTestSampleLead(template, selectedLead);
+        const recipientEmail = dialog.toEmail || sampleLead.email || '';
+        const recipientLabel = selectedLead ? (selectedLead.company_name || selectedLead.facility_name || selectedLead.email || '営業リスト指定') : '固定テスト宛先';
+        return `
+          <div class="dialog-backdrop" role="dialog" aria-modal="true" onclick="closeTemplateActionDialogOnBackdrop(event)">
+            <div class="dialog-panel wide-dialog template-test-dialog" onclick="event.stopPropagation()">
+              <header class="quick-dialog-header">
+                <div>
+                  <span class="dialog-eyebrow">テスト送信</span>
+                  <h2>${escapeHtml(template.name || 'テンプレート')}</h2>
+                  <p class="muted">営業リストでテスト送信用に選んだ宛先、またはサンプル値へ差し込み後の件名と本文を送信します。</p>
+                </div>
+                <button type="button" class="table-link-button" onclick="closeTemplateActionDialog()">${legacyUiIcon('x')}閉じる</button>
+              </header>
+              <div class="template-test-recipient">
+                <div>
+                  <span>送信先</span>
+                  <strong><input id="templateTestTo" type="email" value="${escapeHtml(recipientEmail)}" placeholder="test@example.com"></strong>
+                  <small>${escapeHtml(recipientLabel)}</small>
+                </div>
+                <span class="status-pill ${recipientEmail ? 'ok' : 'bad'}">${selectedLead ? '営業リスト指定' : recipientEmail ? '固定テスト宛先' : '未設定'}</span>
+              </div>
+              <div class="template-test-layout">
+                <section class="template-test-card">
+                  <h3>${selectedLead ? '差し込み元' : '差し込みサンプル'}</h3>
+                  <div class="form-grid">
+                    <label>会社名<input id="templateTestCompany" value="${escapeHtml(sampleLead.company_name || '')}" oninput="refreshTemplateTestPreview()"></label>
+                    <label>屋号<input id="templateTestFacility" value="${escapeHtml(sampleLead.facility_name || '')}" oninput="refreshTemplateTestPreview()"></label>
+                    <label>担当者名<input id="templateTestContact" value="${escapeHtml(sampleLead.contact_name || '')}" oninput="refreshTemplateTestPreview()"></label>
+                    <label>ジャンル名<input id="templateTestGenre" value="${escapeHtml(sampleLead.genre || '')}" oninput="refreshTemplateTestPreview()"></label>
+                    <label style="grid-column:1/-1">WEBサイトURL<input id="templateTestWebsite" value="${escapeHtml(sampleLead.website_url || '')}" oninput="refreshTemplateTestPreview()"></label>
+                  </div>
+                </section>
+                <section class="template-test-card">
+                  <h3>送信内容プレビュー</h3>
+                  <div class="template-test-preview">
+                    <span>件名</span>
+                    <strong id="templateTestPreviewSubject">-</strong>
+                    <span>本文</span>
+                    <pre id="templateTestPreviewBody">-</pre>
+                  </div>
+                </section>
+              </div>
+              ${dialog.message ? `<p class="${dialog.messageKind === 'error' ? 'form-message' : 'success-message'}">${escapeHtml(dialog.message)}</p>` : ''}
+              <div class="dialog-actions">
+                <button type="button" class="button secondary" onclick="closeTemplateActionDialog()">キャンセル</button>
+                <button type="button" class="button" onclick="runTemplateTestSend()">${legacyUiIcon('send')}この内容でテスト送信</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function templateTestSampleLead(template, selectedLead) {
+        return selectedLead || {
+          company_name: 'サンプル株式会社',
+          facility_name: 'サンプル屋号',
+          contact_name: '佐藤',
+          genre: template.genre || 'その他',
+          email: '',
+          website_url: 'https://example.com',
+        };
+      }
+
+      function currentTemplateDialogSampleLead(template) {
+        return {
+          company_name: document.getElementById('templateTestCompany')?.value || 'サンプル株式会社',
+          facility_name: document.getElementById('templateTestFacility')?.value || 'サンプル屋号',
+          contact_name: document.getElementById('templateTestContact')?.value || '佐藤',
+          genre: document.getElementById('templateTestGenre')?.value || template.genre || 'その他',
+          email: document.getElementById('templateTestTo')?.value || '',
+          website_url: document.getElementById('templateTestWebsite')?.value || 'https://example.com',
+        };
+      }
+
+      function refreshTemplateTestPreview() {
+        const dialog = state.templateActionDialog || {};
+        const template = (state.templates || []).find((item) => item.id === dialog.templateId);
+        if (!template) return;
+        const preview = renderTemplateForLeadClient(template, currentTemplateDialogSampleLead(template));
+        const subjectTarget = document.getElementById('templateTestPreviewSubject');
+        const bodyTarget = document.getElementById('templateTestPreviewBody');
+        if (subjectTarget) subjectTarget.textContent = preview.subject || 'テスト送信';
+        if (bodyTarget) bodyTarget.textContent = preview.body || '';
+      }
+
+      async function saveTemplateEditDialog(event) {
+        event.preventDefault();
+        const dialog = state.templateActionDialog || {};
+        const template = (state.templates || []).find((item) => item.id === dialog.templateId);
+        if (!template) return;
+        const templateType = document.getElementById('templateDialogType').value;
+        const subject = document.getElementById('templateDialogSubject').value;
+        if (templateType !== 'form' && !String(subject || '').trim()) {
+          state.templateActionDialog.message = '初回メールは件名を入力してください。';
+          state.templateActionDialog.messageKind = 'error';
+          renderTemplateActionDialog();
+          return;
+        }
+        const payload = {
+          id: template.id,
+          name: document.getElementById('templateDialogName').value,
+          genre: document.getElementById('templateDialogGenre').value,
+          template_type: templateType,
+          is_production: false,
+          subject,
+          body: document.getElementById('templateDialogBody').value,
+        };
+        await api('saveEmailTemplate', payload);
+        state.templateActionDialog.message = '保存しました。修正したため本番OFFに戻し、テスト送信も未実施に戻しました。';
+        state.templateActionDialog.messageKind = 'success';
+        message(state.templateActionDialog.message, 'ok');
+        await refreshAll();
       }
 
       function templateProductionBlockedReason(template) {
@@ -9062,33 +9328,42 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function sendTemplateTestFromRow(id) {
+        state.templateActionDialog = { mode: 'test', templateId: id, message: '', messageKind: '' };
+        const lead = selectedTemplateTestLead();
+        state.templateActionDialog.toEmail = lead ? lead.email || '' : '';
+        renderTemplateActionDialog();
+      }
+
+      async function runTemplateTestSend() {
+        const dialog = state.templateActionDialog || {};
+        const id = dialog.templateId;
         const template = (state.templates || []).find((item) => item.id === id);
         if (!template) return;
-        const lead = selectedTemplateTestLead();
-        const defaultEmail = lead ? lead.email : '';
-        const toEmail = window.prompt('テスト送信先メールアドレスを入力してください。', defaultEmail || '');
+        const toEmail = document.getElementById('templateTestTo')?.value || '';
         if (!toEmail || !/@/.test(toEmail)) {
-          message('テスト送信先メールアドレスを入力してください', 'error');
+          state.templateActionDialog.message = 'テスト送信先メールアドレスを入力してください。';
+          state.templateActionDialog.messageKind = 'error';
+          renderTemplateActionDialog();
           return;
         }
-        const sampleLead = lead || {
-          company_name: 'サンプル株式会社',
-          facility_name: 'サンプル屋号',
-          contact_name: '佐藤',
-          genre: template.genre || 'その他',
-          email: toEmail,
-          website_url: 'https://example.com',
-        };
+        const sampleLead = currentTemplateDialogSampleLead(template);
+        sampleLead.email = toEmail;
         try {
           const result = await api('sendTestEmail', id, toEmail, sampleLead);
           if (result && result.ok === false) {
-            message(`テスト送信に失敗しました: ${result.errorMessage || 'Gmail送信エラー'}`, 'error');
+            state.templateActionDialog.message = `テスト送信に失敗しました: ${result.errorMessage || 'Gmail送信エラー'}`;
+            state.templateActionDialog.messageKind = 'error';
+            message(state.templateActionDialog.message, 'error');
           } else {
-            message(`${template.name} をテスト送信しました。本番ONにできます。`, 'ok');
+            state.templateActionDialog.message = `${template.name} をテスト送信しました。問題なければ本番ONにできます。`;
+            state.templateActionDialog.messageKind = 'success';
+            message(state.templateActionDialog.message, 'ok');
           }
           await refreshAll();
         } catch (error) {
-          message(error.message || String(error), 'error');
+          state.templateActionDialog.message = error.message || String(error);
+          state.templateActionDialog.messageKind = 'error';
+          message(state.templateActionDialog.message, 'error');
           await refreshAll();
         }
       }
