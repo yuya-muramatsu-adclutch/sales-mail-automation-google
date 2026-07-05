@@ -3817,10 +3817,38 @@
         background: #fff;
       }
 
+      .template-variable-card.empty {
+        border-color: #fecdd3;
+        background: #fff1f2;
+      }
+
       .template-variable-card small {
         color: var(--muted);
         font-size: 11px;
         font-weight: 900;
+      }
+
+      .template-variable-card.empty small,
+      .template-variable-card.empty strong {
+        color: #be123c;
+      }
+
+      .template-variable-empty-list {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid #fecdd3;
+        border-radius: 8px;
+        background: #fff1f2;
+        color: #9f1239;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .template-variable-empty-list strong {
+        color: #9f1239;
       }
 
       .template-safety-panel,
@@ -10298,17 +10326,38 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const usedTags = collectTemplateTags(`${template.subject || ''}\n${template.body || ''}`);
         const tags = usedTags.length ? usedTags : ['会社名', '屋号', '担当者名', 'WEBサイトURL', 'ジャンル名'];
         const values = buildTemplateVariablesClient(lead);
+        const items = tags.map((tag) => {
+          const rawValue = values[tag];
+          const valueText = rawValue == null ? '' : String(rawValue);
+          const empty = valueText.trim() === '';
+          return {
+            tag,
+            empty,
+            value: empty ? '空欄' : valueText,
+          };
+        });
+        const emptyItems = items.filter((item) => item.empty);
         return `
           <div class="send-check-card">
-            <div>
-              <h3>差し込み変数</h3>
-              <p class="muted">選択中の営業先で置き換えた時の値です。空欄のタグは送信時も空文字になります。</p>
+            <div class="section-title-row">
+              <div>
+                <h3>差し込み変数</h3>
+                <p class="muted">選択中の営業先で置き換えた時の値です。空欄のタグは送信時も空文字になります。</p>
+              </div>
+              <span class="pill ${emptyItems.length ? 'warn' : 'good'}">${emptyItems.length ? `空欄 ${formatNumber(emptyItems.length)}件` : '空欄なし'}</span>
             </div>
+            ${emptyItems.length ? `
+              <div class="template-variable-empty-list">
+                <strong>空欄タグ</strong>
+                ${emptyItems.map((item) => `<span>{{${escapeHtml(item.tag)}}}</span>`).join('')}
+              </div>
+            ` : '<p class="message ok">使用中タグはすべて値があります。</p>'}
             <div class="template-variable-grid">
-              ${tags.map((tag) => `
-                <span class="template-variable-card">
-                  <small>{{${escapeHtml(tag)}}}</small>
-                  <strong>${escapeHtml(values[tag] == null || values[tag] === '' ? '-' : String(values[tag]))}</strong>
+              ${items.map((item) => `
+                <span class="template-variable-card ${item.empty ? 'empty' : ''}">
+                  <small>{{${escapeHtml(item.tag)}}}</small>
+                  <strong>${escapeHtml(item.value)}</strong>
+                  <span class="pill ${item.empty ? 'bad' : 'good'}">${item.empty ? '空欄' : '入力あり'}</span>
                 </span>
               `).join('')}
             </div>

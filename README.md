@@ -157,6 +157,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script code v41で旧Next/Supabase版の `AppFrame` に寄せ、サイドバーのグループ順序を `リスト` / `運用` と旧ナビ順へ合わせ、追加内部ページをセカンダリ表示に調整済み
 - Apps Script code v43で旧Next/Supabase版の `EmailPreviewPanel` に寄せ、対象リスト自動送信カード、対象確認ダイアログ、送信候補プレビュー、Gmail/自動送信停止/送信時間の可否表示を追加済み
 - Apps Script code v44で旧Next/Supabase版のGmail連携画面に寄せ、Gmailテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面への導線を追加済み
+- Apps Script code v45で送信プレビューの差し込み値確認を強化し、空欄タグだけを警告カード/一覧で強調するUIを追加済み
+- Version 45は `clasp deploy -V 45 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `template-variable-empty-list`, `空欄タグ`, `空欄なし` を確認済み
 - Version 44は `clasp deploy -V 44 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `gmailTestSendHistoryPanel`, `renderGmailTestSendHistoryPanel`, `Gmailテスト送信履歴` を確認済み
 - Version 43は `clasp deploy -V 43 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `dialog-backdrop`, `send-target-preview`, `openEmailBatchConfirm`, `runConfirmedEmailBatch` を確認済み
 - Version 41は `clasp deploy -V 41 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで旧AppFrameのナビ順序を確認済み
