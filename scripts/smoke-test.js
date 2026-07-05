@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v65_serper_setup_icon_parity'), 'v65 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v66_email_discovery_icon_parity'), 'v66 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -146,6 +146,13 @@ assert(html.includes("legacyUiIcon('serverCog')}<span>環境変数ではなくAp
 assert(!html.includes('aria-hidden=\"true\">SK</span>'), 'legacy Serper summary text badge should be icon');
 assert(!html.includes('aria-hidden=\"true\">KY</span>'), 'legacy Serper setup text badge should be icon');
 assert(!html.includes('aria-hidden=\"true\">PS</span>'), 'legacy Serper command text badge should be icon');
+assert(html.includes('automationCardHeader'), 'legacy automation card icon header helper missing');
+assert(html.includes('automation-card-title'), 'legacy automation card title icon layout missing');
+assert(html.includes('automation-status-grid'), 'legacy email discovery status grid missing');
+assert(html.includes("automationCardHeader('mailSearch'"), 'legacy email discovery header icon missing');
+assert(html.includes("icon: 'mailSearch', label: '自動取得'"), 'legacy email discovery status item missing');
+assert(html.includes("icon: 'timerReset', label: '再実行スキップ'"), 'legacy email discovery timer reset item missing');
+assert(html.includes("icon: 'history', label: '最終更新'"), 'legacy email discovery history item missing');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
 assert(html.includes('toolbar-shortcut'), 'legacy top shortcut bar missing');
 assert(html.includes('data-shortcut-tab="emailLeads"'), 'legacy top shortcut email tab missing');
