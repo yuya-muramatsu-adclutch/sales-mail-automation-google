@@ -5179,6 +5179,15 @@
         color: #475569;
       }
 
+      .status-pill svg,
+      .pill svg,
+      button svg {
+        flex: 0 0 auto;
+        width: 16px;
+        height: 16px;
+        stroke-width: 2.15;
+      }
+
       .table-wrap {
         overflow-x: auto;
         border: 1px solid var(--line-strong);
@@ -6904,6 +6913,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         reset: iconSvg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/>'),
         save: iconSvg('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>'),
         search: NAV_ICON_SVGS.SP,
+        send: NAV_ICON_SVGS.PV,
         shieldCheck: iconSvg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>'),
         sliders: iconSvg('<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>'),
         trash2: iconSvg('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>'),
@@ -11464,7 +11474,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 <h2>送信プレビュー</h2>
                 <p class="muted">テンプレートと営業先を選ぶと、差し込み後の件名・本文を確認できます。</p>
               </div>
-              <span class="pill warn">差し込み後を確認</span>
+              <span class="status-pill info">${legacyUiIcon('eye')}差し込み後を確認</span>
             </div>
             <div class="preview-grid">
               <label>テンプレート<input readonly value="${noTemplate ? 'メールテンプレート未登録' : '選択待ち'}"></label>
@@ -11512,7 +11522,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <h2>送信プレビュー</h2>
               <p class="muted">テンプレートと営業先を選ぶと、差し込み後の件名・本文を確認できます。</p>
             </div>
-            <span class="pill info">差し込み後を確認</span>
+            <span class="status-pill info">${legacyUiIcon('eye')}差し込み後を確認</span>
           </div>
           <div class="grid">
             <label>テンプレート<select id="previewTemplateSelect" onchange="setEmailPreviewTemplate(this.value)">
@@ -11533,7 +11543,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <div class="toolbar">
             ${renderSendGuardPills(selectedTemplate, selectedLead, blockReason)}
           </div>
-          <button type="button" class="primary" onclick="sendPreviewEmail()" ${blockReason ? 'disabled' : ''}>この内容で1件送信</button>
+          <button type="button" class="button primary" onclick="sendPreviewEmail()" ${blockReason ? 'disabled' : ''}>${legacyUiIcon('send')}この内容で1件送信</button>
           ${blockReason ? `<p class="muted">1件送信できない理由: ${escapeHtml(blockReason)}</p>` : ''}
           <div class="send-check-card">
             <div>
@@ -11545,7 +11555,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <span><small>今回送信</small><strong>${formatNumber(batchCount)}件</strong></span>
               <span><small>本日残り</small><strong>${formatNumber(dashboard.todayRemaining || 0)}件</strong></span>
             </div>
-            <button type="button" onclick="openEmailBatchConfirm()" ${batchCount <= 0 || batchBlockReason ? 'disabled' : ''}>対象リストを確認して自動送信</button>
+            <button type="button" class="button" onclick="openEmailBatchConfirm()" ${batchCount <= 0 || batchBlockReason ? 'disabled' : ''}>${legacyUiIcon('send')}対象リストを確認して自動送信</button>
             ${batchBlockReason ? `<p class="muted">自動送信できない理由: ${escapeHtml(batchBlockReason)}</p>` : ''}
           </div>
           ${state.emailBatchConfirmOpen ? renderEmailBatchConfirmDialog(selectedTemplate, batchSendTargets, batchTargets.length, batchLimit, batchBlockReason) : ''}
@@ -11851,7 +11861,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               ${blockReason ? `<p class="message error">${escapeHtml(blockReason)}</p>` : '<p class="message ok">この内容で送信対象を確定できます。</p>'}
               <div class="dialog-actions">
                 <button type="button" onclick="closeEmailBatchConfirm()" ${sending ? 'disabled' : ''}>キャンセル</button>
-                <button type="button" class="primary" onclick="runConfirmedEmailBatch()" ${blockReason || !sendTargets.length || sending ? 'disabled' : ''}>${sending ? '送信中...' : '自動送信を開始'}</button>
+                <button type="button" class="button primary" onclick="runConfirmedEmailBatch()" ${blockReason || !sendTargets.length || sending ? 'disabled' : ''}>${legacyUiIcon('send')}${sending ? '送信中...' : '自動送信を開始'}</button>
               </div>
             </div>
           </div>

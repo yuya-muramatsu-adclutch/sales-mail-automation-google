@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v60_top_shortcut_parity'), 'v60 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v61_email_preview_icon_parity'), 'v61 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -137,6 +137,9 @@ assert(html.includes('appRouteProgress'), 'legacy route progress missing');
 assert(html.includes('toolbar-shortcut'), 'legacy top shortcut bar missing');
 assert(html.includes('data-shortcut-tab="emailLeads"'), 'legacy top shortcut email tab missing');
 assert(!html.includes('class="utility-action"'), 'top shortcut bar should not include GAS utility actions');
+assert(html.includes("legacyUiIcon('eye')}差し込み後を確認"), 'legacy email preview eye icon missing');
+assert(html.includes("legacyUiIcon('send')}この内容で1件送信"), 'legacy email preview send icon missing');
+assert(html.includes("legacyUiIcon('send')}対象リストを確認して自動送信"), 'legacy email batch send icon missing');
 assert(html.includes('backgroundToastStack'), 'legacy background job toast stack missing');
 assert(html.includes('background-center-button'), 'legacy background center button missing');
 assert(html.includes('backgroundOverviewPanel'), 'legacy background overview panel missing');

@@ -101,6 +101,7 @@
 - 旧 `AppSafetyStrip` に合わせ、運用ステータスバーの主状態と送信時間/Gmail/Calendar/SerperのチップをShield/Clock/Mail/Plugの線画アイコン付き表示へ変更した。
 - 旧 `AppTopShortcutBar` に合わせ、上部ショートカットはリスト/進捗/収集/フォーム/送信/メールの6項目だけにし、GAS固有の更新/setupはサイドバー下部に集約した。
 - 旧 `BackgroundJobWidgets` 相当として、右下のジョブ通知スタック、進捗バー、閉じる操作、バックグラウンド進捗タブへの導線、全画面共通の戻るボタンを追加した。GAS版では `jobs` / `search_jobs` の現在値に読み替えて表示する。
+- 旧 `EmailPreviewPanel` に合わせ、送信プレビューの「差し込み後を確認」PillにEyeアイコン、1件送信/対象リスト自動送信ボタンにSendアイコンを追加した。
 - 旧 `ng-master` / `exclusions` / `background-jobs/activity` / `errors` のページ分割に合わせ、送信NG、除外ドメイン、直近実行結果、エラー詳細を独立タブとして追加した。
 - 旧 `ProspectingCollectionTool` 系のタブ式操作に合わせ、営業リスト収集ツール内へ `0 自動運用`, `1 ジャンル×エリア`, `2 キーワード検索`, `3 ファイル収集`, `4 まとめサイトURL` の5モードパネルを追加した。GAS版では `settings`, `runSmallSearchJob`, `importLeadsFromCsv` に読み替えて実操作できるようにした。
 - 管理に旧 `GenreManager` 相当のジャンル管理を追加し、追加、テーブル内編集、削除確認をUUID `id` 更新で操作できるようにした。GAS版では履歴整合性のため削除は `active=false` の安全な無効化に読み替える。
