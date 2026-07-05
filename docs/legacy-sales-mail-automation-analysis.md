@@ -7,7 +7,7 @@
 ## 分析した主要ファイル
 
 - `app/globals.css`: 色、余白、パネル、テーブル、サイドバー、ダッシュボード、営業リスト、収集ツールのスタイル
-- `components/AppFrame.tsx`: サイドバー、ナビグループ、ブランド表現、上部ショートカット
+- `components/AppFrame.tsx`: サイドバー、ナビグループ、リスト/運用の項目順序、ブランド表現、上部ショートカット
 - `app/login/page.tsx`, `components/LoginForm.tsx`: ログイン画面、中央カード、認証導線
 - `components/AppSafetyStrip.tsx`, `components/AppTopShortcutBar.tsx`, `components/AppRouteProgress.tsx`: 運用ステータスバー、よく使う操作、画面遷移フィードバック
 - `components/BackgroundJobWidgets.tsx`, `components/BackgroundJobToasts.tsx`, `components/BackgroundJobCenter.tsx`: 共通ジョブ通知、進捗バー、戻る操作
@@ -58,6 +58,7 @@
 - 営業リスト収集ツールに旧 `ProspectingActivityPanel` / `ProspectingCollectionTool` の指標、収集ルート、コスト管理、使用量ログを追加。
 - 管理/運用画面に準備状況、実行アクション、送信履歴、ジョブ一覧、同期ログを集約。
 - 旧 `AppFrame` のサイドバー導線に合わせ、`バックグラウンド進捗`、`メール送信リスト`、`送信プレビュー`、`送信履歴`、`商談`、`分析`、`同期`、`Gmail連携`、`管理` を独立タブとして追加。
+- 旧 `AppFrame` の `listNavItems` / `navItems` と同じ順序になるよう、サイドバーを `営業リスト`, `営業リスト収集ツール`, `バックグラウンド進捗`, `メール送信リスト`, `フォーム送信リスト`、続いて `ダッシュボード`, `分析`, `同期`, `送信NG`, `除外ドメイン`, `テンプレート`, `送信プレビュー`, `送信履歴`, `商談`, `Gmail連携`, `管理` の順に調整した。
 - 旧アプリの各ページをApps Script/Sheets運用に読み替え、送信予定、送信履歴、商談ステータス、営業ファネル、同期ルール、Gmail承認状態、本番公開前チェックを表示。
 - 送信プレビューに旧 `EmailPreviewPanel` のテンプレート/営業先選択、差し込み後確認、送信不可理由、対象リスト自動送信カードを追加。テンプレート未登録の空状態でも同じ枠組みが見えるようにした。
 - 送信プレビューに旧 `TemplateTestRecipientManager` のテスト送信先選択パネルを追加。

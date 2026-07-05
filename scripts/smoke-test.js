@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v40_admin_readiness_template_actions'), 'v40 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v41_appframe_nav_parity'), 'v41 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -93,6 +93,7 @@ assert(html.includes('authGate'), 'legacy login/auth gate missing');
 assert(html.includes('login-card'), 'legacy login card styling missing');
 assert(html.includes('renderAuthorizationGate'), 'authorization gate renderer missing');
 assert(html.includes('class="tab nav-item active"'), 'sidebar nav item missing');
+assert(html.includes('tab nav-item secondary'), 'secondary sidebar nav item missing');
 assert(html.includes('class="section-header"'), 'section header UI missing');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
@@ -276,6 +277,29 @@ assert(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8').includes("'会社名
 const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), html.indexOf('async function showStartupError'));
 assert(refreshAllBlock.includes("api('getInitialData')"), 'refreshAll should load initial data');
 assert(!refreshAllBlock.includes("api('getAuthorizationStatus')"), 'refreshAll should not preflight authorization');
+const navHtml = html.slice(html.indexOf('<nav class="tabs">'), html.indexOf('</nav>', html.indexOf('<nav class="tabs">')));
+[
+  'data-tab="leads"',
+  'data-tab="search"',
+  'data-tab="backgroundJobs"',
+  'data-tab="emailLeads"',
+  'data-tab="forms"',
+  'data-tab="dashboard"',
+  'data-tab="analytics"',
+  'data-tab="sync"',
+  'data-tab="sendNg"',
+  'data-tab="exclusions"',
+  'data-tab="templates"',
+  'data-tab="sending"',
+  'data-tab="histories"',
+  'data-tab="deals"',
+  'data-tab="gmail"',
+  'data-tab="admin"',
+].reduce((lastIndex, marker) => {
+  const index = navHtml.indexOf(marker);
+  assert(index > lastIndex, `AppFrame nav order mismatch near ${marker}`);
+  return index;
+}, -1);
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
 for (const [index, script] of scripts.entries()) {
   new Function(script);

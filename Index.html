@@ -351,6 +351,23 @@
         background: #60a5fa;
       }
 
+      .tab.nav-item.secondary {
+        min-height: 36px;
+        margin-left: 18px;
+        padding: 8px 10px;
+        color: #94a3b8;
+        font-size: 12px;
+      }
+
+      .tab.nav-item.secondary .nav-icon {
+        width: 20px;
+        font-size: 11px;
+      }
+
+      .tab.nav-item.secondary.active {
+        color: var(--text);
+      }
+
       .nav-icon {
         display: grid;
         flex: 0 0 auto;
@@ -4664,9 +4681,6 @@
         <nav class="tabs">
           <div class="nav-group">
             <div class="nav-group-label">リスト</div>
-            <button type="button" class="tab nav-item active" data-tab="dashboard" onclick="showTab('dashboard')">
-              <span class="nav-icon">DB</span><span>ダッシュボード</span>
-            </button>
             <button type="button" class="tab nav-item" data-tab="leads" onclick="showTab('leads')">
               <span class="nav-icon">LD</span><span>営業リスト</span>
             </button>
@@ -4676,7 +4690,7 @@
             <button type="button" class="tab nav-item" data-tab="backgroundJobs" onclick="showTab('backgroundJobs')">
               <span class="nav-icon">BG</span><span>バックグラウンド進捗</span>
             </button>
-            <button type="button" class="tab nav-item" data-tab="backgroundActivity" onclick="showTab('backgroundActivity')">
+            <button type="button" class="tab nav-item secondary" data-tab="backgroundActivity" onclick="showTab('backgroundActivity')">
               <span class="nav-icon">RS</span><span>直近実行結果</span>
             </button>
             <button type="button" class="tab nav-item" data-tab="emailLeads" onclick="showTab('emailLeads')">
@@ -4688,6 +4702,9 @@
           </div>
           <div class="nav-group">
             <div class="nav-group-label">運用</div>
+            <button type="button" class="tab nav-item active" data-tab="dashboard" onclick="showTab('dashboard')">
+              <span class="nav-icon">DB</span><span>ダッシュボード</span>
+            </button>
             <button type="button" class="tab nav-item" data-tab="analytics" onclick="showTab('analytics')">
               <span class="nav-icon">AN</span><span>分析</span>
             </button>
@@ -4718,10 +4735,10 @@
             <button type="button" class="tab nav-item" data-tab="admin" onclick="showTab('admin')">
               <span class="nav-icon">AD</span><span>管理</span>
             </button>
-            <button type="button" class="tab nav-item" data-tab="errors" onclick="showTab('errors')">
+            <button type="button" class="tab nav-item secondary" data-tab="errors" onclick="showTab('errors')">
               <span class="nav-icon">ER</span><span>エラー詳細</span>
             </button>
-            <button type="button" class="tab nav-item" data-tab="ops" onclick="showTab('ops')">
+            <button type="button" class="tab nav-item secondary" data-tab="ops" onclick="showTab('ops')">
               <span class="nav-icon">OP</span><span>管理/運用</span>
             </button>
           </div>
