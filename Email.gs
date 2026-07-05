@@ -128,15 +128,56 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
     '差出人名': sampleLead.sender_name || sampleLead.senderName || '営業担当',
   });
 
-  MailApp.sendEmail({
-    to: toEmail,
-    subject: '[テスト] ' + rendered.subject,
-    htmlBody: rendered.htmlBody,
-    body: rendered.body,
-  });
+  const sentAt = nowIso_();
+  const subject = '[テスト] ' + rendered.subject;
+  const senderName = sampleLead.sender_name || sampleLead.senderName || '営業担当';
+  let sendResult = '成功';
+  let errorMessage = '';
 
-  updateSheetRecord_('email_templates', templateId, { last_test_sent_at: nowIso_() });
-  return { ok: true };
+  try {
+    assertEmailSendLimitAvailable_();
+    MailApp.sendEmail({
+      to: toEmail,
+      subject: subject,
+      htmlBody: rendered.htmlBody,
+      body: rendered.body,
+      name: senderName,
+    });
+  } catch (error) {
+    sendResult = '失敗';
+    errorMessage = error.message || String(error);
+  }
+
+  return withScriptLock_('sendTestEmail:history', function () {
+    const history = appendSheetRecord_('send_histories', {
+      lead_id: sampleLead.id || sampleLead.lead_id || '',
+      sent_at: sentAt,
+      send_type: 'テスト送信',
+      to_email: toEmail,
+      company_name: sampleLead.company_name,
+      facility_name: sampleLead.facility_name,
+      genre: sampleLead.genre,
+      template_id: template.id,
+      template_name: template.name,
+      subject: subject,
+      body: rendered.body,
+      send_result: sendResult,
+      error_message: errorMessage,
+      gmail_message_id: '',
+      gmail_thread_id: '',
+      sender_name: senderName,
+    });
+
+    if (sendResult === '成功') {
+      updateSheetRecord_('email_templates', templateId, { last_test_sent_at: sentAt });
+    }
+
+    return {
+      ok: sendResult === '成功',
+      history: history,
+      errorMessage: errorMessage,
+    };
+  });
 }
 
 function listLeadSendHistories(leadId, options) {

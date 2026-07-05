@@ -5619,6 +5619,7 @@ PropertiesService
             </section>
           </div>
           <section id="gmailConnectionCheckPanel" class="panel stack" style="margin-top:18px"></section>
+          <section id="gmailTestSendHistoryPanel" class="panel stack gmail-test-history-panel" style="margin-top:18px"></section>
           <section id="gmailReplyCheckPanel" class="panel stack" style="margin-top:18px"></section>
           <section id="mailSendLockPanel" class="panel stack" style="margin-top:18px"></section>
         </section>
@@ -7750,9 +7751,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           email: toEmail,
           website_url: 'https://example.com',
         };
-        await api('sendTestEmail', id, toEmail, sampleLead);
-        message(`${template.name} をテスト送信しました。本番ONにできます。`, 'ok');
-        await refreshAll();
+        try {
+          const result = await api('sendTestEmail', id, toEmail, sampleLead);
+          if (result && result.ok === false) {
+            message(`テスト送信に失敗しました: ${result.errorMessage || 'Gmail送信エラー'}`, 'error');
+          } else {
+            message(`${template.name} をテスト送信しました。本番ONにできます。`, 'ok');
+          }
+          await refreshAll();
+        } catch (error) {
+          message(error.message || String(error), 'error');
+          await refreshAll();
+        }
       }
 
       async function toggleTemplateProduction(id) {
@@ -10022,6 +10032,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderSchemaStatusPanel();
         renderJobResultsReviewPanel();
         renderGmailConnectionCheckPanel();
+        renderGmailTestSendHistoryPanel();
         renderGmailReplyCheckPanel('gmailReplyCheckPanel');
         renderGmailReplyCheckPanel('adminGmailReplyCheckPanel', { compact: true });
         renderMailSendLockPanel();
@@ -11063,6 +11074,53 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           ${missing.length ? `<div class="readiness-list">${missing.map(([label, detail]) => `<div class="readiness-item"><div><strong>${escapeHtml(label)}</strong><small>${escapeHtml(detail)}</small></div><span class="pill warn">要確認</span></div>`).join('')}</div>` : '<p class="message ok">Gmail送信、返信チェック、Calendar登録に必要な承認状態は利用可能です。</p>'}
         `;
+      }
+
+      function renderGmailTestSendHistoryPanel() {
+        const target = document.getElementById('gmailTestSendHistoryPanel');
+        if (!target) return;
+        const histories = (state.histories || [])
+          .filter(isTestSendHistory)
+          .sort((left, right) => String(right.sent_at || right.created_at || '').localeCompare(String(left.sent_at || left.created_at || '')));
+        const latest = histories[0] || null;
+        const success = histories.filter((history) => history.send_result === '成功').length;
+        const failed = histories.filter((history) => history.send_result && history.send_result !== '成功').length;
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>Gmailテスト送信履歴</h2>
+              <p class="muted">テンプレート行のテスト送信結果をGmail連携画面でも確認できます。失敗時はここで理由を見返します。</p>
+            </div>
+            <div class="toolbar">
+              <span class="pill ${failed > 0 ? 'warn' : histories.length ? 'good' : 'info'}">${histories.length ? `${formatNumber(histories.length)}件` : '履歴なし'}</span>
+              <button type="button" onclick="showTab('templates')">テンプレートへ</button>
+            </div>
+          </div>
+          <div class="admin-check-summary">
+            <div><span>最新テスト</span><strong>${escapeHtml(latest ? dateTimeLabel(latest.sent_at || latest.created_at) || '-' : '-')}</strong><small>${escapeHtml(latest ? latest.template_name || latest.subject || '-' : 'まだテスト送信がありません')}</small></div>
+            <div><span>成功</span><strong>${formatNumber(success)}</strong><span class="pill ${success ? 'good' : ''}">${success ? 'OK' : '未実施'}</span></div>
+            <div><span>失敗</span><strong>${formatNumber(failed)}</strong><span class="pill ${failed ? 'bad' : 'good'}">${failed ? '要確認' : 'なし'}</span></div>
+            <div><span>最新宛先</span><strong>${escapeHtml(latest ? latest.to_email || '-' : '-')}</strong><small>${escapeHtml(latest ? latest.sender_name || '営業担当' : 'テンプレート画面から実行')}</small></div>
+          </div>
+          ${histories.length ? `
+            <div class="table-wrap">
+              <table>${table(['日時', '結果', '送信先', 'テンプレート', '件名', '失敗理由'], histories.slice(0, 10).map((history) => row([
+                ['日時', `<span class="history-date-cell"><strong>${escapeHtml(dateTimeLabel(history.sent_at || history.created_at) || '-')}</strong><small>テスト送信</small></span>`],
+                ['結果', history.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="history-error"><span class="pill bad">${escapeHtml(history.send_result || '失敗')}</span><small>${escapeHtml(history.error_message || '詳細なし')}</small></span>`],
+                ['送信先', `<span class="history-recipient-cell"><strong>${escapeHtml(history.to_email || '-')}</strong><small>${escapeHtml(history.company_name || history.facility_name || 'サンプル営業先')}</small></span>`],
+                ['テンプレート', escapeHtml(history.template_name || '-')],
+                ['件名', escapeHtml(history.subject || '-')],
+                ['失敗理由', history.error_message ? `<span class="history-error"><small>${escapeHtml(history.error_message)}</small></span>` : '<span class="muted">-</span>'],
+              ])).join(''))}</table>
+            </div>
+          ` : '<p class="muted">テンプレート画面の「テスト送信」から実行すると、ここに成功/失敗と失敗理由が表示されます。</p>'}
+        `;
+      }
+
+      function isTestSendHistory(history) {
+        const sendType = String(history && history.send_type || '');
+        const subject = String(history && history.subject || '');
+        return sendType.indexOf('テスト') !== -1 || subject.indexOf('[テスト]') === 0;
       }
 
       function renderGmailReplyCheckPanel(targetId, options) {

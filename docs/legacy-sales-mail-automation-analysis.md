@@ -67,6 +67,7 @@
 - 送信プレビューに旧 `TemplateTestRecipientManager` のテスト送信先選択パネルを追加。
 - 営業リスト収集ツールに旧 `JobResultsReviewTable` の結果一覧、結果カテゴリ、確認済み操作、メール/フォーム/URLの根拠表示を追加。
 - Gmail連携に旧 `GmailConnectionCheck` と `MailSendLockPanel` の連携テスト、必要権限、送信ロック状態を追加。
+- Gmail連携にテスト送信履歴パネルを追加し、テンプレート画面から実行したテスト送信の成功/失敗、宛先、テンプレート、失敗理由を `send_histories` から確認できるようにした。
 - 管理に旧 `GoogleCredentialsManager` のGoogle/Gmail APIキー管理、OAuth/Refresh Token/送信元の状態表示をApps Script承認モデルへ読み替えて追加。
 - 管理に旧 `SendWindowSettingsForm`, `GmailReplyCheckSettingsForm`, `EmailDiscoverySettingsForm`, `BackgroundWorkerSettingsForm` の自動運用設定を追加し、GAS版では `settings` シート、時間主導トリガー、`batch_runtime_budget_ms` に読み替えた。
 - 管理に旧 `DuplicateLeadManager` の重複チェックUIを追加し、全営業リストをページ取得して会社名/メール/ドメイン一致を表示できるようにした。
@@ -124,6 +125,7 @@
 - `getSchemaStatus()` を追加し、GAS版の主要シート列と運用設定キーを管理画面から確認できるようにした。
 - `setEmailTemplateProduction()` を追加し、同一テンプレート種別/ジャンルの本番ON重複を自動でOFFにしながら、テンプレートの本番化をUUID `id` 更新で保存できるようにした。
 - `setMailSendingControl()` を追加し、旧 `/api/settings/mail-sending` 相当として自動送信だけを稼働/停止できる状態を `settings` シートへ保存できるようにした。
+- `sendTestEmail()` がテスト送信の成功/失敗を `send_histories` に保存するようにし、Gmail連携画面で失敗理由を追跡できるようにした。
 
 ## そのまま移植しないもの
 
@@ -133,5 +135,4 @@
 
 ## 次に移す候補
 
-- Gmail連携での実テストメール送信履歴と失敗理由の詳細表示。
 - 送信プレビューの差し込み値に、空欄タグだけを強調する差分ハイライト。
