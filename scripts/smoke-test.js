@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v72_background_page_header_parity'), 'v72 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v73_prospecting_progress_dashboard'), 'v73 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -195,6 +195,11 @@ assert(html.includes('background-center-button'), 'legacy background center butt
 assert(html.includes('background-guide-panel'), 'legacy background progress guide panel missing');
 assert(html.includes('data-ui-icon="listChecks"'), 'legacy background progress list checks icon missing');
 assert(html.includes('data-ui-icon="arrowLeft"'), 'legacy background progress back icon missing');
+assert(html.includes('prospectingProgressDashboard'), 'legacy ProspectingProgressDashboard host missing');
+assert(html.includes('renderProspectingProgressDashboard'), 'legacy ProspectingProgressDashboard renderer missing');
+assert(html.includes('prospecting-progress-dashboard'), 'legacy ProspectingProgressDashboard shell missing');
+assert(html.includes('prospecting-progress-stat'), 'legacy ProspectingProgressDashboard stat tiles missing');
+assert(html.includes('prospecting-details-section'), 'legacy ProspectingProgressDashboard details missing');
 assert(html.includes("listChecks: iconSvg"), 'legacy list checks icon definition missing');
 assert(html.includes("arrowLeft: iconSvg"), 'legacy arrow left icon definition missing');
 assert(html.includes("legacyUiIcon('loaderCircle')"), 'legacy background toast loader icon missing');

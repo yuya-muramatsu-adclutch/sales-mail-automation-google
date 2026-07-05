@@ -43,6 +43,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `BackgroundJobWidgets` / `BackgroundJobToasts` / `BackgroundJobCenter` に寄せた共通ジョブ通知と戻るボタン
 - 旧Next/Supabase版の `BackgroundJobToasts` に寄せた線画アイコン、進捗通知、追加先表示、通知アクション
 - 旧Next/Supabase版の `background-jobs/page.tsx` に寄せたバックグラウンド進捗ヘッダー、収集設定への戻り導線、進捗の見方パネル
+- 旧Next/Supabase版の `ProspectingProgressDashboard` に寄せた自動収集の進捗、追加リスト、検索別結果、除外・重複理由パネル
 - 旧Next/Supabase版のメニュー構成に寄せた `送信NG` / `除外ドメイン` の独立タブと、`直近実行結果` / `エラー詳細` の支援画面
 - 旧Next/Supabase版の `ProspectingCollectionTool` / `AutoProspectingSettingsPanel` / `ProspectingBatchPanel` / `ExclusionSearchPanel` / `CareFacilityFileProspectingPanel` / `SourcePageProspectingPanel` に寄せた営業リスト収集ツール内5モードUI
 - 旧Next/Supabase版の `GenreManager` / `ReasonMasterManager` に寄せた管理画面のジャンル管理、選択肢管理UI
@@ -92,7 +93,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @72 / code v72: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @73 / code v73: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -216,6 +217,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Version 71は `clasp deploy -V 71 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `loaderCircle`, `background-toast-spin`, `background-toast-found-list`, `displayBackgroundJobLabel` を確認済み
 - Apps Script code v72で旧Next/Supabase版の `background-jobs/page.tsx` に寄せ、進捗ページのArrowLeft/ListChecksアイコン、収集設定への戻り導線、進捗の見方パネル本文を反映済み
 - Version 72は `clasp deploy -V 72 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `background-guide-panel`, `listChecks`, `arrowLeft` を確認済み
+- Apps Script Version 73 / code v73で旧Next/Supabase版の `ProspectingProgressDashboard` に寄せ、営業リスト収集ツールに自動収集の進捗、追加リスト、検索別結果、除外・重複理由の詳細パネルを追加済み
+- Version 73は `clasp deploy -V 73 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `prospectingProgressDashboard`, `renderProspectingProgressDashboard`, `prospecting-progress-stat`, `prospecting-details-section` を確認済み
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み
 - Version 67は `clasp deploy -V 67 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `keyRound`, `refreshCw`, `gmail-connection-status-grid`, `triangleAlert`, `lock` / `unlock` を確認済み
 - Version 66は `clasp deploy -V 66 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `automation-card-title`, `automation-status-grid`, `mailSearch`, `timerReset`, `history` を確認済み

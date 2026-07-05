@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @72 / code v72: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @73 / code v73: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v72_background_page_header_parity`
+- Code version: `20260705_apps_script_full_workflow_v73_prospecting_progress_dashboard`
 
 ## 計画書との対応
 
@@ -89,6 +89,7 @@
 | 旧アプリ検索結果レビューUI再現 | 完了 | code v70で旧 `JobResultsReviewTable` の5列カテゴリ、カードグリッド、一括確認、選択除外/確認済み、追加読み込み導線を反映 |
 | 旧アプリバックグラウンド通知UI再現 | 完了 | code v71で旧 `BackgroundJobToasts` の線画アイコン、スピナー、追加先表示、結果/進捗導線を反映 |
 | 旧アプリバックグラウンド進捗ページ再現 | 完了 | code v72で旧 `background-jobs/page.tsx` のListChecks導入パネル、ArrowLeft戻り導線、進捗説明本文を反映 |
+| 旧アプリ自動収集進捗ダッシュボード再現 | 完了 | code v73で旧 `ProspectingProgressDashboard` の進捗ヒーロー、統計タイル、履歴セレクタ、追加リスト/検索別結果/除外・重複理由の詳細をGAS版 `search_jobs` / `search_results` へ読み替えて反映 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |
@@ -130,6 +131,11 @@
 - 既存Web app URLを `clasp deploy -V 72 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 72へ再デプロイ済み
 - `clasp deployments` で既存Web app URLが `@72 - apps-script-full-workflow-v72-background-page-header-parity-on-existing-url` を指すことを確認
 - code v72ローカルスモークで `background-guide-panel`, `listChecks`, `arrowLeft`, v72バージョンマーカーを確認済み
+- `clasp push -f` 成功
+- `clasp version "apps-script-full-workflow-v73-prospecting-progress-dashboard"` でVersion 73を作成済み
+- 既存Web app URLを `clasp deploy -V 73 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 73へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@73 - apps-script-full-workflow-v73-prospecting-progress-dashboard-on-existing-url` を指すことを確認
+- code v73ローカルスモークで `prospectingProgressDashboard`, `renderProspectingProgressDashboard`, `prospecting-progress-stat`, `prospecting-details-section`, v73バージョンマーカーを確認済み
 - `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp version "apps-script-full-workflow-v62-history-header-icon-parity"` でVersion 62を作成済み

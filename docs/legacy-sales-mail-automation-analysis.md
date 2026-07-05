@@ -29,6 +29,7 @@
 - `components/FormOutreachBoard.tsx`: フォーム送信対象テーブル、送信済みチェック、送信済み解除、作業バー、本文プレビュー
 - `app/api/leads/[id]/form-send/route.ts`, `lib/form-outreach-state.ts`: フォーム送信済み/解除時の状態更新、送信回数、最終送信日時、イベント保持
 - `components/ProspectingActivityPanel.tsx`, `components/ProspectingCollectionTool.tsx`, `components/AutoProspectingSettingsPanel.tsx`, `components/ProspectingBatchPanel.tsx`, `components/ExclusionSearchPanel.tsx`, `components/CareFacilityFileProspectingPanel.tsx`, `components/SourcePageProspectingPanel.tsx`: 営業リスト収集ツールの指標、収集ルート、実行カード、5モード操作UI
+- `components/ProspectingProgressDashboard.tsx`: 自動収集の進捗ヒーロー、統計タイル、実行履歴セレクタ、追加リスト、検索別結果、除外・重複理由の詳細表示
 - `components/SerperApiKeyManager.tsx`, `components/SerperSetupGuide.tsx`: Serper APIキー管理、残量確認、検索APIテスト、セットアップガイド
 - `app/background-jobs/page.tsx`, `app/sync/page.tsx`, `app/admin/page.tsx`, `app/histories/page.tsx`: 運用、ジョブ、同期ログ、送信履歴、管理系の見せ方
 - `app/background-jobs/activity/page.tsx`, `app/errors/page.tsx`: 直近実行結果、ジョブ別結果、運用エラー詳細の見せ方
@@ -130,6 +131,7 @@
 - 初回承認/認証エラー時の画面を旧 `LoginForm` の中央カード構成に寄せ、GAS版ではGoogle承認リンクと承認後再読み込み導線に読み替えた。
 - 営業リスト収集ツールに旧 `SerperApiKeyManager` / `SerperSetupGuide` のSerper APIキー管理カード、セットアップ手順、残量確認、検索APIテスト、マスク済みキー一覧を追加した。
 - バックグラウンド進捗に旧 `BackgroundJobsOverview` のKPI列、表示フィルタ、3カテゴリのジョブスロット、直近3日パフォーマンスカードを追加し、GAS版では `search_jobs` / `jobs` シートから同じ見え方を再構成した。
+- 営業リスト収集ツールに旧 `ProspectingProgressDashboard` 相当の進捗ダッシュボードを追加し、GAS版では `search_jobs` / `search_results` から進捗、追加件数、検索別結果、除外・重複理由をクライアント側で再構成した。
 - 営業リスト同期に旧 `SyncImportPanel` のCSV/JSONプレビュー、ファイル読込、文字コード推定、列マッピング、取り込み前KPI、要確認行、先頭10件プレビュー、同期後アクションを追加した。
 - 営業リスト収集ツールの結果一覧に旧 `JobResultsReviewTable` の選択、一括確認、選択除外、メール/フォーム補正、営業リスト追加、確認済み保存を追加した。
 - Gmail連携/管理画面に旧 `GmailReplyCheckPanel` の返信チェック結果サマリー、誤判定候補確認、候補復元UIを追加した。

@@ -904,6 +904,382 @@
         stroke-width: 2;
       }
 
+      .prospecting-progress-dashboard {
+        border-top: 4px solid #2563eb;
+      }
+
+      .prospecting-progress-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr);
+        gap: 12px;
+      }
+
+      .prospecting-progress-main {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #f8fbff;
+      }
+
+      .prospecting-progress-main.completed {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+      }
+
+      .prospecting-progress-main.failed,
+      .prospecting-progress-main.cancelled {
+        border-color: #fecaca;
+        background: #fff7f7;
+      }
+
+      .prospecting-progress-main-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .prospecting-progress-main-head > div {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .prospecting-progress-kind {
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .prospecting-progress-main h3 {
+        margin: 0;
+        overflow-wrap: anywhere;
+        color: var(--text);
+        font-size: 18px;
+        line-height: 1.35;
+      }
+
+      .prospecting-progress-plan-meta {
+        overflow-wrap: anywhere;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .prospecting-progress-meta,
+      .prospecting-upcoming-list,
+      .prospecting-job-selector,
+      .prospecting-subhead {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .prospecting-progress-meta span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .prospecting-upcoming-list span {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        max-width: 100%;
+        min-height: 36px;
+        overflow-wrap: anywhere;
+        padding: 6px 9px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1e40af;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .prospecting-upcoming-list small {
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .prospecting-progress-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .prospecting-progress-stat {
+        display: grid;
+        gap: 5px;
+        min-height: 104px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .prospecting-progress-stat span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .prospecting-progress-stat strong {
+        color: var(--text);
+        font-size: 24px;
+        line-height: 1.1;
+      }
+
+      .prospecting-progress-stat small {
+        color: var(--muted);
+        font-weight: 800;
+        line-height: 1.35;
+      }
+
+      .prospecting-job-selector {
+        padding: 6px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .prospecting-job-selector button {
+        display: grid;
+        gap: 3px;
+        min-width: 170px;
+        min-height: 48px;
+        padding: 8px 10px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+      }
+
+      .prospecting-job-selector button.active {
+        border-color: #bfdbfe;
+        background: #ffffff;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+      }
+
+      .prospecting-job-selector span {
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .prospecting-job-selector small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .prospecting-progress-sections {
+        display: grid;
+        gap: 10px;
+      }
+
+      .prospecting-details-section {
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .prospecting-details-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 52px;
+        padding: 12px 14px;
+        color: var(--text);
+        cursor: pointer;
+        font-weight: 900;
+        list-style: none;
+      }
+
+      .prospecting-details-summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .prospecting-details-summary::after {
+        display: inline-grid;
+        flex: 0 0 auto;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1;
+        content: "+";
+      }
+
+      .prospecting-details-section[open] .prospecting-details-summary::after {
+        content: "-";
+      }
+
+      .prospecting-details-summary span:first-child {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .prospecting-details-summary .status-pill {
+        margin-left: auto;
+      }
+
+      .prospecting-details-content {
+        display: grid;
+        gap: 12px;
+        padding: 0 14px 14px;
+      }
+
+      .prospecting-added-table-wrap,
+      .prospecting-query-result-table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      .prospecting-added-table,
+      .prospecting-query-result-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .prospecting-added-table {
+        min-width: 760px;
+      }
+
+      .prospecting-query-result-table {
+        min-width: 780px;
+      }
+
+      .prospecting-added-table th,
+      .prospecting-added-table td,
+      .prospecting-query-result-table th,
+      .prospecting-query-result-table td {
+        padding: 10px 11px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .prospecting-added-table th,
+      .prospecting-query-result-table th {
+        background: #f8fafc;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .prospecting-added-table tr:last-child td,
+      .prospecting-query-result-table tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .prospecting-added-table td,
+      .prospecting-query-result-table td {
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .prospecting-added-table td strong,
+      .prospecting-added-table td small,
+      .prospecting-added-table td span,
+      .prospecting-query-result-table td strong,
+      .prospecting-query-result-table td small {
+        display: block;
+      }
+
+      .prospecting-added-table td small,
+      .prospecting-query-result-table td small {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .prospecting-query-reason-cell {
+        min-width: 190px;
+      }
+
+      .prospecting-query-reason-cell strong {
+        color: var(--text);
+        line-height: 1.35;
+      }
+
+      .prospecting-query-reason-cell small {
+        overflow-wrap: anywhere;
+      }
+
+      .prospecting-added-table a {
+        color: var(--blue);
+        font-weight: 900;
+      }
+
+      .danger-text {
+        color: var(--red) !important;
+      }
+
+      .prospecting-progress-empty {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+        border: 1px dashed #bfdbfe;
+        border-radius: 8px;
+        background: #f8fbff;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .prospecting-progress-empty.compact {
+        padding: 12px;
+      }
+
+      .prospecting-progress-empty div {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .prospecting-progress-empty strong {
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .reason-chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .reason-chip-list span {
+        padding: 5px 8px;
+        border: 1px solid #fde68a;
+        border-radius: 999px;
+        background: #fffbeb;
+        color: #92400e;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
       .background-overview-kpis {
         display: grid;
         grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -6633,6 +7009,7 @@
           </header>
           <div class="dashboard-action-grid" id="searchOverview"></div>
           <section id="searchActivityPanel" class="prospecting-activity-panel"></section>
+          <section id="prospectingProgressDashboard" class="panel stack prospecting-progress-dashboard"></section>
           <section id="collectionCommandCenter" class="collection-command-center"></section>
           <section id="jobResultsReviewPanel" class="panel job-results-panel"></section>
           <section id="serperKeyManagerPanel" class="panel stack"></section>
@@ -7310,6 +7687,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         jobResultCategory: 'all',
         jobResultRenderLimit: 60,
         selectedJobResultIds: [],
+        selectedProspectingProgressJobId: '',
         backgroundOverviewView: 'all',
         dismissedSearchResultIds: [],
         duplicateGroups: [],
@@ -10453,6 +10831,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.searchJobs = jobs.items || [];
         renderSearchTables();
         renderSearchActivityPanel();
+        renderProspectingProgressDashboard();
         renderCollectionCommandCenter(state.serper || {});
       }
 
@@ -10514,6 +10893,375 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ])).join(''))}</table></div>
           </div>
         `;
+      }
+
+      function renderProspectingProgressDashboard() {
+        const target = document.getElementById('prospectingProgressDashboard');
+        if (!target) return;
+        const jobs = buildProspectingProgressJobs();
+        if (!jobs.length) {
+          state.selectedProspectingProgressJobId = '';
+          target.innerHTML = `
+            <div class="section-title-row">
+              <div>
+                <h2>自動収集の進捗</h2>
+                <p class="muted">検索中のキーワード、追加件数、重複・除外理由、追加された営業リストをまとめて確認できます。</p>
+              </div>
+              <button type="button" class="button secondary compact" onclick="loadSearchResults()">${legacyUiIcon('refreshCw')}更新</button>
+            </div>
+            <div class="prospecting-progress-empty">
+              ${legacyUiIcon('clock3')}
+              <div><strong>自動収集の実行履歴はまだありません。</strong><span>次回の小規模検索、または「今すぐ小規模実行」の開始後に進捗が表示されます。</span></div>
+            </div>
+          `;
+          hydrateLegacyUtilityIcons(target);
+          return;
+        }
+
+        if (!state.selectedProspectingProgressJobId || !jobs.some((job) => job.id === state.selectedProspectingProgressJobId)) {
+          state.selectedProspectingProgressJobId = jobs[0].id;
+        }
+        const selectedJob = jobs.find((job) => job.id === state.selectedProspectingProgressJobId) || jobs[0];
+        const latestAddedSamples = latestProspectingAddedSamples(selectedJob).slice(0, 8);
+        const visibleQueries = selectedJob.queries.slice(0, 8);
+        const reasonCount = selectedJob.exclusionReasons.length + selectedJob.duplicateReasons.length;
+        const progressLabel = selectedJob.total
+          ? `${formatNumber(selectedJob.processed)}/${formatNumber(selectedJob.total)}検索`
+          : '開始準備中';
+
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>自動収集の進捗</h2>
+              <p class="muted">検索中のキーワード、追加件数、重複・除外理由、追加された営業リストをまとめて確認できます。</p>
+            </div>
+            <button type="button" class="button secondary compact" onclick="loadSearchResults()">${legacyUiIcon('refreshCw')}更新</button>
+          </div>
+          <div class="prospecting-progress-hero">
+            <div class="prospecting-progress-main ${escapeHtml(selectedJob.status)}">
+              <div class="prospecting-progress-main-head">
+                <div>
+                  <span class="prospecting-progress-kind">${escapeHtml(selectedJob.kindLabel)}</span>
+                  <h3>${escapeHtml(selectedJob.currentQuery || selectedJob.label)}</h3>
+                  ${selectedJob.planMeta ? `<small class="prospecting-progress-plan-meta">${escapeHtml(selectedJob.planMeta)}</small>` : ''}
+                </div>
+                ${backgroundOverviewStatusMarkup(selectedJob.status)}
+              </div>
+              <div class="background-monitor-progress-row">
+                <strong>${escapeHtml(progressLabel)}</strong>
+                <span>${formatNumber(selectedJob.percent)}%</span>
+              </div>
+              <div class="background-progress-track"><span style="width:${selectedJob.percent}%"></span></div>
+              <div class="prospecting-progress-meta">
+                <span>開始 ${escapeHtml(dateTimeLabel(selectedJob.startedAt || selectedJob.createdAt) || '-')}</span>
+                <span>更新 ${escapeHtml(dateTimeLabel(selectedJob.updatedAt) || '-')}</span>
+                ${selectedJob.finishedAt ? `<span>完了 ${escapeHtml(dateTimeLabel(selectedJob.finishedAt) || '-')}</span>` : ''}
+              </div>
+              ${selectedJob.upcomingPlans.length && selectedJob.active ? `
+                <div class="prospecting-upcoming-list">
+                  ${selectedJob.upcomingPlans.map((plan) => `<span>${escapeHtml(plan.query || plan.lead_id || '-')}<small>${escapeHtml(planMetaText(plan))}</small></span>`).join('')}
+                </div>
+              ` : ''}
+              ${selectedJob.error ? `<p class="background-monitor-message error">エラー: ${escapeHtml(selectedJob.error)}</p>` : ''}
+            </div>
+            <div class="prospecting-progress-stats">
+              ${prospectingProgressStat('追加', selectedJob.stats.added, '新規作成された営業先')}
+              ${prospectingProgressStat('検索結果', selectedJob.stats.results, 'Serperで見つかった候補')}
+              ${prospectingProgressStat('重複', selectedJob.stats.duplicates, '既存リストと一致')}
+              ${prospectingProgressStat('除外', selectedJob.stats.excluded, '品質ルールで除外')}
+            </div>
+          </div>
+          ${jobs.length > 1 ? `
+            <div class="prospecting-job-selector" aria-label="自動収集履歴">
+              ${jobs.slice(0, 8).map((job) => `
+                <button type="button" class="${job.id === selectedJob.id ? 'active' : ''}" aria-pressed="${job.id === selectedJob.id ? 'true' : 'false'}" onclick="selectProspectingProgressJob('${escapeJsString(job.id)}')">
+                  <span>${escapeHtml(job.kindLabel)}</span>
+                  <small>${escapeHtml(backgroundJobStatusLabel(job.status))} / 追加 ${formatNumber(job.stats.added)}</small>
+                </button>
+              `).join('')}
+            </div>
+          ` : ''}
+          <div class="prospecting-progress-sections">
+            <details class="prospecting-details-section" open>
+              <summary class="prospecting-details-summary">
+                <span>${legacyUiIcon('listPlus')}追加された営業リスト</span>
+                ${statusTonePill(`${formatNumber(latestAddedSamples.length)}件`, latestAddedSamples.length ? 'good' : 'warn')}
+              </summary>
+              <div class="prospecting-details-content">
+                ${latestAddedSamples.length ? `
+                  <div class="prospecting-added-table-wrap">
+                    <table class="prospecting-added-table">
+                      ${table(['営業先', '接点', '検索条件', '確認'], latestAddedSamples.map(renderProspectingAddedRow).join(''))}
+                    </table>
+                  </div>
+                ` : `
+                  <div class="prospecting-progress-empty compact">
+                    ${legacyUiIcon('listPlus')}
+                    <div><strong>この表示範囲では新規追加はありません。</strong><span>重複や除外が多い場合は、検索別結果で理由を確認できます。</span></div>
+                  </div>
+                `}
+              </div>
+            </details>
+            <details class="prospecting-details-section" open>
+              <summary class="prospecting-details-summary">
+                <span>${legacyUiIcon('search')}検索別の結果</span>
+                ${statusTonePill(`${formatNumber(visibleQueries.length)}件`, visibleQueries.length ? 'good' : 'warn')}
+              </summary>
+              <div class="prospecting-details-content">
+                ${visibleQueries.length ? `
+                  <div class="prospecting-query-result-table-wrap">
+                    <table class="prospecting-query-result-table">
+                      ${table(['検索語', '結果', '追加', '重複', '除外', '追加なし理由'], visibleQueries.map(renderProspectingQueryRow).join(''))}
+                    </table>
+                  </div>
+                ` : '<p class="background-monitor-message">検索結果はまだありません。</p>'}
+              </div>
+            </details>
+            <details class="prospecting-details-section">
+              <summary class="prospecting-details-summary">
+                <span>${legacyUiIcon('xCircle')}除外・重複理由</span>
+                ${statusTonePill(`${formatNumber(reasonCount)}種`, reasonCount ? 'warn' : 'good')}
+              </summary>
+              <div class="prospecting-details-content">
+                <div class="prospecting-reason-summary">
+                  <div>
+                    <strong>除外理由</strong>
+                    ${selectedJob.exclusionReasons.length ? `<div class="reason-chip-list">${selectedJob.exclusionReasons.map((reason) => `<span>${escapeHtml(reason.reason)} ${formatNumber(reason.count)}</span>`).join('')}</div>` : '<small class="muted">除外はありません。</small>'}
+                  </div>
+                  <div>
+                    <strong>重複理由</strong>
+                    ${selectedJob.duplicateReasons.length ? `<div class="reason-chip-list">${selectedJob.duplicateReasons.map((reason) => `<span>${escapeHtml(reason.reason)} ${formatNumber(reason.count)}</span>`).join('')}</div>` : '<small class="muted">重複はありません。</small>'}
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
+        `;
+        hydrateLegacyUtilityIcons(target);
+      }
+
+      function selectProspectingProgressJob(id) {
+        state.selectedProspectingProgressJobId = id || '';
+        renderProspectingProgressDashboard();
+      }
+
+      function prospectingProgressStat(label, value, note) {
+        return `<div class="prospecting-progress-stat"><span>${escapeHtml(label)}</span><strong>${formatNumber(value)}</strong><small>${escapeHtml(note)}</small></div>`;
+      }
+
+      function buildProspectingProgressJobs() {
+        const jobs = (state.searchJobs || [])
+          .map(normalizeProspectingProgressJob)
+          .filter(Boolean)
+          .sort((left, right) => new Date(right.updatedAt || right.createdAt || 0).getTime() - new Date(left.updatedAt || left.createdAt || 0).getTime());
+        const prospectingJobs = jobs.filter((job) => /prospecting|collection|source_page|care_facility/i.test(job.type));
+        return prospectingJobs.length ? prospectingJobs : jobs;
+      }
+
+      function normalizeProspectingProgressJob(job) {
+        if (!job) return null;
+        const payload = parseJsonObjectClient(job.query_json);
+        const items = Array.isArray(payload.items) ? payload.items : [];
+        const type = String(job.job_type || payload.job_type || job.type || 'prospecting');
+        const processed = Math.max(0, Number(job.processed_count || 0));
+        const total = Math.max(Number(job.total_count || payload.job_limit || items.length || 0), processed);
+        const status = normalizeBackgroundJobStatus(job.status || '');
+        const results = (state.searchResults || []).filter((result) => String(result.job_id || '') === String(job.id || ''));
+        const queries = buildProspectingQueryRows(results, items);
+        const duplicateReasons = aggregateProspectingReasons(results, 'duplicate');
+        const exclusionReasons = aggregateProspectingReasons(results, 'excluded');
+        const currentPlan = items[Math.min(processed, Math.max(items.length - 1, 0))] || items[0] || {};
+        const currentQuery = currentPlan.query || job.current_query || job.query || queries[0]?.query || '';
+        const stats = summarizeProspectingProgressResults(results, job);
+        return {
+          id: String(job.id || job.job_id || `${type}-${job.created_at || ''}`),
+          type,
+          label: prospectingJobKindLabel(type),
+          kindLabel: prospectingJobKindLabel(type),
+          currentQuery,
+          planMeta: planMetaText(currentPlan),
+          status,
+          active: ['queued', 'running'].includes(status),
+          processed,
+          total,
+          percent: total ? Math.min(100, Math.round((processed / total) * 100)) : (status === 'completed' ? 100 : 0),
+          createdAt: job.created_at || payload.created_at || '',
+          startedAt: job.started_at || '',
+          updatedAt: job.updated_at || job.finished_at || job.created_at || '',
+          finishedAt: job.finished_at || '',
+          error: job.last_error || job.error_message || '',
+          items,
+          upcomingPlans: items.slice(processed, processed + 5),
+          results,
+          queries,
+          duplicateReasons,
+          exclusionReasons,
+          stats,
+        };
+      }
+
+      function prospectingJobKindLabel(type) {
+        const text = String(type || '');
+        if (/lead_official_site/.test(text)) return '公式サイトURL探索';
+        if (/lead_form_url/.test(text)) return '問い合わせフォームURL探索';
+        if (/email/.test(text)) return 'メール/フォーム取得';
+        if (/source_page/.test(text)) return 'まとめサイト自動収集';
+        if (/care_facility/.test(text)) return 'ファイル収集';
+        return '営業リスト収集';
+      }
+
+      function parseJsonObjectClient(value) {
+        if (!value || typeof value !== 'string') return value && typeof value === 'object' ? value : {};
+        try {
+          const parsed = JSON.parse(value);
+          return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (_) {
+          return {};
+        }
+      }
+
+      function planMetaText(plan) {
+        if (!plan) return '';
+        return [plan.genre, plan.strategy_label, plan.region, plan.area, plan.suffix]
+          .map((value) => String(value || '').trim())
+          .filter(Boolean)
+          .filter((value, index, values) => values.indexOf(value) === index)
+          .join(' / ');
+      }
+
+      function summarizeProspectingProgressResults(results, job) {
+        const rows = Array.isArray(results) ? results : [];
+        const textFor = (item) => [item.result_type, item.review_status, item.review_action, item.snippet, item.reason, item.error_message].join(' ');
+        const errors = rows.filter((item) => /error|failed|エラー|失敗/i.test(textFor(item))).length + (job.last_error ? 1 : 0);
+        return {
+          added: rows.filter((item) => item.lead_id || item.review_status === 'added' || /add_lead|追加/i.test(String(item.review_action || ''))).length,
+          results: rows.length,
+          duplicates: rows.filter((item) => /duplicate|重複/i.test(textFor(item))).length,
+          excluded: rows.filter((item) => /excluded|exclude|除外/i.test(textFor(item))).length,
+          errors,
+        };
+      }
+
+      function buildProspectingQueryRows(results, items) {
+        const queryMap = {};
+        (items || []).forEach((item) => {
+          const query = item.query || item.lead_id || '検索語未取得';
+          if (!queryMap[query]) queryMap[query] = emptyProspectingQuery(query, item);
+        });
+        (results || []).forEach((result) => {
+          const query = result.query || result.lead_id || '検索語未取得';
+          if (!queryMap[query]) queryMap[query] = emptyProspectingQuery(query, result);
+          const row = queryMap[query];
+          row.resultCount += 1;
+          if (result.lead_id || result.review_status === 'added' || /add_lead|追加/i.test(String(result.review_action || ''))) row.addedCount += 1;
+          if (/duplicate|重複/i.test([result.result_type, result.snippet, result.reason].join(' '))) row.duplicateCount += 1;
+          if (/excluded|exclude|除外/i.test([result.result_type, result.snippet, result.reason, result.review_status].join(' '))) row.excludedCount += 1;
+          if (/error|failed|エラー|失敗/i.test([result.result_type, result.snippet, result.error_message].join(' '))) row.error = result.error_message || result.snippet || 'エラー';
+          addReasonCount(row.duplicateReasons, prospectingReasonFromResult(result, 'duplicate'));
+          addReasonCount(row.exclusionReasons, prospectingReasonFromResult(result, 'excluded'));
+        });
+        return Object.values(queryMap)
+          .sort((left, right) => (right.resultCount + right.addedCount) - (left.resultCount + left.addedCount));
+      }
+
+      function emptyProspectingQuery(query, source) {
+        return {
+          query,
+          meta: planMetaText(source),
+          resultCount: 0,
+          addedCount: 0,
+          duplicateCount: 0,
+          excludedCount: 0,
+          duplicateReasons: [],
+          exclusionReasons: [],
+          error: '',
+        };
+      }
+
+      function addReasonCount(target, reason) {
+        if (!reason) return;
+        const found = target.find((item) => item.reason === reason);
+        if (found) {
+          found.count += 1;
+        } else {
+          target.push({ reason, count: 1 });
+        }
+      }
+
+      function aggregateProspectingReasons(results, type) {
+        const reasons = [];
+        (results || []).forEach((result) => addReasonCount(reasons, prospectingReasonFromResult(result, type)));
+        return reasons.sort((left, right) => right.count - left.count).slice(0, 8);
+      }
+
+      function prospectingReasonFromResult(result, type) {
+        const text = [result.result_type, result.snippet, result.reason, result.review_status, result.review_action].join(' ');
+        if (type === 'duplicate') {
+          if (!/duplicate|重複/i.test(text)) return '';
+          if (/domain|ドメイン/i.test(text)) return 'ドメイン一致';
+          if (/mail|email|メール/i.test(text)) return 'メール一致';
+          if (/company|会社|屋号/i.test(text)) return '会社名一致';
+          return '既存リストと重複';
+        }
+        if (!/excluded|exclude|除外/i.test(text)) return '';
+        if (/domain|ドメイン/i.test(text)) return '除外ドメイン';
+        if (/quality|品質/i.test(text)) return '品質ルール';
+        if (/review|確認/i.test(text)) return 'レビュー除外';
+        return '除外ルールに一致';
+      }
+
+      function noProspectingAdditionReason(query) {
+        if (query.error) return 'エラーで完了できませんでした';
+        if (query.addedCount > 0) return '追加あり';
+        if (query.resultCount === 0) return '検索結果なし';
+        if (query.duplicateCount > 0 && query.excludedCount > 0) return '重複・除外で追加なし';
+        if (query.duplicateCount > 0) return '既存リストと重複';
+        if (query.excludedCount > 0) return '除外ルールに一致';
+        return '追加条件に一致する候補なし';
+      }
+
+      function renderProspectingQueryRow(query) {
+        return row([
+          ['検索語', `<strong>${escapeHtml(query.query || '-')}</strong>${query.meta ? `<small>${escapeHtml(query.meta)}</small>` : ''}${query.error ? `<small class="danger-text">${escapeHtml(query.error)}</small>` : ''}`],
+          ['結果', formatNumber(query.resultCount)],
+          ['追加', formatNumber(query.addedCount)],
+          ['重複', formatNumber(query.duplicateCount)],
+          ['除外', formatNumber(query.excludedCount)],
+          ['追加なし理由', `<span class="prospecting-query-reason-cell"><strong class="${query.error ? 'danger-text' : ''}">${escapeHtml(noProspectingAdditionReason(query))}</strong>${query.duplicateReasons.length ? `<small>重複: ${escapeHtml(reasonListText(query.duplicateReasons))}</small>` : ''}${query.exclusionReasons.length ? `<small>除外: ${escapeHtml(reasonListText(query.exclusionReasons))}</small>` : ''}</span>`],
+        ]);
+      }
+
+      function reasonListText(reasons) {
+        return (reasons || []).map((reason) => `${reason.reason} ${formatNumber(reason.count)}`).join(' / ');
+      }
+
+      function latestProspectingAddedSamples(job) {
+        return (job.results || [])
+          .filter((result) => result.lead_id || result.review_status === 'added' || /add_lead|追加/i.test(String(result.review_action || '')))
+          .sort((left, right) => new Date(right.reviewed_at || right.created_at || 0).getTime() - new Date(left.reviewed_at || left.created_at || 0).getTime())
+          .map((result) => ({
+            id: result.lead_id || '',
+            title: result.title || result.company_name || result.url || '名称未取得',
+            email: extractEmail(result.snippet || ''),
+            formUrl: /form|contact|inquiry|問い合わせ|お問い合わせ/i.test([result.result_type, result.url, result.title, result.snippet].join(' ')) ? result.url : '',
+            websiteUrl: result.url || '',
+            query: result.query || '',
+            genre: result.genre || '',
+            createdAt: result.reviewed_at || result.created_at || '',
+          }));
+      }
+
+      function renderProspectingAddedRow(sample) {
+        const contact = [
+          sample.email ? `<span>${escapeHtml(sample.email)}</span>` : '',
+          sample.formUrl ? `<a href="${escapeHtml(externalUrl(sample.formUrl))}" target="_blank" rel="noopener">フォーム</a>` : '',
+        ].filter(Boolean).join('') || '<span class="muted">未検出</span>';
+        return row([
+          ['営業先', `<strong>${escapeHtml(sample.title || '名称未取得')}</strong><small>${escapeHtml(sample.genre || 'ジャンル未取得')}</small>`],
+          ['接点', contact],
+          ['検索条件', `<span>${escapeHtml(sample.query || '-')}</span><small>${escapeHtml(dateTimeLabel(sample.createdAt) || '-')}</small>`],
+          ['確認', `<div class="table-action-row">${sample.id ? `<button type="button" class="table-link-button" onclick="editLead('${escapeJsString(sample.id)}')">営業リスト</button>` : ''}${sample.websiteUrl ? `<a class="table-link-button" href="${escapeHtml(externalUrl(sample.websiteUrl))}" target="_blank" rel="noopener">${legacyUiIcon('external')}WEB</a>` : ''}</div>`],
+        ]);
       }
 
       function renderJobResultsReviewPanel() {
