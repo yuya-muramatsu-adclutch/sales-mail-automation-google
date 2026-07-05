@@ -4941,6 +4941,245 @@
         background: #dbeafe;
       }
 
+      /* legacy-component-parity: shared StatusPill, DataTable, and action controls from the old Next app. */
+      .status-pill,
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        width: fit-content;
+        max-width: 100%;
+        min-height: 24px;
+        padding: 3px 9px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: #e5e7eb;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 900;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        white-space: nowrap;
+      }
+
+      .status-pill.ok,
+      .pill.ok,
+      .pill.good {
+        border-color: #bbf7d0;
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .status-pill.warn,
+      .pill.warn {
+        border-color: #fde68a;
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .status-pill.bad,
+      .pill.bad {
+        border-color: #fecaca;
+        background: #fee2e2;
+        color: #991b1b;
+      }
+
+      .status-pill.info,
+      .pill.info {
+        border-color: #bfdbfe;
+        background: #dbeafe;
+        color: #1e40af;
+      }
+
+      .status-pill.form,
+      .pill.form {
+        border-color: #99f6e4;
+        background: #ccfbf1;
+        color: #0f766e;
+      }
+
+      .status-pill.muted,
+      .pill.muted {
+        border-color: #cbd5e1;
+        background: #e5e7eb;
+        color: #475569;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        scrollbar-gutter: stable;
+        overscroll-behavior-inline: contain;
+      }
+
+      .panel-body.table-wrap {
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+      }
+
+      th,
+      td {
+        white-space: nowrap;
+      }
+
+      th {
+        text-transform: none;
+      }
+
+      tr:focus-within td {
+        background: #eff6ff;
+        box-shadow: inset 0 1px 0 #bfdbfe, inset 0 -1px 0 #bfdbfe;
+      }
+
+      tr:focus-within td:first-child {
+        box-shadow:
+          inset 3px 0 0 var(--blue),
+          inset 0 1px 0 #bfdbfe,
+          inset 0 -1px 0 #bfdbfe;
+      }
+
+      td a:not(.button):not(.button-link):not(.table-link-button):not(.mini-button):not(.mini-text-link):not(.url-mini-link) {
+        color: #1d4ed8;
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      td a:not(.button):not(.button-link):not(.table-link-button):not(.mini-button):not(.mini-text-link):not(.url-mini-link):hover {
+        color: #1e40af;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .button,
+      .button-link,
+      .icon-text-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 9px 13px;
+        border: 1px solid #1f2937;
+        border-radius: 8px;
+        background: #1f2937;
+        color: #ffffff;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 900;
+        text-decoration: none;
+        white-space: nowrap;
+        transition:
+          transform 0.12s ease,
+          box-shadow 0.12s ease,
+          border-color 0.12s ease,
+          background 0.12s ease;
+      }
+
+      .button:hover,
+      .button-link:hover,
+      .icon-text-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+      }
+
+      .button.secondary,
+      .button-link.secondary,
+      .icon-text-button {
+        border-color: var(--line);
+        background: var(--surface);
+        color: var(--text);
+      }
+
+      .button.secondary:hover,
+      .button-link.secondary:hover,
+      .icon-text-button:hover {
+        border-color: #c5d3e3;
+        background: #f8fafc;
+      }
+
+      .button.danger,
+      .button-link.danger {
+        border-color: var(--red);
+        background: var(--red);
+        color: #ffffff;
+      }
+
+      .mini-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        min-width: 30px;
+        min-height: 30px;
+        padding: 5px 9px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 900;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .mini-button.active {
+        border-color: #2563eb;
+        background: #dbeafe;
+        color: #1e40af;
+        box-shadow: inset 0 0 0 1px #93c5fd;
+      }
+
+      .table-link-button {
+        min-height: 28px;
+        padding: 5px 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      .table-link-button.primary-action {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: var(--blue);
+      }
+
+      .table-link-button.danger {
+        color: var(--red);
+      }
+
+      .lead-quick-view,
+      .filter-bar a,
+      .mini-button,
+      .table-link-button,
+      .table-danger-button,
+      .url-mini-link,
+      .mini-text-link {
+        transition:
+          background 0.14s ease,
+          border-color 0.14s ease,
+          box-shadow 0.14s ease,
+          transform 0.14s ease;
+      }
+
+      .lead-quick-view:hover,
+      .filter-bar a:hover,
+      .mini-button:hover,
+      .table-link-button:hover,
+      .table-danger-button:hover,
+      .url-mini-link:hover,
+      .mini-text-link:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
+      }
+
       .muted {
         color: var(--muted);
       }
@@ -6514,7 +6753,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function statusTonePill(label, tone) {
-        return `<span class="pill ${escapeHtml(tone || '')}">${escapeHtml(label)}</span>`;
+        const normalizedTone = tone === 'good' ? 'ok good' : (tone || '');
+        return `<span class="status-pill pill ${escapeHtml(normalizedTone)}">${escapeHtml(label)}</span>`;
       }
 
       function hideAuthorizationGate() {
@@ -13636,7 +13876,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const good = ['返信あり', '商談予定', '商談済み', '受注', 'フォーム対応済み', '対応済み', '送信可能'];
         const info = ['初回メール送信済み', '2ヶ月後メール送信済み', '送信済み', '要確認'];
         const tone = danger.includes(status) ? 'bad' : warn.includes(status) ? 'warn' : good.includes(status) ? 'good' : info.includes(status) ? 'info' : '';
-        return `<span class="pill ${tone}">${escapeHtml(status || '未設定')}</span>`;
+        const normalizedTone = tone === 'good' ? 'ok good' : tone;
+        return `<span class="status-pill pill ${normalizedTone}">${escapeHtml(status || '未設定')}</span>`;
       }
 
       function leadRowClass(lead) {

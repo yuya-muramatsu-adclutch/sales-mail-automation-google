@@ -53,6 +53,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `TemplateProductionStatus` / `TemplateActions` に寄せたテンプレート本番ON/OFF、テスト送信、削除操作
 - 旧Next/Supabase版の `MailSendingControlCard` に寄せたダッシュボードの自動送信ON/OFFカード
 - 旧Next/Supabase版の `DashboardSignalCard` / `DashboardActionCard` / `DashboardCompactStat` に寄せたアイコン付きダッシュボードカード
+- 旧Next/Supabase版の `StatusPill` / `DataTable` / `table-link-button` / `mini-button` に寄せた共通Pill、テーブル、操作ボタンの見た目
 
 ## ファイル
 
@@ -83,7 +84,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @52 / code v52: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @53 / code v53: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -170,6 +171,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Version 51は `clasp deploy -V 51 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `NAV_ICON_SVGS`, `hydrateLegacyNavigationIcons`, 旧AppFrameの一次メニュー順序を確認済み
 - Apps Script code v52で旧Next/Supabase版の `DashboardSignalCard` / `DashboardActionCard` / `DashboardCompactStat` に寄せ、重要指標、次の作業、今月の動き、検索概要カードをアイコン付きカード構造へ変更済み
 - Version 52は `clasp deploy -V 52 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `DASHBOARD_ICON_KEYS`, `dashboard-signal-icon`, `dashboardIcon(iconKey)` を確認済み
+- Apps Script code v53で旧Next/Supabase版の `StatusPill`, `DataTable`, `.button`, `.mini-button`, `.table-link-button` に寄せ、Pill色/枠線、テーブル密度/フォーカス行、行内操作ボタンを全メニュー共通で再現済み
+- Version 53は `clasp deploy -V 53 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `status-pill`, `legacy-component-parity`, `overscroll-behavior-inline: contain`, `table-link-button.primary-action` を確認済み
 - Version 49は `clasp deploy -V 49 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `analyticsTemplateTable`, `buildClientAnalyticsData`, `メール文別返信率` を確認済み
 - Version 48は `clasp deploy -V 48 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `historyFilterPanel`, `filteredSendHistories`, `本文/Gmail` を確認済み
 - Version 47は `clasp deploy -V 47 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `template-subject-diff-panel`, `件名差分`, `テンプレート件名` を確認済み

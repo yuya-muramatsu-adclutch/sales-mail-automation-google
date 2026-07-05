@@ -7,6 +7,7 @@
 ## 分析した主要ファイル
 
 - `app/globals.css`: 色、余白、パネル、テーブル、サイドバー、ダッシュボード、営業リスト、収集ツールのスタイル
+- `app/globals.css` の `StatusPill` / `table-wrap` / `DataTable` / `.button` / `.mini-button` / `.table-link-button`: 共通Pill、テーブル密度、行フォーカス、行内操作ボタンの見た目
 - `components/AppFrame.tsx`: サイドバー、ナビグループ、リスト/運用の項目順序、ブランド表現、上部ショートカット
 - `components/AppNavLink.tsx`: サイドバーの線アイコン、active表示、一次メニューの見え方
 - `app/login/page.tsx`, `components/LoginForm.tsx`: ログイン画面、中央カード、認証導線
@@ -48,6 +49,7 @@
 ## GAS版へ反映したUI
 
 - 旧アプリの濃紺サイドバー、白パネル、8px角丸、薄いグレー背景、業務向けテーブル密度を `Index.html` へ反映。
+- 旧アプリの `StatusPill` / `DataTable` / `.button` / `.mini-button` / `.table-link-button` に合わせ、GAS版の全メニュー共通でPill色/枠線、横スクロールテーブル、フォーカス行、リンク装飾、行内操作ボタンの密度を再調整した。
 - ダッシュボードを旧アプリの情報設計に寄せ、今日の送信キュー、API連携、重要指標、次の作業、今月の動き、運用サマリーを追加。
 - ダッシュボードの重要指標、次の作業、今月の動き、運用サマリーを旧 `DashboardSignalCard` / `DashboardActionCard` / `DashboardCompactStat` に寄せ、左アイコン、数値のトーンカラー、白カード、ホバー浮きの見た目へ変更した。
 - ダッシュボード下段に旧 `MailSendingControlCard` の自動送信ON/OFFカードを追加し、GAS版では `settings.mail_sending_control` に読み替えて保存するようにした。
@@ -146,4 +148,4 @@
 
 ## 次に移す候補
 
-- 旧アプリとGAS版を同じ画面幅で実機比較し、ページごとの余白、テーブル密度、Pill色、ボタン内アイコンの細部差分を詰める。
+- 旧アプリとGAS版を同じ画面幅で実機比較し、ページごとの余白、テーブル内の列幅、ボタン内アイコンの細部差分を詰める。

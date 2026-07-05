@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v52_dashboard_card_icons'), 'v52 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v53_status_table_button_parity'), 'v53 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -99,6 +99,13 @@ assert(html.includes('hydrateLegacyNavigationIcons'), 'legacy navigation icon hy
 assert(html.includes('DASHBOARD_ICON_KEYS'), 'legacy dashboard card icon map missing');
 assert(html.includes('dashboard-signal-icon'), 'legacy dashboard signal card icon slot missing');
 assert(html.includes('dashboardIcon(iconKey)'), 'legacy dashboard card icon renderer missing');
+assert(html.includes('legacy-component-parity'), 'legacy common component parity marker missing');
+assert(html.includes('status-pill pill'), 'legacy StatusPill class alias missing');
+assert(html.includes('overscroll-behavior-inline: contain'), 'legacy DataTable scroll behavior missing');
+assert(html.includes('tr:focus-within td'), 'legacy DataTable focus state missing');
+assert(html.includes('table-link-button.primary-action'), 'legacy table primary action button style missing');
+assert(html.includes('.mini-button.active'), 'legacy mini button active style missing');
+assert(html.includes('.button-link.secondary'), 'legacy secondary action button style missing');
 assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
