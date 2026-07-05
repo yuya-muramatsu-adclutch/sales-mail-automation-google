@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @58 / code v58: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @59 / code v59: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v58_template_create_parity`
+- Code version: `20260705_apps_script_full_workflow_v59_safety_strip_icon_parity`
 
 ## 計画書との対応
 
@@ -75,6 +75,7 @@
 | 旧アプリフォーム作業UI再現 | 完了 | code v56で旧 `FormOutreachBoard` の作業中バー、屋号コピー、フォームURLミニリンク、本文コピー、送信済み、次へ操作を反映 |
 | 旧アプリリード詳細モーダル再現 | 完了 | code v57で旧 `QuickLeadEditButton` の中央モーダル、ヘッダーPill、閉じるアイコン、4列サマリーを反映 |
 | 旧アプリテンプレート作成UI再現 | 完了 | code v58で旧 `TemplateCreateForm` のサンプル適用、保存済みテンプレート更新、別テンプレート作成、フォーム営業件名なし保存を反映 |
+| 旧アプリ安全ステータス帯再現 | 完了 | code v59で旧 `AppSafetyStrip` のShield/Clock/Mail/Plugアイコン付きステータスチップを全メニュー共通ヘッダーへ反映 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |
@@ -87,6 +88,12 @@
 
 ## 検証済み
 
+- `clasp push -f` 成功
+- `clasp version "apps-script-full-workflow-v59-safety-strip-icon-parity"` でVersion 59を作成済み
+- 既存Web app URLを `clasp deploy -V 59 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 59へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@59 - apps-script-full-workflow-v59-safety-strip-icon-parity-on-existing-url` を指すことを確認
+- code v59ローカルスモークで `shieldCheck`, `clock3`, `mailCheck`, `plug`, v59バージョンマーカーを確認済み
+- `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp version "apps-script-full-workflow-v58-template-create-parity"` でVersion 58を作成済み
 - 既存Web app URLを `clasp deploy -V 58 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 58へ再デプロイ済み

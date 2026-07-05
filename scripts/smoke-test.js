@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v58_template_create_parity'), 'v58 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v59_safety_strip_icon_parity'), 'v59 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -129,6 +129,10 @@ assert(html.includes('.form-work-actions .form-url-link'), 'legacy form work URL
 assert(html.includes('button.primary,'), 'legacy primary button tone override missing');
 assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
+assert(html.includes("legacyUiIcon('shieldCheck')"), 'legacy safety strip shield icon missing');
+assert(html.includes("legacyUiIcon('clock3')"), 'legacy safety strip clock icon missing');
+assert(html.includes("legacyUiIcon('mailCheck')"), 'legacy safety strip Gmail icon missing');
+assert(html.includes("legacyUiIcon('plug')"), 'legacy safety strip plug icon missing');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
 assert(html.includes('toolbar-shortcut'), 'legacy top shortcut bar missing');
 assert(html.includes('backgroundToastStack'), 'legacy background job toast stack missing');

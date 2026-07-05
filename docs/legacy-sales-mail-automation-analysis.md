@@ -98,6 +98,7 @@
 - フォーム営業用テンプレートは旧アプリと同じく件名なしで保存できるよう、クライアント入力と `normalizeEmailTemplateInput_()` の件名必須条件を調整した。
 - 送信プレビューに差し込み後の本文だけでなく、使用タグごとの置換値プレビューを追加した。
 - 旧 `AppFrame` の上部フレームに合わせ、運用ステータスバー、よく使う操作ショートカット、タブ切替進行バーを追加した。
+- 旧 `AppSafetyStrip` に合わせ、運用ステータスバーの主状態と送信時間/Gmail/Calendar/SerperのチップをShield/Clock/Mail/Plugの線画アイコン付き表示へ変更した。
 - 旧 `BackgroundJobWidgets` 相当として、右下のジョブ通知スタック、進捗バー、閉じる操作、バックグラウンド進捗タブへの導線、全画面共通の戻るボタンを追加した。GAS版では `jobs` / `search_jobs` の現在値に読み替えて表示する。
 - 旧 `ng-master` / `exclusions` / `background-jobs/activity` / `errors` のページ分割に合わせ、送信NG、除外ドメイン、直近実行結果、エラー詳細を独立タブとして追加した。
 - 旧 `ProspectingCollectionTool` 系のタブ式操作に合わせ、営業リスト収集ツール内へ `0 自動運用`, `1 ジャンル×エリア`, `2 キーワード検索`, `3 ファイル収集`, `4 まとめサイトURL` の5モードパネルを追加した。GAS版では `settings`, `runSmallSearchJob`, `importLeadsFromCsv` に読み替えて実操作できるようにした。
