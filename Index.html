@@ -5103,6 +5103,93 @@
         line-height: 1;
       }
 
+      .excluded-domain-manager {
+        display: grid;
+        gap: 14px;
+      }
+
+      .exclusion-summary-pills,
+      .domain-form-actions,
+      .exclusion-filter-bar,
+      .excluded-domain-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .exclusion-workbench {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .domain-form {
+        display: grid;
+        grid-template-columns: minmax(180px, 0.9fr) minmax(220px, 1fr) auto auto;
+        gap: 10px;
+        align-items: end;
+      }
+
+      .domain-active-check {
+        min-height: 40px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        font-weight: 900;
+      }
+
+      .exclusion-filter-bar {
+        justify-content: space-between;
+      }
+
+      .exclusion-filter-bar .field {
+        min-width: min(260px, 100%);
+      }
+
+      .input-with-icon {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 7px;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .input-with-icon svg {
+        width: 15px;
+        height: 15px;
+        color: var(--muted);
+        stroke-width: 2.2;
+      }
+
+      .input-with-icon input {
+        min-height: 38px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .domain-cell {
+        color: var(--ink);
+        overflow-wrap: anywhere;
+      }
+
+      .excluded-domain-actions {
+        justify-content: flex-start;
+      }
+
+      .excluded-domain-actions .table-link-button {
+        min-height: 30px;
+      }
+
       .form-outreach-toolbar {
         position: sticky;
         z-index: 12;
@@ -5846,6 +5933,11 @@
         stroke-width: 2.15;
       }
 
+      .spin {
+        display: inline-flex;
+        animation: background-toast-spin 1s linear infinite;
+      }
+
       .table-wrap {
         overflow-x: auto;
         border: 1px solid var(--line-strong);
@@ -6330,6 +6422,7 @@
         .collection-panel-grid,
         .auto-prospecting-grid,
         .source-page-grid,
+        .domain-form,
         .ops-action-grid,
         .list-filter-panel {
           grid-template-columns: 1fr;
@@ -6366,7 +6459,8 @@
         }
 
         .form-outreach-toolbar,
-        .collection-status-bar {
+        .collection-status-bar,
+        .exclusion-filter-bar {
           flex-direction: column;
           align-items: stretch;
         }
@@ -6931,15 +7025,41 @@
             <button type="button" onclick="showTab('sendNg')">送信NGへ</button>
           </header>
           <section id="exclusionsHero" class="exclusion-hero-panel"></section>
-          <section class="panel">
-            <div class="panel-head"><h2>除外ドメイン管理</h2><span class="pill info" id="excludedCountPill">0件</span></div>
+          <section class="panel excluded-domain-manager" id="excludedDomainManager">
+            <div class="panel-head">
+              <div>
+                <h2>除外ドメイン一覧</h2>
+                <p class="muted">登録したドメインとそのサブドメインは、検索収集・メール取得・自動送信の対象から外します。</p>
+              </div>
+              <div class="exclusion-summary-pills">
+                <span class="pill info" id="excludedCountPill">0件</span>
+                <span class="pill" id="excludedInactivePill">停止 0件</span>
+              </div>
+            </div>
             <div class="panel-body">
-              <form class="grid" onsubmit="saveExcluded(event)">
+              <div class="exclusion-workbench">
+              <form class="domain-form" onsubmit="saveExcluded(event)">
                 <input type="hidden" id="excludedId">
-                <label>ドメイン<input id="excludedDomain" required></label>
-                <label>理由<input id="excludedReason" required></label>
-                <button type="submit" class="primary">保存</button>
+                <label class="field">ドメイン<input id="excludedDomain" placeholder="example.com" required></label>
+                <label class="field">除外理由<input id="excludedReason" placeholder="求人媒体、競合、検索ノイズなど" required></label>
+                <label class="check-row domain-active-check"><input id="excludedActive" type="checkbox" checked><span>有効</span></label>
+                <div class="domain-form-actions">
+                  <button id="excludedCancelButton" type="button" class="button secondary" onclick="cancelExcludedEdit()" hidden><span class="button-icon" data-ui-icon="x"></span>取消</button>
+                  <button id="excludedSubmitButton" type="submit" class="button"><span class="button-icon" data-ui-icon="plus"></span>追加</button>
+                </div>
               </form>
+                <div class="exclusion-filter-bar">
+                  <label class="field">一覧検索
+                    <span class="input-with-icon"><span data-ui-icon="search"></span><input id="excludedDomainSearch" type="search" placeholder="ドメイン・理由で検索" oninput="filterExcludedDomains()"></span>
+                  </label>
+                  <label class="field">表示<select id="excludedDomainStatus" onchange="filterExcludedDomains()">
+                    <option value="active">有効のみ</option>
+                    <option value="all">すべて</option>
+                    <option value="inactive">停止中のみ</option>
+                  </select></label>
+                </div>
+              </div>
+              <p id="excludedDomainFormMessage" class="success-message" hidden></p>
             </div>
             <div class="table-wrap"><table id="excludedTable"></table></div>
           </section>
@@ -7586,6 +7706,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         mousePointer: iconSvg('<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>'),
         messageCircleReply: iconSvg('<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="m10 15-3-3 3-3"/><path d="M7 12h8"/>'),
         pencil: iconSvg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+        plus: iconSvg('<path d="M5 12h14"/><path d="M12 5v14"/>'),
         plug: NAV_ICON_SVGS.GM,
         power: iconSvg('<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>'),
         reset: iconSvg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/>'),
@@ -7696,6 +7817,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         editingGenreId: '',
         deleteConfirmGenreId: '',
         editingReasonId: '',
+        excludedDomainQuery: '',
+        excludedDomainStatusFilter: 'active',
+        excludedDomainSaving: false,
+        excludedDomainMessage: '',
+        excludedDomainMessageKind: '',
         activeLeadHistoryLeadId: '',
         activeLeadFormHistories: [],
         activeLeadDuplicateLeadId: '',
@@ -10217,7 +10343,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function loadMasters() {
         const [ng, excluded] = await Promise.all([
           api('listNgMasters', { limit: 300 }),
-          api('listExcludedDomains', { limit: 300 }),
+          api('listExcludedDomains', { limit: 300, includeInactive: true }),
         ]);
         state.ngMasters = ng.items || [];
         state.excludedDomains = excluded.items || [];
@@ -10225,10 +10351,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderMasters() {
-        const activeNg = state.ngMasters.filter((item) => item.active !== false && item.active !== 'false');
-        const activeExcluded = state.excludedDomains.filter((item) => item.active !== false && item.active !== 'false');
+        const activeNg = state.ngMasters.filter(isActiveClient);
+        const activeExcluded = state.excludedDomains.filter(isActiveClient);
         document.getElementById('ngCountPill').textContent = `${formatNumber(activeNg.length)}件`;
-        document.getElementById('excludedCountPill').textContent = `${formatNumber(activeExcluded.length)}件`;
         document.getElementById('sendNgHero').innerHTML = `
           <div>
             <h2>メール送信から外す対象を管理します</h2>
@@ -10258,12 +10383,148 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['理由', escapeHtml(item.reason || '-')],
           ['状態', item.active === false || item.active === 'false' ? '<span class="pill">無効</span>' : '<span class="pill bad">有効</span>'],
         ])).join(''));
-        document.getElementById('excludedTable').innerHTML = table(['ドメイン', '理由', '状態', '登録日'], state.excludedDomains.map((item) => row([
-          ['ドメイン', `<strong class="domain-cell">${escapeHtml(item.domain || '-')}</strong>`],
-          ['理由', escapeHtml(item.reason || '-')],
-          ['状態', item.active === false || item.active === 'false' ? '<span class="pill">無効</span>' : '<span class="pill info">有効</span>'],
-          ['登録日', escapeHtml(dateLabel(item.created_at) || '-')],
-        ])).join(''));
+        renderExcludedDomainManager();
+      }
+
+      function renderExcludedDomainManager() {
+        const domains = (state.excludedDomains || []).slice().sort((a, b) => {
+          const activeDelta = Number(isActiveClient(b)) - Number(isActiveClient(a));
+          if (activeDelta) return activeDelta;
+          return String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
+        });
+        const activeCount = domains.filter(isActiveClient).length;
+        const inactiveCount = Math.max(0, domains.length - activeCount);
+        const query = String(state.excludedDomainQuery || '').trim().toLowerCase();
+        const statusFilter = state.excludedDomainStatusFilter || 'active';
+        const filtered = domains.filter((domain) => {
+          const active = isActiveClient(domain);
+          const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? active : !active);
+          const haystack = `${domain.domain || ''} ${domain.reason || ''}`.toLowerCase();
+          return matchesStatus && (!query || haystack.includes(query));
+        });
+        const countTarget = document.getElementById('excludedCountPill');
+        const inactiveTarget = document.getElementById('excludedInactivePill');
+        if (countTarget) countTarget.textContent = `有効 ${formatNumber(activeCount)}件`;
+        if (inactiveTarget) inactiveTarget.textContent = `停止 ${formatNumber(inactiveCount)}件`;
+        const searchTarget = document.getElementById('excludedDomainSearch');
+        const statusTarget = document.getElementById('excludedDomainStatus');
+        if (searchTarget && searchTarget.value !== state.excludedDomainQuery) searchTarget.value = state.excludedDomainQuery || '';
+        if (statusTarget && statusTarget.value !== statusFilter) statusTarget.value = statusFilter;
+        const emptyText = domains.length === 0 ? '除外ドメインはまだ登録されていません' : '条件に一致する除外ドメインはありません';
+        const rows = filtered.length ? filtered.map((item) => {
+          const id = String(item.id || '');
+          const active = isActiveClient(item);
+          const toggleLabel = active ? '停止' : '有効化';
+          const toggleAction = active ? 'stopExcludedDomain' : 'reactivateExcludedDomain';
+          return row([
+            ['ドメイン', `<strong class="domain-cell">${escapeHtml(item.domain || '-')}</strong>`],
+            ['除外理由', escapeHtml(item.reason || '-')],
+            ['状態', active ? '<span class="pill info">除外中</span>' : '<span class="pill">停止中</span>'],
+            ['更新', escapeHtml(dateTimeLabel(item.updated_at || item.created_at) || '-')],
+            ['操作', `<span class="excluded-domain-actions"><button type="button" class="table-link-button" onclick="editExcludedDomain('${escapeJsString(id)}')">${legacyUiIcon('pencil')}編集</button><button type="button" class="table-link-button ${active ? 'danger' : ''}" onclick="${toggleAction}('${escapeJsString(id)}')">${active ? legacyUiIcon('trash2') : legacyUiIcon('checkCircle')}${toggleLabel}</button></span>`],
+          ]);
+        }).join('') : `<tr><td data-column="" colspan="5" class="data-table-empty-cell"><span>${escapeHtml(emptyText)}</span></td></tr>`;
+        document.getElementById('excludedTable').innerHTML = table(['ドメイン', '除外理由', '状態', '更新', '操作'], rows);
+        renderExcludedDomainFormState();
+      }
+
+      function renderExcludedDomainFormState() {
+        const submitButton = document.getElementById('excludedSubmitButton');
+        const cancelButton = document.getElementById('excludedCancelButton');
+        const messageTarget = document.getElementById('excludedDomainFormMessage');
+        const editing = Boolean(document.getElementById('excludedId')?.value);
+        if (submitButton) {
+          submitButton.disabled = state.excludedDomainSaving;
+          const icon = state.excludedDomainSaving ? `<span class="spin">${legacyUiIcon('loaderCircle')}</span>` : legacyUiIcon(editing ? 'save' : 'plus');
+          submitButton.innerHTML = `${icon}${state.excludedDomainSaving ? '保存中' : editing ? '更新' : '追加'}`;
+        }
+        if (cancelButton) cancelButton.hidden = !editing || state.excludedDomainSaving;
+        if (messageTarget) {
+          messageTarget.hidden = !state.excludedDomainMessage;
+          messageTarget.className = state.excludedDomainMessageKind === 'error' ? 'form-message' : 'success-message';
+          messageTarget.textContent = state.excludedDomainMessage || '';
+        }
+      }
+
+      function setExcludedDomainMessage(text, kind) {
+        state.excludedDomainMessage = text || '';
+        state.excludedDomainMessageKind = kind || 'success';
+        renderExcludedDomainFormState();
+      }
+
+      function resetExcludedDomainForm() {
+        document.getElementById('excludedId').value = '';
+        document.getElementById('excludedDomain').value = '';
+        document.getElementById('excludedReason').value = '';
+        document.getElementById('excludedActive').checked = true;
+        renderExcludedDomainFormState();
+      }
+
+      function filterExcludedDomains() {
+        state.excludedDomainQuery = document.getElementById('excludedDomainSearch')?.value || '';
+        state.excludedDomainStatusFilter = document.getElementById('excludedDomainStatus')?.value || 'active';
+        renderExcludedDomainManager();
+      }
+
+      function editExcludedDomain(id) {
+        const item = (state.excludedDomains || []).find((domain) => domain.id === id);
+        if (!item) {
+          setExcludedDomainMessage('除外ドメインが見つかりませんでした。', 'error');
+          return;
+        }
+        document.getElementById('excludedId').value = item.id || '';
+        document.getElementById('excludedDomain').value = item.domain || '';
+        document.getElementById('excludedReason').value = item.reason || '';
+        document.getElementById('excludedActive').checked = isActiveClient(item);
+        setExcludedDomainMessage(`${item.domain || '除外ドメイン'} を編集中です。`, 'success');
+        document.getElementById('excludedDomain').focus();
+      }
+
+      function cancelExcludedEdit() {
+        resetExcludedDomainForm();
+        setExcludedDomainMessage('新規追加に戻しました。', 'success');
+      }
+
+      async function stopExcludedDomain(id) {
+        const item = (state.excludedDomains || []).find((domain) => domain.id === id);
+        if (!item) return;
+        if (!window.confirm(`${item.domain || 'このドメイン'} を停止しますか？`)) return;
+        state.excludedDomainSaving = true;
+        renderExcludedDomainFormState();
+        try {
+          await api('deleteExcludedDomain', { id });
+          resetExcludedDomainForm();
+          setExcludedDomainMessage('除外ドメインを停止しました。', 'success');
+          await loadMasters();
+        } catch (error) {
+          setExcludedDomainMessage(error.message || String(error), 'error');
+        } finally {
+          state.excludedDomainSaving = false;
+          renderExcludedDomainFormState();
+        }
+      }
+
+      async function reactivateExcludedDomain(id) {
+        const item = (state.excludedDomains || []).find((domain) => domain.id === id);
+        if (!item) return;
+        state.excludedDomainSaving = true;
+        renderExcludedDomainFormState();
+        try {
+          await api('saveExcludedDomain', {
+            id,
+            domain: item.domain,
+            reason: item.reason,
+            active: true,
+          });
+          resetExcludedDomainForm();
+          setExcludedDomainMessage('除外ドメインを有効化しました。', 'success');
+          await loadMasters();
+        } catch (error) {
+          setExcludedDomainMessage(error.message || String(error), 'error');
+        } finally {
+          state.excludedDomainSaving = false;
+          renderExcludedDomainFormState();
+        }
       }
 
       async function saveNg(event) {
@@ -10281,13 +10542,25 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function saveExcluded(event) {
         event.preventDefault();
-        await api('saveExcludedDomain', {
-          id: document.getElementById('excludedId').value,
-          domain: document.getElementById('excludedDomain').value,
-          reason: document.getElementById('excludedReason').value,
-        });
-        event.target.reset();
-        await refreshAll();
+        const id = document.getElementById('excludedId').value;
+        state.excludedDomainSaving = true;
+        renderExcludedDomainFormState();
+        try {
+          await api('saveExcludedDomain', {
+            id,
+            domain: document.getElementById('excludedDomain').value,
+            reason: document.getElementById('excludedReason').value,
+            active: document.getElementById('excludedActive').checked,
+          });
+          resetExcludedDomainForm();
+          setExcludedDomainMessage(id ? '除外ドメインを更新しました。' : '除外ドメインを追加しました。', 'success');
+          await loadMasters();
+        } catch (error) {
+          setExcludedDomainMessage(error.message || String(error), 'error');
+        } finally {
+          state.excludedDomainSaving = false;
+          renderExcludedDomainFormState();
+        }
       }
 
       async function loadFormLeads() {

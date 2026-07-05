@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v73_prospecting_progress_dashboard'), 'v73 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v74_excluded_domain_manager'), 'v74 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -272,6 +272,15 @@ assert(html.includes('フォーム営業用は件名なし可'), 'legacy form te
 assert(html.includes('保存済みテンプレートを更新'), 'legacy saved template update label missing');
 assert(html.includes('sendNgHero'), 'legacy send NG hero missing');
 assert(html.includes('exclusionsHero'), 'legacy exclusions hero missing');
+assert(html.includes('excluded-domain-manager'), 'legacy ExcludedDomainManager shell missing');
+assert(html.includes('exclusion-workbench'), 'legacy ExcludedDomainManager workbench missing');
+assert(html.includes('excludedDomainSearch'), 'legacy excluded domain search missing');
+assert(html.includes('excludedDomainStatus'), 'legacy excluded domain status filter missing');
+assert(html.includes("api('listExcludedDomains', { limit: 300, includeInactive: true })"), 'excluded domains manager should load inactive rows for status filter');
+assert(html.includes('renderExcludedDomainManager'), 'legacy ExcludedDomainManager renderer missing');
+assert(html.includes('editExcludedDomain'), 'legacy excluded domain edit action missing');
+assert(html.includes('stopExcludedDomain'), 'legacy excluded domain stop action missing');
+assert(html.includes('reactivateExcludedDomain'), 'legacy excluded domain reactivate action missing');
 assert(html.includes('formOutreachSummary'), 'legacy form outreach summary missing');
 assert(html.includes('form-work-panel'), 'form outreach panel missing');
 assert(html.includes('form-board-grid'), 'legacy form board layout missing');

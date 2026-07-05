@@ -25,7 +25,7 @@
 - `app/forms/page.tsx`: フォーム送信リスト、フォーム状態、テンプレート導線
 - `app/prospecting/page.tsx`: Serperを使う営業リスト収集ツール
 - `app/templates/page.tsx`: テンプレート管理、差出人バナー、安全チェック、テンプレート例
-- `app/ng-master/page.tsx`, `app/exclusions/page.tsx`: 送信NG/除外ドメイン管理、集計、履歴テーブル
+- `app/ng-master/page.tsx`, `app/exclusions/page.tsx`, `components/ExcludedDomainManager.tsx`: 送信NG/除外ドメイン管理、集計、除外ドメインの検索/状態フィルタ/操作列
 - `components/FormOutreachBoard.tsx`: フォーム送信対象テーブル、送信済みチェック、送信済み解除、作業バー、本文プレビュー
 - `app/api/leads/[id]/form-send/route.ts`, `lib/form-outreach-state.ts`: フォーム送信済み/解除時の状態更新、送信回数、最終送信日時、イベント保持
 - `components/ProspectingActivityPanel.tsx`, `components/ProspectingCollectionTool.tsx`, `components/AutoProspectingSettingsPanel.tsx`, `components/ProspectingBatchPanel.tsx`, `components/ExclusionSearchPanel.tsx`, `components/CareFacilityFileProspectingPanel.tsx`, `components/SourcePageProspectingPanel.tsx`: 営業リスト収集ツールの指標、収集ルート、実行カード、5モード操作UI
@@ -115,6 +115,7 @@
 - 旧 `GmailReplyCheckPanel` / `GmailReplyCheckSettingsForm` / `CalendarAutoCreateSettingsForm` に合わせ、返信チェックの注意帯、実行ボタン、誤判定候補確認/復元、エラー行、Calendar保存をMessageCircleReply/Refresh/Rotate/Saveアイコン付きUIへ寄せた。
 - 旧 `TemplateActions` に合わせ、テンプレート一覧の編集とテスト送信を中央ダイアログ化し、送信先カード、差し込み元/サンプル、送信内容プレビュー、保存/送信アクションを反映した。
 - 旧 `ng-master` / `exclusions` / `background-jobs/activity` / `errors` のページ分割に合わせ、送信NG、除外ドメイン、直近実行結果、エラー詳細を独立タブとして追加した。
+- 旧 `ExcludedDomainManager` に合わせ、除外ドメインタブに有効/停止サマリー、追加/編集フォーム、検索、状態フィルタ、編集/停止/有効化操作を追加した。GAS版では削除を `active=false` の停止に読み替え、UUID `id` 更新を維持する。
 - 旧 `ProspectingCollectionTool` 系のタブ式操作に合わせ、営業リスト収集ツール内へ `0 自動運用`, `1 ジャンル×エリア`, `2 キーワード検索`, `3 ファイル収集`, `4 まとめサイトURL` の5モードパネルを追加した。GAS版では `settings`, `runSmallSearchJob`, `importLeadsFromCsv` に読み替えて実操作できるようにした。
 - 管理に旧 `GenreManager` 相当のジャンル管理を追加し、追加、テーブル内編集、削除確認をUUID `id` 更新で操作できるようにした。GAS版では履歴整合性のため削除は `active=false` の安全な無効化に読み替える。
 - 管理に旧 `ReasonMasterManager` 相当の選択肢管理を追加し、送信NG理由、失注理由、対応不要理由、辞退理由の追加、テーブル内編集、有効/無効切替を `reasons` シートへ保存できるようにした。
