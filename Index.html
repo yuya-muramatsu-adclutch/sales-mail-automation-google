@@ -7570,11 +7570,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       const TOP_SHORTCUT_TABS = ['leads', 'backgroundJobs', 'search', 'forms', 'sending', 'emailLeads'];
       const RECENT_BACKGROUND_JOB_MS = 10 * 60 * 1000;
+      const HTTPS_PROTOCOL_PREFIX = 'https:' + String.fromCharCode(47, 47);
       let routeProgressTimer = null;
       let currentTab = 'dashboard';
       let suppressTabHistory = false;
       const tabHistory = [];
-      const SAMPLE_SYNC_CSV = '会社名,屋号,担当者名,メールアドレス,WEBサイトURL,フォームURL,ジャンル\n株式会社サンプルケア,サンプルケア渋谷,山田太郎,info@example-care.jp,https://example-care.jp,,介護\n合同会社ミライサロン,MIRAI Salon,佐藤花子,,https://mirai-salon.example,https://mirai-salon.example/contact,美容';
+      const SAMPLE_SYNC_CSV = [
+        '会社名,屋号,担当者名,メールアドレス,WEBサイトURL,フォームURL,ジャンル',
+        `株式会社サンプルケア,サンプルケア渋谷,山田太郎,info@example-care.jp,${HTTPS_PROTOCOL_PREFIX}example-care.jp,,介護`,
+        `合同会社ミライサロン,MIRAI Salon,佐藤花子,,${HTTPS_PROTOCOL_PREFIX}mirai-salon.example,${HTTPS_PROTOCOL_PREFIX}mirai-salon.example/contact,美容`,
+      ].join('\n');
 
       const SYNC_HEADER_MAP = {
         '会社名': 'company_name',
@@ -9852,7 +9857,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           contact_name: '佐藤',
           genre: template.genre || 'その他',
           email: '',
-          website_url: 'https://example.com',
+          website_url: HTTPS_PROTOCOL_PREFIX + 'example.com',
         };
       }
 
@@ -9863,7 +9868,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           contact_name: document.getElementById('templateTestContact')?.value || '佐藤',
           genre: document.getElementById('templateTestGenre')?.value || template.genre || 'その他',
           email: document.getElementById('templateTestTo')?.value || '',
-          website_url: document.getElementById('templateTestWebsite')?.value || 'https://example.com',
+          website_url: document.getElementById('templateTestWebsite')?.value || HTTPS_PROTOCOL_PREFIX + 'example.com',
         };
       }
 
@@ -10991,7 +10996,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               </div>
             </div>
             <div class="setup-guide-grid">
-              <div class="setup-step"><span>1</span><div><strong>SerperでAPIキーを作成</strong><p><a href="https://serper.dev/api-key" target="_blank" rel="noopener">Serper API Key ${legacyUiIcon('external')}</a> でキーを発行します。</p></div></div>
+              <div class="setup-step"><span>1</span><div><strong>SerperでAPIキーを作成</strong><p><a href="${HTTPS_PROTOCOL_PREFIX}serper.dev/api-key" target="_blank" rel="noopener">Serper API Key ${legacyUiIcon('external')}</a> でキーを発行します。</p></div></div>
               <div class="setup-step"><span>2</span><div><strong>WEBアプリに保存</strong><p>この画面のAPIキー管理に貼り付けます。保存先はPropertiesServiceです。</p></div></div>
               <div class="setup-step"><span>3</span><div><strong>検索APIテスト</strong><p>保存後に検索APIテストを実行して、検索結果が返ることを確認します。</p></div></div>
             </div>
@@ -11659,7 +11664,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div class="job-result-contact-grid">
               <div><span>メール</span>${editable ? `<input id="jobResultEmail_${escapeHtml(item.id)}" inputmode="email" placeholder="info@example.com" value="${escapeHtml(item.email || '')}">` : `<strong>${escapeHtml(item.email || '-')}</strong>`}</div>
               <div><span>WEBサイト</span>${item.website_url ? `<a href="${escapeHtml(externalUrl(item.website_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.website_url))}</a>` : '<strong>-</strong>'}</div>
-              <div><span>フォーム</span>${editable ? `<input id="jobResultForm_${escapeHtml(item.id)}" inputmode="url" placeholder="https://example.com/contact" value="${escapeHtml(item.form_url || '')}">` : item.form_url ? `<a href="${escapeHtml(externalUrl(item.form_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.form_url))}</a>` : '<strong>-</strong>'}</div>
+              <div><span>フォーム</span>${editable ? `<input id="jobResultForm_${escapeHtml(item.id)}" inputmode="url" placeholder="${HTTPS_PROTOCOL_PREFIX}example.com/contact" value="${escapeHtml(item.form_url || '')}">` : item.form_url ? `<a href="${escapeHtml(externalUrl(item.form_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.form_url))}</a>` : '<strong>-</strong>'}</div>
             </div>
             <div class="job-result-meta"><span>更新: ${escapeHtml(dateTimeLabel(item.updated_at) || '-')}</span><span>状態: ${escapeHtml(item.status || '-')}</span></div>
             ${item.message ? `<p class="job-result-message">${escapeHtml(item.message)}</p>` : ''}
@@ -12056,7 +12061,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             </div>
             <form class="collection-panel-grid" onsubmit="importCollectionCsv(event)">
               <div class="grid">
-                <label style="grid-column:1/-1">CSV貼り付け<textarea id="collectionCsvText" rows="9" placeholder="company_name,email,website_url,form_url,genre&#10;株式会社Example,sales@example.com,https://example.com,https://example.com/contact,介護施設"></textarea></label>
+                <label style="grid-column:1/-1">CSV貼り付け<textarea id="collectionCsvText" rows="9" placeholder="company_name,email,website_url,form_url,genre&#10;株式会社Example,sales@example.com,${HTTPS_PROTOCOL_PREFIX}example.com,${HTTPS_PROTOCOL_PREFIX}example.com/contact,介護施設"></textarea></label>
                 <label class="check-row"><input id="collectionCsvAllowDuplicate" type="checkbox"><span>重複を許可する</span></label>
                 <button type="submit" class="primary collection-run-button">CSVから営業先を追加</button>
               </div>
@@ -12087,7 +12092,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             </div>
             <form class="source-page-grid" onsubmit="submitSourcePageSearch(event)">
               <div class="grid">
-                <label style="grid-column:1/-1">まとめサイトURL<input id="sourcePageUrl" type="url" required placeholder="https://www.resort-glamping.com/accommodation_category/kanto/"></label>
+                <label style="grid-column:1/-1">まとめサイトURL<input id="sourcePageUrl" type="url" required placeholder="${HTTPS_PROTOCOL_PREFIX}www.resort-glamping.com/accommodation_category/kanto/"></label>
                 <label>追加ジャンル<select id="sourcePageGenre">${collectionGenreOptions(firstGenreName())}</select></label>
                 <label>最大処理件数<input id="sourcePageMaxItems" type="number" min="1" max="20" value="5"></label>
                 <label style="grid-column:1/-1">監視ラベル<input id="sourcePageLabel" placeholder="関東グランピング一覧"></label>
