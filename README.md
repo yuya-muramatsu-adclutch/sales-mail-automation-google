@@ -155,8 +155,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script code v39で旧Next/Supabase版の `GmailReplyCheckPanel` / `CalendarAutoCreateSettingsForm` に寄せ、返信チェック結果サマリー、誤判定候補確認/復元、Calendar自動登録設定を追加済み
 - Apps Script code v40で旧Next/Supabase版の `AdminReadinessRunner` / `SchemaStatusPanel` / `TemplateProductionStatus` / `TemplateActions` に寄せ、管理画面の安全な本番前確認、DB追加項目チェック、テンプレート本番ON/OFF、行内テスト送信/削除操作を追加済み
 - Apps Script code v41で旧Next/Supabase版の `AppFrame` に寄せ、サイドバーのグループ順序を `リスト` / `運用` と旧ナビ順へ合わせ、追加内部ページをセカンダリ表示に調整済み
-- Apps Script code v42で旧Next/Supabase版の `MailSendingControlCard` とダッシュボード下段に寄せ、`mail_sending_control` 設定、自動送信ON/OFFカード、収集状況カード、送信停止時の安全バー表示を追加済み
-- Version 42は `clasp deploy -V 42 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `dashboardMailSendingControl`, `toggleMailSendingControl`, `mail_sending_control`, `dashboardProspectingStatus` を確認済み
+- Apps Script code v43で旧Next/Supabase版の `EmailPreviewPanel` に寄せ、対象リスト自動送信カード、対象確認ダイアログ、送信候補プレビュー、Gmail/自動送信停止/送信時間の可否表示を追加済み
+- Version 43は `clasp deploy -V 43 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `dialog-backdrop`, `send-target-preview`, `openEmailBatchConfirm`, `runConfirmedEmailBatch` を確認済み
 - Version 41は `clasp deploy -V 41 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで旧AppFrameのナビ順序を確認済み
 - Version 40は `clasp deploy -V 40 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `adminReadinessRunnerPanel`, `schemaStatusPanel`, `renderTemplateActionCell`, `setEmailTemplateProduction`, `getSchemaStatus` を確認済み
 - Version 30は `clasp deploy -V 30 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `leadDuplicatePanel`, `renderLeadDuplicatePanel`, `listLeadDuplicateCandidates` を確認済み

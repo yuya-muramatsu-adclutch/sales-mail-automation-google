@@ -2447,6 +2447,40 @@
         box-shadow: -18px 0 50px rgba(15, 23, 42, 0.18);
       }
 
+      .dialog-backdrop {
+        position: fixed;
+        z-index: 90;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.48);
+      }
+
+      .dialog-panel {
+        display: grid;
+        gap: 14px;
+        width: min(560px, 100%);
+        max-height: min(860px, calc(100vh - 40px));
+        overflow: auto;
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24);
+      }
+
+      .dialog-panel h2 {
+        margin: 0;
+      }
+
+      .dialog-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
       .quick-dialog-header {
         position: sticky;
         z-index: 2;
@@ -3099,6 +3133,34 @@
         display: grid;
         gap: 12px;
         padding: 14px;
+      }
+
+      .send-target-preview {
+        display: grid;
+        gap: 6px;
+        max-height: 220px;
+        overflow: auto;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .send-target-preview span {
+        display: grid;
+        gap: 2px;
+      }
+
+      .send-target-preview strong {
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .send-target-preview small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.5;
       }
 
       .template-test-current span,
@@ -5784,6 +5846,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         dealTotal: 0,
         selectedEmailPreviewTemplateId: '',
         selectedEmailPreviewLeadId: '',
+        emailBatchConfirmOpen: false,
+        emailBatchSending: false,
         selectedTemplateTestLeadId: '',
         replyCheckResult: null,
         replyFalsePositiveResult: null,
@@ -10145,9 +10209,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const dashboard = state.dashboard || {};
         const preview = renderTemplateForLeadClient(selectedTemplate, selectedLead);
         const blockReason = getSendBlockReasonClient(selectedTemplate, selectedLead);
-        const batchTargets = matchedLeads.filter((lead) => canEmailLead(lead) && !lead.last_sent_at);
-        const batchLimit = Math.min(100, dashboard.todayRemaining || 0);
+        const batchTargets = getEmailPreviewBatchTargets(selectedTemplate);
+        const batchLimit = getEmailPreviewBatchLimit(dashboard);
         const batchCount = Math.min(batchTargets.length, batchLimit);
+        const batchBlockReason = getEmailBatchBlockReasonClient(selectedTemplate, batchTargets);
+        const batchSendTargets = batchTargets.slice(0, batchCount);
         target.innerHTML = `
           <div class="section-title-row">
             <div>
@@ -10187,8 +10253,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <span><small>今回送信</small><strong>${formatNumber(batchCount)}件</strong></span>
               <span><small>本日残り</small><strong>${formatNumber(dashboard.todayRemaining || 0)}件</strong></span>
             </div>
-            <button type="button" onclick="sendPreviewBatch()" ${batchCount <= 0 || blockReason ? 'disabled' : ''}>対象リストを確認して自動送信</button>
+            <button type="button" onclick="openEmailBatchConfirm()" ${batchCount <= 0 || batchBlockReason ? 'disabled' : ''}>対象リストを確認して自動送信</button>
+            ${batchBlockReason ? `<p class="muted">自動送信できない理由: ${escapeHtml(batchBlockReason)}</p>` : ''}
           </div>
+          ${state.emailBatchConfirmOpen ? renderEmailBatchConfirmDialog(selectedTemplate, batchSendTargets, batchTargets.length, batchLimit, batchBlockReason) : ''}
         `;
       }
 
@@ -10197,6 +10265,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!template || !template.genre) return leads;
         const matched = leads.filter((lead) => lead.genre === template.genre);
         return matched.length ? matched : leads;
+      }
+
+      function getEmailPreviewBatchTargets(template) {
+        if (!template) return [];
+        const templateGenre = String(template.genre || '').trim();
+        return (state.emailLeads || [])
+          .filter((lead) => canEmailLead(lead) && !lead.last_sent_at)
+          .filter((lead) => !templateGenre || String(lead.genre || '').trim() === templateGenre);
+      }
+
+      function getEmailPreviewBatchLimit(dashboard) {
+        const data = dashboard || state.dashboard || {};
+        const settingLimit = Number(getClientSetting('email_batch_send_limit', data.emailBatchSendLimit || 20)) || 20;
+        const todayRemaining = Number(data.todayRemaining || 0);
+        return Math.max(0, Math.min(settingLimit, todayRemaining, 100));
       }
 
       function renderTemplateVariablePreview(lead, template) {
@@ -10225,11 +10308,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function setEmailPreviewTemplate(id) {
         state.selectedEmailPreviewTemplateId = id;
         state.selectedEmailPreviewLeadId = '';
+        state.emailBatchConfirmOpen = false;
         renderEmailPreviewPanel();
       }
 
       function setEmailPreviewLead(id) {
         state.selectedEmailPreviewLeadId = id;
+        state.emailBatchConfirmOpen = false;
         renderEmailPreviewPanel();
       }
 
@@ -10244,10 +10329,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function getSendBlockReasonClient(template, lead) {
         const dashboard = state.dashboard || {};
+        const integrations = dashboard.integrations || {};
         if (!template) return 'テンプレートがありません';
         if (template.template_type === 'form') return 'フォーム用テンプレートはメール送信できません';
         if (!isProductionTemplate(template)) return 'テンプレートが本番OFFです';
         if (!template.genre) return 'テンプレートにジャンルが設定されていません';
+        if (integrations.gmail === false) return 'Gmailが未設定です';
+        if (dashboard.mailSendingEnabled === false) return '自動送信停止中です';
         if ((dashboard.todayRemaining || 0) <= 0) return '本日の送信上限に達しています';
         if (!lead) return '営業先がありません';
         if (template.genre && lead.genre && template.genre !== lead.genre) return 'テンプレートと営業先のジャンルが一致していません';
@@ -10259,8 +10347,27 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return '';
       }
 
+      function getEmailBatchBlockReasonClient(template, targets) {
+        const dashboard = state.dashboard || {};
+        const integrations = dashboard.integrations || {};
+        const sendWindow = dashboard.sendWindow || {};
+        if (!template) return 'テンプレートがありません';
+        if (template.template_type === 'form') return 'フォーム用テンプレートはメール送信できません';
+        if (!isProductionTemplate(template)) return 'テンプレートが本番OFFです';
+        if (!template.genre) return 'テンプレートにジャンルが設定されていません';
+        if (integrations.gmail === false) return 'Gmailが未設定です';
+        if (dashboard.mailSendingEnabled === false) return '自動送信停止中です';
+        if ((dashboard.todayRemaining || 0) <= 0) return '本日の送信上限に達しています';
+        if (sendWindow.enabled !== false && sendWindow.allowed === false) return '自動送信時間外です';
+        if (!(targets || []).length) return '送信対象がありません';
+        return '';
+      }
+
       function renderSendGuardPills(template, lead, blockReason) {
         const pills = [];
+        const dashboard = state.dashboard || {};
+        const integrations = dashboard.integrations || {};
+        const sendWindow = dashboard.sendWindow || {};
         if (!isProductionTemplate(template)) pills.push('<span class="pill warn">本番ON前なので送信不可</span>');
         if (template && !template.genre) pills.push('<span class="pill bad">テンプレートのジャンル未設定</span>');
         if (lead && !lead.genre) pills.push('<span class="pill bad">営業先のジャンル未設定</span>');
@@ -10269,9 +10376,50 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (lead && lead.deal_status && lead.deal_status !== '未設定') pills.push('<span class="pill warn">商談対象</span>');
         if (lead && template && template.template_type === 'initial' && lead.last_sent_at) pills.push('<span class="pill warn">初回送信済み</span>');
         if (lead && !lead.email) pills.push('<span class="pill warn">メールアドレスなし</span>');
-        pills.push(`<span class="pill ${(state.dashboard || {}).todayRemaining > 0 ? 'good' : 'bad'}">本日残り ${formatNumber((state.dashboard || {}).todayRemaining || 0)}件</span>`);
+        if (integrations.gmail === false) pills.push('<span class="pill bad">Gmail未設定</span>');
+        if (dashboard.mailSendingEnabled === false) pills.push('<span class="pill warn">自動送信停止中</span>');
+        if (sendWindow.label) pills.push(`<span class="pill ${sendWindow.enabled !== false && sendWindow.allowed !== false ? 'good' : 'warn'}">自動送信時間 ${escapeHtml(sendWindow.label)}</span>`);
+        pills.push(`<span class="pill ${dashboard.todayRemaining > 0 ? 'good' : 'bad'}">本日残り ${formatNumber(dashboard.todayRemaining || 0)}件</span>`);
         if (!blockReason) pills.push('<span class="pill good">送信可能</span>');
         return pills.join('');
+      }
+
+      function renderEmailBatchConfirmDialog(template, sendTargets, targetCount, batchLimit, blockReason) {
+        const dashboard = state.dashboard || {};
+        const sending = state.emailBatchSending;
+        return `
+          <div class="dialog-backdrop" role="dialog" aria-modal="true" onclick="closeEmailBatchConfirmOnBackdrop(event)">
+            <div class="dialog-panel" onclick="event.stopPropagation()">
+              <div class="section-title-row">
+                <div>
+                  <p class="eyebrow">Send check</p>
+                  <h2>対象リストを自動送信しますか？</h2>
+                </div>
+                <span class="pill ${blockReason ? 'warn' : 'good'}">${blockReason ? '要確認' : '送信前確認'}</span>
+              </div>
+              <p class="muted">本番ONの「${escapeHtml(template ? template.name || 'テンプレート名未設定' : '-')}」を使い、ジャンルが一致する未送信リードへ順番に送信します。送信前に対象を確認してください。</p>
+              <div class="send-check-grid">
+                <span><small>対象候補</small><strong>${formatNumber(targetCount)}件</strong></span>
+                <span><small>今回送信</small><strong>${formatNumber(sendTargets.length)}件</strong></span>
+                <span><small>本日残り</small><strong>${formatNumber(dashboard.todayRemaining || 0)}件</strong></span>
+              </div>
+              <div class="send-target-preview">
+                ${sendTargets.length ? sendTargets.slice(0, 10).map((lead) => `
+                  <span>
+                    <strong>${escapeHtml(lead.company_name || lead.facility_name || lead.email || '営業先名未設定')}</strong>
+                    <small>${escapeHtml([lead.facility_name, lead.email, lead.genre || 'ジャンル未設定'].filter(Boolean).join(' / '))}</small>
+                  </span>
+                `).join('') : '<span><strong>対象がありません</strong><small>テンプレートの本番設定、ジャンル、送信上限を確認してください。</small></span>'}
+                ${sendTargets.length > 10 ? `<small>ほか ${formatNumber(sendTargets.length - 10)} 件</small>` : ''}
+              </div>
+              ${blockReason ? `<p class="message error">${escapeHtml(blockReason)}</p>` : '<p class="message ok">この内容で送信対象を確定できます。</p>'}
+              <div class="dialog-actions">
+                <button type="button" onclick="closeEmailBatchConfirm()" ${sending ? 'disabled' : ''}>キャンセル</button>
+                <button type="button" class="primary" onclick="runConfirmedEmailBatch()" ${blockReason || !sendTargets.length || sending ? 'disabled' : ''}>${sending ? '送信中...' : '自動送信を開始'}</button>
+              </div>
+            </div>
+          </div>
+        `;
       }
 
       async function sendPreviewEmail() {
@@ -10295,23 +10443,52 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         await refreshAll();
       }
 
-      async function sendPreviewBatch() {
+      function openEmailBatchConfirm() {
         const template = (state.templates || []).find((item) => item.id === state.selectedEmailPreviewTemplateId);
-        const previewLead = (state.emailLeads || []).find((item) => item.id === state.selectedEmailPreviewLeadId);
-        const blockReason = getSendBlockReasonClient(template, previewLead);
+        const targets = getEmailPreviewBatchTargets(template);
+        const blockReason = getEmailBatchBlockReasonClient(template, targets);
         if (blockReason) {
           message(`自動送信できません: ${blockReason}`, 'error');
           renderEmailPreviewPanel();
           return;
         }
-        const targets = getTemplateMatchedEmailLeads(template).filter((lead) => canEmailLead(lead) && !lead.last_sent_at);
-        const limit = Math.min(10, (state.dashboard || {}).todayRemaining || 0);
+        state.emailBatchConfirmOpen = true;
+        renderEmailPreviewPanel();
+      }
+
+      function closeEmailBatchConfirm() {
+        if (state.emailBatchSending) return;
+        state.emailBatchConfirmOpen = false;
+        renderEmailPreviewPanel();
+      }
+
+      function closeEmailBatchConfirmOnBackdrop(event) {
+        if (event && event.target === event.currentTarget) closeEmailBatchConfirm();
+      }
+
+      async function sendPreviewBatch() {
+        openEmailBatchConfirm();
+      }
+
+      async function runConfirmedEmailBatch() {
+        if (state.emailBatchSending) return;
+        const template = (state.templates || []).find((item) => item.id === state.selectedEmailPreviewTemplateId);
+        const targets = getEmailPreviewBatchTargets(template);
+        const blockReason = getEmailBatchBlockReasonClient(template, targets);
+        if (blockReason) {
+          message(`自動送信できません: ${blockReason}`, 'error');
+          state.emailBatchConfirmOpen = false;
+          renderEmailPreviewPanel();
+          return;
+        }
+        const limit = getEmailPreviewBatchLimit(state.dashboard || {});
         const sendTargets = targets.slice(0, limit);
         if (!sendTargets.length || !template) {
           message('自動送信できる対象がありません', 'error');
           return;
         }
-        if (!confirm(`${sendTargets.length}件へ順番に送信しますか。安全のためGAS版では一度に最大10件までにしています。`)) return;
+        state.emailBatchSending = true;
+        renderEmailPreviewPanel();
         let success = 0;
         let failed = 0;
         for (const lead of sendTargets) {
@@ -10323,6 +10500,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             failed += 1;
           }
         }
+        state.emailBatchSending = false;
+        state.emailBatchConfirmOpen = false;
         message(`自動送信: 成功 ${formatNumber(success)}件 / 失敗 ${formatNumber(failed)}件`, failed ? 'error' : 'ok');
         await refreshAll();
       }

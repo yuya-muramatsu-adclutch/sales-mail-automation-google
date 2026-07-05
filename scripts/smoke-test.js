@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v42_mail_sending_control_dashboard'), 'v42 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v43_email_preview_confirm_dialog'), 'v43 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -272,6 +272,14 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'dashboard-prospecting-stats',
   'renderDashboardMailSendingControl',
   'renderDashboardProspectingStatus',
+  'dialog-backdrop',
+  'dialog-panel',
+  'send-target-preview',
+  'emailBatchConfirmOpen',
+  'openEmailBatchConfirm',
+  'runConfirmedEmailBatch',
+  '対象リストを確認して自動送信',
+  '対象リストを自動送信しますか？',
 ].forEach((marker) => {
   assert(html.includes(marker), `legacy UI marker missing: ${marker}`);
 });
