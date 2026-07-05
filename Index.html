@@ -24,6 +24,10 @@
         --shadow-focus: 0 0 0 3px rgba(47, 111, 237, 0.16);
         --content-max: 1680px;
         --sidebar-width: 260px;
+        --card-pad: 18px;
+        --card-gap: 16px;
+        --card-child-pad: 14px;
+        --card-child-gap: 12px;
       }
 
       * {
@@ -3718,20 +3722,20 @@
       .content-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
-        gap: 14px;
+        gap: var(--card-gap);
         align-items: start;
       }
 
       .stack {
         display: grid;
-        gap: 14px;
+        gap: var(--card-gap);
       }
 
       .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 12px;
-        margin-bottom: 14px;
+        gap: var(--card-child-gap);
+        margin-bottom: var(--card-gap);
       }
 
       .stat-card,
@@ -3751,7 +3755,7 @@
         display: grid;
         gap: 6px;
         min-height: 92px;
-        padding: 14px;
+        padding: var(--card-child-pad);
       }
 
       .stat-card span,
@@ -6458,12 +6462,22 @@
         overflow: hidden;
       }
 
+      .panel.stack {
+        min-width: 0;
+        padding: var(--card-pad);
+        gap: var(--card-gap);
+      }
+
+      .panel.stack > .panel-head {
+        margin: calc(var(--card-pad) * -1) calc(var(--card-pad) * -1) 0;
+      }
+
       .panel-head {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
-        padding: 16px 16px 12px;
+        gap: var(--card-child-gap);
+        padding: 16px var(--card-pad) 12px;
         border-bottom: 1px solid var(--line);
       }
 
@@ -6474,15 +6488,57 @@
       }
 
       .panel-body {
-        padding: 16px;
+        padding: var(--card-pad);
+      }
+
+      .panel-body:not(.table-wrap) {
+        display: grid;
+        gap: var(--card-gap);
+      }
+
+      .background-guide-panel .panel-body {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--card-gap);
+      }
+
+      .panel-body.stack {
+        gap: var(--card-gap);
+      }
+
+      .panel > h2:first-child,
+      .panel > h3:first-child,
+      .panel.stack > h2:first-child,
+      .panel.stack > h3:first-child {
+        margin-top: 0;
+      }
+
+      .panel > p,
+      .panel > .muted,
+      .panel-body > p,
+      .panel-body > .muted,
+      .panel.stack > p,
+      .panel.stack > .muted {
+        margin-top: 0;
+        line-height: 1.65;
+      }
+
+      .panel > p:last-child,
+      .panel > .muted:last-child,
+      .panel-body > p:last-child,
+      .panel-body > .muted:last-child,
+      .panel.stack > p:last-child,
+      .panel.stack > .muted:last-child {
+        margin-bottom: 0;
       }
 
       .action-block {
-        margin-top: 14px;
-        padding-top: 14px;
+        margin-top: var(--card-gap);
+        padding-top: var(--card-gap);
         border-top: 1px solid var(--line);
         display: grid;
-        gap: 10px;
+        gap: var(--card-child-gap);
       }
 
       .action-block h3 {
@@ -6572,16 +6628,87 @@
         padding: 0;
       }
 
+      .panel.stack > .table-wrap {
+        margin-right: calc(var(--card-pad) * -1);
+        margin-left: calc(var(--card-pad) * -1);
+      }
+
+      .panel.stack > .table-wrap:last-child {
+        margin-bottom: calc(var(--card-pad) * -1);
+      }
+
+      .panel .panel,
+      .panel .stat-card,
+      .panel .settings-status-item,
+      .panel .readiness-item,
+      .panel .admin-check-summary > div,
+      .panel .dashboard-mini-metric,
+      .panel .dashboard-compact-stat,
+      .panel .send-check-card,
+      .panel .template-test-current,
+      .panel .job-result-card,
+      .panel .automation-setting-card,
+      .panel .duplicate-group-card,
+      .panel .error-detail-card,
+      .panel .mail-send-lock-panel,
+      .panel .quick-history-item,
+      .panel .custom-field-card,
+      .panel .admin-target-preview,
+      .panel .schema-sql-box,
+      .panel .reply-fix-panel {
+        min-width: 0;
+      }
+
+      .panel .panel {
+        box-shadow: none;
+      }
+
+      .panel .settings-status-item,
+      .panel .readiness-item,
+      .panel .admin-check-summary > div,
+      .panel .dashboard-mini-metric,
+      .panel .dashboard-compact-stat,
+      .panel .send-check-card,
+      .panel .template-test-current,
+      .panel .job-result-card,
+      .panel .automation-setting-card,
+      .panel .duplicate-group-card,
+      .panel .error-detail-card,
+      .panel .mail-send-lock-panel,
+      .panel .quick-history-item,
+      .panel .custom-field-card,
+      .panel .admin-target-preview,
+      .panel .schema-sql-box,
+      .panel .reply-fix-panel {
+        padding: var(--card-child-pad);
+      }
+
+      .panel .settings-status-item > div,
+      .panel .readiness-item > div,
+      .panel .admin-check-summary > div,
+      .panel .dashboard-mini-metric,
+      .panel .dashboard-compact-stat,
+      .panel .send-check-card,
+      .panel .template-test-current,
+      .panel .job-result-card,
+      .panel .automation-setting-card,
+      .panel .duplicate-group-card,
+      .panel .error-detail-card,
+      .panel .quick-history-item,
+      .panel .custom-field-card {
+        overflow-wrap: anywhere;
+      }
+
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 10px;
+        gap: var(--card-child-gap);
       }
 
       .split {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(300px, 420px);
-        gap: 14px;
+        gap: var(--card-gap);
         align-items: start;
       }
 
