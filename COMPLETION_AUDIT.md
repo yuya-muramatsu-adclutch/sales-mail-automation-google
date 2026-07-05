@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @47 / code v47: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @48 / code v48: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v47_template_subject_diff_preview`
+- Code version: `20260705_apps_script_full_workflow_v48_send_history_filters`
 
 ## 計画書との対応
 
@@ -73,9 +73,16 @@
 | 差し込み値空欄タグ強調 | 完了 | code v45で送信プレビューの差し込み値カードに空欄タグ一覧、空欄数Pill、警告色カードを追加 |
 | 送信本文差分確認UI反映 | 完了 | code v46でテンプレート原文、送信時本文、空欄タグの前後文脈を並べて確認できる本文差分パネルを追加 |
 | 送信件名差分確認UI反映 | 完了 | code v47でテンプレート件名、送信時件名、件名内の空欄タグ文脈を並べて確認できる件名差分パネルを追加 |
+| 旧アプリ送信履歴ページ詳細反映 | 完了 | code v48で履歴区分フィルタ、検索、絞り込み中Pill、本文/Gmail詳細、絞り込みCSV出力を送信履歴ページへ追加 |
 
 ## 検証済み
 
+- `clasp push -f` 成功
+- `clasp version "apps-script-full-workflow-v48-send-history-filters"` でVersion 48を作成済み
+- 既存Web app URLを `clasp deploy -V 48 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 48へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@48 - apps-script-full-workflow-v48-send-history-filters-on-existing-url` を指すことを確認
+- code v48ローカルスモークで `historyFilterPanel`, `filteredSendHistories`, `exportFilteredSendHistoriesCsv`, `本文/Gmail`, `絞り込み中` を確認済み
+- `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp version "apps-script-full-workflow-v47-template-subject-diff-preview"` でVersion 47を作成済み
 - 既存Web app URLを `clasp deploy -V 47 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 47へ再デプロイ済み

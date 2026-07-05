@@ -4461,9 +4461,44 @@
       .history-date-cell,
       .history-recipient-cell,
       .history-lead-cell,
+      .history-template-cell,
+      .history-subject-cell,
+      .history-action-cell,
       .history-error {
         display: grid;
         gap: 3px;
+      }
+
+      .send-history-table-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 16px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .history-filter-panel {
+        grid-template-columns: minmax(260px, 1fr) minmax(170px, 220px) auto auto;
+      }
+
+      .history-action-cell .history-detail {
+        margin: 0;
+      }
+
+      .history-action-cell summary {
+        cursor: pointer;
+        color: #1f2937;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .history-action-cell pre {
+        max-width: 360px;
+        max-height: 180px;
+        margin: 6px 0 0;
+        overflow: auto;
+        white-space: pre-wrap;
       }
 
       .panel {
@@ -5595,11 +5630,24 @@
               <p class="eyebrow">Send history</p>
               <h1>送信履歴</h1>
             </div>
-            <button type="button" onclick="exportCurrentLeadCsv()">CSV出力</button>
+            <div class="row">
+              <button type="button" onclick="exportFilteredSendHistoriesCsv()">CSV出力</button>
+              <button type="button" class="primary" onclick="showTab('sending')">送信プレビューへ</button>
+            </div>
           </header>
           <section class="stats-grid" id="historyStats"></section>
+          <section id="historyFilterPanel" class="list-filter-panel history-filter-panel"></section>
           <section class="panel">
-            <div class="panel-head"><h2>送信履歴一覧</h2><span class="pill info" id="sendHistoryScreenPill">0件</span></div>
+            <div class="send-history-table-head">
+              <div>
+                <h2>送信履歴一覧</h2>
+                <p class="muted" id="sendHistoryScreenCaption">送信日時は日本時間で表示しています。</p>
+              </div>
+              <div class="row">
+                <span class="pill info" id="sendHistoryTodayPill">本日 0件</span>
+                <span class="pill info" id="sendHistoryScreenPill">0件</span>
+              </div>
+            </div>
             <div class="table-wrap"><table id="sendHistoryScreenTable"></table></div>
           </section>
         </section>
@@ -5976,6 +6024,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         searchUsageLogs: [],
         searchJobs: [],
         histories: [],
+        historyFilter: 'all',
+        historyQuery: '',
         jobs: [],
         syncLogs: [],
         syncImport: {
@@ -10795,9 +10845,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderHistoriesScreen() {
         const histories = state.histories || [];
+        const visible = filteredSendHistories();
         const success = histories.filter((history) => history.send_result === '成功').length;
         const failed = histories.filter((history) => history.send_result && history.send_result !== '成功').length;
         const test = histories.filter((history) => String(history.send_type || '').includes('テスト')).length;
+        const today = histories.filter((history) => isTodayClientDate(history.sent_at || history.created_at)).length;
+        const filtering = state.historyFilter !== 'all' || Boolean(String(state.historyQuery || '').trim());
         document.getElementById('historyStats').innerHTML = [
           statCard('履歴総数', `${formatNumber(histories.length)}件`, '最新100件', 'blue'),
           statCard('本番送信', `${formatNumber(histories.length - test)}件`, '初回/フォロー', 'green'),
@@ -10805,18 +10858,142 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           statCard('失敗', `${formatNumber(failed)}件`, '要確認', failed > 0 ? 'red' : 'green'),
           statCard('テスト送信', `${formatNumber(test)}件`, '確認用', 'amber'),
         ].join('');
-        document.getElementById('sendHistoryScreenPill').textContent = `${formatNumber(histories.length)}件`;
-        document.getElementById('sendHistoryScreenTable').innerHTML = table(['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名', 'Gmail'], histories.map((item) => row([
+        renderHistoryFilterPanel();
+        document.getElementById('sendHistoryScreenCaption').textContent = `送信日時は日本時間で表示しています。表示中 ${formatNumber(visible.length)}件 / 最新${formatNumber(histories.length)}件`;
+        document.getElementById('sendHistoryTodayPill').outerHTML = `<span class="pill info" id="sendHistoryTodayPill">本日 ${formatNumber(today)}件</span>`;
+        document.getElementById('sendHistoryScreenPill').outerHTML = `<span class="pill ${filtering ? 'warn' : 'info'}" id="sendHistoryScreenPill">${filtering ? '絞り込み中' : `${formatNumber(visible.length)}件`}</span>`;
+        document.getElementById('sendHistoryScreenTable').innerHTML = table(['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名', '本文/Gmail'], visible.map((item) => row([
           ['送信日時', `<span class="history-date-cell"><strong>${escapeHtml(dateTimeLabel(item.sent_at || item.created_at) || '-')}</strong><small>日本時間</small></span>`],
           ['結果', item.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="history-error"><span class="pill bad">${escapeHtml(item.send_result || '失敗')}</span><small>${escapeHtml(item.error_message || '')}</small></span>`],
-          ['種別', statusPill(item.send_type || '-')],
+          ['種別', renderHistorySendTypePill(item.send_type || '-')],
           ['送信先', `<span class="history-recipient-cell"><strong>${escapeHtml(item.to_email || '-')}</strong><small>${escapeHtml(item.gmail_message_id ? `Gmail: ${item.gmail_message_id}` : 'Gmail IDなし')}</small></span>`],
           ['営業先', `<span class="history-lead-cell"><strong>${escapeHtml(item.facility_name || item.company_name || '-')}</strong><small>${escapeHtml(item.company_name && item.facility_name ? item.company_name : '会社名未取得')}</small></span>`],
           ['ジャンル', escapeHtml(item.genre || '-')],
-          ['テンプレート', escapeHtml(item.template_name || '-')],
-          ['件名', escapeHtml(item.subject || '-')],
-          ['Gmail', escapeHtml(item.gmail_thread_id || '-')],
+          ['テンプレート', `<span class="history-template-cell"><strong>${escapeHtml(item.template_name || '-')}</strong><small>${escapeHtml(item.template_id || 'テンプレートIDなし')}</small></span>`],
+          ['件名', `<span class="history-subject-cell"><strong>${escapeHtml(item.subject || '-')}</strong></span>`],
+          ['本文/Gmail', renderHistoryActionCell(item)],
         ])).join(''));
+      }
+
+      function renderHistoryFilterPanel() {
+        const target = document.getElementById('historyFilterPanel');
+        if (!target) return;
+        const options = [
+          ['all', 'すべて'],
+          ['success', '成功'],
+          ['failed', '失敗'],
+          ['initial', '初回メール'],
+          ['test', 'テスト送信'],
+        ];
+        target.innerHTML = `
+          <label>検索<input id="historySearch" type="search" placeholder="会社名・屋号・メール・件名・本文" value="${escapeHtml(state.historyQuery || '')}"></label>
+          <label>履歴区分<select id="historyFilter">
+            ${options.map(([value, label]) => `<option value="${value}" ${state.historyFilter === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+          </select></label>
+          <button type="button" onclick="applyHistoryFilters()">適用</button>
+          <button type="button" onclick="resetHistoryFilters()">リセット</button>
+        `;
+      }
+
+      function applyHistoryFilters() {
+        const search = document.getElementById('historySearch');
+        const filter = document.getElementById('historyFilter');
+        state.historyQuery = search ? search.value : '';
+        state.historyFilter = filter ? filter.value : 'all';
+        renderHistoriesScreen();
+      }
+
+      function resetHistoryFilters() {
+        state.historyQuery = '';
+        state.historyFilter = 'all';
+        renderHistoriesScreen();
+      }
+
+      function filteredSendHistories() {
+        const query = String(state.historyQuery || '').trim().toLowerCase();
+        const filter = state.historyFilter || 'all';
+        return (state.histories || [])
+          .filter((history) => historyMatchesFilter(history, filter))
+          .filter((history) => historyMatchesQuery(history, query));
+      }
+
+      function historyMatchesFilter(history, filter) {
+        if (filter === 'success') return history.send_result === '成功';
+        if (filter === 'failed') return history.send_result && history.send_result !== '成功';
+        if (filter === 'initial') return history.send_type === '初回メール';
+        if (filter === 'test') return String(history.send_type || '').includes('テスト');
+        return true;
+      }
+
+      function historyMatchesQuery(history, query) {
+        if (!query) return true;
+        return [
+          history.to_email,
+          history.company_name,
+          history.facility_name,
+          history.genre,
+          history.template_name,
+          history.subject,
+          history.body,
+          history.gmail_message_id,
+          history.gmail_thread_id,
+        ].filter(Boolean).some((value) => String(value).toLowerCase().includes(query));
+      }
+
+      function renderHistorySendTypePill(sendType) {
+        const type = sendType || '-';
+        const tone = String(type).includes('テスト') ? 'warn' : 'info';
+        return `<span class="pill ${tone}">${escapeHtml(type)}</span>`;
+      }
+
+      function renderHistoryActionCell(history) {
+        return `
+          <span class="history-action-cell">
+            <details class="history-detail">
+              <summary>本文を見る</summary>
+              <pre>${escapeHtml(history.body || '本文なし')}</pre>
+            </details>
+            <details class="history-detail compact-detail">
+              <summary>Gmail情報</summary>
+              <pre>${escapeHtml(`Gmail ID: ${history.gmail_message_id || '-'}\nThread ID: ${history.gmail_thread_id || '-'}`)}</pre>
+            </details>
+          </span>
+        `;
+      }
+
+      function isTodayClientDate(value) {
+        if (!value) return false;
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime())) return false;
+        return dateLabel(date.toISOString()) === dateLabel(new Date().toISOString());
+      }
+
+      function exportFilteredSendHistoriesCsv() {
+        const histories = filteredSendHistories();
+        const headers = ['ID', '送信日時', '送信種別', '送信結果', '宛先メールアドレス', '会社名', '屋号', 'ジャンル', '使用テンプレートID', '使用テンプレート名', '件名', '本文', 'エラー内容', 'GmailメッセージID', 'GmailスレッドID', '送信者名', '営業リストID'];
+        const rows = histories.map((history) => [
+          history.id,
+          history.sent_at || history.created_at,
+          history.send_type,
+          history.send_result,
+          history.to_email,
+          history.company_name,
+          history.facility_name,
+          history.genre,
+          history.template_id,
+          history.template_name,
+          history.subject,
+          history.body,
+          history.error_message,
+          history.gmail_message_id,
+          history.gmail_thread_id,
+          history.sender_name,
+          history.lead_id,
+        ]);
+        const csv = [headers].concat(rows).map((values) => values.map(csvValue).join(',')).join('\n');
+        const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        downloadText(`send-histories-${date}.csv`, '\uFEFF' + csv);
+        message(`送信履歴CSVを出力しました: ${formatNumber(histories.length)}件`, 'ok');
       }
 
       function renderDealsScreen() {
