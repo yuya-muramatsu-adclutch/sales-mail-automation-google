@@ -5162,6 +5162,21 @@
         color: #ffffff;
       }
 
+      button.primary,
+      .button.primary,
+      .button-link.primary {
+        border-color: #1f2937;
+        background: #1f2937;
+        color: #ffffff;
+      }
+
+      .button.compact,
+      button.compact-button,
+      .compact-button {
+        min-height: 34px;
+        padding: 7px 10px;
+      }
+
       .mini-button {
         display: inline-flex;
         align-items: center;
@@ -5186,6 +5201,96 @@
         background: #dbeafe;
         color: #1e40af;
         box-shadow: inset 0 0 0 1px #93c5fd;
+      }
+
+      .mini-button.disabled,
+      .mini-button:disabled {
+        pointer-events: none;
+        opacity: 0.45;
+      }
+
+      .mini-button.danger {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: var(--red);
+      }
+
+      .lead-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 0 0 14px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .lead-pagination:last-child {
+        margin: 14px 0 0;
+      }
+
+      .lead-pagination strong,
+      .lead-pagination span {
+        display: block;
+      }
+
+      .lead-pagination strong {
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .lead-pagination span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .lead-pagination-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .lead-pagination-pages {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .url-mini-link {
+        display: inline-grid;
+        grid-template-columns: auto auto minmax(0, 1fr);
+        align-items: center;
+        max-width: 100%;
+        min-height: 28px;
+        padding: 4px 7px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1e40af;
+        column-gap: 5px;
+        font-size: 11px;
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      .url-mini-link:hover {
+        border-color: #93c5fd;
+        background: #dbeafe;
+      }
+
+      .url-mini-link small {
+        min-width: 0;
+        overflow: hidden;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .table-link-button {
@@ -6654,6 +6759,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       });
 
       const LEGACY_UI_ICON_SVGS = Object.freeze({
+        chevronFirst: iconSvg('<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>'),
+        chevronLast: iconSvg('<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>'),
+        chevronLeft: iconSvg('<path d="m15 18-6-6 6-6"/>'),
+        chevronRight: iconSvg('<path d="m9 18 6-6-6-6"/>'),
+        external: iconSvg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'),
         reset: iconSvg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/>'),
         search: NAV_ICON_SVGS.SP,
         sliders: iconSvg('<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>'),
@@ -7331,7 +7441,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           return `<tr class="${leadRowClass(lead)}">` + cells.map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
         }).join('');
         const headers = fixedHeaders.concat(columns.map((column) => column.label));
-        const emptyRow = `<tr><td data-column="" colspan="${headers.length}" class="empty">営業リストはありません</td></tr>`;
+        const emptyRow = `<tr><td data-column="" colspan="${headers.length}" class="data-table-empty-cell"><span>営業リストはありません</span></td></tr>`;
         document.getElementById('leadTable').innerHTML = `
           <thead>
             <tr>
@@ -7354,8 +7464,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (key === 'company') return escapeHtml(lead.company_name || '-');
         if (key === 'contact') return contactChannelCell(lead);
         if (key === 'email') return lead.email ? `<a class="mini-text-link" href="mailto:${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</a>` : '<span class="muted">未取得</span>';
-        if (key === 'website') return lead.website_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(lead.website_url))}</a>` : '<span class="muted">未取得</span>';
-        if (key === 'form_url') return lead.form_url ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">フォーム</a>` : '<span class="muted">未取得</span>';
+        if (key === 'website') return lead.website_url ? `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener">${legacyUiIcon('external')}<span>WEB</span><small>${escapeHtml(compactUrl(lead.website_url))}</small></a>` : '<span class="muted">未取得</span>';
+        if (key === 'form_url') return lead.form_url ? `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">${legacyUiIcon('external')}<span>フォーム</span><small>${escapeHtml(compactUrl(lead.form_url))}</small></a>` : '<span class="muted">未取得</span>';
         if (key === 'phone') return escapeHtml(lead.phone || '-');
         if (key === 'address') return escapeHtml(lead.address || '-');
         if (key === 'genre') return escapeHtml(lead.genre || '-');
@@ -7594,7 +7704,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const name = lead.facility_name || lead.company_name || '-';
         const company = lead.facility_name && lead.company_name ? `<small class="muted">${escapeHtml(lead.company_name)}</small>` : '';
         const website = lead.website_url
-          ? `<a class="mini-text-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener" title="${escapeHtml(lead.website_url)}">WEBサイト</a>`
+          ? `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener" title="${escapeHtml(lead.website_url)}">${legacyUiIcon('external')}<span>WEB</span><small>${escapeHtml(compactUrl(lead.website_url))}</small></a>`
           : '';
         const address = lead.address ? `<small class="muted">${escapeHtml(lead.address)}</small>` : '';
         const review = isReviewPendingLead(lead) ? '<small class="prospecting-origin-note">検索追加候補</small>' : '';
@@ -7707,15 +7817,39 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const offset = state.leadPage.offset || 0;
         const start = total === 0 ? 0 : offset + 1;
         const end = Math.min(offset + state.leads.length, total);
+        const currentPage = limit > 0 ? Math.floor(offset / limit) + 1 : 1;
+        const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
         const previousOffset = Math.max(offset - limit, 0);
         const nextOffset = offset + limit;
-        document.getElementById('leadPager').innerHTML = `
-          <span class="muted">全 ${total} 件中 ${start}-${end} 件を表示</span>
-          <button type="button" onclick="loadLeads(${previousOffset})" ${offset <= 0 ? 'disabled' : ''}>前へ</button>
-          <button type="button" onclick="loadLeads(${nextOffset})" ${nextOffset >= total ? 'disabled' : ''}>次へ</button>
+        const firstPage = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+        const lastPage = Math.min(totalPages, firstPage + 4);
+        const pages = Array.from({ length: Math.max(0, lastPage - firstPage + 1) }, (_, index) => firstPage + index);
+        const pageButton = (pageNumber) => {
+          const pageOffset = (pageNumber - 1) * limit;
+          const active = pageNumber === currentPage;
+          return `<button type="button" class="mini-button ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} onclick="loadLeads(${pageOffset})">${formatNumber(pageNumber)}</button>`;
+        };
+        const navButton = (label, iconKey, targetOffset, disabled) => `
+          <button type="button" class="mini-button ${disabled ? 'disabled' : ''}" aria-label="${escapeHtml(label)}" onclick="loadLeads(${targetOffset})" ${disabled ? 'disabled' : ''}>${legacyUiIcon(iconKey)}</button>
         `;
+        const markup = totalPages <= 1 && total === 0
+          ? '<div><strong>0件</strong><span>全0件 / 0ページ目</span></div><div class="lead-pagination-actions"></div>'
+          : `
+            <div>
+              <strong>${formatNumber(start)}〜${formatNumber(end)}件</strong>
+              <span>全${formatNumber(total)}件 / ${formatNumber(currentPage)}ページ目</span>
+            </div>
+            <div class="lead-pagination-actions">
+              ${navButton('最初のページへ', 'chevronFirst', 0, currentPage <= 1)}
+              ${navButton('前のページへ', 'chevronLeft', previousOffset, currentPage <= 1)}
+              <div class="lead-pagination-pages" aria-label="ページ番号">${pages.map(pageButton).join('')}</div>
+              ${navButton('次のページへ', 'chevronRight', Math.min(nextOffset, Math.max(total - limit, 0)), currentPage >= totalPages)}
+              ${navButton('最後のページへ', 'chevronLast', Math.max((totalPages - 1) * limit, 0), currentPage >= totalPages)}
+            </div>
+          `;
+        document.getElementById('leadPager').innerHTML = markup;
         const bottom = document.getElementById('leadPagerBottom');
-        if (bottom) bottom.innerHTML = document.getElementById('leadPager').innerHTML;
+        if (bottom) bottom.innerHTML = markup;
       }
 
       function getSelectedVisibleLeads() {

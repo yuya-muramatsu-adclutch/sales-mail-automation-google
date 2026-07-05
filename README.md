@@ -55,6 +55,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `DashboardSignalCard` / `DashboardActionCard` / `DashboardCompactStat` に寄せたアイコン付きダッシュボードカード
 - 旧Next/Supabase版の `StatusPill` / `DataTable` / `table-link-button` / `mini-button` に寄せた共通Pill、テーブル、操作ボタンの見た目
 - 旧Next/Supabase版の `ListSearchFilters` / `DataTable` 空状態に寄せた検索フィルタ、クリア導線、スライダーアイコン、空テーブル表示
+- 旧Next/Supabase版の `LeadPagination` / `url-mini-link` / `button.primary` に寄せたページング、URL小リンク、一次ボタン色
 
 ## ファイル
 
@@ -85,7 +86,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @54 / code v54: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @55 / code v55: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -176,6 +177,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Version 53は `clasp deploy -V 53 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `status-pill`, `legacy-component-parity`, `overscroll-behavior-inline: contain`, `table-link-button.primary-action` を確認済み
 - Apps Script code v54で旧Next/Supabase版の `ListSearchFilters` / `DataTable` 空状態に寄せ、営業リスト、フォーム送信、送信履歴の検索パネルをスライダーアイコン付きの適用/クリア導線へ変更し、空テーブル表示を点線枠のメッセージへ変更済み
 - Version 54は `clasp deploy -V 54 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `LEGACY_UI_ICON_SVGS`, `hydrateLegacyUtilityIcons`, `list-filter-panel-icon`, `data-table-empty-cell` を確認済み
+- Apps Script code v55で旧Next/Supabase版の `LeadPagination` に寄せ、営業リストのページングを先頭/前/ページ番号/次/最後の `mini-button` 構成に変更済み。`url-mini-link` と一次ボタン色も旧アプリ寄せへ調整済み
+- Version 55は `clasp deploy -V 55 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `lead-pagination-pages`, `chevronFirst`, `url-mini-link`, `button.primary` を確認済み
 - Version 49は `clasp deploy -V 49 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `analyticsTemplateTable`, `buildClientAnalyticsData`, `メール文別返信率` を確認済み
 - Version 48は `clasp deploy -V 48 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `historyFilterPanel`, `filteredSendHistories`, `本文/Gmail` を確認済み
 - Version 47は `clasp deploy -V 47 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `template-subject-diff-panel`, `件名差分`, `テンプレート件名` を確認済み

@@ -81,13 +81,15 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v54_filter_empty_state_parity'), 'v54 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v55_pagination_link_button_parity'), 'v55 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
 assert(html.includes('createSelectedLeadCalendarEvent'), 'calendar event handler missing');
 assert(html.includes('id="leadPager"'), 'lead pager UI missing');
-assert(html.includes('全 ${total} 件中'), 'lead pager total display missing');
+assert(html.includes('lead-pagination-pages'), 'legacy lead pager page buttons missing');
+assert(html.includes('chevronFirst'), 'legacy lead pager first icon missing');
+assert(html.includes('全${formatNumber(total)}件'), 'legacy lead pager total display missing');
 assert(html.includes('class="sidebar"'), 'sidebar layout missing');
 assert(html.includes('authGate'), 'legacy login/auth gate missing');
 assert(html.includes('login-card'), 'legacy login card styling missing');
@@ -113,6 +115,9 @@ assert(html.includes('list-filter-actions'), 'legacy ListSearchFilters action ro
 assert(html.includes('clearFormFilters'), 'legacy form filter clear action missing');
 assert(html.includes('data-table-empty-cell'), 'legacy DataTable empty state missing');
 assert(html.includes('table-wrap::-webkit-scrollbar'), 'legacy table scrollbar styling missing');
+assert(html.includes('url-mini-link'), 'legacy URL mini link style missing');
+assert(html.includes("legacyUiIcon('external')"), 'legacy URL external icon missing');
+assert(html.includes('button.primary,'), 'legacy primary button tone override missing');
 assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
