@@ -5735,10 +5735,22 @@
         height: 17px;
       }
 
+      .readiness-item > div {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
       .readiness-item.with-icon strong {
         color: var(--text);
         font-size: 14px;
         line-height: 1.25;
+      }
+
+      .readiness-item small {
+        display: block;
+        min-width: 0;
+        overflow-wrap: anywhere;
       }
 
       .readiness-list {
