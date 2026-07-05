@@ -8,6 +8,7 @@
 
 - `app/globals.css`: 色、余白、パネル、テーブル、サイドバー、ダッシュボード、営業リスト、収集ツールのスタイル
 - `components/AppFrame.tsx`: サイドバー、ナビグループ、リスト/運用の項目順序、ブランド表現、上部ショートカット
+- `components/AppNavLink.tsx`: サイドバーの線アイコン、active表示、一次メニューの見え方
 - `app/login/page.tsx`, `components/LoginForm.tsx`: ログイン画面、中央カード、認証導線
 - `components/AppSafetyStrip.tsx`, `components/AppTopShortcutBar.tsx`, `components/AppRouteProgress.tsx`: 運用ステータスバー、よく使う操作、画面遷移フィードバック
 - `components/BackgroundJobWidgets.tsx`, `components/BackgroundJobToasts.tsx`, `components/BackgroundJobCenter.tsx`: 共通ジョブ通知、進捗バー、戻る操作
@@ -62,6 +63,8 @@
 - 管理/運用画面に準備状況、実行アクション、送信履歴、ジョブ一覧、同期ログを集約。
 - 旧 `AppFrame` のサイドバー導線に合わせ、`バックグラウンド進捗`、`メール送信リスト`、`送信プレビュー`、`送信履歴`、`商談`、`分析`、`同期`、`Gmail連携`、`管理` を独立タブとして追加。
 - 旧 `AppFrame` の `listNavItems` / `navItems` と同じ順序になるよう、サイドバーを `営業リスト`, `営業リスト収集ツール`, `バックグラウンド進捗`, `メール送信リスト`, `フォーム送信リスト`、続いて `ダッシュボード`, `分析`, `同期`, `送信NG`, `除外ドメイン`, `テンプレート`, `送信プレビュー`, `送信履歴`, `商談`, `Gmail連携`, `管理` の順に調整した。
+- 旧 `AppFrame` はサイドバーに一次メニューだけを表示するため、GAS版も `直近実行結果`, `エラー詳細`, `管理/運用` をサイドバーから外し、各業務パネル内の導線から開く支援画面として残した。
+- 旧 `AppNavLink` / `AppTopShortcutBar` の線アイコン表示に寄せ、GAS版の二文字バッジを起動時にナビ/ショートカット用SVGアイコンへ置き換えるようにした。
 - 旧アプリの各ページをApps Script/Sheets運用に読み替え、送信予定、送信履歴、商談ステータス、営業ファネル、同期ルール、Gmail承認状態、本番公開前チェックを表示。
 - 送信プレビューに旧 `EmailPreviewPanel` のテンプレート/営業先選択、差し込み後確認、送信不可理由、対象リスト自動送信カードを追加。テンプレート未登録の空状態でも同じ枠組みが見えるようにした。
 - 送信プレビューに旧 `TemplateTestRecipientManager` のテスト送信先選択パネルを追加。
@@ -140,4 +143,4 @@
 
 ## 次に移す候補
 
-- 日次送信対象画面を旧 `/today` の送信キュー、除外理由、今日やることの見せ方へ寄せる。
+- 旧アプリとGAS版を同じ画面幅で実機比較し、ページごとの余白、テーブル密度、Pill色、ボタン内アイコンの細部差分を詰める。

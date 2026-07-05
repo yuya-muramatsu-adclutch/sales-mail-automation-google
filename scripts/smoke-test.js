@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v50_analytics_template_breakdown_polish'), 'v50 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v51_legacy_navigation_parity'), 'v51 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -93,8 +93,10 @@ assert(html.includes('authGate'), 'legacy login/auth gate missing');
 assert(html.includes('login-card'), 'legacy login card styling missing');
 assert(html.includes('renderAuthorizationGate'), 'authorization gate renderer missing');
 assert(html.includes('class="tab nav-item active"'), 'sidebar nav item missing');
-assert(html.includes('tab nav-item secondary'), 'secondary sidebar nav item missing');
 assert(html.includes('class="section-header"'), 'section header UI missing');
+assert(html.includes('NAV_ICON_SVGS'), 'legacy lucide-style navigation icon map missing');
+assert(html.includes('hydrateLegacyNavigationIcons'), 'legacy navigation icon hydration missing');
+assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
 assert(html.includes('toolbar-shortcut'), 'legacy top shortcut bar missing');
@@ -155,7 +157,6 @@ assert(html.includes('jobTable'), 'operations job table missing');
 assert(html.includes('syncLogTable'), 'operations sync log table missing');
 [
   'backgroundJobs',
-  'backgroundActivity',
   'emailLeads',
   'sending',
   'histories',
@@ -166,10 +167,16 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'admin',
   'sendNg',
   'exclusions',
-  'errors',
 ].forEach((tabId) => {
   assert(html.includes(`data-tab="${tabId}"`), `legacy nav tab missing: ${tabId}`);
   assert(html.includes(`id="${tabId}"`), `legacy section missing: ${tabId}`);
+});
+[
+  'backgroundActivity',
+  'errors',
+  'ops',
+].forEach((sectionId) => {
+  assert(html.includes(`id="${sectionId}"`), `legacy supporting section missing: ${sectionId}`);
 });
 [
   'backgroundJobTable',
@@ -338,6 +345,7 @@ const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), ht
 assert(refreshAllBlock.includes("api('getInitialData')"), 'refreshAll should load initial data');
 assert(!refreshAllBlock.includes("api('getAuthorizationStatus')"), 'refreshAll should not preflight authorization');
 const navHtml = html.slice(html.indexOf('<nav class="tabs">'), html.indexOf('</nav>', html.indexOf('<nav class="tabs">')));
+assert(!navHtml.includes('tab nav-item secondary'), 'AppFrame sidebar should expose only the legacy primary menu items');
 [
   'data-tab="leads"',
   'data-tab="search"',
