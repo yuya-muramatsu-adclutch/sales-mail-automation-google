@@ -242,6 +242,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 98 / code v98でGmail連携ページの初期表示をコンパクト化。Gmail/Calendar/送信枠/トリガー/返信自動チェックのサマリーだけを上部に残し、連携診断、テスト送信履歴、返信チェック、送信ロック/利用手順はアコーディオンへ整理。カード余白と見出し/本文の間隔も調整しました
 - Apps Script Version 99 / code v99でアプリ全体のカード余白トークンを追加。`.panel.stack`、`.panel-body`、テーブル入りカード、親カード内の子カードに共通のpadding/gap/折り返し補正を入れ、カードとテキスト、親カードと子カードの詰まりを全体で起きにくくしました
 - Apps Script Version 100 / code v100で全体カード余白調整の副作用防止を追加。共通`.panel-body`余白を維持しつつ、バックグラウンド進捗の横並びガイドなど個別レイアウトが崩れないよう明示的な上書きを追加しました
+- Apps Script Version 101 / code v101で空のヒーローパネルが余白だけのカードとして残る問題を修正。送信NGなど、データ読み込み前に空の `.exclusion-hero-panel` は非表示にしてカードとテキストの流れを詰めました
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み
