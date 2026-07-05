@@ -8449,7 +8449,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (key === 'company') return escapeHtml(lead.company_name || '-');
         if (key === 'contact') return contactChannelCell(lead);
         if (key === 'email') return lead.email ? `<a class="mini-text-link" href="mailto:${escapeHtml(lead.email)}">${escapeHtml(lead.email)}</a>` : '<span class="muted">未取得</span>';
-        if (key === 'website') return lead.website_url ? `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener">${legacyUiIcon('external')}<span>WEB</span><small>${escapeHtml(compactUrl(lead.website_url))}</small></a>` : '<span class="muted">未取得</span>';
+        if (key === 'website') return lead.website_url ? `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener" title="${escapeHtml(lead.website_url)}">${legacyUiIcon('external')}<span>WEBサイト</span></a>` : '<span class="muted">未取得</span>';
         if (key === 'form_url') return lead.form_url ? `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.form_url))}" target="_blank" rel="noopener">${legacyUiIcon('external')}<span>フォーム</span><small>${escapeHtml(compactUrl(lead.form_url))}</small></a>` : '<span class="muted">未取得</span>';
         if (key === 'phone') return escapeHtml(lead.phone || '-');
         if (key === 'address') return escapeHtml(lead.address || '-');
@@ -8689,7 +8689,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const name = lead.facility_name || lead.company_name || '-';
         const company = lead.facility_name && lead.company_name ? `<small class="muted">${escapeHtml(lead.company_name)}</small>` : '';
         const website = lead.website_url
-          ? `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener" title="${escapeHtml(lead.website_url)}">${legacyUiIcon('external')}<span>WEB</span><small>${escapeHtml(compactUrl(lead.website_url))}</small></a>`
+          ? `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener" title="${escapeHtml(lead.website_url)}">${legacyUiIcon('external')}<span>WEBサイト</span></a>`
           : '';
         const address = lead.address ? `<small class="muted">${escapeHtml(lead.address)}</small>` : '';
         const review = isReviewPendingLead(lead) ? '<small class="prospecting-origin-note">検索追加候補</small>' : '';
