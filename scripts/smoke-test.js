@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v69_template_action_dialog_parity'), 'v69 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v70_job_results_review_parity'), 'v70 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -206,6 +206,17 @@ assert(html.includes('reviewSelectedJobResults'), 'legacy job result bulk review
 assert(html.includes('excludeJobResult'), 'legacy job result exclude action missing');
 assert(html.includes('toggleAllVisibleJobResults'), 'legacy job result selection action missing');
 assert(html.includes('jobResultEmail_'), 'legacy job result editable email missing');
+assert(html.includes('jobResultRenderLimit'), 'legacy job result render limit state missing');
+assert(html.includes('reviewVisibleEmailJobResults'), 'legacy visible email review action missing');
+assert(html.includes('reviewAllEmailJobResults'), 'legacy all email review action missing');
+assert(html.includes('reviewAllUrlJobResults'), 'legacy all URL review action missing');
+assert(html.includes('loadMoreJobResults'), 'legacy job result load more action missing');
+assert(html.includes('job-results-load-more'), 'legacy job result load more UI missing');
+assert(html.includes("legacyUiIcon('squarePen')"), 'legacy job result edit icon missing');
+assert(html.includes("legacyUiIcon('xCircle')"), 'legacy job result exclude icon missing');
+assert(html.includes('grid-template-columns: repeat(5, minmax(0, 1fr));'), 'legacy job result category grid missing');
+assert(html.includes('grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));'), 'legacy job result card grid missing');
+assert(html.includes('content-visibility: auto;'), 'legacy job result card virtualization hint missing');
 assert(code.includes("'review_status'"), 'search result review status schema missing');
 assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('addSearchResultToLead'), 'search result add API missing');
 assert(fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8').includes('reviewSearchResults'), 'search result review API dispatch missing');

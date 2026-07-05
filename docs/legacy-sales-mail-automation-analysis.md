@@ -84,6 +84,7 @@
 - 送信履歴ページを旧 `app/histories/page.tsx` に寄せ、履歴区分フィルタ、検索、絞り込み中Pill、本文/Gmail詳細、絞り込みCSV出力を追加した。
 - 分析ページを旧 `app/analytics/page.tsx` に寄せ、リスト追加経路、日別/月間分析、見るべき指標、メール文別返信率、テンプレート件名/本文プレビュー付き成果表を追加した。
 - 営業リスト収集ツールに旧 `JobResultsReviewTable` の結果一覧、結果カテゴリ、確認済み操作、メール/フォーム/URLの根拠表示を追加。
+- 旧 `JobResultsReviewTable` の細部に合わせ、結果カテゴリを5列のボタンフィルタにし、結果カードを `minmax(360px, 1fr)` のグリッド表示へ変更した。メール取得/WEBサイトURLの全件確認、選択除外、選択確認済み、追加読み込み、SquarePen/XCircle/CheckCircle系の操作アイコンも旧UIに寄せた。
 - Gmail連携に旧 `GmailConnectionCheck` と `MailSendLockPanel` の連携テスト、必要権限、送信ロック状態を追加。
 - Gmail連携にテスト送信履歴パネルを追加し、テンプレート画面から実行したテスト送信の成功/失敗、宛先、テンプレート、失敗理由を `send_histories` から確認できるようにした。
 - 管理に旧 `GoogleCredentialsManager` のGoogle/Gmail APIキー管理、OAuth/Refresh Token/送信元の状態表示をApps Script承認モデルへ読み替えて追加。
