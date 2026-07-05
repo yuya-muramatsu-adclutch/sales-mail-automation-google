@@ -13,6 +13,7 @@
 - `components/AppSafetyStrip.tsx`, `components/AppTopShortcutBar.tsx`, `components/AppRouteProgress.tsx`: 運用ステータスバー、よく使う操作、画面遷移フィードバック
 - `components/BackgroundJobWidgets.tsx`, `components/BackgroundJobToasts.tsx`, `components/BackgroundJobCenter.tsx`: 共通ジョブ通知、進捗バー、戻る操作
 - `app/page.tsx`: 営業ダッシュボード、今日の送信キュー、API連携、次の作業、今月の動き
+- `app/page.tsx` の `DashboardSignalCard` / `DashboardActionCard` / `DashboardCompactStat`: アイコン付きカード、数値色、ホバー、カード密度
 - `app/leads/page.tsx`: 営業リスト、ジャンル、検索、クイックビュー、KPI、色分け、ページング
 - `components/LeadQuickViews.tsx`: 作業/状態別の即時フィルタ
 - `components/ListSearchFilters.tsx`: 検索、絞り込み、並び替え
@@ -48,6 +49,7 @@
 
 - 旧アプリの濃紺サイドバー、白パネル、8px角丸、薄いグレー背景、業務向けテーブル密度を `Index.html` へ反映。
 - ダッシュボードを旧アプリの情報設計に寄せ、今日の送信キュー、API連携、重要指標、次の作業、今月の動き、運用サマリーを追加。
+- ダッシュボードの重要指標、次の作業、今月の動き、運用サマリーを旧 `DashboardSignalCard` / `DashboardActionCard` / `DashboardCompactStat` に寄せ、左アイコン、数値のトーンカラー、白カード、ホバー浮きの見た目へ変更した。
 - ダッシュボード下段に旧 `MailSendingControlCard` の自動送信ON/OFFカードを追加し、GAS版では `settings.mail_sending_control` に読み替えて保存するようにした。
 - ダッシュボード下段に旧 `ProspectingStatusCard` 相当の自動営業リスト収集状況カードを追加し、GAS版では `search_jobs` / `sync_logs` から追加、重複、除外を集計するようにした。
 - 送信プレビューを旧 `EmailPreviewPanel` に寄せ、対象リスト自動送信カード、送信前確認ダイアログ、送信候補プレビュー、Gmail/自動送信停止/送信時間の可否表示を追加した。
@@ -65,6 +67,7 @@
 - 旧 `AppFrame` の `listNavItems` / `navItems` と同じ順序になるよう、サイドバーを `営業リスト`, `営業リスト収集ツール`, `バックグラウンド進捗`, `メール送信リスト`, `フォーム送信リスト`、続いて `ダッシュボード`, `分析`, `同期`, `送信NG`, `除外ドメイン`, `テンプレート`, `送信プレビュー`, `送信履歴`, `商談`, `Gmail連携`, `管理` の順に調整した。
 - 旧 `AppFrame` はサイドバーに一次メニューだけを表示するため、GAS版も `直近実行結果`, `エラー詳細`, `管理/運用` をサイドバーから外し、各業務パネル内の導線から開く支援画面として残した。
 - 旧 `AppNavLink` / `AppTopShortcutBar` の線アイコン表示に寄せ、GAS版の二文字バッジを起動時にナビ/ショートカット用SVGアイコンへ置き換えるようにした。
+- 検索概要カードも同じ `DashboardActionCard` 系の見た目に揃え、Serper API、本日検索、月間検索、検索ジョブを旧ダッシュボードカードと同じアイコン付きカードで表示するようにした。
 - 旧アプリの各ページをApps Script/Sheets運用に読み替え、送信予定、送信履歴、商談ステータス、営業ファネル、同期ルール、Gmail承認状態、本番公開前チェックを表示。
 - 送信プレビューに旧 `EmailPreviewPanel` のテンプレート/営業先選択、差し込み後確認、送信不可理由、対象リスト自動送信カードを追加。テンプレート未登録の空状態でも同じ枠組みが見えるようにした。
 - 送信プレビューに旧 `TemplateTestRecipientManager` のテスト送信先選択パネルを追加。

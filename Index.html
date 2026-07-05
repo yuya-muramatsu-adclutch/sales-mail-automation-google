@@ -1715,61 +1715,168 @@
       .dashboard-action-card {
         display: grid;
         gap: 7px;
+        min-width: 0;
         min-height: 128px;
         padding: 14px;
-        border: 1px solid var(--line);
+        border: 1px solid var(--line-strong);
         border-radius: 8px;
-        background: linear-gradient(180deg, #ffffff, #f8fafc);
+        background: #ffffff;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+        color: var(--text);
         text-align: left;
+        transition:
+          transform 140ms ease,
+          border-color 140ms ease,
+          box-shadow 140ms ease;
       }
 
       .dashboard-signal-card {
-        border-top: 4px solid var(--blue);
+        grid-template-columns: auto minmax(0, 1fr);
+        column-gap: 12px;
+        row-gap: 7px;
+        min-height: 156px;
+        padding: 16px;
       }
 
-      .dashboard-signal-card.green,
-      .dashboard-action-card.ok {
-        border-top-color: var(--green);
+      .dashboard-signal-card:hover,
+      .dashboard-action-card:hover {
+        transform: translateY(-1px);
+        border-color: #bfdbfe;
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
       }
 
-      .dashboard-signal-card.ink,
-      .dashboard-action-card.info {
-        border-top-color: var(--teal);
+      .dashboard-signal-icon {
+        display: grid;
+        grid-row: 1 / span 4;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        background: #eef2f7;
+        color: var(--blue);
       }
 
-      .dashboard-signal-card.amber,
-      .dashboard-action-card.warn {
-        border-top-color: var(--amber);
+      .dashboard-signal-icon svg {
+        width: 22px;
+        height: 22px;
       }
 
-      .dashboard-signal-card.red,
-      .dashboard-action-card.bad {
-        border-top-color: var(--red);
-      }
-
-      .dashboard-signal-card span,
+      .dashboard-signal-card span:not(.dashboard-signal-icon),
       .dashboard-action-card span {
+        min-width: 0;
+        overflow: hidden;
         color: var(--muted);
         font-size: 12px;
         font-weight: 900;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      .dashboard-signal-card strong,
+      .dashboard-action-card svg {
+        width: 34px;
+        height: 34px;
+        padding: 7px;
+        border-radius: 8px;
+        background: #eef2f7;
+        color: var(--blue);
+      }
+
+      .dashboard-compact-stat svg {
+        width: 18px;
+        height: 18px;
+        color: var(--blue);
+      }
+
+      .dashboard-compact-stat span {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       .dashboard-action-card strong {
-        font-size: 28px;
+        font-size: 25px;
+        line-height: 1;
+      }
+
+      .dashboard-signal-card strong {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font-size: 36px;
         line-height: 1;
       }
 
       .dashboard-signal-card small,
       .dashboard-action-card small {
+        min-width: 0;
+        overflow: hidden;
         color: var(--muted);
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 800;
+        line-height: 1.45;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .dashboard-signal-card b {
-        color: #1d4ed8;
+        color: var(--text);
         font-size: 12px;
+      }
+
+      .dashboard-signal-card.blue .dashboard-signal-icon,
+      .dashboard-action-card.info svg {
+        background: #dbeafe;
+        color: var(--blue);
+      }
+
+      .dashboard-signal-card.green .dashboard-signal-icon,
+      .dashboard-action-card.ok svg {
+        background: #dcfce7;
+        color: var(--green);
+      }
+
+      .dashboard-signal-card.amber .dashboard-signal-icon,
+      .dashboard-action-card.warn svg {
+        background: #fef3c7;
+        color: var(--amber);
+      }
+
+      .dashboard-signal-card.red .dashboard-signal-icon,
+      .dashboard-action-card.bad svg {
+        background: #fee2e2;
+        color: var(--red);
+      }
+
+      .dashboard-signal-card.ink .dashboard-signal-icon {
+        background: #ccfbf1;
+        color: var(--teal);
+      }
+
+      .dashboard-signal-card.blue strong,
+      .dashboard-action-card.info strong {
+        color: var(--blue);
+      }
+
+      .dashboard-signal-card.green strong,
+      .dashboard-action-card.ok strong {
+        color: var(--green);
+      }
+
+      .dashboard-signal-card.amber strong,
+      .dashboard-action-card.warn strong {
+        color: var(--amber);
+      }
+
+      .dashboard-signal-card.red strong,
+      .dashboard-action-card.bad strong {
+        color: var(--red);
+      }
+
+      .dashboard-signal-card.ink strong {
+        color: var(--teal);
       }
 
       .mail-sending-control {
@@ -6184,6 +6291,25 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         TP: iconSvg('<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>'),
       });
 
+      const DASHBOARD_ICON_KEYS = Object.freeze({
+        analytics: 'AN',
+        api: 'AD',
+        calendar: 'DL',
+        deals: 'DL',
+        errors: 'ER',
+        forms: 'FM',
+        histories: 'HS',
+        jobs: 'BG',
+        leads: 'LD',
+        mail: 'ML',
+        reply: 'HS',
+        search: 'SP',
+        send: 'PV',
+        sendNg: 'NG',
+        sync: 'SY',
+        templates: 'TP',
+      });
+
       function hydrateLegacyNavigationIcons() {
         document.querySelectorAll('.nav-icon, .shortcut-icon').forEach((target) => {
           const key = target.dataset.iconKey || target.textContent.trim();
@@ -6565,19 +6691,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const apiTotal = Object.keys(dashboard.integrations || {}).length || 5;
         const todayTargets = dashboard.mailSendingEnabled === false ? 0 : Math.min(dashboard.sendTargets || 0, dashboard.todayRemaining || 0);
         document.getElementById('dashboardSignals').innerHTML = [
-          signalCard('メール送信対象', `${formatNumber(todayTargets)}件`, dashboard.mailSendingEnabled === false ? '自動送信停止中' : `送信可能 ${formatNumber(dashboard.sendTargets)}件`, '送信リストへ', dashboard.mailSendingEnabled === false ? 'red' : 'blue', "showTab('emailLeads')"),
-          signalCard('API連携', `${apiOk}/${apiTotal}`, `Serper本日残り ${formatNumber(dashboard.serperTodayRemaining)}件`, '管理へ', apiOk === apiTotal ? 'green' : 'amber', "showTab('admin')"),
-          signalCard('今月新規リスト', `${formatNumber(month.addedLeads || 0)}件`, `累計 ${formatNumber(dashboard.leadsTotal)}件`, '収集へ', 'green', "showTab('search')"),
-          signalCard('今月返信', `${formatNumber(month.replies || 0)}件`, `返信率 ${formatPercent(month.replyRate || 0)}`, '返信を見る', 'ink', "showTab('leads'); setLeadFilter('reply')"),
+          signalCard('メール送信対象', `${formatNumber(todayTargets)}件`, dashboard.mailSendingEnabled === false ? '自動送信停止中' : `送信可能 ${formatNumber(dashboard.sendTargets)}件`, '送信リストへ', dashboard.mailSendingEnabled === false ? 'red' : 'blue', "showTab('emailLeads')", 'mail'),
+          signalCard('API連携', `${apiOk}/${apiTotal}`, `Serper本日残り ${formatNumber(dashboard.serperTodayRemaining)}件`, '管理へ', apiOk === apiTotal ? 'green' : 'amber', "showTab('admin')", 'api'),
+          signalCard('今月新規リスト', `${formatNumber(month.addedLeads || 0)}件`, `累計 ${formatNumber(dashboard.leadsTotal)}件`, '収集へ', 'green', "showTab('search')", 'search'),
+          signalCard('今月返信', `${formatNumber(month.replies || 0)}件`, `返信率 ${formatPercent(month.replyRate || 0)}`, '返信を見る', 'ink', "showTab('leads'); setLeadFilter('reply')", 'reply'),
         ].join('');
       }
 
       function renderDashboardActions(dashboard) {
         document.getElementById('dashboardActions').innerHTML = [
-          actionCard('送信前チェック', dashboard.mailSendingEnabled === false ? '停止中' : `${formatNumber(dashboard.todayRemaining)}件`, dashboard.mailSendingEnabled === false ? 'メール送信機能' : '本日残り送信枠', dashboard.mailSendingEnabled === false ? 'bad' : dashboard.todayRemaining > 0 ? 'ok' : 'bad', "showTab('sending')"),
-          actionCard('フォーム対象', `${formatNumber(dashboard.formTargets)}件`, 'メールなし・フォームあり', dashboard.formTargets > 0 ? 'info' : 'ok', "showTab('forms')"),
-          actionCard('確認待ち/未対応', `${formatNumber((dashboard.byStatus || {})['未対応'] || 0)}件`, '未対応リード確認', 'warn', "showTab('leads'); setLeadFilter('all'); document.getElementById('leadStatus').value='未対応'; filterLeads()"),
-          actionCard('異常確認', `${formatNumber(dashboard.errorCount)}件`, 'sync_logs warn/error', dashboard.errorCount > 0 ? 'bad' : 'ok', dashboard.errorCount > 0 ? "showTab('errors')" : "showTab('templates')"),
+          actionCard('送信前チェック', dashboard.mailSendingEnabled === false ? '停止中' : `${formatNumber(dashboard.todayRemaining)}件`, dashboard.mailSendingEnabled === false ? 'メール送信機能' : '本日残り送信枠', dashboard.mailSendingEnabled === false ? 'bad' : dashboard.todayRemaining > 0 ? 'ok' : 'bad', "showTab('sending')", 'send'),
+          actionCard('フォーム対象', `${formatNumber(dashboard.formTargets)}件`, 'メールなし・フォームあり', dashboard.formTargets > 0 ? 'info' : 'ok', "showTab('forms')", 'forms'),
+          actionCard('確認待ち/未対応', `${formatNumber((dashboard.byStatus || {})['未対応'] || 0)}件`, '未対応リード確認', 'warn', "showTab('leads'); setLeadFilter('all'); document.getElementById('leadStatus').value='未対応'; filterLeads()", 'search'),
+          actionCard('異常確認', `${formatNumber(dashboard.errorCount)}件`, 'sync_logs warn/error', dashboard.errorCount > 0 ? 'bad' : 'ok', dashboard.errorCount > 0 ? "showTab('errors')" : "showTab('templates')", 'errors'),
         ].join('');
       }
 
@@ -6653,16 +6779,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderDashboardCompact(dashboard) {
         const month = dashboard.thisMonth || {};
         document.getElementById('dashboardMonth').innerHTML = [
-          compactStat('新規追加', `${formatNumber(month.addedLeads || 0)}件`),
-          compactStat('送信', `${formatNumber(month.sent || 0)}件`),
-          compactStat('返信', `${formatNumber(month.replies || 0)}件`, formatPercent(month.replyRate || 0)),
-          compactStat('商談', `${formatNumber(month.deals || 0)}件`),
+          compactStat('新規追加', `${formatNumber(month.addedLeads || 0)}件`, '', 'leads'),
+          compactStat('送信', `${formatNumber(month.sent || 0)}件`, '', 'send'),
+          compactStat('返信', `${formatNumber(month.replies || 0)}件`, formatPercent(month.replyRate || 0), 'reply'),
+          compactStat('商談', `${formatNumber(month.deals || 0)}件`, '', 'deals'),
         ].join('');
         document.getElementById('dashboardOps').innerHTML = [
-          compactStat('送信可能', `${formatNumber(dashboard.sendTargets)}件`),
-          compactStat('フォーム対象', `${formatNumber(dashboard.formTargets)}件`),
-          compactStat('送信NG', `${formatNumber(dashboard.sendNg)}件`),
-          compactStat('ジョブ待ち', `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件`),
+          compactStat('送信可能', `${formatNumber(dashboard.sendTargets)}件`, '', 'mail'),
+          compactStat('フォーム対象', `${formatNumber(dashboard.formTargets)}件`, '', 'forms'),
+          compactStat('送信NG', `${formatNumber(dashboard.sendNg)}件`, '', 'sendNg'),
+          compactStat('ジョブ待ち', `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件`, '', 'jobs'),
         ].join('');
       }
 
@@ -6670,27 +6796,31 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const target = document.getElementById('searchOverview');
         if (!target) return;
         target.innerHTML = [
-          actionCard('Serper API', dashboard.serperConfigured ? '設定済み' : '未設定', dashboard.serperKeyMask || 'PropertiesService保存', dashboard.serperConfigured ? 'ok' : 'bad', "document.getElementById('serperKey').focus()"),
-          actionCard('本日検索', `${formatNumber(dashboard.serperToday)} / ${formatNumber(dashboard.serperDailyLimit)}`, `残り ${formatNumber(dashboard.serperTodayRemaining)}件`, dashboard.serperTodayRemaining > 0 ? 'ok' : 'bad', "showTab('search')"),
-          actionCard('月間検索', `${formatNumber(dashboard.serperMonth)} / ${formatNumber(dashboard.serperMonthlyLimit)}`, `残り ${formatNumber(dashboard.serperMonthRemaining)}件`, dashboard.serperMonthRemaining > 0 ? 'ok' : 'warn', "showTab('search')"),
-          actionCard('検索ジョブ', `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件`, `完了 ${formatNumber(dashboard.completedJobs || 0)} / 失敗 ${formatNumber(dashboard.failedJobs || 0)}`, dashboard.failedJobs > 0 ? 'bad' : 'info', "showTab('ops')"),
+          actionCard('Serper API', dashboard.serperConfigured ? '設定済み' : '未設定', dashboard.serperKeyMask || 'PropertiesService保存', dashboard.serperConfigured ? 'ok' : 'bad', "document.getElementById('serperKey').focus()", 'api'),
+          actionCard('本日検索', `${formatNumber(dashboard.serperToday)} / ${formatNumber(dashboard.serperDailyLimit)}`, `残り ${formatNumber(dashboard.serperTodayRemaining)}件`, dashboard.serperTodayRemaining > 0 ? 'ok' : 'bad', "showTab('search')", 'search'),
+          actionCard('月間検索', `${formatNumber(dashboard.serperMonth)} / ${formatNumber(dashboard.serperMonthlyLimit)}`, `残り ${formatNumber(dashboard.serperMonthRemaining)}件`, dashboard.serperMonthRemaining > 0 ? 'ok' : 'warn', "showTab('search')", 'analytics'),
+          actionCard('検索ジョブ', `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件`, `完了 ${formatNumber(dashboard.completedJobs || 0)} / 失敗 ${formatNumber(dashboard.failedJobs || 0)}`, dashboard.failedJobs > 0 ? 'bad' : 'info', "showTab('ops')", 'jobs'),
         ].join('');
       }
 
-      function signalCard(label, value, detail, action, tone, onclick) {
-        return `<button type="button" class="dashboard-signal-card ${tone}" onclick="${onclick}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small><b>${escapeHtml(action)}</b></button>`;
+      function dashboardIcon(iconKey) {
+        return NAV_ICON_SVGS[DASHBOARD_ICON_KEYS[iconKey] || iconKey] || NAV_ICON_SVGS.DB;
       }
 
-      function actionCard(label, value, detail, tone, onclick) {
-        return `<button type="button" class="dashboard-action-card ${tone}" onclick="${onclick}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></button>`;
+      function signalCard(label, value, detail, action, tone, onclick, iconKey) {
+        return `<button type="button" class="dashboard-signal-card ${tone}" onclick="${onclick}"><span class="dashboard-signal-icon">${dashboardIcon(iconKey)}</span><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small><b>${escapeHtml(action)}</b></button>`;
+      }
+
+      function actionCard(label, value, detail, tone, onclick, iconKey) {
+        return `<button type="button" class="dashboard-action-card ${tone}" onclick="${onclick}">${dashboardIcon(iconKey)}<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></button>`;
       }
 
       function miniMetric(label, value) {
         return `<span class="dashboard-mini-metric"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`;
       }
 
-      function compactStat(label, value, detail) {
-        return `<span class="dashboard-compact-stat"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${detail ? `<small class="muted">${escapeHtml(detail)}</small>` : ''}</span>`;
+      function compactStat(label, value, detail, iconKey) {
+        return `<span class="dashboard-compact-stat">${dashboardIcon(iconKey)}<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${detail ? `<small class="muted">${escapeHtml(detail)}</small>` : ''}</span>`;
       }
 
       function renderObjectTable(id, object) {

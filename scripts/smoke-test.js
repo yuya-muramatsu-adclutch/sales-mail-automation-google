@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v51_legacy_navigation_parity'), 'v51 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v52_dashboard_card_icons'), 'v52 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -96,6 +96,9 @@ assert(html.includes('class="tab nav-item active"'), 'sidebar nav item missing')
 assert(html.includes('class="section-header"'), 'section header UI missing');
 assert(html.includes('NAV_ICON_SVGS'), 'legacy lucide-style navigation icon map missing');
 assert(html.includes('hydrateLegacyNavigationIcons'), 'legacy navigation icon hydration missing');
+assert(html.includes('DASHBOARD_ICON_KEYS'), 'legacy dashboard card icon map missing');
+assert(html.includes('dashboard-signal-icon'), 'legacy dashboard signal card icon slot missing');
+assert(html.includes('dashboardIcon(iconKey)'), 'legacy dashboard card icon renderer missing');
 assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
