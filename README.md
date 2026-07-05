@@ -234,6 +234,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 82 / code v82で後段の汎用 `.grid` に同期専用グリッドが上書きされないようセレクタを強め、同期インポートパネルの横幅崩れを実画面で復元
 - Apps Script Version 83 / code v83で管理/運用の本番前チェック行を旧アプリ同様にラベルと詳細の縦積みに戻し、`Google Sheets5,441件` のような詰まり表示を解消
 - Apps Script Version 84 / code v84でメール送信リストのテーブルを旧アプリの `table-email-leads` に寄せ、長い屋号/メールで右端の履歴操作が切れないよう列幅と省略表示を復元
+- Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み
 - Version 67は `clasp deploy -V 67 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `keyRound`, `refreshCw`, `gmail-connection-status-grid`, `triangleAlert`, `lock` / `unlock` を確認済み

@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v85_legacy_collection_tool_restore'), 'v85 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v87_fix_collection_empty_icon'), 'v87 app version missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
 assert(!html.includes('https://'), 'Index.html should not contain raw https:// literals that Apps Script can split in userCodeAppPanel');
 assert(html.includes('<span>WEBサイト</span>'), 'website mini link should display WEBサイト label');
@@ -183,6 +183,10 @@ assert(html.includes('.table-email-leads td'), 'legacy email-leads truncation mi
 assert(html.includes('prospecting-collection-tool'), 'legacy prospecting collection tool shell missing');
 assert(html.includes('collection-command-center simple'), 'legacy collection command center should be first-class shell');
 assert(html.includes('collection-simple-links'), 'legacy collection command header links missing');
+assert(html.includes('prospecting-activity-panel compact'), 'legacy collection activity panel should be compact');
+assert(html.includes('prospecting-activity-detail-toggle'), 'legacy collection recent results should be collapsible');
+assert(html.includes('prospecting-activity-empty-note'), 'legacy collection empty recent results note missing');
+assert(html.includes('.prospecting-activity-empty-note svg'), 'legacy collection empty note icon should be size constrained');
 assert(html.includes('function collectionStatusItem'), 'legacy collection status icon row helper missing');
 assert(html.includes("legacyUiIcon('mapPinned')") || html.includes('mapPinned'), 'legacy genre-area collection icon missing');
 assert(html.includes("legacyUiIcon('globe2')") || html.includes('globe2'), 'legacy source-page collection icon missing');

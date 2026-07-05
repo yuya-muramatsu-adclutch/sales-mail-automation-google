@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260705_apps_script_full_workflow_v85_legacy_collection_tool_restore';
+const APP_VERSION = '20260705_apps_script_full_workflow_v87_fix_collection_empty_icon';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',

@@ -5461,10 +5461,43 @@
         gap: 12px;
       }
 
+      .prospecting-activity-panel.compact {
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .prospecting-activity-panel.compact .prospecting-activity-head {
+        align-items: center;
+      }
+
+      .prospecting-activity-panel.compact .prospecting-activity-head h2 {
+        margin-bottom: 4px;
+        font-size: 22px;
+      }
+
+      .prospecting-activity-panel.compact .prospecting-activity-metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .prospecting-activity-panel.compact .prospecting-activity-metrics div {
+        min-height: 58px;
+        padding: 10px 12px;
+      }
+
+      .prospecting-activity-panel.compact .prospecting-activity-metrics strong {
+        font-size: 22px;
+      }
+
       .prospecting-route-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
         gap: 10px;
+      }
+
+      .prospecting-activity-panel.compact .prospecting-route-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
       }
 
       .prospecting-route-item {
@@ -5476,6 +5509,11 @@
         background: rgba(255, 255, 255, 0.78);
       }
 
+      .prospecting-activity-panel.compact .prospecting-route-item {
+        gap: 8px;
+        padding: 10px;
+      }
+
       .prospecting-route-item dl {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -5483,11 +5521,71 @@
         margin: 0;
       }
 
+      .prospecting-activity-panel.compact .prospecting-route-item dl {
+        gap: 6px;
+      }
+
       .prospecting-route-item dd {
         margin: 0;
         color: var(--text);
         font-size: 16px;
         font-weight: 900;
+      }
+
+      .prospecting-activity-detail-toggle {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .prospecting-activity-detail-toggle summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 42px;
+        padding: 10px 12px;
+        cursor: pointer;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 900;
+        list-style: none;
+      }
+
+      .prospecting-activity-detail-toggle summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .prospecting-activity-detail-toggle[open] summary {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .prospecting-activity-detail-toggle .table-wrap {
+        border: 0;
+        border-radius: 0;
+        background: #fff;
+      }
+
+      .prospecting-activity-empty-note {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 42px;
+        padding: 10px 12px;
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .prospecting-activity-empty-note svg {
+        flex: 0 0 auto;
+        width: 16px;
+        height: 16px;
+        color: #64748b;
       }
 
       .prospecting-collection-tool {
@@ -7475,7 +7573,7 @@
               <button type="button" class="button secondary icon-text-button" onclick="showTab('exclusions')"><span class="button-icon" data-ui-icon="settings"></span>除外ドメイン管理</button>
             </div>
           </header>
-          <section id="searchActivityPanel" class="prospecting-activity-panel"></section>
+          <section id="searchActivityPanel" class="prospecting-activity-panel compact"></section>
           <div class="prospecting-collection-tool">
             <section id="collectionCommandCenter" class="collection-command-center simple"></section>
           </div>
@@ -11743,14 +11841,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ${prospectingRouteItem('フォーム探索', state.searchResults.filter((item) => item.result_type === 'form_url').length, 0, dashboard.formTargets || 0, 0)}
             ${prospectingRouteItem('ジョブ', jobs.length, completed, failed, queued)}
           </div>
-          <div class="prospecting-activity-section">
-            <div class="prospecting-activity-section-head"><h3>直近検索結果</h3><span>${formatNumber(latestResults.length)}件表示</span></div>
-            <div class="table-wrap"><table>${table(['種類', 'タイトル', 'URL'], latestResults.map((item) => row([
-              ['種類', escapeHtml(item.result_type || '-')],
-              ['タイトル', escapeHtml(item.title || '-')],
-              ['URL', item.url ? `<a href="${escapeHtml(externalUrl(item.url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.url))}</a>` : '<span class="muted">-</span>'],
-            ])).join(''))}</table></div>
-          </div>
+          ${latestResults.length ? `
+            <details class="prospecting-activity-detail-toggle">
+              <summary><span>直近検索結果</span><span>${formatNumber(latestResults.length)}件表示</span></summary>
+              <div class="table-wrap"><table>${table(['種類', 'タイトル', 'URL'], latestResults.map((item) => row([
+                ['種類', escapeHtml(item.result_type || '-')],
+                ['タイトル', escapeHtml(item.title || '-')],
+                ['URL', item.url ? `<a href="${escapeHtml(externalUrl(item.url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.url))}</a>` : '<span class="muted">-</span>'],
+              ])).join(''))}</table></div>
+            </details>
+          ` : `
+            <div class="prospecting-activity-empty-note">${legacyUiIcon('search')}<span>直近検索結果はまだありません。</span></div>
+          `}
         `;
       }
 
