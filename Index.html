@@ -3851,6 +3851,75 @@
         color: #9f1239;
       }
 
+      .template-body-diff-panel {
+        display: grid;
+        gap: 10px;
+      }
+
+      .template-body-diff-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 10px;
+      }
+
+      .template-body-diff-box,
+      .template-empty-context-item {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .template-body-diff-box small,
+      .template-empty-context-item small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .template-body-diff-box pre,
+      .template-empty-context-item pre {
+        margin: 0;
+        overflow: auto;
+        color: #0f172a;
+        font-family: inherit;
+        font-size: 12px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+      }
+
+      .template-empty-token {
+        display: inline;
+        border-radius: 4px;
+        background: #ffe4e6;
+        color: #be123c;
+        font-weight: 900;
+      }
+
+      .template-filled-token {
+        display: inline;
+        border-radius: 4px;
+        background: #dcfce7;
+        color: #166534;
+        font-weight: 900;
+      }
+
+      .template-empty-context-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .template-empty-context-item {
+        border-color: #fecdd3;
+        background: #fff7f8;
+      }
+
+      .template-empty-context-item strong {
+        color: #be123c;
+      }
+
       .template-safety-panel,
       .prospecting-activity-panel,
       .ops-readiness-panel {
@@ -10361,8 +10430,91 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 </span>
               `).join('')}
             </div>
+            ${renderTemplateBodyDiffPreview(template, values)}
           </div>
         `;
+      }
+
+      function renderTemplateBodyDiffPreview(template, values) {
+        const body = String((template && template.body) || '');
+        const renderedBody = replaceTemplateVariablesClient(body, values);
+        const emptyContexts = collectEmptyTemplateContexts(body, values);
+        return `
+          <div class="template-body-diff-panel">
+            <div class="section-title-row">
+              <div>
+                <h3>本文差分</h3>
+                <p class="muted">テンプレート原文と送信時本文を並べて、空欄タグが文章中でどう消えるか確認できます。</p>
+              </div>
+              <span class="pill ${emptyContexts.length ? 'warn' : 'good'}">${emptyContexts.length ? `空欄箇所 ${formatNumber(emptyContexts.length)}件` : '差分なし'}</span>
+            </div>
+            <div class="template-body-diff-grid">
+              <div class="template-body-diff-box">
+                <small>テンプレート原文</small>
+                <pre>${renderTemplateWithVariableMarkers(body, values) || '<span class="muted">本文なし</span>'}</pre>
+              </div>
+              <div class="template-body-diff-box">
+                <small>送信時本文</small>
+                <pre>${escapeHtml(renderedBody || '本文なし')}</pre>
+              </div>
+            </div>
+            ${emptyContexts.length ? `
+              <div class="template-empty-context-list">
+                ${emptyContexts.map((item) => `
+                  <div class="template-empty-context-item">
+                    <small>空欄で消えるタグ</small>
+                    <strong>{{${escapeHtml(item.tag)}}}</strong>
+                    <pre>原文: ${escapeHtml(item.originalContext)}</pre>
+                    <pre>送信時: ${escapeHtml(item.renderedContext || '前後の文だけが残ります')}</pre>
+                  </div>
+                `).join('')}
+              </div>
+            ` : '<p class="message ok">本文内の差し込みタグはすべて値があります。</p>'}
+          </div>
+        `;
+      }
+
+      function renderTemplateWithVariableMarkers(text, values) {
+        const source = String(text || '');
+        let output = '';
+        let lastIndex = 0;
+        source.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (match, key, index) => {
+          output += escapeHtml(source.slice(lastIndex, index));
+          const tag = String(key || '').trim();
+          const rawValue = values[tag];
+          const empty = rawValue == null || String(rawValue).trim() === '';
+          output += `<span class="${empty ? 'template-empty-token' : 'template-filled-token'}">${escapeHtml(match)}</span>`;
+          lastIndex = index + match.length;
+          return match;
+        });
+        output += escapeHtml(source.slice(lastIndex));
+        return output;
+      }
+
+      function collectEmptyTemplateContexts(text, values) {
+        const source = String(text || '');
+        const contexts = [];
+        source.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (match, key, index) => {
+          const tag = String(key || '').trim();
+          const rawValue = values[tag];
+          const empty = rawValue == null || String(rawValue).trim() === '';
+          if (!empty) return match;
+          const start = Math.max(0, index - 42);
+          const end = Math.min(source.length, index + match.length + 42);
+          const original = `${start > 0 ? '...' : ''}${source.slice(start, index)}${match}${source.slice(index + match.length, end)}${end < source.length ? '...' : ''}`;
+          const rendered = replaceTemplateVariablesClient(source.slice(start, end), values);
+          contexts.push({
+            tag,
+            originalContext: compactTemplateContextText(original),
+            renderedContext: compactTemplateContextText(rendered),
+          });
+          return match;
+        });
+        return contexts;
+      }
+
+      function compactTemplateContextText(text) {
+        return String(text || '').replace(/\s+/g, ' ').trim();
       }
 
       function setEmailPreviewTemplate(id) {
