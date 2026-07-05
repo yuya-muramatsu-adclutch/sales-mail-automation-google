@@ -3851,6 +3851,7 @@
         color: #9f1239;
       }
 
+      .template-subject-diff-panel,
       .template-body-diff-panel {
         display: grid;
         gap: 10px;
@@ -10430,7 +10431,47 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 </span>
               `).join('')}
             </div>
+            ${renderTemplateSubjectDiffPreview(template, values)}
             ${renderTemplateBodyDiffPreview(template, values)}
+          </div>
+        `;
+      }
+
+      function renderTemplateSubjectDiffPreview(template, values) {
+        const subject = String((template && template.subject) || '');
+        const renderedSubject = replaceTemplateVariablesClient(subject, values);
+        const emptyContexts = collectEmptyTemplateContexts(subject, values);
+        return `
+          <div class="template-subject-diff-panel">
+            <div class="section-title-row">
+              <div>
+                <h3>件名差分</h3>
+                <p class="muted">テンプレート件名と送信時件名を並べて、空欄タグが件名でどう消えるか確認できます。</p>
+              </div>
+              <span class="pill ${emptyContexts.length ? 'warn' : 'good'}">${emptyContexts.length ? `空欄箇所 ${formatNumber(emptyContexts.length)}件` : '差分なし'}</span>
+            </div>
+            <div class="template-body-diff-grid">
+              <div class="template-body-diff-box">
+                <small>テンプレート件名</small>
+                <pre>${renderTemplateWithVariableMarkers(subject, values) || '<span class="muted">件名なし</span>'}</pre>
+              </div>
+              <div class="template-body-diff-box">
+                <small>送信時件名</small>
+                <pre>${escapeHtml(renderedSubject || '件名なし')}</pre>
+              </div>
+            </div>
+            ${emptyContexts.length ? `
+              <div class="template-empty-context-list">
+                ${emptyContexts.map((item) => `
+                  <div class="template-empty-context-item">
+                    <small>件名内の空欄タグ</small>
+                    <strong>{{${escapeHtml(item.tag)}}}</strong>
+                    <pre>原文: ${escapeHtml(item.originalContext)}</pre>
+                    <pre>送信時: ${escapeHtml(item.renderedContext || '前後の文だけが残ります')}</pre>
+                  </div>
+                `).join('')}
+              </div>
+            ` : '<p class="message ok">件名内の差し込みタグはすべて値があります。</p>'}
           </div>
         `;
       }
