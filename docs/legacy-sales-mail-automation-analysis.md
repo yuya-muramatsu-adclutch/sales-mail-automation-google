@@ -41,7 +41,7 @@
 - `components/SendWindowSettingsForm.tsx`, `components/GmailReplyCheckSettingsForm.tsx`, `components/EmailDiscoverySettingsForm.tsx`, `components/BackgroundWorkerSettingsForm.tsx`: 自動送信時間、返信自動チェック、メール自動取得、重い処理の設定UI
 - `components/DuplicateLeadManager.tsx`, `app/errors/page.tsx`: 重複リスト管理、エラー詳細の運用UI
 - `components/ListViewSettingsPanel.tsx`, `components/CustomFieldDefinitionForm.tsx`, `components/CustomFieldsInputs.tsx`: 表示項目設定、カスタム項目定義、リード詳細内のカスタム項目入力
-- `components/TemplateTagMenu.tsx`, `components/TemplateActions.tsx`, `components/TemplateProductionStatus.tsx`, `components/TemplateCreateForm.tsx`: テンプレート差し込みタグ、テンプレートサンプル、作成/編集フォーム、本番ON/OFF、テスト送信
+- `components/TemplateTagMenu.tsx`, `components/TemplateActions.tsx`, `components/TemplateProductionStatus.tsx`, `components/TemplateCreateForm.tsx`: テンプレート差し込みタグ、テンプレートサンプル、作成/編集フォーム、本番ON/OFF、テスト送信、保存済みテンプレート更新導線
 - `components/GenreManager.tsx`, `components/ReasonMasterManager.tsx`: 管理画面のジャンル追加/編集/削除、送信NG/失注/対応不要理由の追加/編集/有効無効管理
 - `components/LeadEditForm.tsx`, `components/MeetingScheduleForm.tsx`: リード詳細のステータス編集、送信NG理由/メモ、フォーム対応、商談ステータス、Calendar登録、Meetリンク表示
 - `components/QuickLeadEditButton.tsx`, `components/DuplicateResolutionDialog.tsx`: 営業リスト上の履歴・編集ダイアログ、中央モーダル、ヘッダーPill、4列サマリー、送信履歴カード、本文詳細、フォーム送信履歴、重複候補確認の見せ方
@@ -94,6 +94,8 @@
 - 管理に旧 `CustomFieldDefinitionForm` のカスタム項目作成UIを追加し、`custom_field_definitions` シートへ保存できるようにした。
 - リード詳細ドロワーに旧 `CustomFieldsInputs` 相当の入力欄を追加し、ジャンル別カスタム項目を `custom_fields_json` へ保存できるようにした。
 - テンプレート画面に旧 `TemplateTagMenu` 相当の差し込みメニューを追加し、件名/本文へのタグ挿入、初回メール例、フォーム営業例、使用中タグ表示を追加した。
+- テンプレート作成フォームを旧 `TemplateCreateForm` に寄せ、サンプル適用ボタン、保存後の同一テンプレート更新、別テンプレートとして作成、使用中タグ/保存後本番OFFの状態表示を追加した。
+- フォーム営業用テンプレートは旧アプリと同じく件名なしで保存できるよう、クライアント入力と `normalizeEmailTemplateInput_()` の件名必須条件を調整した。
 - 送信プレビューに差し込み後の本文だけでなく、使用タグごとの置換値プレビューを追加した。
 - 旧 `AppFrame` の上部フレームに合わせ、運用ステータスバー、よく使う操作ショートカット、タブ切替進行バーを追加した。
 - 旧 `BackgroundJobWidgets` 相当として、右下のジョブ通知スタック、進捗バー、閉じる操作、バックグラウンド進捗タブへの導線、全画面共通の戻るボタンを追加した。GAS版では `jobs` / `search_jobs` の現在値に読み替えて表示する。

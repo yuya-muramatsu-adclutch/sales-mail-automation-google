@@ -75,7 +75,7 @@ function normalizeEmailTemplateInput_(input) {
   const subject = String(input.subject || '').trim();
   const body = String(input.body || '').trim();
   if (!name) throw new Error('Template name is required.');
-  if (!subject) throw new Error('Template subject is required.');
+  if (templateType !== 'form' && !subject) throw new Error('Template subject is required.');
   if (!body) throw new Error('Template body is required.');
 
   const isProduction = normalizeBooleanLike_(input.is_production || input.isProduction || false);

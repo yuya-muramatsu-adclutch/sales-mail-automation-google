@@ -4070,6 +4070,36 @@
         font-size: 20px;
       }
 
+      .template-create-panel {
+        display: grid;
+        gap: 14px;
+      }
+
+      .template-create-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .template-create-head h2 {
+        margin: 0;
+      }
+
+      .template-sample-actions,
+      .template-form-status-row,
+      .template-form-footer {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .template-form-footer {
+        justify-content: flex-start;
+      }
+
       .template-tag-panel {
         display: grid;
         gap: 14px;
@@ -6134,30 +6164,33 @@
           <section id="templateSafetyPanel" class="template-safety-panel"></section>
 
           <div class="content-grid">
-            <section class="panel">
-              <div class="panel-head"><h2 id="templateFormTitle">テンプレート作成・編集</h2></div>
+            <section class="panel template-create-panel">
+              <div class="template-create-head">
+                <h2 id="templateFormTitle">テンプレート作成</h2>
+                <div class="template-sample-actions">
+                  <button type="button" class="button secondary" onclick="applyTemplateSample('initial')"><span class="button-icon" data-ui-icon="wand2"></span>初回メール</button>
+                  <button type="button" class="button secondary" onclick="applyTemplateSample('form')"><span class="button-icon" data-ui-icon="wand2"></span>フォーム営業用</button>
+                </div>
+              </div>
               <div class="panel-body">
                 <form id="templateForm" class="grid" onsubmit="saveTemplate(event)">
                   <input type="hidden" id="templateId">
+                  <input type="hidden" id="templateProduction" value="false">
                   <label>名前<input id="templateName" required></label>
                   <label>ジャンル<input id="templateGenre" list="genreList"></label>
                   <label>種類<select id="templateType" onchange="renderTemplateTagMenuPanel()">
                     <option value="initial">初回</option>
-                    <option value="followup_2m">2ヶ月後</option>
                     <option value="form">フォーム</option>
                   </select></label>
-                  <label>本番<select id="templateProduction">
-                    <option value="false">いいえ</option>
-                    <option value="true">はい</option>
-                  </select></label>
-                  <label>件名<input id="templateSubject" required oninput="renderTemplateTagMenuPanel()"></label>
+                  <label>件名<input id="templateSubject" oninput="renderTemplateTagMenuPanel()"></label>
                   <label style="grid-column:1/-1">本文<textarea id="templateBody" required oninput="renderTemplateTagMenuPanel()"></textarea></label>
                   <section id="templateTagMenuPanel" class="template-tag-panel" style="grid-column:1/-1"></section>
-                  <div class="toolbar">
-                    <button type="submit" class="primary">保存</button>
-                    <button type="button" onclick="applyTemplateSample('initial')">初回メール例</button>
-                    <button type="button" onclick="applyTemplateSample('form')">フォーム営業例</button>
-                    <button type="button" onclick="clearTemplateForm()">クリア</button>
+                  <div id="templateFormStatusRow" class="template-form-status-row" style="grid-column:1/-1"></div>
+                  <p id="templateFormMessage" class="form-message" style="grid-column:1/-1" hidden></p>
+                  <div class="template-form-footer" style="grid-column:1/-1">
+                    <button id="templateSubmitButton" type="submit" class="button"><span class="button-icon" data-ui-icon="save"></span>テンプレートを保存</button>
+                    <button id="templateNewButton" type="button" class="button secondary" onclick="startNewTemplate()" hidden>別テンプレートとして作成</button>
+                    <button type="button" class="button secondary" onclick="clearTemplateForm()">クリア</button>
                   </div>
                 </form>
               </div>
@@ -6847,10 +6880,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         checkCircle: iconSvg('<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'),
         clipboard: iconSvg('<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>'),
         external: iconSvg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'),
+        eye: iconSvg('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
         mousePointer: iconSvg('<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>'),
+        pencil: iconSvg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+        power: iconSvg('<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>'),
         reset: iconSvg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/>'),
+        save: iconSvg('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>'),
         search: NAV_ICON_SVGS.SP,
         sliders: iconSvg('<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>'),
+        trash2: iconSvg('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>'),
+        wand2: iconSvg('<path d="m21.64 3.64-1.28-1.28a1.2 1.2 0 0 0-1.72 0L2.36 18.64a1.2 1.2 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/>'),
         x: iconSvg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
       });
 
@@ -8819,10 +8858,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const blockReason = productionOn ? '' : templateProductionBlockedReason(template);
         return `
           <span class="template-action-row">
-            <button type="button" class="table-link-button" onclick="editTemplate('${escapeJsString(template.id)}')">編集</button>
-            <button type="button" class="table-link-button" onclick="sendTemplateTestFromRow('${escapeJsString(template.id)}')">テスト送信</button>
-            <button type="button" class="table-link-button" onclick="toggleTemplateProduction('${escapeJsString(template.id)}')" ${blockReason ? `disabled title="${escapeHtml(blockReason)}"` : ''}>${productionOn ? '本番OFF' : '本番ON'}</button>
-            <button type="button" class="table-danger-button" onclick="deleteTemplateFromRow('${escapeJsString(template.id)}')">削除</button>
+            <button type="button" class="table-link-button" onclick="editTemplate('${escapeJsString(template.id)}')">${legacyUiIcon('pencil')}編集</button>
+            <button type="button" class="table-link-button" onclick="sendTemplateTestFromRow('${escapeJsString(template.id)}')">${legacyUiIcon('eye')}テスト送信</button>
+            <button type="button" class="table-link-button" onclick="toggleTemplateProduction('${escapeJsString(template.id)}')" ${blockReason ? `disabled title="${escapeHtml(blockReason)}"` : ''}>${legacyUiIcon('power')}${productionOn ? '本番OFF' : '本番ON'}</button>
+            <button type="button" class="table-link-button danger" onclick="deleteTemplateFromRow('${escapeJsString(template.id)}')">${legacyUiIcon('trash2')}削除</button>
             ${blockReason ? `<span class="inline-error">${escapeHtml(blockReason)}</span>` : ''}
           </span>
         `;
@@ -9035,6 +9074,38 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             `).join('')}
           </div>
         `;
+        updateTemplateFormState();
+      }
+
+      function updateTemplateFormState() {
+        const id = document.getElementById('templateId')?.value || '';
+        const type = document.getElementById('templateType')?.value || 'initial';
+        const subject = document.getElementById('templateSubject')?.value || '';
+        const body = document.getElementById('templateBody')?.value || '';
+        const tags = collectTemplateTags(`${subject}\n${body}`);
+        const statusTarget = document.getElementById('templateFormStatusRow');
+        const submitButton = document.getElementById('templateSubmitButton');
+        const newButton = document.getElementById('templateNewButton');
+        if (statusTarget) {
+          statusTarget.innerHTML = [
+            `<span class="status-pill info">種別: ${escapeHtml(templateTypeLabel(type))}</span>`,
+            `<span class="status-pill info">使用中タグ: ${escapeHtml(tags.join(', ') || 'なし')}</span>`,
+            '<span class="status-pill warn">保存後は本番OFF</span>',
+            type === 'form' ? '<span class="status-pill form">フォーム営業用は件名なし可</span>' : '',
+          ].join('');
+        }
+        if (submitButton) {
+          submitButton.innerHTML = `${legacyUiIcon('save')}${id ? '保存済みテンプレートを更新' : 'テンプレートを保存'}`;
+        }
+        if (newButton) newButton.hidden = !id;
+      }
+
+      function setTemplateFormMessage(text, kind) {
+        const target = document.getElementById('templateFormMessage');
+        if (!target) return;
+        target.hidden = !text;
+        target.className = kind === 'success' ? 'success-message' : 'form-message';
+        target.textContent = text || '';
       }
 
       function insertTemplateTag(tag, target) {
@@ -9075,6 +9146,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('templateSubject').value = sample.subject;
         document.getElementById('templateBody').value = sample.body;
         document.getElementById('templateProduction').value = 'false';
+        setTemplateFormMessage('', '');
         renderTemplateTagMenuPanel();
         renderTemplateExample(sample);
       }
@@ -9162,37 +9234,60 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const template = state.templates.find((item) => item.id === id);
         if (!template) return;
         document.getElementById('templateId').value = template.id || '';
+        document.getElementById('templateFormTitle').textContent = 'テンプレート編集';
         document.getElementById('templateName').value = template.name || '';
         document.getElementById('templateGenre').value = template.genre || '';
         document.getElementById('templateType').value = template.template_type || 'initial';
-        document.getElementById('templateProduction').value = String(template.is_production === true || template.is_production === 'true');
+        document.getElementById('templateProduction').value = 'false';
         document.getElementById('templateSubject').value = template.subject || '';
         document.getElementById('templateBody').value = template.body || '';
+        setTemplateFormMessage('保存すると本番OFFに戻し、テスト送信も未実施に戻します。', 'error');
         renderTemplateExample(template);
         renderTemplateTagMenuPanel();
       }
 
       function clearTemplateForm() {
         document.getElementById('templateForm').reset();
+        document.getElementById('templateFormTitle').textContent = 'テンプレート作成';
         document.getElementById('templateId').value = '';
         document.getElementById('templateType').value = 'initial';
         document.getElementById('templateProduction').value = 'false';
+        setTemplateFormMessage('', '');
         renderTemplateTagMenuPanel();
+      }
+
+      function startNewTemplate() {
+        document.getElementById('templateId').value = '';
+        document.getElementById('templateFormTitle').textContent = 'テンプレート作成';
+        setTemplateFormMessage('別テンプレートとして保存できます。', 'success');
+        updateTemplateFormState();
+        document.getElementById('templateName').focus();
       }
 
       async function saveTemplate(event) {
         event.preventDefault();
+        const templateType = document.getElementById('templateType').value;
+        const subject = document.getElementById('templateSubject').value;
+        if (templateType !== 'form' && !String(subject || '').trim()) {
+          setTemplateFormMessage('初回メールは件名を入力してください。', 'error');
+          return;
+        }
         const payload = {
           id: document.getElementById('templateId').value,
           name: document.getElementById('templateName').value,
           genre: document.getElementById('templateGenre').value,
-          template_type: document.getElementById('templateType').value,
-          is_production: document.getElementById('templateProduction').value === 'true',
-          subject: document.getElementById('templateSubject').value,
+          template_type: templateType,
+          is_production: false,
+          subject: subject,
           body: document.getElementById('templateBody').value,
         };
-        await api('saveEmailTemplate', payload);
-        clearTemplateForm();
+        const saved = await api('saveEmailTemplate', payload);
+        if (saved && saved.id) {
+          document.getElementById('templateId').value = saved.id;
+          document.getElementById('templateFormTitle').textContent = 'テンプレート編集';
+        }
+        setTemplateFormMessage(payload.id ? '更新しました。連続で押しても同じテンプレートを更新します。' : '保存しました。連続で押しても同じテンプレートを更新します。', 'success');
+        updateTemplateFormState();
         await refreshAll();
       }
 

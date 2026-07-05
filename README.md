@@ -36,6 +36,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `ListViewSettingsPanel` に寄せた営業リスト表示項目設定
 - 旧Next/Supabase版の `CustomFieldDefinitionForm` / `CustomFieldsInputs` に寄せたカスタム項目定義とリード詳細入力
 - 旧Next/Supabase版の `TemplateTagMenu` に寄せたテンプレート差し込みメニュー、サンプル文面、差し込み値プレビュー
+- 旧Next/Supabase版の `TemplateCreateForm` に寄せたサンプル適用、保存済みテンプレート更新、別テンプレート作成、フォーム営業件名なし許可
 - 旧Next/Supabase版の `AppSafetyStrip` / `AppTopShortcutBar` / `AppRouteProgress` に寄せた運用ステータスバー、上部ショートカット、タブ切替進行バー
 - 旧Next/Supabase版の `AppFrame` に寄せたサイドバーのリスト/運用グループ順序
 - 旧Next/Supabase版の `AppNavLink` / `AppTopShortcutBar` に寄せた線アイコン表示と一次メニューのみのサイドバー構成
@@ -185,6 +186,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Version 56は `clasp deploy -V 56 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `facility-copy-button`, `copyFormLeadFacilityName`, `formUrlMiniLink`, `selectNextFormLead` を確認済み
 - Apps Script code v57で旧Next/Supabase版の `QuickLeadEditButton` に寄せ、営業リストの詳細編集を右ドロワーから中央 `quick-lead-dialog` モーダルへ変更し、ヘッダーPill、閉じるアイコン、4列サマリーを反映済み
 - Version 57は `clasp deploy -V 57 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `quick-lead-dialog`, `quick-dialog-header-actions`, `leadDialogStatusPills` を確認済み
+- Apps Script code v58で旧Next/Supabase版の `TemplateCreateForm` に寄せ、テンプレート作成フォームのサンプル適用ボタン、保存済みテンプレート更新、別テンプレート作成、フォーム営業用の件名なし保存を反映済み
+- Version 58は `clasp deploy -V 58 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `template-create-panel`, `templateSubmitButton`, `startNewTemplate`, `updateTemplateFormState` を確認済み
 - Version 49は `clasp deploy -V 49 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `analyticsTemplateTable`, `buildClientAnalyticsData`, `メール文別返信率` を確認済み
 - Version 48は `clasp deploy -V 48 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `historyFilterPanel`, `filteredSendHistories`, `本文/Gmail` を確認済み
 - Version 47は `clasp deploy -V 47 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `template-subject-diff-panel`, `件名差分`, `テンプレート件名` を確認済み

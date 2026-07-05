@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v57_quick_lead_dialog_parity'), 'v57 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v58_template_create_parity'), 'v58 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -175,6 +175,14 @@ assert(html.includes('table-link-button'), 'legacy lead table action button miss
 assert(html.includes('lead-select-cell'), 'legacy lead table select cell missing');
 assert(html.includes('templateSafetyPanel'), 'legacy template safety panel missing');
 assert(html.includes('templateSenderBanner'), 'legacy template sender banner missing');
+assert(html.includes('template-create-panel'), 'legacy template create panel shell missing');
+assert(html.includes('template-sample-actions'), 'legacy template sample actions missing');
+assert(html.includes('templateSubmitButton'), 'legacy template save button state missing');
+assert(html.includes('templateNewButton'), 'legacy template create-another action missing');
+assert(html.includes('updateTemplateFormState'), 'legacy template form state renderer missing');
+assert(html.includes('startNewTemplate'), 'legacy template start new action missing');
+assert(html.includes('フォーム営業用は件名なし可'), 'legacy form template subject optional hint missing');
+assert(html.includes('保存済みテンプレートを更新'), 'legacy saved template update label missing');
 assert(html.includes('sendNgHero'), 'legacy send NG hero missing');
 assert(html.includes('exclusionsHero'), 'legacy exclusions hero missing');
 assert(html.includes('formOutreachSummary'), 'legacy form outreach summary missing');
@@ -311,6 +319,11 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'sendTemplateTestFromRow',
   'toggleTemplateProduction',
   'deleteTemplateFromRow',
+  "legacyUiIcon('pencil')",
+  "legacyUiIcon('eye')",
+  "legacyUiIcon('power')",
+  "legacyUiIcon('trash2')",
+  "legacyUiIcon('save')",
   'mail-sending-control',
   'mail-sending-status',
   'dashboard-prospecting-stats',
@@ -372,6 +385,7 @@ assert(emailSource.includes("send_type: 'テスト送信'"), 'test send history 
 assert(emailSource.includes("error_message: errorMessage"), 'test send failure reason history missing');
 assert(html.includes('会社名') && html.includes('差し込みメニュー'), 'legacy template tag menu labels missing');
 assert(emailSource.includes("'会社名'"), 'server Japanese template variables missing');
+assert(fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8').includes("templateType !== 'form' && !subject"), 'form template subject optional server rule missing');
 [
   'custom_field_definitions',
   'list_view_settings',
