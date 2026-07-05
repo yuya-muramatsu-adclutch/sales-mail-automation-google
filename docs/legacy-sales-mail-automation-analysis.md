@@ -105,6 +105,7 @@
 - 旧 `HistoriesPage` に合わせ、送信履歴ヘッダーのCSV出力と送信プレビュー導線をDownload/Sendアイコン付きボタンに変更した。
 - 旧 `AnalyticsPage` に合わせ、分析ページの今月サマリー、営業ファネル、リスク帯へListPlus/Send/Reply/Calendar/Check/Shield/Trend/Mailの線画アイコンを追加した。
 - 旧 `AdminPage` に合わせ、管理/運用のステータスカード、本番チェック、Gmail/Google管理、送信ロック、DB追加項目チェックへDatabase/SearchCheck/ServerCog/Rocketの線画アイコン付き行を追加した。
+- 旧 `SerperSetupGuide` / `SerperApiKeyManager` に合わせ、Serper未設定ガイド、APIキー概要、残量確認、検索APIテスト、収集ツール実行プレビューへKey/Check/Refresh/Search/Serverの線画アイコンを追加した。
 - 旧 `ng-master` / `exclusions` / `background-jobs/activity` / `errors` のページ分割に合わせ、送信NG、除外ドメイン、直近実行結果、エラー詳細を独立タブとして追加した。
 - 旧 `ProspectingCollectionTool` 系のタブ式操作に合わせ、営業リスト収集ツール内へ `0 自動運用`, `1 ジャンル×エリア`, `2 キーワード検索`, `3 ファイル収集`, `4 まとめサイトURL` の5モードパネルを追加した。GAS版では `settings`, `runSmallSearchJob`, `importLeadsFromCsv` に読み替えて実操作できるようにした。
 - 管理に旧 `GenreManager` 相当のジャンル管理を追加し、追加、テーブル内編集、削除確認をUUID `id` 更新で操作できるようにした。GAS版では履歴整合性のため削除は `active=false` の安全な無効化に読み替える。

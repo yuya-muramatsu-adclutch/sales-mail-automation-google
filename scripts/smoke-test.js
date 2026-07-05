@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v64_admin_icon_parity'), 'v64 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v65_serper_setup_icon_parity'), 'v65 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -139,6 +139,13 @@ assert(html.includes("legacyUiIcon('rocket')"), 'legacy readiness rocket icon mi
 assert(html.includes("icon: 'database', label: 'Google Sheets'"), 'legacy admin database status item missing');
 assert(html.includes("icon: 'searchCheck', label: 'Serper'"), 'legacy admin Serper status item missing');
 assert(html.includes("icon: 'serverCog', label: 'GAS分割処理'"), 'legacy admin server cog status item missing');
+assert(html.includes("legacyUiIcon('keyRound')"), 'legacy Serper setup key icon missing');
+assert(html.includes("legacyUiIcon('refreshCw')}残量確認"), 'legacy Serper refresh icon missing');
+assert(html.includes("legacyUiIcon('searchCheck')}検索APIテスト"), 'legacy Serper search test icon missing');
+assert(html.includes("legacyUiIcon('serverCog')}<span>環境変数ではなくApps ScriptのPropertiesService"), 'legacy Serper setup command icon missing');
+assert(!html.includes('aria-hidden=\"true\">SK</span>'), 'legacy Serper summary text badge should be icon');
+assert(!html.includes('aria-hidden=\"true\">KY</span>'), 'legacy Serper setup text badge should be icon');
+assert(!html.includes('aria-hidden=\"true\">PS</span>'), 'legacy Serper command text badge should be icon');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
 assert(html.includes('toolbar-shortcut'), 'legacy top shortcut bar missing');
 assert(html.includes('data-shortcut-tab="emailLeads"'), 'legacy top shortcut email tab missing');

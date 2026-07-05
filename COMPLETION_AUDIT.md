@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @64 / code v64: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @65 / code v65: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v64_admin_icon_parity`
+- Code version: `20260705_apps_script_full_workflow_v65_serper_setup_icon_parity`
 
 ## 計画書との対応
 
@@ -81,6 +81,7 @@
 | 旧アプリ送信履歴ヘッダー再現 | 完了 | code v62で旧 `HistoriesPage` のDownload/Sendアイコン付きCSV出力/送信プレビュー導線を反映 |
 | 旧アプリ分析カードアイコン再現 | 完了 | code v63で旧 `AnalyticsPage` のListPlus/Send/Reply/Calendar/Check/Shield/Trend/Mailアイコンをサマリー、ファネル、リスク帯へ反映 |
 | 旧アプリ管理/運用チェックアイコン再現 | 完了 | code v64で旧 `AdminPage` のDatabase/SearchCheck/ServerCog/Rocketアイコン付きステータスカードと本番チェック行を管理/運用/Gmail管理へ反映 |
+| 旧アプリSerperセットアップアイコン再現 | 完了 | code v65で旧 `SerperSetupGuide` / `SerperApiKeyManager` のKey/Check/Refresh/Search/Serverアイコンを未設定ガイド、APIキー概要、収集実行プレビューへ反映 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |
@@ -94,10 +95,10 @@
 ## 検証済み
 
 - `clasp push -f` 成功
-- `clasp version "apps-script-full-workflow-v64-admin-icon-parity"` でVersion 64を作成済み
-- 既存Web app URLを `clasp deploy -V 64 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 64へ再デプロイ済み
-- `clasp deployments` で既存Web app URLが `@64 - apps-script-full-workflow-v64-admin-icon-parity-on-existing-url` を指すことを確認
-- code v64ローカルスモークで `settings-status-item with-icon`, `readiness-item with-icon`, `legacyUiIcon('rocket')`, v64バージョンマーカーを確認済み
+- `clasp version "apps-script-full-workflow-v65-serper-setup-icon-parity"` でVersion 65を作成済み
+- 既存Web app URLを `clasp deploy -V 65 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 65へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@65 - apps-script-full-workflow-v65-serper-setup-icon-parity-on-existing-url` を指すことを確認
+- code v65ローカルスモークで `legacyUiIcon('keyRound')`, `legacyUiIcon('refreshCw')`, `legacyUiIcon('serverCog')`, v65バージョンマーカーを確認済み
 - `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp version "apps-script-full-workflow-v62-history-header-icon-parity"` でVersion 62を作成済み
