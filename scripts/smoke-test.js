@@ -81,13 +81,17 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v87_fix_collection_empty_icon'), 'v87 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v91_lazy_startup_loads'), 'v91 app version missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
 assert(!html.includes('https://'), 'Index.html should not contain raw https:// literals that Apps Script can split in userCodeAppPanel');
 assert(html.includes('<span>WEBサイト</span>'), 'website mini link should display WEBサイト label');
 assert(!html.includes('<span>WEB</span><small>${escapeHtml(compactUrl(lead.website_url))}</small>'), 'website mini link should not display the compact domain');
 assert(html.includes('id="leadLoadPanel"'), 'lead manual load panel missing');
 assert(html.includes('flex-wrap: wrap'), 'lead load panel should wrap progress without squeezing text');
+assert(html.includes('getStartupDashboardStats_') || fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8').includes('getStartupDashboardStats_'), 'startup should use cached/lightweight dashboard stats');
+assert(html.includes('schedulePostStartupRefresh'), 'startup should schedule deferred dashboard refresh');
+assert(html.includes('ensureTabDataLoaded'), 'tabs should lazy-load their own data');
+assert(!html.includes('await Promise.all([leadLoadTask, loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()])'), 'startup should not block on every secondary list');
 assert(html.includes('show-background-center-button'), 'background center button should not always overlay primary screens');
 assert(html.includes('function updateBackgroundCenterButton'), 'background center visibility controller missing');
 assert(html.includes('messageClearTimer'), 'success message auto-clear missing');
@@ -528,6 +532,8 @@ assert(fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8').includes("template
 const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), html.indexOf('async function showStartupError'));
 assert(refreshAllBlock.includes("api('getInitialData')"), 'refreshAll should load initial data');
 assert(!refreshAllBlock.includes("api('getAuthorizationStatus')"), 'refreshAll should not preflight authorization');
+assert(html.includes("limit: INITIAL_REVIEW_LEAD_LIMIT, quiet: true"), 'initial review lead load should not lock global navigation');
+assert(html.includes("loadOptions.quiet ? await apiQuiet('listLeads', request) : await api('listLeads', request)"), 'loadLeads should support quiet mode');
 const navHtml = html.slice(html.indexOf('<nav class="tabs">'), html.indexOf('</nav>', html.indexOf('<nav class="tabs">')));
 assert(!navHtml.includes('tab nav-item secondary'), 'AppFrame sidebar should expose only the legacy primary menu items');
 [
@@ -559,6 +565,10 @@ for (const [index, script] of scripts.entries()) {
 }
 
 const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
+const initialDataBlock = webApp.slice(webApp.indexOf('function getInitialData'), webApp.indexOf('function getStartupDashboardStats_'));
+assert(!initialDataBlock.includes('setup()'), 'getInitialData should not run setup on every startup');
+assert(initialDataBlock.includes('getStartupSerperInfo_()'), 'getInitialData should use lightweight Serper startup info');
+assert(webApp.includes('function getReferenceData'), 'reference data should be loaded separately from startup');
 assert(webApp.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'dashboard should read all lead rows');
 assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflect v11 operations payload');
 [

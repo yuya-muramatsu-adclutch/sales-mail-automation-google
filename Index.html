@@ -8026,6 +8026,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       let leadLoadProgressTimer = null;
       let messageClearTimer = null;
       let currentTab = 'dashboard';
+      let busyRequestCount = 0;
       let suppressTabHistory = false;
       const tabHistory = [];
       const SAMPLE_SYNC_CSV = [
@@ -8294,6 +8295,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         copiedFormFacilityId: '',
         selectedLeadIds: [],
         hasCompletedInitialLoad: false,
+        startupRefreshScheduled: false,
+        dataLoaded: {
+          dashboard: false,
+          reference: false,
+          templates: false,
+          masters: false,
+          search: false,
+          ops: false,
+          emailLeads: false,
+          formLeads: false,
+          dealLeads: false,
+        },
+        dataLoading: {},
         leadLoadMode: 'review',
         leadLoadProgress: {
           active: false,
@@ -8334,24 +8348,56 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       };
 
       function api(name, ...args) {
-        setBusy(true);
+        return callApi(name, args, { busy: true });
+      }
+
+      function apiQuiet(name, ...args) {
+        return callApi(name, args, { busy: false });
+      }
+
+      function callApi(name, args, options) {
+        const useBusy = !options || options.busy !== false;
+        if (useBusy) setBusy(true);
         return new Promise((resolve, reject) => {
           google.script.run
             .withSuccessHandler((result) => {
-              setBusy(false);
+              if (useBusy) setBusy(false);
               resolve(result);
             })
             .withFailureHandler((error) => {
-              setBusy(false);
+              if (useBusy) setBusy(false);
               reject(error);
             })[name](...args);
         });
       }
 
       function setBusy(busy) {
+        busyRequestCount = Math.max(0, busyRequestCount + (busy ? 1 : -1));
+        const disabled = busyRequestCount > 0;
         document.querySelectorAll('button').forEach((button) => {
-          button.disabled = busy;
+          if (isNavigationButton(button)) return;
+          if (disabled) {
+            if (!button.disabled) {
+              button.dataset.busyDisabled = 'true';
+              button.disabled = true;
+            }
+            return;
+          }
+          if (button.dataset.busyDisabled === 'true') {
+            button.disabled = false;
+            delete button.dataset.busyDisabled;
+          }
         });
+      }
+
+      function isNavigationButton(button) {
+        return Boolean(
+          button.classList.contains('tab') ||
+          button.classList.contains('toolbar-shortcut') ||
+          button.closest('.tabs') ||
+          button.closest('.main-toolbar-actions') ||
+          button.id === 'backgroundCenterBackButton'
+        );
       }
 
       function message(text, kind = '') {
@@ -8388,6 +8434,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (title) title.textContent = TAB_TITLES[name] || name;
         updateTopShortcutBar(name);
         updateBackgroundCenterButton(name);
+        ensureTabDataLoaded(name);
       }
 
       function goBackFromBackgroundCenter() {
@@ -8500,8 +8547,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function refreshAll() {
         try {
+          const startedAt = performance.now();
+          const activeTab = document.querySelector('.section.active')?.id || currentTab || 'dashboard';
+          const isInitialLoad = !state.hasCompletedInitialLoad;
           message('読み込み中...');
           hideAuthorizationGate();
+          resetDeferredDataFlags();
           const initial = await api('getInitialData');
           state.app = initial.app;
           state.enums = initial.enums;
@@ -8517,17 +8568,184 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           renderAppSafetyStrip(initial.dashboard);
           renderSelects(initial.enums, initial.genres);
           renderDashboard(initial.dashboard);
+          state.dataLoaded.dashboard = !initial.dashboard?.startupPlaceholder;
           renderSerper(initial.serper);
           message('', '');
-          const leadLoadTask = state.hasCompletedInitialLoad ? loadLeads() : loadInitialReviewLeads();
-          await Promise.all([leadLoadTask, loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()]);
-          await loadFormLeads();
-          renderExpandedLegacyScreens();
+          await (isInitialLoad ? loadInitialReviewLeads() : loadLeads());
           updateTopShortcutBar(document.querySelector('.section.active')?.id || 'dashboard');
           state.hasCompletedInitialLoad = true;
-          message('更新しました', 'ok');
+          message(`起動しました (${Math.round(performance.now() - startedAt)}ms)`, 'ok');
+          schedulePostStartupRefresh();
+          if (isInitialLoad || activeTab === 'dashboard' || activeTab === 'leads') {
+            ensureTabDataLoaded(activeTab);
+          } else {
+            await ensureTabDataLoaded(activeTab);
+          }
         } catch (error) {
           await showStartupError(error);
+        }
+      }
+
+      function resetDeferredDataFlags() {
+        state.startupRefreshScheduled = false;
+        Object.keys(state.dataLoaded || {}).forEach((key) => {
+          if (key !== 'dashboard') state.dataLoaded[key] = false;
+        });
+        state.dataLoading = {};
+      }
+
+      function schedulePostStartupRefresh() {
+        if (state.startupRefreshScheduled) return;
+        state.startupRefreshScheduled = true;
+        const run = () => {
+          ensureDataLoaded('reference', () => loadReferenceData({ quiet: true })).catch((error) => {
+            console.warn('Reference data background refresh skipped:', error && error.message ? error.message : error);
+          });
+          loadDashboardStats({ quiet: true, force: true }).catch((error) => {
+            console.warn('Dashboard background refresh skipped:', error && error.message ? error.message : error);
+          });
+        };
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(run, { timeout: 2500 });
+        } else {
+          window.setTimeout(run, 800);
+        }
+      }
+
+      async function loadDashboardStats(options) {
+        const config = options || {};
+        if (!config.force && state.dataLoaded.dashboard) return state.dashboard;
+        const result = config.quiet
+          ? await apiQuiet('getDashboardStats', { bypassCache: config.force === true })
+          : await api('getDashboardStats', { bypassCache: config.force === true });
+        renderDashboard(result);
+        renderAppSafetyStrip(result);
+        renderSearchActivityPanel();
+        renderCollectionCommandCenter(state.serper || {});
+        renderLoadedLegacyScreens();
+        state.dataLoaded.dashboard = true;
+        return result;
+      }
+
+      async function loadReferenceData(options) {
+        const config = options || {};
+        const result = config.quiet
+          ? await apiQuiet('getReferenceData')
+          : await api('getReferenceData');
+        state.genres = result.genres || [];
+        state.genreMasters = result.genreMasters || result.genres || [];
+        state.reasons = result.reasons || [];
+        state.settings = result.settings || [];
+        state.customFieldDefinitions = result.customFieldDefinitions || [];
+        state.listViewSettings = result.listViewSettings || [];
+        state.schemaStatus = result.schemaStatus || null;
+        renderSelects(state.enums, state.genres);
+        renderSerper(result.serper || state.serper || {});
+        renderCollectionCommandCenter(state.serper || {});
+        renderLeads();
+        state.dataLoaded.reference = true;
+        return result;
+      }
+
+      function ensureDataLoaded(key, loader) {
+        if (state.dataLoaded[key]) return Promise.resolve();
+        if (state.dataLoading[key]) return state.dataLoading[key];
+        state.dataLoading[key] = Promise.resolve()
+          .then(loader)
+          .then(() => {
+            state.dataLoaded[key] = true;
+          })
+          .catch((error) => {
+            state.dataLoaded[key] = false;
+            message(error && error.message ? error.message : String(error), 'error');
+            throw error;
+          })
+          .finally(() => {
+            delete state.dataLoading[key];
+          });
+        return state.dataLoading[key];
+      }
+
+      async function ensureTabDataLoaded(name) {
+        if (!state.hasCompletedInitialLoad) return;
+        try {
+          if (name === 'dashboard') return;
+          if (name === 'leads') {
+            await ensureDataLoaded('reference', () => loadReferenceData({ quiet: true }));
+            renderLeads();
+            return;
+          }
+          if (name === 'search') {
+            await ensureDataLoaded('search', loadSearchResults);
+            return;
+          }
+          if (['backgroundJobs', 'backgroundActivity', 'ops', 'errors', 'sync', 'histories'].includes(name)) {
+            await ensureDataLoaded('ops', loadOpsData);
+            renderLoadedLegacyScreens();
+            return;
+          }
+          if (name === 'forms') {
+            await ensureDataLoaded('templates', loadTemplates);
+            await ensureDataLoaded('formLeads', loadFormLeads);
+            return;
+          }
+          if (name === 'emailLeads') {
+            await ensureDataLoaded('emailLeads', loadEmailLeads);
+            renderEmailLeadsScreen();
+            return;
+          }
+          if (name === 'sending') {
+            await Promise.all([
+              ensureDataLoaded('templates', loadTemplates),
+              ensureDataLoaded('emailLeads', loadEmailLeads),
+              ensureDataLoaded('ops', loadOpsData),
+            ]);
+            renderSendingScreen();
+            renderEmailPreviewPanel();
+            renderTemplateTestRecipientPanel();
+            return;
+          }
+          if (name === 'templates') {
+            await ensureDataLoaded('templates', loadTemplates);
+            return;
+          }
+          if (name === 'sendNg' || name === 'exclusions') {
+            await ensureDataLoaded('masters', loadMasters);
+            return;
+          }
+          if (name === 'deals') {
+            await ensureDataLoaded('dealLeads', loadDealLeads);
+            renderDealsScreen();
+            return;
+          }
+          if (name === 'analytics') {
+            await Promise.all([
+              ensureDataLoaded('ops', loadOpsData),
+              ensureDataLoaded('emailLeads', loadEmailLeads),
+              ensureDataLoaded('dealLeads', loadDealLeads),
+            ]);
+            renderAnalyticsScreen();
+            return;
+          }
+          if (name === 'gmail') {
+            await ensureDataLoaded('ops', loadOpsData);
+            renderGmailScreen();
+            renderGmailConnectionCheckPanel();
+            renderGmailTestSendHistoryPanel();
+            renderGmailReplyCheckPanel('gmailReplyCheckPanel');
+            return;
+          }
+          if (name === 'admin') {
+            await Promise.all([
+              ensureDataLoaded('reference', loadReferenceData),
+              ensureDataLoaded('templates', loadTemplates),
+              ensureDataLoaded('masters', loadMasters),
+              ensureDataLoaded('ops', loadOpsData),
+            ]);
+            renderLoadedLegacyScreens();
+          }
+        } catch (error) {
+          console.warn('Deferred tab load failed:', error && error.message ? error.message : error);
         }
       }
 
@@ -8994,7 +9212,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         resetLeadFiltersForReview();
         beginLeadLoadProgress('確認待ちリストを読み込み中', '初期表示を軽くするため確認待ちだけ取得しています。', 18);
         try {
-          await loadLeads(0, { filter: 'review', mode: 'review', limit: INITIAL_REVIEW_LEAD_LIMIT });
+          await loadLeads(0, { filter: 'review', mode: 'review', limit: INITIAL_REVIEW_LEAD_LIMIT, quiet: true });
           completeLeadLoadProgress('確認待ちリストを読み込みました', `${leadRangeLabel()}を表示しています。`);
         } catch (error) {
           failLeadLoadProgress(error);
@@ -9040,7 +9258,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const filterValue = loadOptions.filter || document.getElementById('leadQuickFilter').value;
         updateLeadLoadModeFromFilter(loadOptions.mode || (filterValue === 'review' ? 'review' : filterValue === 'all' ? 'all' : 'filtered'));
         state.leadPage.limit = Number(document.getElementById('leadLimit').value || 500);
-        const result = await api('listLeads', {
+        const request = {
           search: document.getElementById('leadSearch').value,
           status: document.getElementById('leadStatus').value,
           genre: document.getElementById('leadGenreFilter').value,
@@ -9048,7 +9266,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           sort: document.getElementById('leadSort').value,
           limit: state.leadPage.limit,
           offset: state.leadPage.offset,
-        });
+        };
+        const result = loadOptions.quiet ? await apiQuiet('listLeads', request) : await api('listLeads', request);
         state.leads = result.items || [];
         state.leadPage.total = result.total || 0;
         state.leadPage.offset = result.offset || 0;
@@ -9070,6 +9289,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         });
         state.emailLeads = result.items || [];
         state.emailTotal = result.total || 0;
+        state.dataLoaded.emailLeads = true;
       }
 
       async function loadDealLeads() {
@@ -9081,6 +9301,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         });
         state.dealLeads = result.items || [];
         state.dealTotal = result.total || 0;
+        state.dataLoaded.dealLeads = true;
       }
 
       function renderLeads() {
@@ -10364,6 +10585,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function loadTemplates() {
         const result = await api('listEmailTemplates', { limit: 300 });
         state.templates = result.items || [];
+        state.dataLoaded.templates = true;
         renderTemplates();
       }
 
@@ -11031,6 +11253,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         ]);
         state.ngMasters = ng.items || [];
         state.excludedDomains = excluded.items || [];
+        state.dataLoaded.masters = true;
         renderMasters();
       }
 
@@ -11257,6 +11480,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         });
         state.formLeads = result.items || [];
         state.formTotal = result.total || state.formLeads.length;
+        state.dataLoaded.formLeads = true;
         if (!state.formLeads.some((lead) => lead.id === state.selectedFormLeadId)) {
           state.selectedFormLeadId = '';
         }
@@ -11786,6 +12010,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.searchResults = results.items || [];
         state.searchUsageLogs = usage.items || [];
         state.searchJobs = jobs.items || [];
+        state.dataLoaded.search = true;
         renderSearchTables();
         renderSearchActivityPanel();
         renderProspectingProgressDashboard();
@@ -12994,6 +13219,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.histories = histories.items || [];
         state.syncLogs = syncLogs.items || [];
         state.jobs = (jobs.items || []).concat(searchJobs.items || []);
+        state.dataLoaded.ops = true;
         renderOpsPanels();
       }
 
@@ -13683,6 +13909,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderExpandedLegacyScreens() {
+        renderLoadedLegacyScreens();
+      }
+
+      function renderLoadedLegacyScreens() {
         renderBackgroundJobsScreen();
         renderBackgroundActivityScreen();
         renderEmailLeadsScreen();

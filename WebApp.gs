@@ -46,6 +46,7 @@ function parsePostPayload_(e) {
 function dispatchPostAction_(action, data) {
   if (action === 'setup') return setup();
   if (action === 'getInitialData') return getInitialData();
+  if (action === 'getReferenceData') return getReferenceData();
   if (action === 'getAuthorizationStatus') return getAuthorizationStatus();
   if (action === 'getDashboardStats') return getDashboardStats(data);
   if (action === 'getAppInfo') return getAppInfo();
@@ -116,11 +117,28 @@ function jsonResponse_(object) {
 }
 
 function getInitialData() {
-  const setupResult = setup();
+  const appInfo = getAppInfo();
   return {
-    app: setupResult,
+    app: appInfo,
     enums: getClientEnums_(),
-    dashboard: getDashboardStats(),
+    dashboard: getStartupDashboardStats_(),
+    genres: [],
+    genreMasters: [],
+    reasons: [],
+    settings: [],
+    customFieldDefinitions: [],
+    listViewSettings: [],
+    schemaStatus: null,
+    serper: getStartupSerperInfo_(),
+  };
+}
+
+function getStartupDashboardStats_() {
+  return readDashboardStatsCache_({ allowPersisted: true, allowStale: true }) || buildStartupDashboardPlaceholder_();
+}
+
+function getReferenceData() {
+  return {
     genres: listSheetRecords('genres', { limit: 200 }).items,
     genreMasters: listGenres({ limit: 500, includeInactive: true }).items,
     reasons: listReasons({ limit: 500, includeInactive: true }).items,
@@ -169,7 +187,7 @@ function getClientEnums_() {
 function getDashboardStats(options) {
   const input = options && typeof options === 'object' ? options : {};
   if (input.bypassCache !== true) {
-    const cached = readDashboardStatsCache_();
+    const cached = readDashboardStatsCache_({ allowPersisted: true, allowStale: input.allowStale === true });
     if (cached) {
       return cached;
     }
@@ -297,6 +315,120 @@ function getDashboardStats(options) {
   return stats;
 }
 
+function buildStartupDashboardPlaceholder_() {
+  const month = monthText_();
+  const mailSendingControl = {
+    enabled: false,
+    reason: '初回表示中です。詳細な送信設定は背景で確認しています。',
+    updatedAt: null,
+  };
+  const dailyMailLimit = 80;
+  const serperDailyLimit = 100;
+  const serperMonthlyLimit = 1000;
+  const serperInfo = getStartupSerperInfo_();
+  const timezone = Session.getScriptTimeZone() || 'Asia/Tokyo';
+  const currentTime = Utilities.formatDate(new Date(), timezone, 'HH:mm');
+  const sendWindow = {
+    enabled: true,
+    start: '07:00',
+    end: '08:00',
+    timezone: timezone,
+    currentTime: currentTime,
+    label: '07:00-08:00',
+    allowed: currentTime >= '07:00' && currentTime <= '08:00',
+  };
+  const triggerCount = 0;
+  return {
+    leadsTotal: 0,
+    archivedLeads: 0,
+    sendTargets: 0,
+    formTargets: 0,
+    replies: 0,
+    deals: 0,
+    sendNg: 0,
+    sent: 0,
+    unsent: 0,
+    noContact: 0,
+    won: 0,
+    lost: 0,
+    reviewTargets: 0,
+    sentToday: 0,
+    serperToday: 0,
+    serperMonth: 0,
+    productionTemplates: 0,
+    productionInitialTemplates: 0,
+    productionFormTemplates: 0,
+    dailyMailLimit: dailyMailLimit,
+    todayRemaining: mailSendingControl.enabled ? dailyMailLimit : 0,
+    todayEmailTargets: 0,
+    mailQuotaRemaining: dailyMailLimit,
+    mailQuotaAvailable: true,
+    mailSendingEnabled: mailSendingControl.enabled,
+    mailSendingReason: mailSendingControl.reason,
+    mailSendingUpdatedAt: mailSendingControl.updatedAt,
+    sendWindow: sendWindow,
+    serperConfigured: serperInfo.configured,
+    serperKeyMask: serperInfo.key_mask,
+    serperDailyLimit: serperDailyLimit,
+    serperMonthlyLimit: serperMonthlyLimit,
+    serperTodayRemaining: serperDailyLimit,
+    serperMonthRemaining: serperMonthlyLimit,
+    queuedJobs: 0,
+    runningJobs: 0,
+    failedJobs: 0,
+    completedJobs: 0,
+    errorCount: 0,
+    prospectingAddedCount: 0,
+    prospectingDuplicateCount: 0,
+    prospectingExcludedCount: 0,
+    prospectingLabel: '確認中',
+    prospectingTone: 'info',
+    prospectingReason: '初回表示を優先し、詳細な集計は背景で更新しています。',
+    prospectingDetail: '確認待ちリストを先に表示し、重い集計は後から反映します。',
+    integrations: {
+      sheets: true,
+      gmail: true,
+      calendar: true,
+      serper: serperInfo.configured,
+      triggers: triggerCount > 0,
+    },
+    triggerCount: triggerCount,
+    thisMonth: {
+      label: month,
+      addedLeads: 0,
+      sent: 0,
+      replies: 0,
+      deals: 0,
+      replyRate: 0,
+    },
+    byStatus: {},
+    byGenre: {},
+    updatedAt: nowIso_(),
+    cached: false,
+    startupPlaceholder: true,
+  };
+}
+
+function getStartupSerperInfo_() {
+  const records = readSerperApiKeyRecords_();
+  const selected = selectPrimarySerperApiKeyRecord_(records);
+  const legacyKey = String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SERPER_API_KEY) || '').trim();
+  const key = selected && selected.key ? String(selected.key || '').trim() : legacyKey;
+  return {
+    configured: Boolean(key),
+    key_mask: key ? maskSecret_(key) : '',
+    dailyLimit: 100,
+    monthlyLimit: 1000,
+    todayUsed: 0,
+    monthUsed: 0,
+    todayRemaining: 100,
+    monthRemaining: 1000,
+    keys: records.map(sanitizeSerperApiKeyRecord_),
+    activeKeyId: selected ? selected.id : (legacyKey ? 'legacy-main' : ''),
+    startupPlaceholder: true,
+  };
+}
+
 function getMailSendingControl_() {
   const defaultControl = {
     enabled: false,
@@ -346,11 +478,12 @@ function monthText_() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'Asia/Tokyo', 'yyyy-MM');
 }
 
-function readDashboardStatsCache_() {
+function readDashboardStatsCache_(options) {
+  const query = options && typeof options === 'object' ? options : {};
   try {
     const cached = CacheService.getScriptCache().get('dashboard_stats_v3');
     if (!cached) {
-      return null;
+      return query.allowPersisted === false ? null : readDashboardStatsSheetCache_(query);
     }
 
     const parsed = JSON.parse(cached);
@@ -358,16 +491,42 @@ function readDashboardStatsCache_() {
     return parsed;
   } catch (error) {
     console.warn('Dashboard cache read skipped: ' + error.message);
-    return null;
+    return query.allowPersisted === false ? null : readDashboardStatsSheetCache_(query);
   }
 }
 
 function writeDashboardStatsCache_(stats) {
   try {
-    CacheService.getScriptCache().put('dashboard_stats_v3', JSON.stringify(stats), 120);
+    CacheService.getScriptCache().put('dashboard_stats_v3', JSON.stringify(stats), 600);
     upsertDashboardCacheSheet_(stats);
   } catch (error) {
     console.warn('Dashboard cache write skipped: ' + error.message);
+  }
+}
+
+function readDashboardStatsSheetCache_(options) {
+  try {
+    const query = options && typeof options === 'object' ? options : {};
+    const records = listSheetRecords('dashboard_cache', { limit: 100, includeInactive: true }).items;
+    const cached = records.find(function (record) {
+      return record.cache_key === 'dashboard_stats_v3';
+    });
+    if (!cached || !cached.value_json) {
+      return null;
+    }
+    if (query.allowStale !== true && cached.expires_at) {
+      const expiresAt = new Date(cached.expires_at).getTime();
+      if (Number.isFinite(expiresAt) && expiresAt < Date.now()) {
+        return null;
+      }
+    }
+    const parsed = JSON.parse(cached.value_json);
+    parsed.cached = true;
+    parsed.persistedCache = true;
+    return parsed;
+  } catch (error) {
+    console.warn('Dashboard cache sheet read skipped: ' + error.message);
+    return null;
   }
 }
 
@@ -376,7 +535,7 @@ function upsertDashboardCacheSheet_(stats) {
   const existing = records.find(function (record) {
     return record.cache_key === 'dashboard_stats_v3';
   });
-  const expiresAt = Utilities.formatDate(new Date(Date.now() + 2 * 60 * 1000), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX");
+  const expiresAt = Utilities.formatDate(new Date(Date.now() + 30 * 60 * 1000), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX");
   const payload = {
     cache_key: 'dashboard_stats_v3',
     value_json: JSON.stringify(stats),
