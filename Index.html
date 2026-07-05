@@ -3198,6 +3198,26 @@
         font-weight: 900;
       }
 
+      .analytics-summary-card svg,
+      .analytics-funnel-step svg {
+        width: 20px;
+        height: 20px;
+        color: var(--blue);
+        stroke-width: 2.15;
+      }
+
+      .analytics-summary-card.green svg {
+        color: var(--green);
+      }
+
+      .analytics-summary-card.amber svg {
+        color: var(--amber);
+      }
+
+      .analytics-summary-card.ink svg {
+        color: var(--ink);
+      }
+
       .stat-card.blue,
       .analytics-summary-card.blue {
         border-color: #bfdbfe;
@@ -3362,10 +3382,17 @@
 
       .analytics-risk-strip div {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         gap: 6px 8px;
         align-items: center;
         padding: 12px;
+      }
+
+      .analytics-risk-strip svg {
+        width: 16px;
+        height: 16px;
+        color: var(--amber);
+        stroke-width: 2.15;
       }
 
       .analytics-risk-strip span,
@@ -6895,6 +6922,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       const LEGACY_UI_ICON_SVGS = Object.freeze({
         arrowRight: iconSvg('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'),
+        barChart3: NAV_ICON_SVGS.AN,
         chevronFirst: iconSvg('<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>'),
         chevronLast: iconSvg('<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>'),
         chevronLeft: iconSvg('<path d="m15 18-6-6 6-6"/>'),
@@ -6903,21 +6931,26 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         checkCircle: iconSvg('<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>'),
         clock3: iconSvg('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
         clipboard: iconSvg('<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>'),
+        calendarCheck: NAV_ICON_SVGS.DL,
         download: iconSvg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>'),
         external: iconSvg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'),
         eye: iconSvg('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
         mailCheck: NAV_ICON_SVGS.ML,
+        listPlus: iconSvg('<path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/>'),
         mousePointer: iconSvg('<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>'),
         pencil: iconSvg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
         plug: NAV_ICON_SVGS.GM,
         power: iconSvg('<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>'),
         reset: iconSvg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/>'),
+        reply: iconSvg('<path d="m9 17-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>'),
         save: iconSvg('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>'),
         search: NAV_ICON_SVGS.SP,
         send: NAV_ICON_SVGS.PV,
+        shieldAlert: iconSvg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/>'),
         shieldCheck: iconSvg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>'),
         sliders: iconSvg('<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>'),
         trash2: iconSvg('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>'),
+        trendingDown: iconSvg('<path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/>'),
         wand2: iconSvg('<path d="m21.64 3.64-1.28-1.28a1.2 1.2 0 0 0-1.72 0L2.36 18.64a1.2 1.2 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/>'),
         x: iconSvg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
       });
@@ -12176,13 +12209,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const month = data.currentMonth;
         document.getElementById('analyticsMonthTitle').textContent = `${month.label || '今月'} の営業成果`;
         document.getElementById('analyticsSummaryGrid').innerHTML = [
-          ['今月追加', `${formatNumber(month.addedLeads)}件`, month.label, '営業リスト', 'blue'],
-          ['今月送信', `${formatNumber(month.sent)}件`, '本番送信', '送信成功', 'green'],
-          ['今月返信', `${formatNumber(month.replies)}件`, `返信率 ${formatPercent(month.replyRate)}`, '返信・反応', 'ink'],
-          ['今月商談', `${formatNumber(month.deals)}件`, `商談化率 ${formatPercent(month.dealRate)}`, '返信から商談', 'amber'],
-          ['今月成約', `${formatNumber(month.contracts)}件`, `成約率 ${formatPercent(month.contractRate)}`, '商談から成約', 'green'],
-        ].map(([label, value, detail, metric, tone]) => `
+          ['listPlus', '今月追加', `${formatNumber(month.addedLeads)}件`, month.label, '営業リスト', 'blue'],
+          ['send', '今月送信', `${formatNumber(month.sent)}件`, '本番送信', '送信成功', 'green'],
+          ['reply', '今月返信', `${formatNumber(month.replies)}件`, `返信率 ${formatPercent(month.replyRate)}`, '返信・反応', 'ink'],
+          ['calendarCheck', '今月商談', `${formatNumber(month.deals)}件`, `商談化率 ${formatPercent(month.dealRate)}`, '返信から商談', 'amber'],
+          ['checkCircle', '今月成約', `${formatNumber(month.contracts)}件`, `成約率 ${formatPercent(month.contractRate)}`, '商談から成約', 'green'],
+        ].map(([icon, label, value, detail, metric, tone]) => `
           <div class="analytics-summary-card ${escapeHtml(tone)}">
+            ${legacyUiIcon(icon)}
             <span>${escapeHtml(label)}</span>
             <strong>${escapeHtml(value)}</strong>
             <small>${escapeHtml(detail)}</small>
@@ -12202,6 +12236,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('analyticsFunnel').innerHTML = data.funnelSteps.map((step, index) => `
           <div class="analytics-funnel-step-wrap">
             <div class="analytics-funnel-step">
+              ${legacyUiIcon(step.icon || 'barChart3')}
               <span>${escapeHtml(step.label)}</span>
               <strong>${formatNumber(step.value)}</strong>
               ${step.metric ? `<small>${escapeHtml(step.metric)}</small>` : ''}
@@ -12210,10 +12245,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
         `).join('');
         document.getElementById('analyticsRiskStrip').innerHTML = [
-          ['送信NG', data.funnel.sendNg, formatPercent(data.quality.sendNgRate)],
-          ['失注', data.funnel.lost, '分析対象'],
-          ['送信成功率', formatPercent(data.quality.sendSuccessRate), `${formatNumber(data.quality.sendSuccesses)} / ${formatNumber(data.quality.sendTotal)}件`],
-        ].map(([label, value, detail]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
+          ['shieldAlert', '送信NG', data.funnel.sendNg, formatPercent(data.quality.sendNgRate)],
+          ['trendingDown', '失注', data.funnel.lost, '分析対象'],
+          ['mailCheck', '送信成功率', formatPercent(data.quality.sendSuccessRate), `${formatNumber(data.quality.sendSuccesses)} / ${formatNumber(data.quality.sendTotal)}件`],
+        ].map(([icon, label, value, detail]) => `<div>${legacyUiIcon(icon)}<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
 
         document.getElementById('analyticsDailyTable').innerHTML = table(['日付', '営業リスト追加', '送信'], data.dailyRows.map((item) => row([
           ['日付', escapeHtml(item.label)],
@@ -12356,11 +12391,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             sent: sendSuccesses,
           },
           funnelSteps: [
-            { label: '営業リスト', value: Number(dashboard.leadsTotal || leads.length) },
-            { label: '送信成功', value: sendSuccesses },
-            { label: '返信・反応', value: replies, metric: formatPercent(analyticsRate(replies, sendSuccesses)) },
-            { label: '商談', value: deals, metric: formatPercent(analyticsRate(deals, replies)) },
-            { label: '成約', value: contracts, metric: formatPercent(analyticsRate(contracts, deals)) },
+            { icon: 'barChart3', label: '営業リスト', value: Number(dashboard.leadsTotal || leads.length) },
+            { icon: 'send', label: '送信成功', value: sendSuccesses },
+            { icon: 'reply', label: '返信・反応', value: replies, metric: formatPercent(analyticsRate(replies, sendSuccesses)) },
+            { icon: 'calendarCheck', label: '商談', value: deals, metric: formatPercent(analyticsRate(deals, replies)) },
+            { icon: 'checkCircle', label: '成約', value: contracts, metric: formatPercent(analyticsRate(contracts, deals)) },
           ],
           genreRows,
           monthlyRows,

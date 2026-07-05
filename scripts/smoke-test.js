@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v62_history_header_icon_parity'), 'v62 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v63_analytics_icon_parity'), 'v63 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -142,6 +142,10 @@ assert(html.includes("legacyUiIcon('send')}この内容で1件送信"), 'legacy 
 assert(html.includes("legacyUiIcon('send')}対象リストを確認して自動送信"), 'legacy email batch send icon missing');
 assert(html.includes("legacyUiIcon('download')}CSV出力"), 'legacy histories CSV download icon missing');
 assert(html.includes("legacyUiIcon('send')}送信プレビューへ"), 'legacy histories send preview icon missing');
+assert(html.includes("['listPlus', '今月追加'"), 'legacy analytics list plus icon missing');
+assert(html.includes("legacyUiIcon(step.icon || 'barChart3')"), 'legacy analytics funnel icons missing');
+assert(html.includes("['shieldAlert', '送信NG'"), 'legacy analytics risk shield icon missing');
+assert(html.includes("['trendingDown', '失注'"), 'legacy analytics risk trend icon missing');
 assert(html.includes('backgroundToastStack'), 'legacy background job toast stack missing');
 assert(html.includes('background-center-button'), 'legacy background center button missing');
 assert(html.includes('backgroundOverviewPanel'), 'legacy background overview panel missing');

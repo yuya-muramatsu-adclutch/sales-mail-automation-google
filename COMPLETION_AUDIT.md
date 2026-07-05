@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @62 / code v62: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @63 / code v63: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v62_history_header_icon_parity`
+- Code version: `20260705_apps_script_full_workflow_v63_analytics_icon_parity`
 
 ## 計画書との対応
 
@@ -79,6 +79,7 @@
 | 旧アプリ上部ショートカット再現 | 完了 | code v60で旧 `AppTopShortcutBar` と同じ6項目だけに戻し、更新/setupはサイドバー下部へ集約 |
 | 旧アプリ送信プレビューアイコン再現 | 完了 | code v61で旧 `EmailPreviewPanel` のEye/Sendアイコンを差し込み確認Pill、1件送信、自動送信ボタンへ反映 |
 | 旧アプリ送信履歴ヘッダー再現 | 完了 | code v62で旧 `HistoriesPage` のDownload/Sendアイコン付きCSV出力/送信プレビュー導線を反映 |
+| 旧アプリ分析カードアイコン再現 | 完了 | code v63で旧 `AnalyticsPage` のListPlus/Send/Reply/Calendar/Check/Shield/Trend/Mailアイコンをサマリー、ファネル、リスク帯へ反映 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |
@@ -91,6 +92,12 @@
 
 ## 検証済み
 
+- `clasp push -f` 成功
+- `clasp version "apps-script-full-workflow-v63-analytics-icon-parity"` でVersion 63を作成済み
+- 既存Web app URLを `clasp deploy -V 63 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 63へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@63 - apps-script-full-workflow-v63-analytics-icon-parity-on-existing-url` を指すことを確認
+- code v63ローカルスモークで `legacyUiIcon('listPlus')`, `legacyUiIcon('shieldAlert')`, `legacyUiIcon('trendingDown')`, v63バージョンマーカーを確認済み
+- `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp version "apps-script-full-workflow-v62-history-header-icon-parity"` でVersion 62を作成済み
 - 既存Web app URLを `clasp deploy -V 62 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 62へ再デプロイ済み
