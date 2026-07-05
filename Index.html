@@ -188,6 +188,12 @@
         color: #fff;
       }
 
+      button.secondary {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+      }
+
       button.blue {
         border-color: var(--blue);
         background: var(--blue);
@@ -2965,6 +2971,59 @@
         padding: 12px;
       }
 
+      .reply-check-note,
+      .reply-fix-panel,
+      .reply-fix-candidate-list,
+      .reply-error-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .reply-check-note {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .reply-fix-panel {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .reply-fix-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .reply-error-list p,
+      .reply-fix-candidate-list article {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        margin: 0;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .reply-fix-candidate-list article small {
+        grid-column: 1 / -1;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
       .job-results-panel {
         display: grid;
         gap: 14px;
@@ -3110,10 +3169,15 @@
       }
 
       .setting-inline-controls label,
-      .check-row {
+      .check-row,
+      .inline-control {
         display: flex;
         align-items: center;
         gap: 8px;
+      }
+
+      .inline-control input {
+        width: 88px;
       }
 
       .check-row input {
@@ -5285,6 +5349,7 @@ PropertiesService
             </section>
           </div>
           <section id="gmailConnectionCheckPanel" class="panel stack" style="margin-top:18px"></section>
+          <section id="gmailReplyCheckPanel" class="panel stack" style="margin-top:18px"></section>
           <section id="mailSendLockPanel" class="panel stack" style="margin-top:18px"></section>
         </section>
 
@@ -5300,7 +5365,9 @@ PropertiesService
           <section id="adminReadinessPanel" class="ops-readiness-panel"></section>
           <div class="grid">
             <section id="googleCredentialSummaryPanel" class="panel stack"></section>
+            <section id="adminGmailReplyCheckPanel" class="panel stack"></section>
             <section id="adminAutomationSettingsPanel" class="panel stack"></section>
+            <section id="calendarAutoCreateSettingsPanel" class="panel stack"></section>
             <section id="genreManagerPanel" class="panel stack"></section>
             <section id="reasonMasterManagerPanel" class="panel stack"></section>
             <section id="customFieldDefinitionPanel" class="panel stack"></section>
@@ -5508,6 +5575,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         selectedEmailPreviewTemplateId: '',
         selectedEmailPreviewLeadId: '',
         selectedTemplateTestLeadId: '',
+        replyCheckResult: null,
+        replyFalsePositiveResult: null,
         activeCollectionTab: 'automation',
         jobResultCategory: 'all',
         selectedJobResultIds: [],
@@ -7106,15 +7175,33 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           send_ng_memo: document.getElementById('leadSendNgMemo').value,
           decline_reason: document.getElementById('leadDeclineReason').value,
           contact_name: document.getElementById('leadContact').value,
+          meeting_start_at: document.getElementById('meetingStart').value,
+          meeting_end_at: document.getElementById('meetingEnd').value,
+          meeting_memo: document.getElementById('meetingMemo').value,
           notes: document.getElementById('leadNotes').value,
           custom_fields_json: JSON.stringify(customFields),
         };
         try {
-          if (id) await api('updateLead', id, payload);
-          else await api('createLead', payload);
+          const savedLead = id ? await api('updateLead', id, payload) : await api('createLead', payload);
+          const calendarSettings = getClientSetting('calendar_auto_create', { enabled: false }) || {};
+          const shouldAutoCreateCalendar = calendarSettings.enabled
+            && savedLead
+            && savedLead.id
+            && !savedLead.calendar_event_id
+            && payload.meeting_start_at
+            && payload.meeting_end_at;
+          if (shouldAutoCreateCalendar) {
+            await api('createCalendarEventForLead', savedLead.id, {
+              start: payload.meeting_start_at,
+              end: payload.meeting_end_at,
+              location: document.getElementById('meetingLocation').value,
+              memo: payload.meeting_memo,
+            });
+          }
           clearLeadForm();
           closeLeadDialog();
           await refreshAll();
+          message(shouldAutoCreateCalendar ? 'リード保存とCalendar自動登録が完了しました' : 'リードを保存しました', 'ok');
         } catch (error) {
           message(error.message || String(error), 'error');
         }
@@ -9487,9 +9574,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderAdminScreen();
         renderJobResultsReviewPanel();
         renderGmailConnectionCheckPanel();
+        renderGmailReplyCheckPanel('gmailReplyCheckPanel');
+        renderGmailReplyCheckPanel('adminGmailReplyCheckPanel', { compact: true });
         renderMailSendLockPanel();
         renderGoogleCredentialSummaryPanel();
         renderAdminAutomationSettingsPanel();
+        renderCalendarAutoCreateSettingsPanel();
         renderGenreManagerPanel();
         renderReasonMasterManagerPanel();
         renderCustomFieldDefinitionPanel();
@@ -10411,6 +10501,85 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         `;
       }
 
+      function renderGmailReplyCheckPanel(targetId, options) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const compact = options && options.compact;
+        const settings = getClientSetting('gmail_reply_check', { enabled: false, maxThreads: 200 }) || {};
+        const result = state.replyCheckResult;
+        const fixResult = state.replyFalsePositiveResult;
+        const inputId = `${targetId}_maxThreads`;
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>Gmail返信チェック</h2>
+              <p class="muted">保存済みのGmail Thread IDと送信先メールから返信を確認し、返信が見つかった営業先を「返信あり」に更新します。</p>
+            </div>
+            <div class="toolbar">
+              <label class="inline-control">最大<input id="${escapeHtml(inputId)}" type="number" min="1" max="500" value="${escapeHtml(settings.maxThreads || 200)}"></label>
+              <button type="button" onclick="runReplyCheckFromPanel('${escapeJsString(inputId)}')">返信チェック</button>
+            </div>
+          </div>
+          <div class="reply-check-note">
+            <span>初回利用時はGmail/Calendarを承認してください。GAS版では GmailApp / MailApp / CalendarApp の承認状態を利用します。</span>
+            <button type="button" class="table-link-button" onclick="showTab('gmail')">Gmail連携へ</button>
+          </div>
+          ${result ? renderReplyCheckResultSummary(result) : '<p class="muted">まだこの画面では返信チェックを実行していません。</p>'}
+          ${result && result.errors && result.errors.length ? renderReplyErrors(result) : ''}
+          <div class="reply-fix-panel">
+            <div class="section-title-row">
+              <div>
+                <h3>誤判定の一括修正</h3>
+                <p class="muted">自動返信・配信エラーだけで「返信あり」になった営業先を探し、送信済みまたは未対応へ戻します。</p>
+              </div>
+              <div class="reply-fix-actions">
+                <button type="button" class="secondary" onclick="scanReplyFalsePositives()">候補を確認</button>
+                <button type="button" onclick="restoreReplyFalsePositives()" ${fixResult && fixResult.candidates && fixResult.candidates.length ? '' : 'disabled'}>候補を戻す</button>
+              </div>
+            </div>
+            ${fixResult ? renderReplyFalsePositiveResult(fixResult, compact) : ''}
+          </div>
+        `;
+      }
+
+      function renderReplyCheckResultSummary(result) {
+        return `
+          <div class="admin-check-summary">
+            <div><span>確認スレッド</span><strong>${formatNumber(result.checked || 0)}</strong></div>
+            <div><span>返信検出</span><strong>${formatNumber(result.detected || result.replies || 0)}</strong></div>
+            <div><span>自動返信除外</span><strong>${formatNumber(result.ignoredAutoReplies || 0)}</strong></div>
+            <div><span>更新</span><strong>${formatNumber(result.updated || result.replies || 0)}</strong></div>
+            <div><span>エラー</span><strong>${formatNumber((result.errors || []).length)}</strong></div>
+            <div><span>残り</span><strong>${formatNumber(result.remaining || 0)}</strong></div>
+          </div>
+        `;
+      }
+
+      function renderReplyErrors(result) {
+        return `<div class="reply-error-list">${(result.errors || []).slice(0, 5).map((error) => `
+          <p><span>${escapeHtml(error.message || '返信チェックエラー')}</span><span class="pill bad">エラー</span></p>
+        `).join('')}</div>`;
+      }
+
+      function renderReplyFalsePositiveResult(result, compact) {
+        const candidates = result.candidates || [];
+        return `
+          <div class="admin-check-summary reply-fix-summary">
+            <div><span>確認</span><strong>${formatNumber(result.checked || 0)}</strong></div>
+            <div><span>候補</span><strong>${formatNumber(candidates.length)}</strong></div>
+            <div><span>戻した件数</span><strong>${formatNumber(result.updated || 0)}</strong></div>
+            <div><span>エラー</span><strong>${formatNumber((result.errors || []).length)}</strong></div>
+          </div>
+          ${candidates.length ? `<div class="reply-fix-candidate-list">${candidates.slice(0, compact ? 3 : 6).map((candidate) => `
+            <article>
+              <div><strong>${escapeHtml(candidate.companyName || candidate.facilityName || candidate.email || '営業先名未設定')}</strong><span class="muted">${escapeHtml(candidate.email || candidate.facilityName || '-')}</span></div>
+              <span class="pill warn">${escapeHtml(candidate.restoreStatus || '未対応')}へ戻す</span>
+              <small>${escapeHtml(candidate.sampleSubject || '自動返信・配信エラー')} / ${formatNumber(candidate.ignoredMessages || 0)}件</small>
+            </article>
+          `).join('')}</div>` : '<p class="message ok">誤判定候補は見つかっていません。</p>'}
+        `;
+      }
+
       function renderMailSendLockPanel() {
         const target = document.getElementById('mailSendLockPanel');
         if (!target) return;
@@ -10585,6 +10754,33 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const value = Math.min(Math.max(Number(document.getElementById('adminBatchRuntimeBudget').value) || 300000, 10000), 330000);
         await api('setSettingValue', 'batch_runtime_budget_ms', value, 'number', 'Maximum runtime budget per batch. Apps Script hard limit is 6 minutes.');
         message('バックグラウンド実行予算を保存しました', 'ok');
+        await refreshAll();
+      }
+
+      function renderCalendarAutoCreateSettingsPanel() {
+        const target = document.getElementById('calendarAutoCreateSettingsPanel');
+        if (!target) return;
+        const settings = getClientSetting('calendar_auto_create', { enabled: false }) || {};
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>Google Calendar</h2>
+              <p class="muted">旧管理画面のCalendar自動登録設定です。GAS版では営業先編集内のCalendar登録と同じ権限を使います。</p>
+            </div>
+            <span class="pill ${settings.enabled ? 'good' : 'info'}">${settings.enabled ? 'ON' : 'OFF'}</span>
+          </div>
+          <label class="check-row"><input id="adminCalendarAutoCreateEnabled" type="checkbox" ${settings.enabled ? 'checked' : ''}><span>商談予定と日時を保存したらGoogle Calendar / Meetを自動作成する</span></label>
+          <p class="muted">OFFの場合は、営業先編集内の「Google Calendarに登録」ボタンを押した時だけ作成します。既にCalendar登録済みの営業先には重複作成しません。</p>
+          <button type="button" onclick="saveCalendarAutoCreateSetting()">保存する</button>
+        `;
+      }
+
+      async function saveCalendarAutoCreateSetting() {
+        const value = {
+          enabled: document.getElementById('adminCalendarAutoCreateEnabled').checked,
+        };
+        await api('setSettingValue', 'calendar_auto_create', value, 'json', 'Calendar auto-create setting ported from the existing app.');
+        message('Calendar自動登録設定を保存しました', 'ok');
         await refreshAll();
       }
 
@@ -11314,9 +11510,31 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         `;
       }
 
-      async function checkReplies() {
-        const result = await api('checkRepliesForLeads', { maxThreads: 100 });
-        message(`返信チェック: ${result.replies}件`, 'ok');
+      async function runReplyCheckFromPanel(inputId) {
+        const input = document.getElementById(inputId);
+        const maxThreads = Math.min(Math.max(Number(input && input.value) || 100, 1), 500);
+        await checkReplies(maxThreads);
+      }
+
+      async function checkReplies(maxThreads) {
+        const result = await api('checkRepliesForLeads', { maxThreads: maxThreads || 100 });
+        state.replyCheckResult = result;
+        message(`返信チェック: ${formatNumber(result.updated || result.replies || 0)}件を返信ありに更新しました`, (result.errors || []).length ? 'error' : 'ok');
+        await refreshAll();
+      }
+
+      async function scanReplyFalsePositives() {
+        const result = await api('listReplyFalsePositiveCandidates', { limit: 200 });
+        state.replyFalsePositiveResult = result;
+        renderGmailReplyCheckPanel('gmailReplyCheckPanel');
+        renderGmailReplyCheckPanel('adminGmailReplyCheckPanel', { compact: true });
+        message(`誤判定候補: ${formatNumber((result.candidates || []).length)}件`, (result.errors || []).length ? 'error' : 'ok');
+      }
+
+      async function restoreReplyFalsePositives() {
+        const result = await api('restoreReplyFalsePositiveCandidates', { limit: 200 });
+        state.replyFalsePositiveResult = result;
+        message(`誤判定候補を${formatNumber(result.updated || 0)}件戻しました`, (result.errors || []).length ? 'error' : 'ok');
         await refreshAll();
       }
 

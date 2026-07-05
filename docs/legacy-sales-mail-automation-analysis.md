@@ -90,6 +90,8 @@
 - バックグラウンド進捗に旧 `BackgroundJobsOverview` のKPI列、表示フィルタ、3カテゴリのジョブスロット、直近3日パフォーマンスカードを追加し、GAS版では `search_jobs` / `jobs` シートから同じ見え方を再構成した。
 - 営業リスト同期に旧 `SyncImportPanel` のCSV/JSONプレビュー、ファイル読込、文字コード推定、列マッピング、取り込み前KPI、要確認行、先頭10件プレビュー、同期後アクションを追加した。
 - 営業リスト収集ツールの結果一覧に旧 `JobResultsReviewTable` の選択、一括確認、選択除外、メール/フォーム補正、営業リスト追加、確認済み保存を追加した。
+- Gmail連携/管理画面に旧 `GmailReplyCheckPanel` の返信チェック結果サマリー、誤判定候補確認、候補復元UIを追加した。
+- 管理画面に旧 `CalendarAutoCreateSettingsForm` のCalendar自動登録ON/OFF設定を追加した。
 
 ## GAS版へ反映した機能
 
@@ -110,6 +112,7 @@
 - `renderLegacyBackgroundOverview()` を追加し、旧 `BackgroundJobsOverview` の `自動収集`, `既存リスト補完`, `管理・同期` 分類をGASジョブ種別へ読み替えて、進捗・注意状態・成果をカードで表示できるようにした。
 - `renderLegacySyncImportPanel()` を追加し、旧 `SyncImportPanel` のReact状態管理をGAS版の単一HTML状態に読み替えた。JSON入力はクライアントでCSVへ変換して `importLeadsFromCsv()` に渡す。
 - `addSearchResultToLead()` / `reviewSearchResults()` を追加し、旧 `/api/background-jobs/results-review` 相当として `search_results` の `review_status`, `review_action`, `reviewed_at`, `lead_id` をUUID `id` 更新で保存できるようにした。確認済み、非表示、除外、営業リスト追加を同じレビュー状態として保持する。
+- `checkRepliesForLeads()` の戻り値を旧 `GmailReplyCheckPanel` 相当のサマリーに拡張し、`listReplyFalsePositiveCandidates()` / `restoreReplyFalsePositiveCandidates()` を追加して自動返信・配信エラーの誤判定候補を確認/復元できるようにした。
 
 ## そのまま移植しないもの
 

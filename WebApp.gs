@@ -85,6 +85,8 @@ function dispatchPostAction_(action, data) {
   if (action === 'listLeadSendHistories') return listLeadSendHistories(data.leadId || data.lead_id, data.options || data);
   if (action === 'sendTestEmail') return sendTestEmail(data.templateId || data.template_id, data.toEmail || data.to_email, data.sampleLead || data.sample_lead || {});
   if (action === 'checkRepliesForLeads') return checkRepliesForLeads(data);
+  if (action === 'listReplyFalsePositiveCandidates') return listReplyFalsePositiveCandidates(data);
+  if (action === 'restoreReplyFalsePositiveCandidates') return restoreReplyFalsePositiveCandidates(data);
   if (action === 'createCalendarEventForLead') return createCalendarEventForLead(data.leadId || data.lead_id, data.event || data.options || data);
   if (action === 'importLeadsFromCsv') return importLeadsFromCsv(data.csvText || data.csv_text || data.text, data.options || {});
   if (action === 'advanceQueuedJobs') return advanceQueuedJobs(data);

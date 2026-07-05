@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v37_job_results_review_actions'), 'v37 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v39_gmail_reply_calendar_panels'), 'v39 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -116,6 +116,11 @@ assert(html.includes('jobResultEmail_'), 'legacy job result editable email missi
 assert(code.includes("'review_status'"), 'search result review status schema missing');
 assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('addSearchResultToLead'), 'search result add API missing');
 assert(fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8').includes('reviewSearchResults'), 'search result review API dispatch missing');
+assert(html.includes('gmailReplyCheckPanel'), 'legacy Gmail reply check panel missing');
+assert(html.includes('adminGmailReplyCheckPanel'), 'legacy admin Gmail reply check panel missing');
+assert(html.includes('calendarAutoCreateSettingsPanel'), 'legacy calendar auto-create settings panel missing');
+assert(html.includes('scanReplyFalsePositives'), 'legacy reply false-positive scan missing');
+assert(fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8').includes('listReplyFalsePositiveCandidates'), 'reply false-positive API missing');
 assert(html.includes('row-send-ng'), 'lead row status styling missing');
 assert(html.includes('dashboard-hero-grid'), 'legacy-style dashboard hero missing');
 assert(html.includes('dashboard-signal-grid'), 'legacy-style dashboard signals missing');

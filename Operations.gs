@@ -1,46 +1,133 @@
 function checkRepliesForLeads(options) {
   const input = options && typeof options === 'object' ? options : {};
   const maxThreads = Math.min(Math.max(Number(input.maxThreads) || Number(getSettingValue_('gmail_reply_check', {}).maxThreads || 100), 1), 500);
-  const leads = listLeads({ limit: Number(input.limit || 200), includeArchived: false }).items.filter(function (lead) {
+  const candidateLimit = Math.min(Math.max(Number(input.limit || 200), 1), 1000);
+  const leads = listLeads({ limit: candidateLimit, includeArchived: false }).items.filter(function (lead) {
     return isValidEmailAddress_(lead.email) && !normalizeBooleanLike_(lead.reply_checked);
   });
   const checked = [];
+  const errors = [];
+  const startedAt = Date.now();
   let remaining = maxThreads;
+  let ignoredAutoReplies = 0;
 
   leads.forEach(function (lead) {
     if (remaining <= 0) return;
-    const query = 'from:' + lead.email + ' newer_than:365d';
-    const threads = GmailApp.search(query, 0, Math.min(remaining, 10));
-    remaining -= threads.length;
-    if (threads.length === 0) {
-      checked.push({ leadId: lead.id, replied: false });
-      return;
-    }
+    try {
+      const query = 'from:' + lead.email + ' newer_than:365d';
+      const threads = GmailApp.search(query, 0, Math.min(remaining, 10));
+      remaining -= threads.length;
+      if (threads.length === 0) {
+        checked.push({ leadId: lead.id, replied: false });
+        return;
+      }
 
-    const thread = threads[0];
-    const messages = thread.getMessages();
-    const latest = messages[messages.length - 1];
-    appendSheetRecord_('reply_logs', {
-      lead_id: lead.id,
-      thread_id: thread.getId(),
-      from_email: lead.email,
-      subject: latest.getSubject(),
-      snippet: latest.getPlainBody().slice(0, 500),
-      received_at: Utilities.formatDate(latest.getDate(), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX"),
-    });
-    updateLead(lead.id, {
-      status: '返信あり',
-      reply_checked: true,
-      last_gmail_thread_id: thread.getId(),
-    });
-    checked.push({ leadId: lead.id, replied: true, threadId: thread.getId() });
+      const thread = threads[0];
+      const messages = thread.getMessages();
+      const latest = messages[messages.length - 1];
+      const subject = latest.getSubject();
+      const snippet = latest.getPlainBody().slice(0, 500);
+      if (isAutoReplyMessage_(subject, snippet)) {
+        ignoredAutoReplies += 1;
+        checked.push({ leadId: lead.id, replied: false, ignoredAutoReply: true, threadId: thread.getId() });
+        return;
+      }
+
+      appendSheetRecord_('reply_logs', {
+        lead_id: lead.id,
+        thread_id: thread.getId(),
+        from_email: lead.email,
+        subject: subject,
+        snippet: snippet,
+        received_at: Utilities.formatDate(latest.getDate(), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+      });
+      updateLead(lead.id, {
+        status: '返信あり',
+        reply_checked: true,
+        last_gmail_thread_id: thread.getId(),
+      });
+      checked.push({ leadId: lead.id, replied: true, threadId: thread.getId() });
+    } catch (error) {
+      errors.push({
+        leadId: lead.id,
+        message: error.message,
+        threadId: '',
+      });
+    }
   });
 
   return {
     checked: checked.length,
+    detected: checked.filter(function (item) { return item.replied; }).length,
+    elapsedMs: Date.now() - startedAt,
+    errors: errors,
+    ignoredAutoReplies: ignoredAutoReplies,
+    remaining: Math.max(leads.length - checked.length, 0),
     replies: checked.filter(function (item) { return item.replied; }).length,
+    skipped: Math.max(leads.length - checked.length, 0),
+    stoppedEarly: checked.length < leads.length,
+    updated: checked.filter(function (item) { return item.replied; }).length,
     items: checked,
   };
+}
+
+function listReplyFalsePositiveCandidates(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 500);
+  const startedAt = Date.now();
+  const leads = listLeads({ filter: 'reply', limit: limit, includeArchived: false }).items;
+  const logsByLeadId = listSheetRecords('reply_logs', { limit: 1000, includeInactive: true }).items.reduce(function (acc, log) {
+    const leadId = String(log.lead_id || '');
+    if (!leadId) return acc;
+    if (!acc[leadId]) acc[leadId] = [];
+    acc[leadId].push(log);
+    return acc;
+  }, {});
+  const candidates = [];
+
+  leads.forEach(function (lead) {
+    const logs = (logsByLeadId[String(lead.id || '')] || []).filter(function (log) {
+      return isAutoReplyMessage_(log.subject, log.snippet);
+    });
+    if (!logs.length) return;
+    candidates.push({
+      leadId: lead.id,
+      companyName: lead.company_name || '',
+      facilityName: lead.facility_name || '',
+      email: lead.email || '',
+      ignoredMessages: logs.length,
+      restoreStatus: lead.last_sent_at ? '初回メール送信済み' : '未対応',
+      sampleFrom: logs[0].from_email || lead.email || '',
+      sampleSubject: logs[0].subject || '',
+    });
+  });
+
+  return {
+    candidates: candidates,
+    checked: leads.length,
+    elapsedMs: Date.now() - startedAt,
+    errors: [],
+    remaining: Math.max(leads.length - candidates.length, 0),
+    stoppedEarly: false,
+    updated: 0,
+  };
+}
+
+function restoreReplyFalsePositiveCandidates(options) {
+  const result = listReplyFalsePositiveCandidates(options);
+  result.candidates.forEach(function (candidate) {
+    updateLead(candidate.leadId, {
+      status: candidate.restoreStatus,
+      reply_checked: false,
+    });
+  });
+  result.updated = result.candidates.length;
+  return result;
+}
+
+function isAutoReplyMessage_(subject, body) {
+  const text = [subject, body].join(' ').toLowerCase();
+  return /auto[- ]?reply|automatic reply|out of office|delivery status notification|failure notice|undeliver(ed|able)|mailer-daemon|不在|自動返信|配信不能|配信エラー|送信できません|宛先不明/.test(text);
 }
 
 function createCalendarEventForLead(leadId, input) {
