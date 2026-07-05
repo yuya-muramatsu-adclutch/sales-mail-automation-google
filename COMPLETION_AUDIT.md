@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @67 / code v67: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @68 / code v68: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v67_gmail_connection_icon_parity`
+- Code version: `20260705_apps_script_full_workflow_v68_gmail_reply_panel_parity`
 
 ## 計画書との対応
 
@@ -84,6 +84,7 @@
 | 旧アプリSerperセットアップアイコン再現 | 完了 | code v65で旧 `SerperSetupGuide` / `SerperApiKeyManager` のKey/Check/Refresh/Search/Serverアイコンを未設定ガイド、APIキー概要、収集実行プレビューへ反映 |
 | 旧アプリメール自動取得カード再現 | 完了 | code v66で旧 `EmailDiscoverySettingsForm` のMailSearch/Clock/TimerReset/Historyステータス行と自動運用カードのアイコン付きヘッダーを反映 |
 | 旧アプリGmail/Google認証UI再現 | 完了 | code v67で旧 `GmailConnectionCheck` / `GoogleCredentialsManager` / `MailSendLockPanel` のShield/Key/Refresh/Mail/Lock/Unlockアイコン付き状態行、Google認可導線、送信ロック表示を反映 |
+| 旧アプリGmail返信チェックUI再現 | 完了 | code v68で旧 `GmailReplyCheckPanel` / `GmailReplyCheckSettingsForm` / `CalendarAutoCreateSettingsForm` のMessageCircleReply/Refresh/Rotate/Saveアイコン付き操作、注意帯、エラー行、誤判定候補カードを反映 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |
@@ -105,6 +106,10 @@
 - 既存Web app URLを `clasp deploy -V 67 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 67へ再デプロイ済み
 - `clasp deployments` で既存Web app URLが `@67 - apps-script-full-workflow-v67-gmail-connection-icon-parity-on-existing-url` を指すことを確認
 - code v67ローカルスモークで `keyRound`, `refreshCw`, `gmail-connection-status-grid`, `triangleAlert`, `lock` / `unlock`, v67バージョンマーカーを確認済み
+- `clasp version "apps-script-full-workflow-v68-gmail-reply-panel-parity"` でVersion 68を作成済み
+- 既存Web app URLを `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 68へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@68 - apps-script-full-workflow-v68-gmail-reply-panel-parity-on-existing-url` を指すことを確認
+- code v68ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコン、v68バージョンマーカーを確認済み
 - `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp version "apps-script-full-workflow-v62-history-header-icon-parity"` でVersion 62を作成済み

@@ -3609,19 +3609,30 @@
       }
 
       .reply-check-note {
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
         padding: 12px;
-        border: 1px solid var(--line);
+        border: 1px solid #bfdbfe;
         border-radius: 8px;
-        background: #f8fafc;
-        color: #334155;
-        font-size: 12px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 13px;
         font-weight: 800;
       }
 
+      .reply-check-note > svg,
+      .reply-error-list p > svg {
+        flex: 0 0 auto;
+        width: 17px;
+        height: 17px;
+      }
+
+      .reply-check-note > svg {
+        color: var(--blue);
+      }
+
       .reply-fix-panel {
-        padding: 14px;
+        padding: 16px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fff;
@@ -3630,27 +3641,49 @@
       .reply-fix-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 10px;
       }
 
-      .reply-error-list p,
-      .reply-fix-candidate-list article {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+      .reply-error-list p {
+        display: flex;
         gap: 8px;
-        align-items: center;
+        align-items: flex-start;
         margin: 0;
         padding: 10px;
-        border: 1px solid var(--line);
+        border: 0;
         border-radius: 8px;
-        background: #f8fafc;
+        background: #fef2f2;
+        color: #991b1b;
+        font-size: 12px;
+        line-height: 1.5;
       }
 
+      .reply-fix-candidate-list article {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(120px, 0.4fr);
+        gap: 10px;
+        align-items: center;
+        margin: 0;
+        padding: 12px;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        background: #fffbeb;
+      }
+
+      .reply-fix-candidate-list strong,
+      .reply-fix-candidate-list span,
+      .reply-fix-candidate-list small {
+        display: block;
+      }
+
+      .reply-fix-candidate-list span,
       .reply-fix-candidate-list article small {
-        grid-column: 1 / -1;
+        overflow: hidden;
         color: var(--muted);
-        font-size: 11px;
-        font-weight: 900;
+        font-size: 12px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .admin-target-preview,
@@ -7008,6 +7041,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         mailSearch: iconSvg('<path d="M22 12.5V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>'),
         listPlus: iconSvg('<path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/>'),
         mousePointer: iconSvg('<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>'),
+        messageCircleReply: iconSvg('<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="m10 15-3-3 3-3"/><path d="M7 12h8"/>'),
         pencil: iconSvg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
         plug: NAV_ICON_SVGS.GM,
         power: iconSvg('<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/>'),
@@ -7015,6 +7049,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         refreshCw: iconSvg('<path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M16 8h5V3"/>'),
         reply: iconSvg('<path d="m9 17-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>'),
         rocket: iconSvg('<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09Z"/><path d="m12 15-3-3a22 22 0 0 1 2-4.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-5 11a22 22 0 0 1-5 2Z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>'),
+        rotateCcw: iconSvg('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'),
         save: iconSvg('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>'),
         search: NAV_ICON_SVGS.SP,
         searchCheck: iconSvg('<path d="m8 11 2 2 4-4"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'),
@@ -13258,10 +13293,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             </div>
             <div class="toolbar">
               <label class="inline-control">最大<input id="${escapeHtml(inputId)}" type="number" min="1" max="500" value="${escapeHtml(settings.maxThreads || 200)}"></label>
-              <button type="button" onclick="runReplyCheckFromPanel('${escapeJsString(inputId)}')">返信チェック</button>
+              <button type="button" class="button" onclick="runReplyCheckFromPanel('${escapeJsString(inputId)}')">${legacyUiIcon('messageCircleReply')}返信チェック</button>
             </div>
           </div>
           <div class="reply-check-note">
+            ${legacyUiIcon('refreshCw')}
             <span>初回利用時はGmail/Calendarを承認してください。GAS版では GmailApp / MailApp / CalendarApp の承認状態を利用します。</span>
             <button type="button" class="table-link-button" onclick="showTab('gmail')">Gmail連携へ</button>
           </div>
@@ -13274,8 +13310,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 <p class="muted">自動返信・配信エラーだけで「返信あり」になった営業先を探し、送信済みまたは未対応へ戻します。</p>
               </div>
               <div class="reply-fix-actions">
-                <button type="button" class="secondary" onclick="scanReplyFalsePositives()">候補を確認</button>
-                <button type="button" onclick="restoreReplyFalsePositives()" ${fixResult && fixResult.candidates && fixResult.candidates.length ? '' : 'disabled'}>候補を戻す</button>
+                <button type="button" class="button secondary" onclick="scanReplyFalsePositives()">${legacyUiIcon('refreshCw')}候補を確認</button>
+                <button type="button" class="button" onclick="restoreReplyFalsePositives()" ${fixResult && fixResult.candidates && fixResult.candidates.length ? '' : 'disabled'}>${legacyUiIcon('rotateCcw')}候補を戻す</button>
               </div>
             </div>
             ${fixResult ? renderReplyFalsePositiveResult(fixResult, compact) : ''}
@@ -13298,7 +13334,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderReplyErrors(result) {
         return `<div class="reply-error-list">${(result.errors || []).slice(0, 5).map((error) => `
-          <p><span>${escapeHtml(error.message || '返信チェックエラー')}</span><span class="pill bad">エラー</span></p>
+          <p>${legacyUiIcon('triangleAlert')}<span class="pill bad">エラー</span><span>${escapeHtml(error.message || '返信チェックエラー')}</span></p>
         `).join('')}</div>`;
       }
 
@@ -13522,7 +13558,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           <label class="check-row"><input id="adminCalendarAutoCreateEnabled" type="checkbox" ${settings.enabled ? 'checked' : ''}><span>商談予定と日時を保存したらGoogle Calendar / Meetを自動作成する</span></label>
           <p class="muted">OFFの場合は、営業先編集内の「Google Calendarに登録」ボタンを押した時だけ作成します。既にCalendar登録済みの営業先には重複作成しません。</p>
-          <button type="button" onclick="saveCalendarAutoCreateSetting()">保存する</button>
+          <button type="button" class="button" onclick="saveCalendarAutoCreateSetting()">${legacyUiIcon('save')}保存する</button>
         `;
       }
 
