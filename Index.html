@@ -639,7 +639,7 @@
         left: calc(var(--sidebar-width) + 18px);
         bottom: 18px;
         z-index: 79;
-        display: inline-flex;
+        display: none;
         gap: 8px;
         align-items: center;
         min-height: 40px;
@@ -650,6 +650,10 @@
         color: #ffffff;
         font-weight: 900;
         box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+      }
+
+      body.show-background-center-button .background-center-button {
+        display: inline-flex;
       }
 
       .background-center-button:hover {
@@ -2082,6 +2086,11 @@
         border-top: 4px solid var(--blue);
       }
 
+      #dashboardSendQueue:empty,
+      #dashboardProspectingStatus:empty {
+        display: none;
+      }
+
       .dashboard-send-queue-count strong {
         font-size: 56px;
         line-height: 1;
@@ -2630,10 +2639,12 @@
         justify-content: space-between;
         gap: 14px;
         flex-wrap: wrap;
+        margin: -4px 0 16px;
         padding: 13px 14px;
         border: 1px solid #bfdbfe;
         border-radius: 8px;
         background: #f8fbff;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
       }
 
       .lead-load-copy {
@@ -5329,6 +5340,10 @@
         background: var(--blue);
       }
 
+      #formWorkPanel:empty {
+        display: none;
+      }
+
       .form-work-main {
         display: grid;
         gap: 4px;
@@ -6367,9 +6382,14 @@
       }
 
       .message {
-        min-height: 22px;
+        min-height: 0;
+        margin: 0 0 12px;
         color: var(--muted);
         font-weight: 800;
+      }
+
+      .message:empty {
+        display: none;
       }
 
       .message.error {
@@ -7685,6 +7705,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       const HTTPS_PROTOCOL_PREFIX = 'https:' + String.fromCharCode(47, 47);
       let routeProgressTimer = null;
       let leadLoadProgressTimer = null;
+      let messageClearTimer = null;
       let currentTab = 'dashboard';
       let suppressTabHistory = false;
       const tabHistory = [];
@@ -8012,9 +8033,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function message(text, kind = '') {
+        if (messageClearTimer) {
+          clearTimeout(messageClearTimer);
+          messageClearTimer = null;
+        }
         const target = document.getElementById('globalMessage');
         target.className = 'message ' + kind;
         target.textContent = text || '';
+        if (kind === 'ok' && text) {
+          messageClearTimer = setTimeout(() => {
+            if (target.textContent === text) {
+              target.className = 'message';
+              target.textContent = '';
+            }
+          }, 2600);
+        }
       }
 
       function showTab(name) {
@@ -8032,6 +8065,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const title = document.getElementById('activeViewTitle');
         if (title) title.textContent = TAB_TITLES[name] || name;
         updateTopShortcutBar(name);
+        updateBackgroundCenterButton(name);
       }
 
       function goBackFromBackgroundCenter() {
@@ -8039,6 +8073,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         suppressTabHistory = true;
         showTab(previous || 'dashboard');
         suppressTabHistory = false;
+      }
+
+      function updateBackgroundCenterButton(activeTab) {
+        const supportTabs = ['backgroundActivity', 'errors', 'ops'];
+        document.body.classList.toggle('show-background-center-button', supportTabs.includes(activeTab));
       }
 
       function showRouteProgress() {
@@ -8157,6 +8196,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           renderSelects(initial.enums, initial.genres);
           renderDashboard(initial.dashboard);
           renderSerper(initial.serper);
+          message('', '');
           const leadLoadTask = state.hasCompletedInitialLoad ? loadLeads() : loadInitialReviewLeads();
           await Promise.all([leadLoadTask, loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()]);
           await loadFormLeads();

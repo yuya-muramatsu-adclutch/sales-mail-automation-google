@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @78 / code v78: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @80 / code v80: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v78_review_first_lead_loading_layout`
+- Code version: `20260705_apps_script_full_workflow_v80_dynamic_panel_ui_restore`
 
 ## 計画書との対応
 
@@ -95,6 +95,8 @@
 | 営業リストWEBリンク表示調整 | 完了 | code v76で営業リストのWEBリンクPillからcompact domain表示を外し、表示文言を `WEBサイト` だけに変更 |
 | 営業リスト初期ロード軽量化 | 完了 | code v77で初期ロードを確認待ち100件に限定し、全件ビューは手動ボタンと進捗UIから読み込む構成に変更 |
 | 営業リスト進捗UIレイアウト調整 | 完了 | code v78で全件読み込み進捗中の軽量ロードパネルが横幅不足で潰れないよう折り返し表示へ調整 |
+| 旧アプリフレームUI復元 | 完了 | code v79で通常画面に重なっていた戻るボタンを支援画面限定にし、更新完了メッセージを自動消去して旧アプリに近い余白へ戻した |
+| 動的パネル初期表示復元 | 完了 | code v80で初期ロード中の空カード/空フォーム作業パネルを非表示にし、主要ダッシュボード描画後はグローバルの読み込み表示を消して旧アプリに近い初期表示へ戻した |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |
