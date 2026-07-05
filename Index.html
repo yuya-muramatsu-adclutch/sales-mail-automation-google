@@ -782,6 +782,469 @@
         background: var(--red);
       }
 
+      .background-overview-panel {
+        display: grid;
+        gap: 14px;
+        border-color: #bfdbfe;
+        background:
+          linear-gradient(180deg, rgba(239, 246, 255, 0.92), rgba(255, 255, 255, 0.98)),
+          #ffffff;
+      }
+
+      .background-overview-kpis {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .background-overview-kpi {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .background-overview-kpi.active,
+      .background-overview-kpi.info {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+      }
+
+      .background-overview-kpi.ok {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+      }
+
+      .background-overview-kpi.danger {
+        border-color: #fecaca;
+        background: #fff7f7;
+      }
+
+      .background-overview-kpi.muted {
+        background: #f8fafc;
+      }
+
+      .background-overview-kpi span,
+      .background-overview-kpi small,
+      .background-overview-slot.empty span,
+      .background-overview-slot-head span,
+      .background-current-task small,
+      .background-current-task span,
+      .background-task-outcomes span {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .background-overview-kpi strong {
+        color: var(--text);
+        font-size: 22px;
+        line-height: 1.15;
+      }
+
+      .background-view-toolbar {
+        position: sticky;
+        z-index: 18;
+        top: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px;
+        border: 1px solid rgba(197, 206, 216, 0.78);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+        backdrop-filter: blur(12px);
+      }
+
+      .background-view-summary {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 180px;
+        padding: 0 8px;
+      }
+
+      .background-view-summary strong,
+      .background-view-summary span {
+        white-space: nowrap;
+      }
+
+      .background-view-summary strong {
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .background-view-summary span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .background-view-filter {
+        display: inline-flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 0;
+        width: fit-content;
+      }
+
+      .background-view-filter button {
+        min-height: 32px;
+        padding: 5px 11px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        box-shadow: none;
+        font-size: 12px;
+      }
+
+      .background-view-filter button:hover,
+      .background-view-filter button.active {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: var(--blue);
+        box-shadow: none;
+        transform: none;
+      }
+
+      .background-overview-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .background-overview-card {
+        display: grid;
+        gap: 14px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .background-overview-card-head,
+      .background-overview-slot-head,
+      .background-monitor-progress-row,
+      .background-monitor-foot {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .background-overview-card h3 {
+        margin: 0;
+        color: var(--text);
+        font-size: 18px;
+      }
+
+      .background-overview-card p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .background-overview-slots {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(280px, 1fr));
+        gap: 10px;
+      }
+
+      .background-overview-slot {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+        overflow: hidden;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .background-overview-slot.running,
+      .background-overview-slot.queued {
+        border-color: #bfdbfe;
+      }
+
+      .background-overview-slot.completed,
+      .background-overview-slot.performance {
+        border-color: #bbf7d0;
+      }
+
+      .background-overview-slot.performance {
+        background: #fcfffd;
+      }
+
+      .background-overview-slot.performance .background-progress-track span {
+        background: #16a34a;
+      }
+
+      .background-overview-slot.failed,
+      .background-overview-slot.cancelled {
+        border-color: #fecaca;
+        background: #fff7f7;
+      }
+
+      .background-overview-slot.empty {
+        align-content: center;
+        min-height: 104px;
+        border-style: dashed;
+        background: #f8fafc;
+        color: var(--muted);
+      }
+
+      .background-overview-slot.empty strong,
+      .background-overview-slot-head strong {
+        display: block;
+        overflow: hidden;
+        color: var(--text);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .background-overview-slot.empty strong {
+        font-size: 15px;
+      }
+
+      .background-overview-slot-head > div {
+        min-width: 0;
+      }
+
+      .background-overview-slot-head strong {
+        margin-top: 2px;
+        font-size: 15px;
+      }
+
+      .background-overview-slot-head small {
+        display: block;
+        margin-top: 2px;
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .background-monitor-status {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 4px 8px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      .background-monitor-status.completed {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #15803d;
+      }
+
+      .background-monitor-status.failed,
+      .background-monitor-status.cancelled {
+        border-color: #fecaca;
+        background: #fff7f7;
+        color: #b91c1c;
+      }
+
+      .background-monitor-progress-row {
+        align-items: baseline;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .background-monitor-progress-row strong {
+        color: var(--text);
+      }
+
+      .background-health-chip {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 4px 7px;
+        align-items: center;
+        min-width: 0;
+        padding: 8px 10px;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        background: #f0fdf4;
+        color: #15803d;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .background-health-chip.warn {
+        border-color: #fde68a;
+        background: #fffbeb;
+        color: #a16207;
+      }
+
+      .background-health-chip.danger {
+        border-color: #fecaca;
+        background: #fff7f7;
+        color: #b91c1c;
+      }
+
+      .background-health-chip span {
+        grid-column: 1 / -1;
+        color: inherit;
+        opacity: 0.86;
+      }
+
+      .background-current-task {
+        display: grid;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #f8fbff;
+      }
+
+      .background-current-job,
+      .background-current-task-method {
+        display: grid;
+        min-width: 0;
+        border-radius: 8px;
+      }
+
+      .background-current-job {
+        gap: 3px;
+        padding: 9px 10px;
+        border: 1px solid #93c5fd;
+        background: #eff6ff;
+      }
+
+      .background-current-job strong {
+        overflow-wrap: anywhere;
+        color: var(--blue);
+        font-size: 16px;
+        font-weight: 900;
+        line-height: 1.25;
+      }
+
+      .background-current-task-method {
+        gap: 5px;
+      }
+
+      .background-current-task-method strong {
+        overflow: hidden;
+        color: var(--text);
+        font-size: 14px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .background-current-task-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .background-current-step-badge {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        max-width: 100%;
+        padding: 4px 7px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: var(--blue);
+        font-size: 11px;
+        font-weight: 900;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+        white-space: normal;
+      }
+
+      .background-current-step-badge.muted {
+        border-color: var(--line);
+        background: #ffffff;
+        color: var(--muted);
+      }
+
+      .background-task-outcomes {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+      }
+
+      .background-task-outcomes > div {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .background-task-outcomes strong {
+        color: var(--text);
+        font-size: 17px;
+        line-height: 1.1;
+      }
+
+      .background-monitor-foot {
+        align-items: center;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .mini-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        padding: 5px 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--blue);
+        font-size: 11px;
+        font-weight: 900;
+        text-decoration: none;
+      }
+
+      .background-activity-result-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .background-activity-result-list span {
+        display: inline-flex;
+        gap: 4px;
+        padding: 3px 6px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #f8fafc;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
       .section {
         display: none;
       }
@@ -3692,11 +4155,31 @@
         .dashboard-signal-grid,
         .dashboard-action-grid,
         .lead-kpi-grid,
+        .background-overview-kpis,
         .form-outreach-summary-grid,
         .collection-tabs,
         .setup-guide-grid,
         .settings-status-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .background-overview-slots {
+          grid-template-columns: 1fr;
+        }
+
+        .background-view-toolbar {
+          position: static;
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .background-view-summary,
+        .background-view-filter {
+          width: 100%;
+        }
+
+        .background-view-filter {
+          justify-content: flex-start;
         }
 
         .form-outreach-toolbar,
@@ -3749,6 +4232,7 @@
         .dashboard-signal-grid,
         .dashboard-action-grid,
         .lead-kpi-grid,
+        .background-overview-kpis,
         .form-outreach-summary-grid,
         .setup-guide-grid,
         .settings-status-grid,
@@ -4382,6 +4866,7 @@
               </div>
             </section>
             <section class="stats-grid" id="backgroundJobStats"></section>
+            <section id="backgroundOverviewPanel" class="panel stack background-overview-panel"></section>
             <section class="panel">
               <div class="panel-head"><h2>バックグラウンドジョブ</h2><span class="pill" id="backgroundJobCountPill">0件</span></div>
               <div class="table-wrap"><table id="backgroundJobTable"></table></div>
@@ -4664,6 +5149,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </header>
           <section id="opsStatusGrid" class="settings-status-grid"></section>
           <section id="opsReadinessPanel" class="ops-readiness-panel"></section>
+          <section id="opsBackgroundOverviewPanel" class="panel stack background-overview-panel"></section>
           <section class="ops-action-grid">
             <button type="button" class="ops-action-card" onclick="checkReplies()"><span>返信チェック</span><strong>Gmail返信確認</strong><small>送信履歴のGmail Thread IDから返信ありを更新</small></button>
             <button type="button" class="ops-action-card" onclick="advanceJobs()"><span>バックグラウンド</span><strong>ジョブを進める</strong><small>queued/runningの検索ジョブを少量ずつ処理</small></button>
@@ -4779,6 +5265,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         selectedTemplateTestLeadId: '',
         activeCollectionTab: 'automation',
         jobResultCategory: 'all',
+        backgroundOverviewView: 'all',
         dismissedSearchResultIds: [],
         duplicateGroups: [],
         duplicateSummary: null,
@@ -8030,6 +8517,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderOpsPanels() {
         renderOpsStatusGrid();
         renderOpsReadinessPanel();
+        renderLegacyBackgroundOverview('opsBackgroundOverviewPanel', { compact: true });
         renderHistoryTable();
         renderJobTable();
         renderSyncLogTable();
@@ -8172,6 +8660,358 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderBackgroundJobWidgets();
       }
 
+      function setBackgroundOverviewView(view) {
+        state.backgroundOverviewView = view || 'all';
+        renderLegacyBackgroundOverview('backgroundOverviewPanel');
+        renderLegacyBackgroundOverview('opsBackgroundOverviewPanel', { compact: true });
+      }
+
+      function backgroundOverviewCategories() {
+        return [
+          {
+            key: 'auto_collection',
+            title: '自動収集（リスト追加・連絡先取得）',
+            description: 'ジャンル/エリア、まとめサイト、検索ジョブから営業候補を追加します',
+            tone: 'info',
+            match: isAutoCollectionBackgroundJob,
+          },
+          {
+            key: 'existing_contact',
+            title: '既存リストのWEBサイト・連絡先補完',
+            description: '既存リードの公式サイト、問い合わせフォーム、メール候補を確認します',
+            tone: 'ok',
+            match: isExistingContactBackgroundJob,
+          },
+          {
+            key: 'maintenance',
+            title: '管理・同期',
+            description: 'CSV同期、重複整理、バックアップなど営業リストの管理処理です',
+            tone: 'muted',
+            match: isMaintenanceBackgroundJob,
+          },
+        ];
+      }
+
+      function isAutoCollectionBackgroundJob(job) {
+        const text = `${job.type || ''} ${(job.raw || {}).source || ''} ${(job.raw || {}).job_type || ''}`.toLowerCase();
+        return /prospecting|collection|care_facility|bulk|source_page/.test(text);
+      }
+
+      function isExistingContactBackgroundJob(job) {
+        const text = `${job.type || ''} ${(job.raw || {}).job_type || ''}`.toLowerCase();
+        return /lead_official_site|lead_form_url|email_discovery|discover|contact|form_url|official_site/.test(text) && !isAutoCollectionBackgroundJob(job);
+      }
+
+      function isMaintenanceBackgroundJob(job) {
+        return !isAutoCollectionBackgroundJob(job) && !isExistingContactBackgroundJob(job);
+      }
+
+      function backgroundNumber(job, keys) {
+        const raw = job.raw || job || {};
+        for (const key of keys) {
+          const value = Number(raw[key] || 0);
+          if (Number.isFinite(value) && value > 0) return value;
+        }
+        return 0;
+      }
+
+      function backgroundUpdatedMinutes(job) {
+        if (!job || !job.timeMs) return 0;
+        return Math.max(0, Math.round((Date.now() - job.timeMs) / 60000));
+      }
+
+      function backgroundNeedsAttention(job) {
+        if (!job) return false;
+        if (job.status === 'failed') return true;
+        return job.active && backgroundUpdatedMinutes(job) >= 3;
+      }
+
+      function backgroundMatchesView(job, view) {
+        if (view === 'active') return job.active;
+        if (view === 'attention') return backgroundNeedsAttention(job);
+        if (view === 'completed') return job.status === 'completed';
+        if (view === 'stopped') return job.status === 'failed' || job.status === 'cancelled';
+        return true;
+      }
+
+      function backgroundOverviewStats(jobs) {
+        return jobs.reduce((stats, job) => {
+          if (job.active) stats.activeCount += 1;
+          if (backgroundNeedsAttention(job)) stats.attentionCount += 1;
+          if (job.status === 'completed') stats.completedCount += 1;
+          stats.added += backgroundNumber(job, ['added_count', 'stats_added_count', 'added']);
+          stats.added += backgroundNumber(job, ['filled_count', 'updated_count', 'filled']);
+          stats.contacts += backgroundNumber(job, ['email_found_count', 'email_count']);
+          stats.contacts += backgroundNumber(job, ['form_found_count', 'form_count', 'existing_form_count']);
+          stats.skipped += backgroundNumber(job, ['duplicate_skip_count', 'duplicate_count', 'skipped']);
+          stats.skipped += backgroundNumber(job, ['excluded_count', 'protected_skip_count']);
+          stats.errors += backgroundNumber(job, ['error_count']);
+          if (job.status === 'failed' && !backgroundNumber(job, ['error_count'])) stats.errors += 1;
+          return stats;
+        }, {
+          activeCount: 0,
+          added: 0,
+          attentionCount: 0,
+          completedCount: 0,
+          contacts: 0,
+          errors: 0,
+          skipped: 0,
+        });
+      }
+
+      function backgroundPerformanceFor(category, jobs) {
+        const since = Date.now() - 3 * 24 * 60 * 60 * 1000;
+        const scoped = jobs.filter((job) => category.match(job)).filter((job) => !job.timeMs || job.timeMs >= since);
+        const stats = backgroundOverviewStats(scoped);
+        const processed = scoped.reduce((sum, job) => sum + Number(job.processed || 0), 0);
+        const completed = scoped.filter((job) => job.status === 'completed').length;
+        const itemSets = {
+          auto_collection: [
+            ['追加/補完', stats.added],
+            ['重複・除外', stats.skipped],
+            ['処理済み', processed],
+            ['エラー', stats.errors],
+          ],
+          existing_contact: [
+            ['メール/フォーム', stats.contacts],
+            ['補完', stats.added],
+            ['未検出/重複', stats.skipped],
+            ['エラー', stats.errors],
+          ],
+          maintenance: [
+            ['処理済み', processed],
+            ['完了', completed],
+            ['スキップ', stats.skipped],
+            ['エラー', stats.errors],
+          ],
+        };
+        return {
+          completed,
+          count: scoped.length,
+          generatedAt: new Date().toISOString(),
+          items: itemSets[category.key] || itemSets.maintenance,
+          processed,
+          since,
+        };
+      }
+
+      function backgroundOverviewStatusMarkup(status) {
+        const label = backgroundJobStatusLabel(status);
+        const icon = status === 'completed' ? '✓' : (status === 'failed' || status === 'cancelled') ? '!' : '…';
+        return `<span class="background-monitor-status ${escapeHtml(status)}">${escapeHtml(icon)} ${escapeHtml(label)}</span>`;
+      }
+
+      function backgroundHealthMarkup(job) {
+        if (!job.active) return '';
+        const minutes = backgroundUpdatedMinutes(job);
+        if (minutes >= 10) {
+          return '<div class="background-health-chip danger"><strong>更新停止の可能性</strong><span>直近の進捗更新から' + formatNumber(minutes) + '分経過しています</span></div>';
+        }
+        if (minutes >= 3) {
+          return '<div class="background-health-chip warn"><strong>更新待ち</strong><span>処理中ですが進捗更新が少し遅れています</span></div>';
+        }
+        return '<div class="background-health-chip"><strong>正常に更新中</strong><span>直近の進捗更新があります</span></div>';
+      }
+
+      function backgroundTaskMethodLabel(job) {
+        const text = `${job.type || ''} ${(job.raw || {}).source || ''}`.toLowerCase();
+        if (/source_page/.test(text)) return 'まとめサイトの自動収集';
+        if (/prospecting|collection/.test(text)) return 'ジャンル/エリアの営業リスト収集';
+        if (/lead_official_site|official_site/.test(text)) return '公式サイトURL探索';
+        if (/lead_form_url|form_url/.test(text)) return '問い合わせフォームURL探索';
+        if (/email|discover|contact/.test(text)) return 'メールアドレス・フォームURL取得';
+        if (/sync|import/.test(text)) return '営業リスト同期';
+        if (/duplicate/.test(text)) return '重複整理';
+        return backgroundJobTypeLabel(job.type);
+      }
+
+      function backgroundCurrentStepLabel(job) {
+        const text = `${job.type || ''} ${(job.raw || {}).job_type || ''}`.toLowerCase();
+        if (/lead_official_site|official_site/.test(text)) return 'Step2 WEBサイトURL取得';
+        if (/lead_form_url|form_url|email|contact/.test(text)) return 'Step3 メールアドレス・フォームURL取得';
+        if (/sync|import/.test(text)) return 'CSV取り込み・空欄補完';
+        if (/duplicate/.test(text)) return '重複候補の確認';
+        return job.processed > 0 ? 'Step2 WEBサイトURL取得' : 'Step1 屋号取得';
+      }
+
+      function renderBackgroundOutcomeItems(job) {
+        const outcomes = backgroundJobResultItems(job.raw).slice(0, 4);
+        return `
+          <div class="background-task-outcomes" aria-label="ジョブ処理結果">
+            ${outcomes.map((item) => `<div><span>${escapeHtml(item.label)}</span><strong>${formatNumber(item.value)}</strong></div>`).join('')}
+          </div>
+        `;
+      }
+
+      function renderBackgroundJobSlot(job, label) {
+        if (!job) {
+          return `
+            <div class="background-overview-slot empty">
+              <span>${escapeHtml(label)}</span>
+              <strong>対象なし</strong>
+            </div>
+          `;
+        }
+
+        const detail = job.raw || {};
+        const stepLabel = backgroundCurrentStepLabel(job);
+        const methodLabel = backgroundTaskMethodLabel(job);
+        const progressLabel = job.total ? `${formatNumber(job.processed)}/${formatNumber(job.total)}件` : '開始準備中';
+        const source = job.sourceLabel || detail.current_query || detail.query || detail.keyword || detail.source || '-';
+        return `
+          <article class="background-overview-slot ${escapeHtml(job.status)}">
+            <div class="background-overview-slot-head">
+              <div>
+                <span>${escapeHtml(label)}</span>
+                <strong>${escapeHtml(job.label)}</strong>
+                <small>${escapeHtml(methodLabel)} / ID ${escapeHtml(String(job.id || '-').slice(0, 8))}</small>
+              </div>
+              ${backgroundOverviewStatusMarkup(job.status)}
+            </div>
+            <div class="background-monitor-progress-row">
+              <strong>${escapeHtml(progressLabel)}</strong>
+              <span>${formatNumber(job.percent)}%</span>
+            </div>
+            <div class="background-progress-track"><span style="width:${job.percent}%"></span></div>
+            ${backgroundHealthMarkup(job)}
+            <div class="background-current-task">
+              <div class="background-current-job">
+                <span>現在のジョブ</span>
+                <strong>${escapeHtml(job.message)}</strong>
+                <small>${escapeHtml(source)}</small>
+              </div>
+              <div class="background-current-task-method">
+                <span>収集方法</span>
+                <strong>${escapeHtml(methodLabel)}</strong>
+                <div class="background-current-task-tags">
+                  <span class="background-current-step-badge">現在: ${escapeHtml(stepLabel)}</span>
+                  <span class="background-current-step-badge muted">GAS分割実行</span>
+                </div>
+              </div>
+              ${renderBackgroundOutcomeItems(job)}
+            </div>
+            <div class="background-monitor-foot">
+              <span>更新: ${escapeHtml(dateTimeLabel(job.timeMs ? new Date(job.timeMs).toISOString() : detail.updated_at || detail.created_at || '') || '-')}</span>
+              <button type="button" class="mini-button" onclick="showTab('backgroundActivity')">結果を見る</button>
+            </div>
+          </article>
+        `;
+      }
+
+      function renderBackgroundPerformanceSlot(category, performance) {
+        if (!performance.count) {
+          return `
+            <div class="background-overview-slot empty">
+              <span>直近3日間</span>
+              <strong>集計なし</strong>
+            </div>
+          `;
+        }
+
+        return `
+          <article class="background-overview-slot performance">
+            <div class="background-overview-slot-head">
+              <div>
+                <span>直近3日間</span>
+                <strong>パフォーマンス</strong>
+                <small>${escapeHtml(category.title)}</small>
+              </div>
+              ${backgroundOverviewStatusMarkup('completed')}
+            </div>
+            <div class="background-monitor-progress-row">
+              <strong>${formatNumber(performance.count)}件実行</strong>
+              <span>${formatNumber(performance.processed)}件処理</span>
+            </div>
+            <div class="background-progress-track"><span style="width:100%"></span></div>
+            <div class="background-task-outcomes" aria-label="直近3日間の成果">
+              ${performance.items.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${formatNumber(value)}</strong></div>`).join('')}
+            </div>
+            <div class="background-monitor-foot">
+              <span>更新: ${escapeHtml(dateTimeLabel(performance.generatedAt))}</span>
+              <button type="button" class="mini-button" onclick="showTab('backgroundActivity')">結果を見る</button>
+            </div>
+          </article>
+        `;
+      }
+
+      function renderLegacyBackgroundOverview(targetId, options) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const view = state.backgroundOverviewView || 'all';
+        const jobs = (state.jobs || [])
+          .map(normalizeBackgroundJob)
+          .sort((left, right) => (right.timeMs || 0) - (left.timeMs || 0));
+        const visibleJobs = jobs.filter((job) => backgroundMatchesView(job, view));
+        const stats = backgroundOverviewStats(jobs);
+        const hasActiveJobs = jobs.some((job) => job.active);
+        const categories = backgroundOverviewCategories();
+        const compact = Boolean(options && options.compact);
+        const filterItems = [
+          ['all', 'すべて'],
+          ['active', '実行中'],
+          ['attention', '注意あり'],
+          ['completed', '完了'],
+          ['stopped', '中止・失敗'],
+        ];
+
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>バックグラウンド進捗</h2>
+              <p class="muted">項目ごとに、現在動いている処理と直近3日間の成果を並べて表示します。</p>
+            </div>
+            <button type="button" class="secondary compact" onclick="loadOpsData()">更新</button>
+          </div>
+          <div class="background-overview-kpis" aria-label="バックグラウンド成果サマリー">
+            <div class="background-overview-kpi active"><span>実行中</span><strong>${formatNumber(stats.activeCount)}件</strong><small>自動更新対象</small></div>
+            <div class="background-overview-kpi ${stats.attentionCount > 0 ? 'danger' : 'muted'}"><span>注意</span><strong>${formatNumber(stats.attentionCount)}件</strong><small>${stats.attentionCount > 0 ? '停止/失敗の確認' : '問題なし'}</small></div>
+            <div class="background-overview-kpi"><span>直近完了</span><strong>${formatNumber(stats.completedCount)}件</strong><small>表示中の履歴</small></div>
+            <div class="background-overview-kpi ok"><span>自動収集追加</span><strong>${formatNumber(stats.added)}件</strong><small>新規リスト成果</small></div>
+            <div class="background-overview-kpi info"><span>既存リスト補完</span><strong>${formatNumber(stats.contacts)}件</strong><small>メール/フォーム</small></div>
+            <div class="background-overview-kpi muted"><span>重複・除外</span><strong>${formatNumber(stats.skipped)}件</strong><small>追加しなかった候補</small></div>
+            <div class="background-overview-kpi ${stats.errors > 0 ? 'danger' : 'muted'}"><span>エラー</span><strong>${formatNumber(stats.errors)}件</strong><small>${stats.errors > 0 ? '確認が必要' : '問題なし'}</small></div>
+          </div>
+          ${compact ? '' : `
+            <div class="background-view-toolbar">
+              <div class="background-view-summary">
+                <strong>${hasActiveJobs ? '自動更新中' : '待機中'}</strong>
+                <span>表示 ${formatNumber(visibleJobs.length)}件 / 履歴 ${formatNumber(jobs.length)}件</span>
+              </div>
+              <div class="background-view-filter" aria-label="表示切り替え">
+                ${filterItems.map(([value, label]) => `<button type="button" class="${view === value ? 'active' : ''}" onclick="setBackgroundOverviewView('${escapeJsString(value)}')">${escapeHtml(label)}</button>`).join('')}
+              </div>
+            </div>
+          `}
+          <div class="background-overview-grid">
+            ${categories.map((category) => {
+              const categoryJobs = visibleJobs.filter(category.match);
+              const activeJob = categoryJobs.find((job) => job.active) || null;
+              const latestJob = categoryJobs[0] || null;
+              const slotJob = activeJob || latestJob;
+              const slotLabel = activeJob ? '実行中' : latestJob ? '直近ジョブ' : '実行中';
+              const performance = backgroundPerformanceFor(category, jobs);
+              const statusLabel = activeJob ? '実行中' : performance.count ? '3日集計あり' : '3日集計なし';
+              const statusClass = activeJob ? 'info' : performance.count ? 'good' : '';
+              return `
+                <section class="background-overview-card">
+                  <div class="background-overview-card-head">
+                    <div>
+                      <h3>${escapeHtml(category.title)}</h3>
+                      <p>${escapeHtml(category.description)}</p>
+                    </div>
+                    <span class="pill ${statusClass}">${escapeHtml(statusLabel)}</span>
+                  </div>
+                  <div class="background-overview-slots">
+                    ${renderBackgroundJobSlot(slotJob, slotLabel)}
+                    ${renderBackgroundPerformanceSlot(category, performance)}
+                  </div>
+                </section>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
       function renderOpsStatusGrid() {
         const dashboard = state.dashboard || {};
         const integrations = dashboard.integrations || {};
@@ -8303,6 +9143,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           statCard('失敗/要確認', `${formatNumber(failed)}件`, 'last_errorを確認', failed > 0 ? 'red' : 'green'),
           statCard('GAS分割実行', '6分以内', '少量ずつ処理', 'amber'),
         ].join('');
+        renderLegacyBackgroundOverview('backgroundOverviewPanel');
         document.getElementById('backgroundJobCountPill').textContent = `${formatNumber(jobs.length)}件`;
         document.getElementById('backgroundJobTable').innerHTML = table(['作成', '種類', '状態', '進捗', '次の処理', 'エラー'], jobs.map((job) => row([
           ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
