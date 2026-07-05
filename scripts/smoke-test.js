@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v66_email_discovery_icon_parity'), 'v66 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v67_gmail_connection_icon_parity'), 'v67 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -128,6 +128,15 @@ assert(html.includes("legacyUiIcon('checkCircle')"), 'legacy form work sent icon
 assert(html.includes('.form-work-actions .form-url-link'), 'legacy form work URL link sizing missing');
 assert(html.includes('button.primary,'), 'legacy primary button tone override missing');
 assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
+assert(html.includes("icon: 'keyRound', label: 'OAuth Client'"), 'legacy Google credentials OAuth icon missing');
+assert(html.includes("icon: 'refreshCw', label: 'Refresh Token'"), 'legacy Google credentials refresh icon missing');
+assert(html.includes("icon: 'mailCheck', label: 'テスト宛先'"), 'legacy Google credentials test recipient icon missing');
+assert(html.includes("class=\"icon-text-button\" onclick=\"checkReplies()\""), 'legacy Google authorization icon button missing');
+assert(html.includes("legacyUiIcon('shieldCheck')}連携テスト"), 'legacy Gmail connection check icon button missing');
+assert(html.includes('gmail-connection-status-grid'), 'legacy Gmail connection status grid missing');
+assert(html.includes("legacyUiIcon('triangleAlert')"), 'legacy Gmail missing-scope alert icon missing');
+assert(html.includes("icon: locked ? 'lock' : 'unlock'"), 'legacy mail send lock status icon missing');
+assert(html.includes("legacyUiIcon('unlock')}ジョブ処理を確認"), 'legacy mail send unlock button icon missing');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
 assert(html.includes("legacyUiIcon('shieldCheck')"), 'legacy safety strip shield icon missing');
 assert(html.includes("legacyUiIcon('clock3')"), 'legacy safety strip clock icon missing');
@@ -135,7 +144,7 @@ assert(html.includes("legacyUiIcon('mailCheck')"), 'legacy safety strip Gmail ic
 assert(html.includes("legacyUiIcon('plug')"), 'legacy safety strip plug icon missing');
 assert(html.includes('settings-status-item with-icon'), 'legacy admin status icon row missing');
 assert(html.includes('readiness-item with-icon'), 'legacy readiness icon row missing');
-assert(html.includes("legacyUiIcon('rocket')"), 'legacy readiness rocket icon missing');
+assert(html.includes("item.icon || 'rocket'"), 'legacy readiness default rocket icon missing');
 assert(html.includes("icon: 'database', label: 'Google Sheets'"), 'legacy admin database status item missing');
 assert(html.includes("icon: 'searchCheck', label: 'Serper'"), 'legacy admin Serper status item missing');
 assert(html.includes("icon: 'serverCog', label: 'GAS分割処理'"), 'legacy admin server cog status item missing');

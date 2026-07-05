@@ -7003,6 +7003,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         eye: iconSvg('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
         history: NAV_ICON_SVGS.HS,
         keyRound: iconSvg('<path d="M2 18v3h3l9.9-9.9"/><circle cx="16" cy="8" r="6"/><path d="m15 9 1 1 3-3"/>'),
+        lock: iconSvg('<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
         mailCheck: NAV_ICON_SVGS.ML,
         mailSearch: iconSvg('<path d="M22 12.5V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>'),
         listPlus: iconSvg('<path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/>'),
@@ -7026,6 +7027,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         timerReset: iconSvg('<path d="M10 2h4"/><path d="M12 14v-4"/><path d="M4.93 4.93 7.05 7.05"/><path d="M19.07 4.93 16.95 7.05"/><path d="M12 22a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/><path d="M8 14a4 4 0 1 0 1-2.65"/><path d="M8 10v4h4"/>'),
         trash2: iconSvg('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>'),
         trendingDown: iconSvg('<path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/>'),
+        triangleAlert: iconSvg('<path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>'),
+        unlock: iconSvg('<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>'),
         wand2: iconSvg('<path d="m21.64 3.64-1.28-1.28a1.2 1.2 0 0 0-1.72 0L2.36 18.64a1.2 1.2 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/>'),
         x: iconSvg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
       });
@@ -11364,11 +11367,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function readinessItemMarkup(item, compact) {
+        const iconKey = item.icon || 'rocket';
+        const tone = item.tone || (item.ready ? 'good' : 'warn');
+        const status = item.status || (item.ready ? 'OK' : '要確認');
         return `
           <div class="readiness-item with-icon${compact ? ' compact' : ''}">
-            ${legacyUiIcon('rocket')}
+            ${legacyUiIcon(iconKey)}
             <div><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.detail)}</small></div>
-            <span class="pill ${item.ready ? 'good' : 'warn'}">${item.ready ? 'OK' : '要確認'}</span>
+            <span class="pill ${tone}">${escapeHtml(status)}</span>
           </div>
         `;
       }
@@ -13155,22 +13161,37 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (integrations.gmail === false) missing.push(['Gmail送信', 'MailApp/GmailApp承認または送信枠を確認してください']);
         if (integrations.calendar === false) missing.push(['Calendar登録', 'CalendarApp承認を確認してください']);
         if (!dashboard.triggerCount) missing.push(['時間主導トリガー', '管理画面から定期トリガーを作成してください']);
+        const remaining = Number(dashboard.mailQuotaRemaining || dashboard.todayRemaining || 0);
         const ready = missing.length === 0;
+        const statusItems = [
+          { icon: 'mailCheck', label: 'Gmailアカウント', ready: integrations.gmail !== false, detail: integrations.gmail === false ? '要確認' : 'Apps Script承認済み', status: integrations.gmail === false ? '要確認' : 'OK' },
+          { icon: 'shieldCheck', label: '必要権限', ready, detail: missing.length === 0 ? 'OK' : `${formatNumber(missing.length)}件不足`, status: ready ? 'OK' : '再確認' },
+          { icon: 'mailCheck', label: 'メール総数', ready: remaining > 0, detail: `アプリ残り ${formatNumber(dashboard.todayRemaining || 0)}件`, status: `${formatNumber(remaining)}件` },
+          { icon: 'timerReset', label: 'Token残り', ready: Boolean(dashboard.triggerCount), detail: '時間主導トリガー', status: dashboard.triggerCount ? `${formatNumber(dashboard.triggerCount)}件` : '未設定', tone: dashboard.triggerCount ? 'good' : 'warn' },
+        ];
         target.innerHTML = `
           <div class="section-title-row">
             <div>
               <h2>Gmail連携テスト</h2>
               <p class="muted">保存済みのApps Script承認で、送信・返信チェック・Calendar権限を確認します。メールは送信しません。</p>
             </div>
-            <button type="button" onclick="checkReplies()">連携テスト</button>
+            <button type="button" class="button" onclick="checkReplies()">${legacyUiIcon('shieldCheck')}連携テスト</button>
           </div>
-          <div class="admin-check-summary">
-            <div><span>Gmailアカウント</span><strong>${integrations.gmail === false ? '要確認' : 'Apps Script承認済み'}</strong><span class="pill ${integrations.gmail === false ? 'warn' : 'good'}">${integrations.gmail === false ? '要確認' : 'OK'}</span></div>
-            <div><span>必要権限</span><strong>${missing.length === 0 ? 'OK' : `${formatNumber(missing.length)}件不足`}</strong><span class="pill ${ready ? 'good' : 'warn'}">${ready ? 'OK' : '再確認'}</span></div>
-            <div><span>本日送信枠</span><strong>${formatNumber(dashboard.mailQuotaRemaining || dashboard.todayRemaining || 0)}件</strong><small>アプリ残り ${formatNumber(dashboard.todayRemaining || 0)}件</small></div>
-            <div><span>Trigger</span><strong>${formatNumber(dashboard.triggerCount || 0)}件</strong><small>時間主導トリガー</small></div>
+          <div class="settings-status-grid gmail-connection-status-grid">
+            ${statusItems.map(adminStatusItemMarkup).join('')}
           </div>
-          ${missing.length ? `<div class="readiness-list">${missing.map(([label, detail]) => readinessItemMarkup({ label, detail, ready: false })).join('')}</div>` : '<p class="message ok">Gmail送信、返信チェック、Calendar登録に必要な承認状態は利用可能です。</p>'}
+          ${missing.length ? `
+            <div class="reply-error-list">
+              ${missing.map(([label]) => `<p>${legacyUiIcon('triangleAlert')}<span>${escapeHtml(label)} の権限が不足しています。</span></p>`).join('')}
+              <button type="button" class="button secondary" onclick="checkReplies()">${legacyUiIcon('mailCheck')}Google認可をやり直す</button>
+            </div>
+          ` : `
+            <div class="reply-check-note">
+              ${legacyUiIcon('checkCircle')}
+              <span>Gmail送信、返信チェック、Calendar登録に必要な権限がそろっています。次は管理画面で返信自動チェックをONにします。</span>
+              <button type="button" class="table-link-button" onclick="showTab('admin')">管理画面へ</button>
+            </div>
+          `}
         `;
       }
 
@@ -13314,9 +13335,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <span class="pill ${locked ? 'info' : 'good'}">${locked ? '送信処理中' : 'ロックなし'}</span>
           </div>
           <div class="mail-send-lock-panel">
-            ${readinessItemMarkup({ label: locked ? '送信処理中' : 'ロックなし', detail: locked ? `${formatNumber(runningMailJobs.length)}件の送信系ジョブを確認` : '現在、送信処理は実行されていません。', ready: !locked })}
+            ${readinessItemMarkup({ icon: locked ? 'lock' : 'unlock', label: locked ? '送信処理中' : 'ロックなし', detail: locked ? `${formatNumber(runningMailJobs.length)}件の送信系ジョブを確認` : '現在、送信処理は実行されていません。', ready: !locked, status: locked ? 'LOCK' : 'OK', tone: locked ? 'info' : 'good' })}
             <p class="muted">明らかに止まっている場合はApps Script実行履歴と jobs / sync_logs を確認してください。</p>
-            <button type="button" class="secondary" ${locked ? '' : 'disabled'} onclick="advanceJobs()">ジョブ処理を確認</button>
+            <button type="button" class="button secondary" ${locked ? '' : 'disabled'} onclick="advanceJobs()">${legacyUiIcon('unlock')}ジョブ処理を確認</button>
           </div>
         `;
       }
@@ -13336,18 +13357,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           <div class="settings-status-grid">
             ${[
-              { icon: 'shieldCheck', label: 'OAuth Client', ready: true, detail: 'Apps Script', status: 'OK' },
-              { icon: 'database', label: 'Refresh Token', ready: true, detail: 'Google管理', status: 'OK' },
+              { icon: 'keyRound', label: 'OAuth Client', ready: true, detail: 'Apps Script', status: 'OK' },
+              { icon: 'refreshCw', label: 'Refresh Token', ready: true, detail: 'Google管理', status: 'OK' },
               { icon: 'mailCheck', label: '送信元', ready: integrations.gmail !== false, detail: 'Apps Script承認', status: integrations.gmail !== false ? 'OK' : '要確認' },
-              { icon: 'clipboard', label: 'テスト宛先', ready: true, detail: '営業リスト指定', status: '指定' },
+              { icon: 'mailCheck', label: 'テスト宛先', ready: true, detail: '営業リスト指定', status: '指定' },
             ].map(adminStatusItemMarkup).join('')}
           </div>
           <div class="api-key-summary">
+            ${legacyUiIcon('mailCheck')}
             <div>
               <strong>差出人名: 営業担当</strong>
               <span>現在の参照元: Apps Script承認 + PropertiesService。秘密項目はシート/HTMLへ出しません。</span>
             </div>
-            <button type="button" onclick="showTab('gmail')">Gmail連携</button>
+            <button type="button" class="icon-text-button" onclick="checkReplies()">${legacyUiIcon('mailCheck')}Google認可</button>
           </div>
         `;
       }
