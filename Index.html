@@ -2981,6 +2981,13 @@
         line-height: 1.05;
       }
 
+      .analytics-summary-card em {
+        color: var(--muted);
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 900;
+      }
+
       .stat-card.blue,
       .analytics-summary-card.blue {
         border-color: #bfdbfe;
@@ -2997,6 +3004,11 @@
       .analytics-summary-card.amber {
         border-color: #fde68a;
         background: #fffbeb;
+      }
+
+      .analytics-summary-card.ink {
+        border-color: #cbd5e1;
+        background: #f8fafc;
       }
 
       .stat-card.red {
@@ -3036,9 +3048,38 @@
         align-items: stretch;
       }
 
+      .analytics-funnel-step-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 20px;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .analytics-funnel-step-wrap:last-child {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
       .analytics-funnel-step {
         min-height: 112px;
         background: linear-gradient(180deg, #fff, #f8fafc);
+      }
+
+      .analytics-funnel-arrow {
+        position: relative;
+        height: 2px;
+        background: #cbd5e1;
+      }
+
+      .analytics-funnel-arrow::after {
+        position: absolute;
+        top: 50%;
+        right: -1px;
+        width: 8px;
+        height: 8px;
+        border-top: 2px solid #cbd5e1;
+        border-right: 2px solid #cbd5e1;
+        content: '';
+        transform: translateY(-50%) rotate(45deg);
       }
 
       .analytics-source-card {
@@ -3065,6 +3106,116 @@
         height: 100%;
         border-radius: inherit;
         background: #0f766e;
+      }
+
+      .analytics-section-title {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px 16px 0;
+      }
+
+      .analytics-section-title span {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .analytics-section-title h2 {
+        margin: 0;
+      }
+
+      .analytics-source-panel {
+        margin: 14px 0;
+      }
+
+      .analytics-source-grid {
+        padding: 16px;
+      }
+
+      .analytics-risk-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+        padding: 0 16px 16px;
+      }
+
+      .analytics-risk-strip div,
+      .analytics-note {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .analytics-risk-strip div {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 6px 8px;
+        align-items: center;
+        padding: 12px;
+      }
+
+      .analytics-risk-strip span,
+      .analytics-risk-strip small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .analytics-risk-strip strong {
+        color: var(--ink);
+        font-size: 19px;
+      }
+
+      .analytics-note {
+        display: grid;
+        gap: 6px;
+        padding: 12px;
+        background: #f8fafc;
+      }
+
+      .analytics-note strong {
+        color: var(--ink);
+      }
+
+      .analytics-note p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .mail-copy-cell {
+        display: grid;
+        gap: 4px;
+        min-width: 180px;
+        max-width: 340px;
+      }
+
+      .mail-copy-cell.wide {
+        min-width: 260px;
+        max-width: 460px;
+      }
+
+      .mail-copy-cell strong,
+      .mail-copy-cell small {
+        overflow-wrap: anywhere;
+      }
+
+      .mail-copy-cell strong {
+        color: var(--ink);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .mail-copy-cell small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.5;
       }
 
       .code-box {
@@ -5687,26 +5838,58 @@
               <p class="eyebrow">Analytics</p>
               <h1>稼働分析</h1>
             </div>
-            <div class="toolbar"><span class="pill info">月別</span><span class="pill info">ジャンル別</span><span class="pill info">返信率</span></div>
+            <div class="toolbar"><span class="pill info">月別</span><span class="pill info">日別</span><span class="pill info">ジャンル別</span><span class="pill info">メール文別</span><span class="pill info">返信率</span></div>
           </header>
           <section class="panel analytics-summary-panel">
-            <div class="dashboard-section-heading"><div><span class="dashboard-kicker">今月の成果サマリー</span><h2 id="analyticsMonthTitle">営業成果</h2></div><span class="pill good">月次</span></div>
+            <div class="analytics-section-title"><div><span>今月の成果サマリー</span><h2 id="analyticsMonthTitle">営業成果</h2></div><span class="pill good">月次</span></div>
             <div class="analytics-summary-grid" id="analyticsSummaryGrid"></div>
           </section>
+          <section class="panel analytics-source-panel">
+            <div class="analytics-section-title">
+              <div><span>リスト追加経路</span><h2>今月の営業リスト増加内訳</h2></div>
+              <span class="pill info" id="analyticsSourcePill">追加 0件</span>
+            </div>
+            <div class="analytics-source-grid" id="analyticsSourceGrid"></div>
+          </section>
           <section class="panel stack">
-            <div class="dashboard-section-heading"><div><span class="dashboard-kicker">営業ファネル</span><h2>営業リストから成約までの流れ</h2></div><span class="pill good">累計</span></div>
+            <div class="analytics-section-title"><div><span>営業ファネル</span><h2>営業リストから成約までの流れ</h2></div><span class="pill good">累計</span></div>
             <div class="analytics-funnel-flow" id="analyticsFunnel"></div>
+            <div class="analytics-risk-strip" id="analyticsRiskStrip"></div>
           </section>
           <div class="content-grid">
-            <section class="panel">
-              <div class="panel-head"><h2>ジャンル別分析</h2><span class="pill info">上位</span></div>
-              <div class="table-wrap"><table id="analyticsGenreTable"></table></div>
+            <section class="panel stack">
+              <div class="panel-head"><h2>日別分析</h2><span class="pill info">直近30日</span></div>
+              <div class="table-wrap"><table id="analyticsDailyTable"></table></div>
+              <div class="panel-head"><h2>月間分析</h2><span class="pill good" id="analyticsMonthlyPill">今月追加 0件</span></div>
+              <div class="table-wrap"><table id="analyticsMonthlyTable"></table></div>
             </section>
-            <section class="panel">
-              <div class="panel-head"><h2>送信品質</h2><span class="pill" id="analyticsQualityPill">確認中</span></div>
-              <div class="table-wrap"><table id="analyticsQualityTable"></table></div>
-            </section>
+            <aside class="stack">
+              <section class="panel">
+                <div class="panel-head"><h2>送信品質</h2><span class="pill" id="analyticsQualityPill">確認中</span></div>
+                <div class="table-wrap"><table id="analyticsQualityTable"></table></div>
+              </section>
+              <section class="panel stack">
+                <div class="panel-head"><h2>見るべき指標</h2><span class="pill info">運用メモ</span></div>
+                <div class="panel-body stack" id="analyticsNotes"></div>
+              </section>
+            </aside>
           </div>
+          <section class="panel stack" style="margin-top:18px">
+            <div class="analytics-section-title">
+              <div>
+                <span>メール文別返信率</span>
+                <h2>テンプレート別の反応</h2>
+                <p class="muted">テンプレートごとの送信成功数に対して、返信あり・商談・送信NGになった営業先を反応として集計します。</p>
+              </div>
+              <span class="pill info">テンプレート別</span>
+            </div>
+            <div class="table-wrap"><table id="analyticsTemplateTable"></table></div>
+            <p class="muted" style="padding:0 16px 16px">同じ営業先に複数のメールを送っている場合は、最新の送信メール文に返信・商談・送信NGなどの反応を紐づけます。</p>
+          </section>
+          <section class="panel" style="margin-top:18px">
+            <div class="panel-head"><h2>ジャンル別分析</h2><span class="pill info">上位</span></div>
+            <div class="table-wrap"><table id="analyticsGenreTable"></table></div>
+          </section>
         </section>
 
         <section id="sync" class="section">
@@ -11025,40 +11208,429 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderAnalyticsScreen() {
-        const dashboard = state.dashboard || {};
-        const month = dashboard.thisMonth || {};
-        const histories = state.histories || [];
-        const success = histories.filter((history) => history.send_result === '成功').length;
-        const failed = histories.filter((history) => history.send_result && history.send_result !== '成功').length;
-        const replyRate = dashboard.sent ? ((dashboard.replies || 0) / dashboard.sent) * 100 : 0;
-        const dealRate = dashboard.replies ? ((dashboard.deals || 0) / dashboard.replies) * 100 : 0;
+        const data = buildClientAnalyticsData();
+        const month = data.currentMonth;
         document.getElementById('analyticsMonthTitle').textContent = `${month.label || '今月'} の営業成果`;
         document.getElementById('analyticsSummaryGrid').innerHTML = [
-          ['今月追加', `${formatNumber(month.addedLeads || 0)}件`, '営業リスト', 'blue'],
-          ['今月送信', `${formatNumber(month.sent || 0)}件`, '送信成功', 'green'],
-          ['今月返信', `${formatNumber(month.replies || 0)}件`, `返信率 ${formatPercent(month.replyRate || 0)}`, ''],
-          ['今月商談', `${formatNumber(month.deals || 0)}件`, '返信から商談', 'amber'],
-          ['今月成約', `${formatNumber(month.contracts || 0)}件`, '商談から成約', 'green'],
-        ].map(([label, value, detail, tone]) => `<div class="analytics-summary-card ${escapeHtml(tone)}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
-        document.getElementById('analyticsFunnel').innerHTML = [
-          ['営業リスト', dashboard.leadsTotal, '累計'],
-          ['送信成功', dashboard.sent || success, 'メール送信'],
-          ['返信・反応', dashboard.replies || 0, formatPercent(replyRate)],
-          ['商談', dashboard.deals || 0, formatPercent(dealRate)],
-          ['成約', dashboard.won || 0, '受注'],
-        ].map(([label, value, detail]) => `<div class="analytics-funnel-step"><span>${escapeHtml(label)}</span><strong>${formatNumber(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
-        document.getElementById('analyticsGenreTable').innerHTML = table(['ジャンル', '営業リスト'], Object.entries(dashboard.byGenre || {}).slice(0, 20).map(([genre, count]) => row([
-          ['ジャンル', escapeHtml(genre)],
-          ['営業リスト', formatNumber(count)],
+          ['今月追加', `${formatNumber(month.addedLeads)}件`, month.label, '営業リスト', 'blue'],
+          ['今月送信', `${formatNumber(month.sent)}件`, '本番送信', '送信成功', 'green'],
+          ['今月返信', `${formatNumber(month.replies)}件`, `返信率 ${formatPercent(month.replyRate)}`, '返信・反応', 'ink'],
+          ['今月商談', `${formatNumber(month.deals)}件`, `商談化率 ${formatPercent(month.dealRate)}`, '返信から商談', 'amber'],
+          ['今月成約', `${formatNumber(month.contracts)}件`, `成約率 ${formatPercent(month.contractRate)}`, '商談から成約', 'green'],
+        ].map(([label, value, detail, metric, tone]) => `
+          <div class="analytics-summary-card ${escapeHtml(tone)}">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value)}</strong>
+            <small>${escapeHtml(detail)}</small>
+            <em>${escapeHtml(metric)}</em>
+          </div>
+        `).join('');
+
+        document.getElementById('analyticsSourcePill').textContent = `追加 ${formatNumber(month.addedLeads)}件`;
+        document.getElementById('analyticsSourceGrid').innerHTML = data.currentMonthLeadSourceRows.length ? data.currentMonthLeadSourceRows.map((item) => `
+          <div class="analytics-source-card">
+            <div><span>${escapeHtml(item.label)}</span><strong>${formatNumber(item.addedLeads)}件</strong></div>
+            ${statusTonePill(formatPercent(item.share), item.share >= 50 ? 'good' : 'info')}
+            <div class="analytics-source-meter" style="--share:${Math.max(0, Math.min(item.share, 100))}%"></div>
+          </div>
+        `).join('') : '<p class="muted">今月追加された営業リストはまだありません</p>';
+
+        document.getElementById('analyticsFunnel').innerHTML = data.funnelSteps.map((step, index) => `
+          <div class="analytics-funnel-step-wrap">
+            <div class="analytics-funnel-step">
+              <span>${escapeHtml(step.label)}</span>
+              <strong>${formatNumber(step.value)}</strong>
+              ${step.metric ? `<small>${escapeHtml(step.metric)}</small>` : ''}
+            </div>
+            ${index < data.funnelSteps.length - 1 ? '<div class="analytics-funnel-arrow" aria-hidden="true"></div>' : ''}
+          </div>
+        `).join('');
+        document.getElementById('analyticsRiskStrip').innerHTML = [
+          ['送信NG', data.funnel.sendNg, formatPercent(data.quality.sendNgRate)],
+          ['失注', data.funnel.lost, '分析対象'],
+          ['送信成功率', formatPercent(data.quality.sendSuccessRate), `${formatNumber(data.quality.sendSuccesses)} / ${formatNumber(data.quality.sendTotal)}件`],
+        ].map(([label, value, detail]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
+
+        document.getElementById('analyticsDailyTable').innerHTML = table(['日付', '営業リスト追加', '送信'], data.dailyRows.map((item) => row([
+          ['日付', escapeHtml(item.label)],
+          ['営業リスト追加', `${formatNumber(item.addedLeads)}件`],
+          ['送信', `${formatNumber(item.sent)}件`],
         ])).join(''));
-        document.getElementById('analyticsQualityPill').outerHTML = `<span class="pill ${failed > 0 ? 'warn' : 'good'}" id="analyticsQualityPill">${failed > 0 ? '要確認' : '正常'}</span>`;
+        document.getElementById('analyticsMonthlyPill').textContent = `今月追加 ${formatNumber(month.addedLeads)}件`;
+        document.getElementById('analyticsMonthlyTable').innerHTML = table(['月', '追加', '送信', '返信', '返信率', '送信NG', '商談', '商談化率', '成約', '成約率', '失注'], data.monthlyRows.map((item) => row([
+          ['月', escapeHtml(item.label)],
+          ['追加', formatNumber(item.addedLeads)],
+          ['送信', formatNumber(item.sent)],
+          ['返信', formatNumber(item.replies)],
+          ['返信率', renderAnalyticsRatePill(item.replyRate)],
+          ['送信NG', formatNumber(item.sendNg)],
+          ['商談', formatNumber(item.deals)],
+          ['商談化率', renderAnalyticsRatePill(item.dealRate)],
+          ['成約', formatNumber(item.contracts)],
+          ['成約率', renderAnalyticsRatePill(item.contractRate)],
+          ['失注', formatNumber(item.lost)],
+        ])).join(''));
+
+        document.getElementById('analyticsQualityPill').outerHTML = `<span class="pill ${data.quality.sendFailures > 0 ? 'warn' : 'good'}" id="analyticsQualityPill">${data.quality.sendFailures > 0 ? '要確認' : '正常'}</span>`;
         document.getElementById('analyticsQualityTable').innerHTML = table(['項目', '数値'], [
-          ['送信成功', `${formatNumber(success)}件`],
-          ['送信失敗', `${formatNumber(failed)}件`],
-          ['未返信', `${formatNumber(Math.max((dashboard.sent || 0) - (dashboard.replies || 0), 0))}件`],
-          ['失注', `${formatNumber(dashboard.lost || 0)}件`],
-          ['送信NG', `${formatNumber(dashboard.sendNg || 0)}件`],
+          ['送信成功', `${formatNumber(data.quality.sendSuccesses)}件`],
+          ['送信失敗', `${formatNumber(data.quality.sendFailures)}件`],
+          ['未返信', `${formatNumber(data.quality.noReply)}件`],
+          ['失注', `${formatNumber(data.quality.lost)}件`],
+          ['送信NG', `${formatNumber(data.quality.sendNg)}件`],
         ].map(([label, value]) => row([['項目', escapeHtml(label)], ['数値', escapeHtml(value)]])).join(''));
+        document.getElementById('analyticsNotes').innerHTML = [
+          ['返信率', '返信率が低いジャンルは、件名・初回本文・送信先条件を見直す優先度が高いです。'],
+          ['商談化率', '返信から商談への率が低い場合は、返信後の案内文や日程調整の流れを改善します。'],
+          ['成約率', '商談から成約への率は、ジャンルごとの提案内容や価格感の見直しに使います。'],
+        ].map(([label, text]) => `<div class="analytics-note"><strong>${escapeHtml(label)}</strong><p>${escapeHtml(text)}</p></div>`).join('');
+
+        document.getElementById('analyticsTemplateTable').innerHTML = table(['メール文', 'ジャンル', '送信', '返信', '返信率', '送信NG', '商談', '成約', '失注', '最新送信', '内容'], data.templateRows.map((item) => row([
+          ['メール文', `<span class="mail-copy-cell"><strong>${escapeHtml(item.templateName)}</strong><small>${escapeHtml(item.templateId ? `ID: ${String(item.templateId).slice(0, 8)}` : 'テンプレートIDなし')}</small></span>`],
+          ['ジャンル', escapeHtml(item.genre || '-')],
+          ['送信', `${formatNumber(item.sent)}件`],
+          ['返信', `${formatNumber(item.replies)}件`],
+          ['返信率', renderAnalyticsRatePill(item.replyRate)],
+          ['送信NG', `${formatNumber(item.sendNg)}件`],
+          ['商談', `${formatNumber(item.deals)}件`],
+          ['成約', `${formatNumber(item.contracts)}件`],
+          ['失注', `${formatNumber(item.lost)}件`],
+          ['最新送信', escapeHtml(dateTimeLabel(item.latestSentAt) || '-')],
+          ['内容', `<span class="mail-copy-cell wide"><strong>${escapeHtml(item.subject || '-')}</strong><small>${escapeHtml(item.bodyPreview || '-')}</small></span>`],
+        ])).join(''));
+
+        document.getElementById('analyticsGenreTable').innerHTML = table(['ジャンル', '営業リスト', '送信', '返信', '返信率', '送信NG', '商談', '商談化率', '成約', '成約率', '失注'], data.genreRows.map((item) => row([
+          ['ジャンル', escapeHtml(item.genre)],
+          ['営業リスト', formatNumber(item.leads)],
+          ['送信', formatNumber(item.sent)],
+          ['返信', formatNumber(item.replies)],
+          ['返信率', renderAnalyticsRatePill(item.replyRate)],
+          ['送信NG', formatNumber(item.sendNg)],
+          ['商談', formatNumber(item.deals)],
+          ['商談化率', renderAnalyticsRatePill(item.dealRate)],
+          ['成約', formatNumber(item.contracts)],
+          ['成約率', renderAnalyticsRatePill(item.contractRate)],
+          ['失注', formatNumber(item.lost)],
+        ])).join(''));
+      }
+
+      function buildClientAnalyticsData() {
+        const dashboard = state.dashboard || {};
+        const leads = uniqueAnalyticsLeads();
+        const leadById = new Map(leads.filter((lead) => lead.id).map((lead) => [lead.id, lead]));
+        const histories = state.histories || [];
+        const productionSends = histories.filter(isAnalyticsProductionSend);
+        const monthKeys = lastAnalyticsMonthKeys(6);
+        const dayKeys = recentAnalyticsDayKeys(30);
+        const currentMonthKey = analyticsMonthKey(new Date());
+        const dashboardMonth = dashboard.thisMonth || {};
+        const currentMonth = {
+          addedLeads: Number(dashboardMonth.addedLeads || 0),
+          contracts: Number(dashboardMonth.contracts || dashboard.won || 0),
+          dealRate: analyticsRate(Number(dashboardMonth.deals || 0), Number(dashboardMonth.replies || 0)),
+          deals: Number(dashboardMonth.deals || 0),
+          label: dashboardMonth.label || analyticsMonthLabel(currentMonthKey),
+          lost: Number(dashboardMonth.lost || dashboard.lost || 0),
+          replies: Number(dashboardMonth.replies || 0),
+          replyRate: Number(dashboardMonth.replyRate || analyticsRate(Number(dashboardMonth.replies || 0), Number(dashboardMonth.sent || 0))),
+          sendNg: Number(dashboardMonth.sendNg || dashboard.sendNg || 0),
+          sent: Number(dashboardMonth.sent || 0),
+        };
+        currentMonth.contractRate = analyticsRate(currentMonth.contracts, currentMonth.deals);
+
+        const dailyRows = dayKeys.map((key) => ({
+          addedLeads: leads.filter((lead) => analyticsDayKey(lead.created_at) === key).length,
+          label: analyticsDayLabel(key),
+          sent: productionSends.filter((history) => analyticsDayKey(history.sent_at || history.created_at) === key).length,
+        }));
+        const monthlyRows = monthKeys.map((key) => {
+          const monthLeads = leads.filter((lead) => analyticsMonthKey(lead.created_at) === key);
+          const updatedLeads = leads.filter((lead) => analyticsMonthKey(lead.updated_at || lead.created_at) === key);
+          const monthSends = productionSends.filter((history) => analyticsMonthKey(history.sent_at || history.created_at) === key);
+          const replies = updatedLeads.filter(hasAnalyticsReplySignal).length;
+          const deals = updatedLeads.filter(hasAnalyticsDealProgress).length;
+          const contracts = updatedLeads.filter(isAnalyticsContractLead).length;
+          return {
+            addedLeads: monthLeads.length,
+            contractRate: analyticsRate(contracts, deals),
+            contracts,
+            dealRate: analyticsRate(deals, replies),
+            deals,
+            label: analyticsMonthLabel(key),
+            lost: updatedLeads.filter(isAnalyticsLostLead).length,
+            replies,
+            replyRate: analyticsRate(replies, monthSends.length),
+            sendNg: updatedLeads.filter(isAnalyticsSendNgLead).length,
+            sent: monthSends.length,
+          };
+        });
+
+        const genreRows = buildClientAnalyticsGenreRows(dashboard, leads, productionSends, leadById);
+        const loadedSendTotal = histories.filter((history) => !String(history.send_type || '').includes('テスト')).length;
+        const sendTotal = loadedSendTotal || Number(dashboard.sent || 0);
+        const sendSuccesses = productionSends.length || Number(dashboard.sent || 0);
+        const sendFailures = loadedSendTotal ? Math.max(0, loadedSendTotal - productionSends.length) : 0;
+        const replies = Number(dashboard.replies || leads.filter(hasAnalyticsReplySignal).length);
+        const deals = Number(dashboard.deals || leads.filter(hasAnalyticsDealProgress).length);
+        const contracts = Number(dashboard.won || leads.filter(isAnalyticsContractLead).length);
+        const lost = Number(dashboard.lost || leads.filter(isAnalyticsLostLead).length);
+        const sendNg = Number(dashboard.sendNg || leads.filter(isAnalyticsSendNgLead).length);
+        return {
+          currentMonth,
+          currentMonthLeadSourceRows: buildClientAnalyticsSourceRows(leads, currentMonthKey, currentMonth.addedLeads),
+          dailyRows,
+          funnel: {
+            contractRateFromDeals: analyticsRate(contracts, deals),
+            contracts,
+            dealRateFromReplies: analyticsRate(deals, replies),
+            deals,
+            leads: Number(dashboard.leadsTotal || leads.length),
+            lost,
+            replies,
+            replyRate: analyticsRate(replies, sendSuccesses),
+            sendNg,
+            sent: sendSuccesses,
+          },
+          funnelSteps: [
+            { label: '営業リスト', value: Number(dashboard.leadsTotal || leads.length) },
+            { label: '送信成功', value: sendSuccesses },
+            { label: '返信・反応', value: replies, metric: formatPercent(analyticsRate(replies, sendSuccesses)) },
+            { label: '商談', value: deals, metric: formatPercent(analyticsRate(deals, replies)) },
+            { label: '成約', value: contracts, metric: formatPercent(analyticsRate(contracts, deals)) },
+          ],
+          genreRows,
+          monthlyRows,
+          templateRows: buildClientAnalyticsTemplateRows(productionSends, leadById),
+          quality: {
+            lost,
+            noReply: Math.max(0, sendSuccesses - replies),
+            sendFailures,
+            sendSuccessRate: analyticsRate(sendSuccesses, sendTotal),
+            sendSuccesses,
+            sendTotal,
+            sendNg,
+            sendNgRate: analyticsRate(sendNg, Number(dashboard.leadsTotal || leads.length)),
+          },
+        };
+      }
+
+      function uniqueAnalyticsLeads() {
+        const map = new Map();
+        ['leads', 'emailLeads', 'formLeads', 'dealLeads'].forEach((key) => {
+          (state[key] || []).forEach((lead, index) => {
+            const id = lead.id || `${key}:${lead.company_name || lead.facility_name || lead.email || index}`;
+            map.set(id, Object.assign({}, map.get(id) || {}, lead, { id }));
+          });
+        });
+        return Array.from(map.values()).filter((lead) => String(lead.status || '') !== 'アーカイブ');
+      }
+
+      function buildClientAnalyticsSourceRows(leads, currentMonthKey, totalFromDashboard) {
+        const groups = new Map();
+        leads.filter((lead) => analyticsMonthKey(lead.created_at) === currentMonthKey).forEach((lead) => {
+          const source = analyticsLeadSource(lead);
+          const current = groups.get(source.key) || { addedLeads: 0, label: source.label, sourceKey: source.key };
+          current.addedLeads += 1;
+          groups.set(source.key, current);
+        });
+        if (!groups.size && Number(totalFromDashboard || 0) > 0) {
+          return [{ addedLeads: Number(totalFromDashboard || 0), label: '営業リスト追加', share: 100, sourceKey: 'dashboard' }];
+        }
+        const total = Array.from(groups.values()).reduce((sum, item) => sum + item.addedLeads, 0) || Number(totalFromDashboard || 0);
+        return Array.from(groups.values()).map((item) => Object.assign({}, item, {
+          share: total > 0 ? Math.round((item.addedLeads / total) * 1000) / 10 : 0,
+        })).sort((left, right) => right.addedLeads - left.addedLeads);
+      }
+
+      function buildClientAnalyticsGenreRows(dashboard, leads, productionSends, leadById) {
+        const map = new Map();
+        Object.entries(dashboard.byGenre || {}).forEach(([genre, count]) => {
+          map.set(genre || '未設定', { genre: genre || '未設定', leads: Number(count || 0), sent: 0, replies: 0, sendNg: 0, deals: 0, contracts: 0, lost: 0 });
+        });
+        function ensure(genre) {
+          const key = genre || '未設定';
+          const current = map.get(key) || { genre: key, leads: 0, sent: 0, replies: 0, sendNg: 0, deals: 0, contracts: 0, lost: 0 };
+          map.set(key, current);
+          return current;
+        }
+        leads.forEach((lead) => {
+          const row = ensure(lead.genre || '未設定');
+          if (!Object.prototype.hasOwnProperty.call(dashboard.byGenre || {}, row.genre)) row.leads += 1;
+          if (hasAnalyticsReplySignal(lead)) row.replies += 1;
+          if (isAnalyticsSendNgLead(lead)) row.sendNg += 1;
+          if (hasAnalyticsDealProgress(lead)) row.deals += 1;
+          if (isAnalyticsContractLead(lead)) row.contracts += 1;
+          if (isAnalyticsLostLead(lead)) row.lost += 1;
+        });
+        productionSends.forEach((history) => {
+          const lead = history.lead_id ? leadById.get(history.lead_id) : null;
+          ensure(history.genre || (lead && lead.genre) || '未設定').sent += 1;
+        });
+        return Array.from(map.values()).map((item) => Object.assign({}, item, {
+          contractRate: analyticsRate(item.contracts, item.deals),
+          dealRate: analyticsRate(item.deals, item.replies),
+          replyRate: analyticsRate(item.replies, item.sent),
+        })).sort((left, right) => right.sent - left.sent || right.leads - left.leads).slice(0, 20);
+      }
+
+      function buildClientAnalyticsTemplateRows(productionSends, leadById) {
+        const latestTemplateKeyByLead = new Map();
+        productionSends.forEach((history) => {
+          if (!history.lead_id) return;
+          const key = analyticsTemplateKey(history);
+          const time = analyticsTime(history.sent_at || history.created_at);
+          const current = latestTemplateKeyByLead.get(history.lead_id);
+          if (!current || time >= current.time) latestTemplateKeyByLead.set(history.lead_id, { key, time });
+        });
+        const groups = new Map();
+        productionSends.forEach((history, index) => {
+          const key = analyticsTemplateKey(history);
+          const lead = history.lead_id ? leadById.get(history.lead_id) : null;
+          const genre = history.genre || (lead && lead.genre) || '未設定';
+          const group = groups.get(key) || {
+            bodyPreview: compactAnalyticsText(history.body || '').slice(0, 120) || '-',
+            contracts: 0,
+            countedLeadKeys: new Set(),
+            deals: 0,
+            genre,
+            key,
+            latestSentAt: history.sent_at || history.created_at || '',
+            lost: 0,
+            replies: 0,
+            sendNg: 0,
+            sent: 0,
+            subject: compactAnalyticsText(history.subject || '') || '-',
+            templateId: history.template_id || '',
+            templateName: history.template_name || 'テンプレート未記録',
+          };
+          if (group.genre !== genre) group.genre = '複数ジャンル';
+          if (analyticsTime(history.sent_at || history.created_at) > analyticsTime(group.latestSentAt)) group.latestSentAt = history.sent_at || history.created_at || group.latestSentAt;
+          const leadKey = history.lead_id || `history:${history.id || index}`;
+          if (!group.countedLeadKeys.has(leadKey)) {
+            group.countedLeadKeys.add(leadKey);
+            group.sent += 1;
+            const attributed = history.lead_id && latestTemplateKeyByLead.get(history.lead_id)?.key === key;
+            if (lead && attributed) {
+              if (hasAnalyticsReplySignal(lead)) group.replies += 1;
+              if (isAnalyticsSendNgLead(lead)) group.sendNg += 1;
+              if (hasAnalyticsDealProgress(lead)) group.deals += 1;
+              if (isAnalyticsContractLead(lead)) group.contracts += 1;
+              if (isAnalyticsLostLead(lead)) group.lost += 1;
+            }
+          }
+          groups.set(key, group);
+        });
+        return Array.from(groups.values()).map((group) => {
+          const row = Object.assign({}, group, { replyRate: analyticsRate(group.replies, group.sent) });
+          delete row.countedLeadKeys;
+          return row;
+        }).sort((left, right) => right.sent - left.sent || right.replyRate - left.replyRate).slice(0, 20);
+      }
+
+      function analyticsTemplateKey(history) {
+        return history.template_id || `${history.template_name || 'テンプレート未記録'}::${compactAnalyticsText(history.subject || '').slice(0, 200)}`;
+      }
+
+      function analyticsLeadSource(lead) {
+        const text = String(lead.source || lead.source_type || '').toLowerCase();
+        if (/serper|search|prospect/.test(text)) return { key: 'prospecting', label: '営業リスト収集' };
+        if (/csv|sync|import/.test(text)) return { key: 'sync', label: 'CSV/同期' };
+        if (/manual|手動/.test(text)) return { key: 'manual', label: '手動追加' };
+        if (/form/.test(text)) return { key: 'form', label: 'フォーム営業' };
+        return { key: 'unknown', label: '未設定' };
+      }
+
+      function isAnalyticsProductionSend(history) {
+        return history && history.send_result === '成功' && !String(history.send_type || '').includes('テスト');
+      }
+
+      function hasAnalyticsReplySignal(lead) {
+        return normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり' || hasAnalyticsDealProgress(lead) || isAnalyticsSendNgLead(lead);
+      }
+
+      function hasAnalyticsDealProgress(lead) {
+        return Boolean(lead.deal_status && lead.deal_status !== '未設定') || ['商談予定', '商談済み', '受注', '失注'].includes(String(lead.status || ''));
+      }
+
+      function isAnalyticsContractLead(lead) {
+        return lead.deal_status === '受注' || lead.status === '受注';
+      }
+
+      function isAnalyticsLostLead(lead) {
+        return lead.deal_status === '失注' || lead.status === '失注';
+      }
+
+      function isAnalyticsSendNgLead(lead) {
+        return normalizeBooleanLike(lead.send_ng) || lead.status === '送信NG';
+      }
+
+      function renderAnalyticsRatePill(value) {
+        return statusTonePill(formatPercent(value), analyticsRateTone(value));
+      }
+
+      function analyticsRateTone(value) {
+        if (Number(value || 0) >= 20) return 'good';
+        if (Number(value || 0) >= 8) return 'warn';
+        return 'info';
+      }
+
+      function analyticsRate(numerator, denominator) {
+        const bottom = Number(denominator || 0);
+        if (bottom <= 0) return 0;
+        return Math.round((Number(numerator || 0) / bottom) * 1000) / 10;
+      }
+
+      function analyticsTime(value) {
+        const time = new Date(value || '').getTime();
+        return Number.isFinite(time) ? time : 0;
+      }
+
+      function compactAnalyticsText(value) {
+        return String(value || '').replace(/\s+/g, ' ').trim();
+      }
+
+      function analyticsDayKey(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime())) return String(value).slice(0, 10);
+        return date.toISOString().slice(0, 10);
+      }
+
+      function analyticsMonthKey(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (!Number.isFinite(date.getTime())) return String(value).slice(0, 7);
+        return date.toISOString().slice(0, 7);
+      }
+
+      function recentAnalyticsDayKeys(count) {
+        const keys = [];
+        const today = new Date();
+        for (let i = count - 1; i >= 0; i -= 1) {
+          const date = new Date(today);
+          date.setDate(today.getDate() - i);
+          keys.push(date.toISOString().slice(0, 10));
+        }
+        return keys;
+      }
+
+      function lastAnalyticsMonthKeys(count) {
+        const keys = [];
+        const now = new Date();
+        for (let i = count - 1; i >= 0; i -= 1) {
+          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          keys.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+        }
+        return keys;
+      }
+
+      function analyticsDayLabel(key) {
+        return String(key || '').slice(5).replace('-', '/');
+      }
+
+      function analyticsMonthLabel(key) {
+        const parts = String(key || '').split('-');
+        return parts.length === 2 ? `${Number(parts[0])}年${Number(parts[1])}月` : String(key || '今月');
       }
 
       function parseSyncCsvLine(line) {

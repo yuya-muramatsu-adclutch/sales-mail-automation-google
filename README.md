@@ -161,6 +161,10 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script code v46で送信プレビュー本文の差分確認を追加し、テンプレート原文/送信時本文/空欄タグの前後文脈を並べて確認できるようにした
 - Apps Script code v47で送信プレビュー件名の差分確認を追加し、テンプレート件名/送信時件名/件名内の空欄タグ文脈を並べて確認できるようにした
 - Apps Script code v48で旧Next/Supabase版の送信履歴ページに寄せ、履歴区分フィルタ、検索、絞り込み中Pill、本文/Gmail詳細、絞り込みCSV出力を追加済み
+- Apps Script code v49で旧Next/Supabase版の分析ページに寄せ、リスト追加経路、日別/月間分析、見るべき指標、メール文別返信率、テンプレート件名/本文プレビュー付き成果表を追加済み
+- Apps Script code v50で分析ページの送信成功率と追加経路フォールバック、サマリー色トーンを調整済み
+- Version 50は `clasp deploy -V 50 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `analyticsTemplateTable`, `buildClientAnalyticsData`, `メール文別返信率` を確認済み
+- Version 49は `clasp deploy -V 49 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `analyticsTemplateTable`, `buildClientAnalyticsData`, `メール文別返信率` を確認済み
 - Version 48は `clasp deploy -V 48 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `historyFilterPanel`, `filteredSendHistories`, `本文/Gmail` を確認済み
 - Version 47は `clasp deploy -V 47 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `template-subject-diff-panel`, `件名差分`, `テンプレート件名` を確認済み
 - Version 46は `clasp deploy -V 46 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `template-body-diff-panel`, `template-empty-token`, `本文差分` を確認済み

@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @48 / code v48: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @50 / code v50: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v48_send_history_filters`
+- Code version: `20260705_apps_script_full_workflow_v50_analytics_template_breakdown_polish`
 
 ## 計画書との対応
 
@@ -74,9 +74,23 @@
 | 送信本文差分確認UI反映 | 完了 | code v46でテンプレート原文、送信時本文、空欄タグの前後文脈を並べて確認できる本文差分パネルを追加 |
 | 送信件名差分確認UI反映 | 完了 | code v47でテンプレート件名、送信時件名、件名内の空欄タグ文脈を並べて確認できる件名差分パネルを追加 |
 | 旧アプリ送信履歴ページ詳細反映 | 完了 | code v48で履歴区分フィルタ、検索、絞り込み中Pill、本文/Gmail詳細、絞り込みCSV出力を送信履歴ページへ追加 |
+| 旧アプリ分析ページ詳細反映 | 完了 | code v49でリスト追加経路、日別/月間分析、見るべき指標、メール文別返信率、テンプレート件名/本文プレビュー付き成果表を追加 |
+| 分析ページ表示調整 | 完了 | code v50で送信成功率と追加経路フォールバック、サマリー色トーンを調整 |
 
 ## 検証済み
 
+- `clasp push -f` 成功
+- `clasp version "apps-script-full-workflow-v50-analytics-template-breakdown-polish"` でVersion 50を作成済み
+- 既存Web app URLを `clasp deploy -V 50 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 50へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@50 - apps-script-full-workflow-v50-analytics-template-breakdown-polish-on-existing-url` を指すことを確認
+- code v50ローカルスモークで `analyticsTemplateTable`, `buildClientAnalyticsData`, `buildClientAnalyticsTemplateRows`, `メール文別返信率`, `mail-copy-cell` を確認済み
+- `node scripts/smoke-test.js` 成功、`git diff --check` 成功
+- `clasp push -f` 成功
+- `clasp version "apps-script-full-workflow-v49-analytics-template-breakdown"` でVersion 49を作成済み
+- 既存Web app URLを `clasp deploy -V 49 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 49へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@49 - apps-script-full-workflow-v49-analytics-template-breakdown-on-existing-url` を指すことを確認
+- code v49ローカルスモークで `analyticsTemplateTable`, `buildClientAnalyticsData`, `buildClientAnalyticsTemplateRows`, `メール文別返信率`, `mail-copy-cell` を確認済み
+- `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp version "apps-script-full-workflow-v48-send-history-filters"` でVersion 48を作成済み
 - 既存Web app URLを `clasp deploy -V 48 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 48へ再デプロイ済み

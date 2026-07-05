@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v48_send_history_filters'), 'v48 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v50_analytics_template_breakdown_polish'), 'v50 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -309,6 +309,17 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   '本文/Gmail',
   '履歴区分',
   '絞り込み中',
+  'analytics-source-panel',
+  'analyticsSourceGrid',
+  'analyticsRiskStrip',
+  'analyticsDailyTable',
+  'analyticsMonthlyTable',
+  'analyticsTemplateTable',
+  'buildClientAnalyticsData',
+  'buildClientAnalyticsTemplateRows',
+  'メール文別返信率',
+  'テンプレート別の反応',
+  'mail-copy-cell',
 ].forEach((marker) => {
   assert(html.includes(marker), `legacy UI marker missing: ${marker}`);
 });
