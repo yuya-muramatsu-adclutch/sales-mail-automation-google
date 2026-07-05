@@ -3738,6 +3738,30 @@
         margin-bottom: var(--card-gap);
       }
 
+      .panel:empty,
+      .stats-grid:empty,
+      .dashboard-api-list:empty,
+      .dashboard-signal-grid:empty,
+      .dashboard-action-grid:empty,
+      .dashboard-mini-metrics:empty,
+      .dashboard-compact-grid:empty,
+      .analytics-summary-grid:empty,
+      .analytics-source-grid:empty,
+      .analytics-funnel-flow:empty,
+      .analytics-risk-strip:empty,
+      .settings-status-grid:empty,
+      .prospecting-activity-metrics:empty {
+        display: none;
+      }
+
+      .dashboard-focus-section:has(.dashboard-signal-grid:empty),
+      .dashboard-focus-section:has(.dashboard-action-grid:empty),
+      .analytics-summary-panel:has(#analyticsSummaryGrid:empty),
+      .analytics-source-panel:has(#analyticsSourceGrid:empty),
+      .panel.stack:has(> #analyticsFunnel:empty) {
+        display: none;
+      }
+
       .stat-card,
       .analytics-summary-card,
       .analytics-funnel-step,
