@@ -4372,6 +4372,7 @@
       }
 
       .section-title-row,
+      .inline-actions,
       .job-result-card-head,
       .job-result-actions,
       .job-results-toolbar,
@@ -4482,6 +4483,12 @@
         background: #f8fafc;
         color: #475569;
         font-size: 12px;
+      }
+
+      .reply-error-list .button-link,
+      .reply-error-list .button {
+        justify-self: start;
+        width: auto;
       }
 
       .job-result-actions {
@@ -6265,6 +6272,7 @@
 
       .status-pill svg,
       .pill svg,
+      .button-link svg,
       button svg {
         flex: 0 0 auto;
         width: 16px;
@@ -8264,6 +8272,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         selectedTemplateTestLeadId: '',
         replyCheckResult: null,
         replyFalsePositiveResult: null,
+        gmailAuthorizationStatus: null,
+        gmailIntegrationCheckResult: null,
         adminReadinessResult: null,
         schemaStatus: null,
         activeCollectionTab: 'automation',
@@ -8303,6 +8313,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           masters: false,
           search: false,
           ops: false,
+          gmailAuth: false,
           emailLeads: false,
           formLeads: false,
           dealLeads: false,
@@ -8647,6 +8658,68 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return result;
       }
 
+      async function loadGmailAuthorizationStatus(options) {
+        const config = options || {};
+        try {
+          const result = config.quiet
+            ? await apiQuiet('getGmailAuthorizationStatus')
+            : await api('getGmailAuthorizationStatus');
+          state.gmailAuthorizationStatus = result || null;
+          state.dataLoaded.gmailAuth = true;
+          renderGmailScreen();
+          renderGmailConnectionCheckPanel();
+          renderGoogleCredentialSummaryPanel();
+          return result;
+        } catch (error) {
+          state.gmailAuthorizationStatus = {
+            required: true,
+            status: 'ERROR',
+            authorizationUrl: '',
+            checkedAt: new Date().toISOString(),
+            error: error.message || String(error),
+          };
+          renderGmailScreen();
+          renderGmailConnectionCheckPanel();
+          renderGoogleCredentialSummaryPanel();
+          throw error;
+        }
+      }
+
+      async function refreshGmailAuthorizationStatus() {
+        try {
+          const result = await loadGmailAuthorizationStatus();
+          if (result && result.required) {
+            message('Gmail連携の追加承認が必要です。表示されたGoogle認可リンクを開いてください。', 'error');
+          } else {
+            message('Gmail連携の承認状態を確認しました。', 'ok');
+          }
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      async function runGmailIntegrationCheck() {
+        try {
+          const result = await api('checkGmailIntegration');
+          state.gmailIntegrationCheckResult = result || null;
+          state.gmailAuthorizationStatus = result && result.authorization ? result.authorization : state.gmailAuthorizationStatus;
+          if (result && result.ok) {
+            if (state.dashboard) {
+              state.dashboard.integrations = Object.assign({}, state.dashboard.integrations || {}, { gmail: true });
+              state.dashboard.mailQuotaRemaining = result.mailQuotaRemaining;
+            }
+            message('Gmail API連携を確認しました。', 'ok');
+          } else {
+            message((result && result.error) || 'Gmail連携の確認に失敗しました。', 'error');
+          }
+          renderGmailScreen();
+          renderGmailConnectionCheckPanel();
+          renderGoogleCredentialSummaryPanel();
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
       function ensureDataLoaded(key, loader) {
         if (state.dataLoaded[key]) return Promise.resolve();
         if (state.dataLoading[key]) return state.dataLoading[key];
@@ -8728,6 +8801,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             return;
           }
           if (name === 'gmail') {
+            renderGmailScreen();
+            renderGmailConnectionCheckPanel();
+            renderGmailTestSendHistoryPanel();
+            renderGmailReplyCheckPanel('gmailReplyCheckPanel');
+            ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true })).catch((error) => {
+              console.warn('Gmail authorization check skipped:', error && error.message ? error.message : error);
+            });
             await ensureDataLoaded('ops', loadOpsData);
             renderGmailScreen();
             renderGmailConnectionCheckPanel();
@@ -8738,6 +8818,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           if (name === 'admin') {
             await Promise.all([
               ensureDataLoaded('reference', loadReferenceData),
+              ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true })),
               ensureDataLoaded('templates', loadTemplates),
               ensureDataLoaded('masters', loadMasters),
               ensureDataLoaded('ops', loadOpsData),
@@ -15602,12 +15683,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderGmailScreen() {
         const dashboard = state.dashboard || {};
         const integrations = dashboard.integrations || {};
+        const auth = state.gmailAuthorizationStatus || {};
+        const authKnown = Boolean(state.gmailAuthorizationStatus);
+        const gmailReady = authKnown && auth.required !== true && integrations.gmail !== false;
         document.getElementById('gmailStatusPills').innerHTML = [
-          `<span class="pill ${integrations.gmail !== false ? 'good' : 'warn'}">Gmail ${integrations.gmail !== false ? 'OK' : '要確認'}</span>`,
+          `<span class="pill ${gmailReady ? 'good' : 'warn'}">Gmail ${gmailReady ? 'OK' : authKnown ? '要承認' : '要確認'}</span>`,
           `<span class="pill ${integrations.calendar !== false ? 'good' : 'warn'}">Calendar ${integrations.calendar !== false ? 'OK' : '要確認'}</span>`,
           `<span class="pill info">本日残り ${formatNumber(dashboard.mailQuotaRemaining || dashboard.todayRemaining || 0)}件</span>`,
+          auth.checkedAt ? `<span class="pill info">認可確認 ${escapeHtml(dateTimeLabel(auth.checkedAt) || '-')}</span>` : '',
           `<span class="pill ${dashboard.triggerCount > 0 ? 'good' : 'warn'}">Trigger ${formatNumber(dashboard.triggerCount || 0)}件</span>`,
-        ].join('');
+        ].filter(Boolean).join('');
       }
 
       function renderGmailConnectionCheckPanel() {
@@ -15615,33 +15700,49 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!target) return;
         const dashboard = state.dashboard || {};
         const integrations = dashboard.integrations || {};
+        const auth = state.gmailAuthorizationStatus || {};
+        const authKnown = Boolean(state.gmailAuthorizationStatus);
+        const check = state.gmailIntegrationCheckResult || {};
         const missing = [];
+        if (!authKnown) missing.push(['Google認可', '承認状態を確認してください']);
+        if (auth.required === true) missing.push(['Google認可', 'Gmail送信、Gmail読み取り、Calendarの追加承認が必要です']);
         if (integrations.gmail === false) missing.push(['Gmail送信', 'MailApp/GmailApp承認または送信枠を確認してください']);
         if (integrations.calendar === false) missing.push(['Calendar登録', 'CalendarApp承認を確認してください']);
         if (!dashboard.triggerCount) missing.push(['時間主導トリガー', '管理画面から定期トリガーを作成してください']);
         const remaining = Number(dashboard.mailQuotaRemaining || dashboard.todayRemaining || 0);
         const ready = missing.length === 0;
         const statusItems = [
-          { icon: 'mailCheck', label: 'Gmailアカウント', ready: integrations.gmail !== false, detail: integrations.gmail === false ? '要確認' : 'Apps Script承認済み', status: integrations.gmail === false ? '要確認' : 'OK' },
+          { icon: 'mailCheck', label: 'Gmailアカウント', ready: authKnown && auth.required !== true && integrations.gmail !== false, detail: !authKnown ? '承認状態を確認してください' : auth.required === true ? 'Google認可が必要' : integrations.gmail === false ? '要確認' : 'Apps Script承認済み', status: !authKnown ? '未確認' : auth.required === true ? '未承認' : integrations.gmail === false ? '要確認' : 'OK' },
           { icon: 'shieldCheck', label: '必要権限', ready, detail: missing.length === 0 ? 'OK' : `${formatNumber(missing.length)}件不足`, status: ready ? 'OK' : '再確認' },
           { icon: 'mailCheck', label: 'メール総数', ready: remaining > 0, detail: `アプリ残り ${formatNumber(dashboard.todayRemaining || 0)}件`, status: `${formatNumber(remaining)}件` },
-          { icon: 'timerReset', label: 'Token残り', ready: Boolean(dashboard.triggerCount), detail: '時間主導トリガー', status: dashboard.triggerCount ? `${formatNumber(dashboard.triggerCount)}件` : '未設定', tone: dashboard.triggerCount ? 'good' : 'warn' },
+          { icon: 'timerReset', label: 'Token残り', ready: authKnown && auth.required !== true, detail: auth.status || '未確認', status: !authKnown ? '未確認' : auth.required === true ? '要承認' : 'OK', tone: !authKnown || auth.required === true ? 'warn' : 'good' },
         ];
+        const checkSummary = check.checkedAt ? `
+          <div class="reply-check-note ${check.ok ? '' : 'error'}">
+            ${legacyUiIcon(check.ok ? 'checkCircle' : 'triangleAlert')}
+            <span>${escapeHtml(check.ok ? `Gmail API連携OK / 本日残り ${formatNumber(check.mailQuotaRemaining || 0)}件` : (check.error || 'Gmail API連携を確認できませんでした。'))}</span>
+          </div>
+        ` : '';
         target.innerHTML = `
           <div class="section-title-row">
             <div>
               <h2>Gmail連携テスト</h2>
               <p class="muted">保存済みのApps Script承認で、送信・返信チェック・Calendar権限を確認します。メールは送信しません。</p>
             </div>
-            <button type="button" class="button" onclick="checkReplies()">${legacyUiIcon('shieldCheck')}連携テスト</button>
+            <div class="inline-actions">
+              <button type="button" class="button secondary" onclick="refreshGmailAuthorizationStatus()">${legacyUiIcon('refreshCw')}承認状態</button>
+              <button type="button" class="button" onclick="runGmailIntegrationCheck()">${legacyUiIcon('shieldCheck')}連携テスト</button>
+            </div>
           </div>
           <div class="settings-status-grid gmail-connection-status-grid">
             ${statusItems.map(adminStatusItemMarkup).join('')}
           </div>
+          ${checkSummary}
           ${missing.length ? `
             <div class="reply-error-list">
-              ${missing.map(([label]) => `<p>${legacyUiIcon('triangleAlert')}<span>${escapeHtml(label)} の権限が不足しています。</span></p>`).join('')}
-              <button type="button" class="button secondary" onclick="checkReplies()">${legacyUiIcon('mailCheck')}Google認可をやり直す</button>
+              ${missing.map(([label, detail]) => `<p>${legacyUiIcon('triangleAlert')}<span>${escapeHtml(label)}: ${escapeHtml(detail || '確認してください')}</span></p>`).join('')}
+              ${auth.authorizationUrl ? `<a class="button-link primary" href="${escapeHtml(auth.authorizationUrl)}" target="_blank" rel="noopener">${legacyUiIcon('keyRound')}Google認可を開く</a>` : ''}
+              <button type="button" class="button secondary" onclick="refreshGmailAuthorizationStatus()">${legacyUiIcon('refreshCw')}承認後に再確認</button>
             </div>
           ` : `
             <div class="reply-check-note">
@@ -15806,19 +15907,22 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!target) return;
         const dashboard = state.dashboard || {};
         const integrations = dashboard.integrations || {};
+        const auth = state.gmailAuthorizationStatus || {};
+        const authKnown = Boolean(state.gmailAuthorizationStatus);
+        const gmailReady = authKnown && auth.required !== true && integrations.gmail !== false;
         target.innerHTML = `
           <div class="section-title-row">
             <div>
               <h2>Google / Gmail APIキー管理</h2>
               <p class="muted">Apps Script版ではOAuth秘密情報を画面に出さず、承認状態とPropertiesService参照だけを確認します。</p>
             </div>
-            <span class="pill ${integrations.gmail !== false ? 'good' : 'warn'}">${integrations.gmail !== false ? 'Gmail利用可能' : '要設定'}</span>
+            <span class="pill ${gmailReady ? 'good' : 'warn'}">${gmailReady ? 'Gmail利用可能' : 'Google認可が必要'}</span>
           </div>
           <div class="settings-status-grid">
             ${[
               { icon: 'keyRound', label: 'OAuth Client', ready: true, detail: 'Apps Script', status: 'OK' },
-              { icon: 'refreshCw', label: 'Refresh Token', ready: true, detail: 'Google管理', status: 'OK' },
-              { icon: 'mailCheck', label: '送信元', ready: integrations.gmail !== false, detail: 'Apps Script承認', status: integrations.gmail !== false ? 'OK' : '要確認' },
+              { icon: 'refreshCw', label: 'Refresh Token', ready: authKnown && auth.required !== true, detail: auth.status || '未確認', status: !authKnown ? '未確認' : auth.required === true ? '要承認' : 'OK' },
+              { icon: 'mailCheck', label: '送信元', ready: gmailReady, detail: auth.required === true ? 'Google認可リンクを開いてください' : 'Apps Script承認', status: gmailReady ? 'OK' : '要確認' },
               { icon: 'mailCheck', label: 'テスト宛先', ready: true, detail: '営業リスト指定', status: '指定' },
             ].map(adminStatusItemMarkup).join('')}
           </div>
@@ -15828,7 +15932,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <strong>差出人名: 営業担当</strong>
               <span>現在の参照元: Apps Script承認 + PropertiesService。秘密項目はシート/HTMLへ出しません。</span>
             </div>
-            <button type="button" class="icon-text-button" onclick="checkReplies()">${legacyUiIcon('mailCheck')}Google認可</button>
+            ${auth.authorizationUrl ? `<a class="button-link primary" href="${escapeHtml(auth.authorizationUrl)}" target="_blank" rel="noopener">${legacyUiIcon('keyRound')}Google認可</a>` : `<button type="button" class="icon-text-button" onclick="refreshGmailAuthorizationStatus()">${legacyUiIcon('refreshCw')}承認確認</button>`}
           </div>
         `;
       }

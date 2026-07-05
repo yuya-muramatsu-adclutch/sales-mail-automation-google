@@ -81,7 +81,10 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v91_lazy_startup_loads'), 'v91 app version missing');
+const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
+assert(code.includes('20260706_apps_script_full_workflow_v94_gmail_authorization_panel'), 'v94 app version missing');
+assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
+assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
 assert(!html.includes('https://'), 'Index.html should not contain raw https:// literals that Apps Script can split in userCodeAppPanel');
 assert(html.includes('<span>WEBサイト</span>'), 'website mini link should display WEBサイト label');
@@ -151,7 +154,8 @@ assert(html.includes("showTab('admin')"), 'dashboard API action should point to 
 assert(html.includes("icon: 'keyRound', label: 'OAuth Client'"), 'legacy Google credentials OAuth icon missing');
 assert(html.includes("icon: 'refreshCw', label: 'Refresh Token'"), 'legacy Google credentials refresh icon missing');
 assert(html.includes("icon: 'mailCheck', label: 'テスト宛先'"), 'legacy Google credentials test recipient icon missing');
-assert(html.includes("class=\"icon-text-button\" onclick=\"checkReplies()\""), 'legacy Google authorization icon button missing');
+assert(html.includes('onclick="refreshGmailAuthorizationStatus()"'), 'Gmail authorization status refresh button missing');
+assert(html.includes('onclick="runGmailIntegrationCheck()"'), 'Gmail integration check button missing');
 assert(html.includes("legacyUiIcon('shieldCheck')}連携テスト"), 'legacy Gmail connection check icon button missing');
 assert(html.includes('gmail-connection-status-grid'), 'legacy Gmail connection status grid missing');
 assert(html.includes("legacyUiIcon('triangleAlert')"), 'legacy Gmail missing-scope alert icon missing');
@@ -569,6 +573,10 @@ const initialDataBlock = webApp.slice(webApp.indexOf('function getInitialData'),
 assert(!initialDataBlock.includes('setup()'), 'getInitialData should not run setup on every startup');
 assert(initialDataBlock.includes('getStartupSerperInfo_()'), 'getInitialData should use lightweight Serper startup info');
 assert(webApp.includes('function getReferenceData'), 'reference data should be loaded separately from startup');
+assert(webApp.includes('function getGmailAuthorizationStatus'), 'Gmail authorization status API missing');
+assert(webApp.includes('function checkGmailIntegration'), 'Gmail integration check API missing');
+assert(webApp.includes("'https://www.googleapis.com/auth/script.send_mail'"), 'server Gmail required scopes should include MailApp send scope');
+assert(webApp.includes("'https://mail.google.com/'"), 'server Gmail required scopes should include GmailApp mail scope');
 assert(webApp.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'dashboard should read all lead rows');
 assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflect v11 operations payload');
 [

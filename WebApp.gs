@@ -48,6 +48,8 @@ function dispatchPostAction_(action, data) {
   if (action === 'getInitialData') return getInitialData();
   if (action === 'getReferenceData') return getReferenceData();
   if (action === 'getAuthorizationStatus') return getAuthorizationStatus();
+  if (action === 'getGmailAuthorizationStatus') return getGmailAuthorizationStatus();
+  if (action === 'checkGmailIntegration') return checkGmailIntegration();
   if (action === 'getDashboardStats') return getDashboardStats(data);
   if (action === 'getAppInfo') return getAppInfo();
   if (action === 'getSchemaStatus') return getSchemaStatus();
@@ -116,6 +118,12 @@ function jsonResponse_(object) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+const GMAIL_INTEGRATION_SCOPES = Object.freeze([
+  'https://www.googleapis.com/auth/script.send_mail',
+  'https://mail.google.com/',
+  'https://www.googleapis.com/auth/calendar',
+]);
+
 function getInitialData() {
   const appInfo = getAppInfo();
   return {
@@ -165,6 +173,72 @@ function getAuthorizationStatus() {
       status: 'UNKNOWN',
       authorizationUrl: '',
       error: error.message,
+    };
+  }
+}
+
+function getGmailAuthorizationStatus() {
+  return getAuthorizationStatusForScopes_('gmail', GMAIL_INTEGRATION_SCOPES);
+}
+
+function getAuthorizationStatusForScopes_(key, scopes) {
+  try {
+    const info = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL, scopes);
+    const status = String(info.getAuthorizationStatus());
+    return {
+      key: key,
+      required: status.indexOf('REQUIRED') !== -1,
+      status: status,
+      authorizationUrl: info.getAuthorizationUrl() || '',
+      scopes: scopes.slice(),
+      checkedAt: nowIso_(),
+    };
+  } catch (error) {
+    return {
+      key: key,
+      required: true,
+      status: 'UNKNOWN',
+      authorizationUrl: '',
+      scopes: scopes.slice(),
+      checkedAt: nowIso_(),
+      error: error.message || String(error),
+    };
+  }
+}
+
+function checkGmailIntegration() {
+  const authorization = getGmailAuthorizationStatus();
+  if (authorization.required) {
+    return {
+      ok: false,
+      authorization: authorization,
+      mailSendAvailable: false,
+      gmailReadable: false,
+      checkedAt: nowIso_(),
+      error: 'Gmail / MailApp / Calendar の追加承認が必要です。',
+    };
+  }
+
+  try {
+    const remaining = MailApp.getRemainingDailyQuota ? MailApp.getRemainingDailyQuota() : 0;
+    const threads = GmailApp.search('in:anywhere newer_than:7d', 0, 1);
+    return {
+      ok: true,
+      authorization: authorization,
+      mailSendAvailable: remaining > 0,
+      mailQuotaRemaining: Math.max(0, Number(remaining) || 0),
+      gmailReadable: true,
+      sampleThreadCount: threads.length,
+      checkedAt: nowIso_(),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      authorization: getGmailAuthorizationStatus(),
+      mailSendAvailable: false,
+      gmailReadable: false,
+      checkedAt: nowIso_(),
+      error: error.message || String(error),
     };
   }
 }

@@ -235,6 +235,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 83 / code v83で管理/運用の本番前チェック行を旧アプリ同様にラベルと詳細の縦積みに戻し、`Google Sheets5,441件` のような詰まり表示を解消
 - Apps Script Version 84 / code v84でメール送信リストのテーブルを旧アプリの `table-email-leads` に寄せ、長い屋号/メールで右端の履歴操作が切れないよう列幅と省略表示を復元
 - Apps Script Version 91 / code v91で初回起動遅延の原因だった `getInitialData()` の全件ダッシュボード集計、毎回の `setup()`、マスタ/設定/スキーマ/Serper集計、起動時の他メニュー一括取得を分離。初回は軽量ダッシュボード + 確認待ちリストのみで起動し、各メニューは開いた時に遅延ロード。初回の確認待ち取得はquiet通信にして、表示後のナビ操作をブロックしないようにしました
+- Apps Script Version 94 / code v94でGmail API連携の不足scopeを修正。`MailApp` 用 `https://www.googleapis.com/auth/script.send_mail` と `GmailApp` 用 `https://mail.google.com/` を追加し、Gmail連携画面から承認状態、Google認可URL、メールを送らない連携テストを確認可能にしました。認可リンクのアイコン巨大化と、追加承認待ちでパネルが空になる表示も実画面で修正済み
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み
