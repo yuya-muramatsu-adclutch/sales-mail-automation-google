@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v70_job_results_review_parity'), 'v70 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v71_background_toast_parity'), 'v71 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -192,6 +192,13 @@ assert(html.includes("['shieldAlert', '送信NG'"), 'legacy analytics risk shiel
 assert(html.includes("['trendingDown', '失注'"), 'legacy analytics risk trend icon missing');
 assert(html.includes('backgroundToastStack'), 'legacy background job toast stack missing');
 assert(html.includes('background-center-button'), 'legacy background center button missing');
+assert(html.includes("legacyUiIcon('loaderCircle')"), 'legacy background toast loader icon missing');
+assert(html.includes("legacyUiIcon('xCircle')"), 'legacy background toast failure icon missing');
+assert(html.includes('background-toast-spin'), 'legacy background toast spinner animation missing');
+assert(html.includes('background-toast-resume'), 'legacy background toast action class missing');
+assert(html.includes('background-toast-found-list'), 'legacy background toast found list missing');
+assert(html.includes('displayBackgroundJobLabel'), 'legacy background toast label cleanup missing');
+assert(html.includes('displayBackgroundJobMessage'), 'legacy background toast message cleanup missing');
 assert(html.includes('backgroundOverviewPanel'), 'legacy background overview panel missing');
 assert(html.includes('background-overview-kpis'), 'legacy background overview KPI UI missing');
 assert(html.includes('renderLegacyBackgroundOverview'), 'legacy background overview renderer missing');

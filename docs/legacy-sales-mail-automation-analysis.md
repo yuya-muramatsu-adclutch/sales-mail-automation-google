@@ -102,6 +102,7 @@
 - 旧 `AppSafetyStrip` に合わせ、運用ステータスバーの主状態と送信時間/Gmail/Calendar/SerperのチップをShield/Clock/Mail/Plugの線画アイコン付き表示へ変更した。
 - 旧 `AppTopShortcutBar` に合わせ、上部ショートカットはリスト/進捗/収集/フォーム/送信/メールの6項目だけにし、GAS固有の更新/setupはサイドバー下部に集約した。
 - 旧 `BackgroundJobWidgets` 相当として、右下のジョブ通知スタック、進捗バー、閉じる操作、バックグラウンド進捗タブへの導線、全画面共通の戻るボタンを追加した。GAS版では `jobs` / `search_jobs` の現在値に読み替えて表示する。
+- 旧 `BackgroundJobToasts` の細部に合わせ、通知アイコンを文字からCheckCircle/XCircle/Loader線画アイコンへ変更し、実行中スピナー、追加先リスト、結果/進捗を見る操作、ラベルの「続き」整理を反映した。
 - 旧 `EmailPreviewPanel` に合わせ、送信プレビューの「差し込み後を確認」PillにEyeアイコン、1件送信/対象リスト自動送信ボタンにSendアイコンを追加した。
 - 旧 `HistoriesPage` に合わせ、送信履歴ヘッダーのCSV出力と送信プレビュー導線をDownload/Sendアイコン付きボタンに変更した。
 - 旧 `AnalyticsPage` に合わせ、分析ページの今月サマリー、営業ファネル、リスク帯へListPlus/Send/Reply/Calendar/Check/Shield/Trend/Mailの線画アイコンを追加した。
