@@ -5490,8 +5490,23 @@
         font-weight: 900;
       }
 
+      .prospecting-collection-tool {
+        display: grid;
+        gap: 16px;
+      }
+
       .collection-command-center {
+        display: grid;
+        gap: 0;
         overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.05);
+      }
+
+      .collection-command-center.simple {
+        gap: 0;
       }
 
       .collection-simple-head {
@@ -5513,10 +5528,27 @@
       .collection-simple-head strong {
         display: block;
         margin-top: 3px;
+        color: var(--text);
         font-size: 18px;
+        line-height: 1.25;
+      }
+
+      .collection-simple-head small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .collection-simple-links {
+        display: flex;
+        flex: 0 0 auto;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
       }
 
       .collection-status-bar {
+        display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 0;
         border-bottom: 1px solid var(--line);
@@ -5525,33 +5557,94 @@
 
       .collection-status-item {
         display: grid;
-        gap: 4px;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 2px 10px;
         min-height: 78px;
         padding: 14px 16px;
         border-right: 1px solid var(--line);
+        color: var(--text);
       }
 
       .collection-status-item:last-child {
         border-right: 0;
       }
 
+      .collection-status-item svg {
+        grid-row: 1 / span 3;
+        align-self: center;
+        color: #2563eb;
+      }
+
+      .collection-status-item.ok svg {
+        color: #059669;
+      }
+
+      .collection-status-item.warn svg {
+        color: #b45309;
+      }
+
+      .collection-status-item span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        line-height: 1.25;
+      }
+
+      .collection-status-item strong {
+        min-width: 0;
+        color: var(--text);
+        font-size: 17px;
+        line-height: 1.25;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .collection-status-item small {
+        min-width: 0;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
       .collection-main-actions {
+        display: grid;
         grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 10px;
         padding: 14px;
         background: #fff;
       }
 
       .collection-main-action {
         display: grid;
-        gap: 4px;
-        min-height: 72px;
-        padding: 13px;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 76px;
+        padding: 14px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fff;
         color: var(--text);
         cursor: pointer;
+        font: inherit;
         text-align: left;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          box-shadow 0.15s ease,
+          transform 0.15s ease;
+      }
+
+      .collection-main-action:hover {
+        border-color: #93c5fd;
+        background: #f8fafc;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        transform: translateY(-1px);
       }
 
       .collection-main-action.active {
@@ -5560,17 +5653,32 @@
         box-shadow: inset 0 0 0 1px #bfdbfe;
       }
 
-      .collection-main-action small,
-      .collection-main-action span {
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 900;
+      .collection-main-action > svg:first-child {
+        color: #2563eb;
+      }
+
+      .collection-main-action > svg:last-child {
+        color: #94a3b8;
+      }
+
+      .collection-main-action > span {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
       }
 
       .collection-main-action strong {
         display: block;
         color: var(--text);
         font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+
+      .collection-main-action small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        overflow-wrap: anywhere;
       }
 
       .collection-tabs {
@@ -7362,14 +7470,19 @@
               <p class="eyebrow">Lead collection system</p>
               <h1>営業リスト収集ツール</h1>
             </div>
-            <span class="pill" id="serperStatusPill">確認中</span>
+            <div class="row">
+              <span class="pill" id="serperStatusPill">確認中</span>
+              <button type="button" class="button secondary icon-text-button" onclick="showTab('exclusions')"><span class="button-icon" data-ui-icon="settings"></span>除外ドメイン管理</button>
+            </div>
           </header>
-          <div class="dashboard-action-grid" id="searchOverview"></div>
           <section id="searchActivityPanel" class="prospecting-activity-panel"></section>
+          <div class="prospecting-collection-tool">
+            <section id="collectionCommandCenter" class="collection-command-center simple"></section>
+          </div>
           <section id="prospectingProgressDashboard" class="panel stack prospecting-progress-dashboard"></section>
-          <section id="collectionCommandCenter" class="collection-command-center"></section>
           <section id="jobResultsReviewPanel" class="panel job-results-panel"></section>
           <section id="serperKeyManagerPanel" class="panel stack"></section>
+          <div class="dashboard-action-grid search-support-overview" id="searchOverview"></div>
           <div class="content-grid">
             <section class="panel">
               <div class="panel-head"><h2>小規模検索ジョブ</h2></div>
@@ -7943,11 +8056,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         download: iconSvg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>'),
         external: iconSvg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'),
         eye: iconSvg('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
+        building2: iconSvg('<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/><path d="M6 12H4a2 2 0 0 0-2 2v8"/><path d="M18 9h2a2 2 0 0 1 2 2v11"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>'),
+        globe2: iconSvg('<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
         history: NAV_ICON_SVGS.HS,
         keyRound: iconSvg('<path d="M2 18v3h3l9.9-9.9"/><circle cx="16" cy="8" r="6"/><path d="m15 9 1 1 3-3"/>'),
         lock: iconSvg('<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
         mailCheck: NAV_ICON_SVGS.ML,
         mailSearch: iconSvg('<path d="M22 12.5V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>'),
+        mapPinned: iconSvg('<path d="M18 8c0 4-6 10-6 10S6 12 6 8a6 6 0 0 1 12 0Z"/><circle cx="12" cy="8" r="2"/><path d="M8.75 14H5l-3 8 7-2 6 2 7-2-3-8h-3.75"/>'),
         listPlus: iconSvg('<path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/>'),
         listChecks: iconSvg('<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>'),
         mousePointer: iconSvg('<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>'),
@@ -12360,15 +12476,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <strong>収集条件と実行設定</strong>
               <small>Serper ${searchReady ? (state.serper.key_mask || '設定済み') : '未設定'} / ジャンル ${formatNumber((state.genres || []).length)}件</small>
             </div>
-            <div class="toolbar">
-              <button type="button" onclick="document.getElementById('serperKey').focus()">Serperキー</button>
-              <button type="button" onclick="showTab('exclusions')">除外ドメイン</button>
+            <div class="collection-simple-links">
+              <button type="button" class="mini-button" onclick="document.getElementById('serperKey').focus()">${legacyUiIcon('keyRound')}Serperキー</button>
+              <button type="button" class="mini-button" onclick="showTab('exclusions')">${legacyUiIcon('settings')}除外ドメイン</button>
             </div>
           </div>
           <div class="collection-status-bar">
-            <div class="collection-status-item ${searchReady ? 'ok' : 'warn'}"><span>検索API</span><strong>${searchReady ? 'ON' : 'OFF'}</strong><small>${searchReady ? 'APIキー保存済み' : 'APIキーを保存してください'}</small></div>
-            <div class="collection-status-item ${autoSettings.enabled && enabledRuleCount ? 'ok' : 'warn'}"><span>自動検索</span><strong>${autoSettings.enabled ? 'ON' : 'OFF'}</strong><small>優先ジャンル ${formatNumber(enabledRuleCount)}件</small></div>
-            <div class="collection-status-item ${enabledSourceCount ? 'ok' : 'warn'}"><span>まとめサイト監視</span><strong>${formatNumber(enabledSourceCount)}サイト</strong><small>保存済み ${formatNumber((sourceSettings.sites || []).length)}件</small></div>
+            ${collectionStatusItem('keyRound', '検索API', searchReady ? 'ON' : 'OFF', searchReady ? 'APIキー保存済み' : 'APIキーを保存してください', searchReady ? 'ok' : 'warn')}
+            ${collectionStatusItem('settings', '自動検索', autoSettings.enabled ? 'ON' : 'OFF', `優先ジャンル ${formatNumber(enabledRuleCount)}件`, autoSettings.enabled && enabledRuleCount ? 'ok' : 'warn')}
+            ${collectionStatusItem('globe2', 'まとめサイト監視', `${formatNumber(enabledSourceCount)}サイト`, `保存済み ${formatNumber((sourceSettings.sites || []).length)}件`, enabledSourceCount ? 'ok' : 'warn')}
           </div>
           <div class="collection-main-actions">
             ${collectionAction('0 自動運用', 'Apps Scriptトリガーとジョブ処理', 'automation')}
@@ -12377,23 +12493,29 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ${collectionAction('3 ファイル収集', 'CSV貼り付けで一括追加', 'file')}
             ${collectionAction('4 まとめサイトURL', 'URLから公式サイト探索', 'sourcePage')}
           </div>
-          <div class="collection-tabs" role="tablist" aria-label="営業リスト収集ツール管理">
-            ${[
-              ['automation', '基本', '自動運用'],
-              ['area', 'エリア', '検索収集'],
-              ['keyword', 'キーワード', '除外確認'],
-              ['file', 'ファイル', 'CSV収集'],
-              ['sourcePage', 'URL', 'まとめサイト'],
-            ].map(([key, label, detail]) => `<button type="button" role="tab" aria-selected="${state.activeCollectionTab === key ? 'true' : 'false'}" class="collection-tab-button ${state.activeCollectionTab === key ? 'active' : ''}" onclick="setCollectionTab('${key}')"><span>${escapeHtml(label)}</span><small>${escapeHtml(detail)}</small></button>`).join('')}
-          </div>
           <div class="collection-tab-panel" role="tabpanel">
             ${renderCollectionTabPanel(state.activeCollectionTab, searchReady, dashboard)}
           </div>
         `;
       }
 
+      function collectionStatusItem(icon, label, value, detail, tone) {
+        return `<div class="collection-status-item ${escapeHtml(tone || 'info')}">${legacyUiIcon(icon)}<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`;
+      }
+
+      function collectionActionIcon(mode) {
+        const icons = {
+          automation: 'settings',
+          area: 'mapPinned',
+          keyword: 'search',
+          file: 'building2',
+          sourcePage: 'globe2',
+        };
+        return icons[mode] || 'search';
+      }
+
       function collectionAction(label, description, mode) {
-        return `<button type="button" class="collection-main-action ${state.activeCollectionTab === mode ? 'active' : ''}" onclick="setCollectionTab('${escapeJsString(mode)}')"><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></button>`;
+        return `<button type="button" class="collection-main-action ${state.activeCollectionTab === mode ? 'active' : ''}" aria-pressed="${state.activeCollectionTab === mode ? 'true' : 'false'}" onclick="setCollectionTab('${escapeJsString(mode)}')">${legacyUiIcon(collectionActionIcon(mode))}<span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></span>${legacyUiIcon('chevronRight')}</button>`;
       }
 
       function setCollectionTab(tab) {

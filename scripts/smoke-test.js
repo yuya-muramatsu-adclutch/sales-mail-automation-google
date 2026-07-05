@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v84_legacy_email_table_restore'), 'v84 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v85_legacy_collection_tool_restore'), 'v85 app version missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
 assert(!html.includes('https://'), 'Index.html should not contain raw https:// literals that Apps Script can split in userCodeAppPanel');
 assert(html.includes('<span>WEBサイト</span>'), 'website mini link should display WEBサイト label');
@@ -180,6 +180,14 @@ assert(html.includes('.readiness-item small'), 'legacy readiness detail block st
 assert(html.includes('table-wrap table-email-leads'), 'legacy email-leads table wrapper missing');
 assert(html.includes('.table-email-leads table'), 'legacy email-leads table layout missing');
 assert(html.includes('.table-email-leads td'), 'legacy email-leads truncation missing');
+assert(html.includes('prospecting-collection-tool'), 'legacy prospecting collection tool shell missing');
+assert(html.includes('collection-command-center simple'), 'legacy collection command center should be first-class shell');
+assert(html.includes('collection-simple-links'), 'legacy collection command header links missing');
+assert(html.includes('function collectionStatusItem'), 'legacy collection status icon row helper missing');
+assert(html.includes("legacyUiIcon('mapPinned')") || html.includes('mapPinned'), 'legacy genre-area collection icon missing');
+assert(html.includes("legacyUiIcon('globe2')") || html.includes('globe2'), 'legacy source-page collection icon missing');
+assert(html.indexOf('id="searchActivityPanel"') < html.indexOf('id="collectionCommandCenter"'), 'legacy prospecting activity should precede collection tool');
+assert(html.indexOf('id="collectionCommandCenter"') < html.indexOf('id="searchOverview"'), 'legacy collection tool should appear before support overview cards');
 assert(html.includes("item.icon || 'rocket'"), 'legacy readiness default rocket icon missing');
 assert(html.includes("icon: 'database', label: 'Google Sheets'"), 'legacy admin database status item missing');
 assert(html.includes("icon: 'searchCheck', label: 'Serper'"), 'legacy admin Serper status item missing');
