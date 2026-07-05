@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v71_background_toast_parity'), 'v71 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v72_background_page_header_parity'), 'v72 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -192,6 +192,11 @@ assert(html.includes("['shieldAlert', '送信NG'"), 'legacy analytics risk shiel
 assert(html.includes("['trendingDown', '失注'"), 'legacy analytics risk trend icon missing');
 assert(html.includes('backgroundToastStack'), 'legacy background job toast stack missing');
 assert(html.includes('background-center-button'), 'legacy background center button missing');
+assert(html.includes('background-guide-panel'), 'legacy background progress guide panel missing');
+assert(html.includes('data-ui-icon="listChecks"'), 'legacy background progress list checks icon missing');
+assert(html.includes('data-ui-icon="arrowLeft"'), 'legacy background progress back icon missing');
+assert(html.includes("listChecks: iconSvg"), 'legacy list checks icon definition missing');
+assert(html.includes("arrowLeft: iconSvg"), 'legacy arrow left icon definition missing');
 assert(html.includes("legacyUiIcon('loaderCircle')"), 'legacy background toast loader icon missing');
 assert(html.includes("legacyUiIcon('xCircle')"), 'legacy background toast failure icon missing');
 assert(html.includes('background-toast-spin'), 'legacy background toast spinner animation missing');

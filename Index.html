@@ -874,6 +874,36 @@
           #ffffff;
       }
 
+      .background-guide-panel .panel-body {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .background-guide-panel .panel-body > div {
+        min-width: 0;
+      }
+
+      .background-guide-panel-icon {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: var(--blue);
+      }
+
+      .background-guide-panel-icon svg {
+        width: 22px;
+        height: 22px;
+        stroke-width: 2;
+      }
+
       .background-overview-kpis {
         display: grid;
         grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -6642,15 +6672,19 @@
               <h1>バックグラウンド進捗</h1>
             </div>
             <div class="toolbar">
-              <button type="button" onclick="showTab('backgroundActivity')">直近実行結果</button>
-              <button type="button" onclick="showTab('search')">収集設定へ</button>
+              <button type="button" class="icon-text-button" onclick="showTab('backgroundActivity')"><span class="button-icon" data-ui-icon="listChecks"></span>直近実行結果</button>
+              <button type="button" class="button secondary icon-text-button" onclick="showTab('search')"><span class="button-icon" data-ui-icon="arrowLeft"></span>収集設定へ</button>
             </div>
           </header>
           <div class="stack">
-            <section class="panel">
+            <section class="panel background-guide-panel">
               <div class="panel-head"><h2>進捗の見方</h2><span class="pill info" id="backgroundJobSummaryPill">0件</span></div>
               <div class="panel-body">
-                <p class="muted">自動収集で行うリスト追加、WEBサイト/メール/フォーム取得と、既存リスト補完のジョブを分けて確認します。GASの6分制限に合わせ、処理は少量ずつ再開できます。</p>
+                <div>
+                  <p class="muted">自動収集で行うリスト追加・WEBサイト/メール/フォーム取得と、既存リストを補完するWEBサイト確認・メール/フォーム取得を分けて表示します。右側のカードでは直近3日間の成果を確認できます。</p>
+                  <p class="muted">GASの6分制限に合わせ、処理は少量ずつ再開できます。</p>
+                </div>
+                <span class="background-guide-panel-icon" data-ui-icon="listChecks" aria-hidden="true"></span>
               </div>
             </section>
             <section class="stats-grid" id="backgroundJobStats"></section>
@@ -7150,6 +7184,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       const LEGACY_UI_ICON_SVGS = Object.freeze({
         arrowRight: iconSvg('<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>'),
+        arrowLeft: iconSvg('<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>'),
         barChart3: NAV_ICON_SVGS.AN,
         chevronFirst: iconSvg('<path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/>'),
         chevronLast: iconSvg('<path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/>'),
@@ -7170,6 +7205,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         mailCheck: NAV_ICON_SVGS.ML,
         mailSearch: iconSvg('<path d="M22 12.5V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>'),
         listPlus: iconSvg('<path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 18H3"/><path d="M18 9v6"/><path d="M21 12h-6"/>'),
+        listChecks: iconSvg('<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>'),
         mousePointer: iconSvg('<path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="m13 13 6 6"/>'),
         messageCircleReply: iconSvg('<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="m10 15-3-3 3-3"/><path d="M7 12h8"/>'),
         pencil: iconSvg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
