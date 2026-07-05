@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260706_apps_script_full_workflow_v94_gmail_authorization_panel'), 'v94 app version missing');
+assert(code.includes('20260706_apps_script_full_workflow_v95_gmail_authorization_status_fix'), 'v95 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -575,6 +575,8 @@ assert(initialDataBlock.includes('getStartupSerperInfo_()'), 'getInitialData sho
 assert(webApp.includes('function getReferenceData'), 'reference data should be loaded separately from startup');
 assert(webApp.includes('function getGmailAuthorizationStatus'), 'Gmail authorization status API missing');
 assert(webApp.includes('function checkGmailIntegration'), 'Gmail integration check API missing');
+assert(webApp.includes('function isAuthorizationRequiredStatus_'), 'authorization status strict helper missing');
+assert(!webApp.includes("status.indexOf('REQUIRED') !== -1"), 'NOT_REQUIRED must not be treated as REQUIRED');
 assert(webApp.includes("'https://www.googleapis.com/auth/script.send_mail'"), 'server Gmail required scopes should include MailApp send scope');
 assert(webApp.includes("'https://mail.google.com/'"), 'server Gmail required scopes should include GmailApp mail scope');
 assert(webApp.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'dashboard should read all lead rows');

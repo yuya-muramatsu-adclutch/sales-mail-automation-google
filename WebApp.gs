@@ -163,7 +163,7 @@ function getAuthorizationStatus() {
     const info = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);
     const status = String(info.getAuthorizationStatus());
     return {
-      required: status.indexOf('REQUIRED') !== -1,
+      required: isAuthorizationRequiredStatus_(status),
       status: status,
       authorizationUrl: info.getAuthorizationUrl() || '',
     };
@@ -181,13 +181,17 @@ function getGmailAuthorizationStatus() {
   return getAuthorizationStatusForScopes_('gmail', GMAIL_INTEGRATION_SCOPES);
 }
 
+function isAuthorizationRequiredStatus_(status) {
+  return String(status) === 'REQUIRED';
+}
+
 function getAuthorizationStatusForScopes_(key, scopes) {
   try {
     const info = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL, scopes);
     const status = String(info.getAuthorizationStatus());
     return {
       key: key,
-      required: status.indexOf('REQUIRED') !== -1,
+      required: isAuthorizationRequiredStatus_(status),
       status: status,
       authorizationUrl: info.getAuthorizationUrl() || '',
       scopes: scopes.slice(),
