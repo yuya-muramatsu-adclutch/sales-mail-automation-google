@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260705_apps_script_full_workflow_v39_gmail_reply_calendar_panels';
+const APP_VERSION = '20260705_apps_script_full_workflow_v40_admin_readiness_template_actions';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -471,6 +471,91 @@ function getAppInfo() {
     reference: EXISTING_APP_REFERENCE,
     spreadsheetId: spreadsheet.getId(),
     spreadsheetUrl: spreadsheet.getUrl(),
+  };
+}
+
+function getSchemaStatus() {
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const schemaChecks = [
+    {
+      key: 'leads-core',
+      label: 'leads 基本列',
+      sheet: 'leads',
+      columns: ['id', 'company_name', 'email', 'status', 'custom_fields_json'],
+    },
+    {
+      key: 'leads-gmail-calendar',
+      label: 'leads Gmail / Calendar列',
+      sheet: 'leads',
+      columns: ['reply_checked', 'last_gmail_thread_id', 'meeting_start_at', 'meeting_end_at', 'calendar_event_id', 'calendar_auto_created_at'],
+    },
+    {
+      key: 'templates-production',
+      label: 'email_templates 本番管理列',
+      sheet: 'email_templates',
+      columns: ['is_production', 'production_enabled_at', 'last_test_sent_at', 'version', 'active'],
+    },
+    {
+      key: 'search-result-review',
+      label: 'search_results レビュー列',
+      sheet: 'search_results',
+      columns: ['review_status', 'review_action', 'reviewed_at', 'lead_id'],
+    },
+    {
+      key: 'reply-logs',
+      label: 'reply_logs 返信ログ列',
+      sheet: 'reply_logs',
+      columns: ['lead_id', 'thread_id', 'subject', 'snippet', 'received_at'],
+    },
+    {
+      key: 'settings-core',
+      label: 'settings 運用設定キー',
+      sheet: 'settings',
+      settingKeys: ['gmail_daily_send_limit', 'email_batch_send_limit', 'email_send_window', 'gmail_reply_check', 'calendar_auto_create', 'batch_runtime_budget_ms'],
+    },
+  ];
+  const checks = schemaChecks.map(function (check) {
+    const sheet = spreadsheet.getSheetByName(check.sheet);
+    if (!sheet) {
+      return {
+        key: check.key,
+        label: check.label,
+        detail: check.sheet + ' シートがありません',
+        ready: false,
+      };
+    }
+
+    const headers = getHeaders_(sheet);
+    const missingColumns = (check.columns || []).filter(function (column) {
+      return headers.indexOf(column) === -1;
+    });
+    let missingSettings = [];
+    if (check.settingKeys && check.settingKeys.length) {
+      const records = readSheetRecords_(sheet);
+      const keys = records.map(function (record) { return String(record.key || ''); });
+      missingSettings = check.settingKeys.filter(function (key) {
+        return keys.indexOf(key) === -1;
+      });
+    }
+    const missing = missingColumns.concat(missingSettings);
+    return {
+      key: check.key,
+      label: check.label,
+      detail: missing.length ? '不足: ' + missing.join(', ') : 'OK: ' + check.sheet,
+      ready: missing.length === 0,
+    };
+  });
+  const recoverySteps = [
+    'Apps Script editorで setup() を実行',
+    'Webアプリを再読み込み',
+    '必要なら COMPLETION_AUDIT.md の対象Versionを確認',
+  ].join('\n');
+
+  return {
+    checks: checks,
+    migrationSql: recoverySteps,
+    ready: checks.every(function (check) { return check.ready; }),
+    generatedAt: nowIso_(),
   };
 }
 

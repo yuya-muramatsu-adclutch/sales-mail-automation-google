@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @39 / code v39: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @40 / code v40: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v39_gmail_reply_calendar_panels`
+- Code version: `20260705_apps_script_full_workflow_v40_admin_readiness_template_actions`
 
 ## 計画書との対応
 
@@ -65,9 +65,16 @@
 | 旧アプリ同期インポートUI反映 | 完了 | 旧 `SyncImportPanel` に合わせ、code v36でCSV/JSON同期、ファイル読込、文字コード推定、列マッピング、プレビューKPI、要確認行、先頭10件プレビューを反映 |
 | 旧アプリ検索結果レビュー操作反映 | 完了 | 旧 `JobResultsReviewTable` に合わせ、code v37で検索結果カードの選択、一括確認、選択除外、メール/フォーム補正、営業リスト追加、レビュー状態保存を反映 |
 | 旧アプリGmail返信/Calendar設定反映 | 完了 | 旧 `GmailReplyCheckPanel` / `CalendarAutoCreateSettingsForm` に合わせ、code v39で返信チェック結果サマリー、誤判定候補確認/復元、Calendar自動登録設定を反映 |
+| 旧アプリ管理チェック/テンプレート操作反映 | 完了 | 旧 `AdminReadinessRunner` / `SchemaStatusPanel` / `TemplateProductionStatus` / `TemplateActions` に合わせ、code v40で本番前確認、DB追加項目チェック、テンプレート本番ON/OFF、行内テスト送信/削除操作を反映 |
 
 ## 検証済み
 
+- `clasp push -f` 成功
+- `clasp version "apps-script-full-workflow-v40-admin-readiness-template-actions"` でVersion 40を作成済み
+- 既存Web app URLを `clasp deploy -V 40 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 40へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@40 - apps-script-full-workflow-v40-admin-readiness-template-actions-on-existing-url` を指すことを確認
+- code v40ローカルスモークで `adminReadinessRunnerPanel`, `schemaStatusPanel`, `renderTemplateActionCell`, `setEmailTemplateProduction`, `getSchemaStatus` が含まれることを確認
+- `node scripts/smoke-test.js` 成功、`git diff --check` 成功
 - `clasp push -f` 成功
 - `clasp deploy -d apps-script-full-workflow-v7-auth-preflight-fix` 成功
 - 既存Web app URLを `clasp deploy -V 7 -i ...` でv7へ再デプロイ済み

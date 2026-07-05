@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v39_gmail_reply_calendar_panels'), 'v39 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v40_admin_readiness_template_actions'), 'v40 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -188,6 +188,12 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'gmailConnectionCheckPanel',
   'mailSendLockPanel',
   'googleCredentialSummaryPanel',
+  'adminReadinessRunnerPanel',
+  'schemaStatusPanel',
+  'renderAdminReadinessRunnerPanel',
+  'renderSchemaStatusPanel',
+  'runAdminReadinessCheck',
+  'refreshSchemaStatus',
   'adminAutomationSettingsPanel',
   'customFieldDefinitionPanel',
   'leadListViewSettingsPanel',
@@ -251,6 +257,11 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'renderLeadDuplicatePanel',
   'keepCurrentLeadFromDuplicatePanel',
   'keepExistingLeadFromDuplicatePanel',
+  'renderTemplateProductionStatus',
+  'renderTemplateActionCell',
+  'sendTemplateTestFromRow',
+  'toggleTemplateProduction',
+  'deleteTemplateFromRow',
 ].forEach((marker) => {
   assert(html.includes(marker), `legacy UI marker missing: ${marker}`);
 });
@@ -276,6 +287,7 @@ assert(webApp.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_()
 assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflect v11 operations payload');
 [
   'saveEmailTemplate',
+  'setEmailTemplateProduction',
   'saveNgMaster',
   'saveExcludedDomain',
   'listGenres',
@@ -303,8 +315,10 @@ assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflec
   'prepareLeadMigration',
   'writeLeadMigrationRows',
   'finalizeLeadMigration',
+  'getSchemaStatus',
 ].forEach((action) => {
   assert(webApp.includes(`action === '${action}'`), `doPost action missing: ${action}`);
 });
+assert(fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8').includes('function setEmailTemplateProduction'), 'template production API missing');
 
 console.log('smoke-test OK');

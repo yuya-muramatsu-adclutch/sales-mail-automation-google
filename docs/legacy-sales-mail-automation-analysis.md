@@ -32,10 +32,11 @@
 - `components/TemplateTestRecipientManager.tsx`: テスト送信先の現在値、営業リストからの宛先選択、保存導線
 - `components/JobResultsReviewTable.tsx`: 検索ジョブ結果のカテゴリ別レビュー、確認済み操作、メール/フォーム/URLの根拠表示
 - `components/GmailConnectionCheck.tsx`, `components/GoogleCredentialsManager.tsx`, `components/MailSendLockPanel.tsx`: Gmail連携テスト、Google認証状態、送信ロック、本番前チェックの見せ方
+- `components/AdminReadinessRunner.tsx`, `components/SchemaStatusPanel.tsx`: 本番前確認、送信対象プレビュー、除外内訳、DB追加項目チェックの見せ方
 - `components/SendWindowSettingsForm.tsx`, `components/GmailReplyCheckSettingsForm.tsx`, `components/EmailDiscoverySettingsForm.tsx`, `components/BackgroundWorkerSettingsForm.tsx`: 自動送信時間、返信自動チェック、メール自動取得、重い処理の設定UI
 - `components/DuplicateLeadManager.tsx`, `app/errors/page.tsx`: 重複リスト管理、エラー詳細の運用UI
 - `components/ListViewSettingsPanel.tsx`, `components/CustomFieldDefinitionForm.tsx`, `components/CustomFieldsInputs.tsx`: 表示項目設定、カスタム項目定義、リード詳細内のカスタム項目入力
-- `components/TemplateTagMenu.tsx`, `components/TemplateActions.tsx`, `components/TemplateCreateForm.tsx`: テンプレート差し込みタグ、テンプレートサンプル、作成/編集フォーム
+- `components/TemplateTagMenu.tsx`, `components/TemplateActions.tsx`, `components/TemplateProductionStatus.tsx`, `components/TemplateCreateForm.tsx`: テンプレート差し込みタグ、テンプレートサンプル、作成/編集フォーム、本番ON/OFF、テスト送信
 - `components/GenreManager.tsx`, `components/ReasonMasterManager.tsx`: 管理画面のジャンル追加/編集/削除、送信NG/失注/対応不要理由の追加/編集/有効無効管理
 - `components/LeadEditForm.tsx`, `components/MeetingScheduleForm.tsx`: リード詳細のステータス編集、送信NG理由/メモ、フォーム対応、商談ステータス、Calendar登録、Meetリンク表示
 - `components/QuickLeadEditButton.tsx`, `components/DuplicateResolutionDialog.tsx`: 営業リスト上の履歴・編集ダイアログ、送信履歴カード、本文詳細、フォーム送信履歴、重複候補確認の見せ方
@@ -92,6 +93,9 @@
 - 営業リスト収集ツールの結果一覧に旧 `JobResultsReviewTable` の選択、一括確認、選択除外、メール/フォーム補正、営業リスト追加、確認済み保存を追加した。
 - Gmail連携/管理画面に旧 `GmailReplyCheckPanel` の返信チェック結果サマリー、誤判定候補確認、候補復元UIを追加した。
 - 管理画面に旧 `CalendarAutoCreateSettingsForm` のCalendar自動登録ON/OFF設定を追加した。
+- 管理画面に旧 `AdminReadinessRunner` の「安全な本番前確認」を追加し、GAS版では承認状態、送信時間、Gmail残数、テンプレート本番ON、今日の自動送信候補、送信対象外内訳、送信ロック、直近ジョブを `dashboard` / `settings` / `jobs` から再構成した。
+- 管理画面に旧 `SchemaStatusPanel` のDB追加項目チェックを追加し、GAS版ではSupabase SQLではなくGoogle Sheetsの列と `settings` キー、復旧手順 `setup()` へ読み替えた。
+- テンプレート一覧に旧 `TemplateProductionStatus` / `TemplateActions` の行内操作を追加し、テスト送信済み、ジャンル設定済み、2ヶ月後メール除外の条件を満たしたテンプレートだけ本番ONにできるようにした。
 
 ## GAS版へ反映した機能
 
@@ -113,6 +117,8 @@
 - `renderLegacySyncImportPanel()` を追加し、旧 `SyncImportPanel` のReact状態管理をGAS版の単一HTML状態に読み替えた。JSON入力はクライアントでCSVへ変換して `importLeadsFromCsv()` に渡す。
 - `addSearchResultToLead()` / `reviewSearchResults()` を追加し、旧 `/api/background-jobs/results-review` 相当として `search_results` の `review_status`, `review_action`, `reviewed_at`, `lead_id` をUUID `id` 更新で保存できるようにした。確認済み、非表示、除外、営業リスト追加を同じレビュー状態として保持する。
 - `checkRepliesForLeads()` の戻り値を旧 `GmailReplyCheckPanel` 相当のサマリーに拡張し、`listReplyFalsePositiveCandidates()` / `restoreReplyFalsePositiveCandidates()` を追加して自動返信・配信エラーの誤判定候補を確認/復元できるようにした。
+- `getSchemaStatus()` を追加し、GAS版の主要シート列と運用設定キーを管理画面から確認できるようにした。
+- `setEmailTemplateProduction()` を追加し、同一テンプレート種別/ジャンルの本番ON重複を自動でOFFにしながら、テンプレートの本番化をUUID `id` 更新で保存できるようにした。
 
 ## そのまま移植しないもの
 

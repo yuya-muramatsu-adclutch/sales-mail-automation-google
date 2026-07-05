@@ -3024,6 +3024,53 @@
         font-weight: 900;
       }
 
+      .admin-target-preview,
+      .schema-sql-box,
+      .template-action-row {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .admin-target-preview span,
+      .schema-sql-box span {
+        color: #334155;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .schema-sql-box pre {
+        margin: 0;
+        white-space: pre-wrap;
+      }
+
+      .template-action-row {
+        grid-template-columns: repeat(2, minmax(0, auto));
+        justify-content: start;
+        gap: 6px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+      }
+
+      .template-action-row .inline-success,
+      .template-action-row .inline-error {
+        grid-column: 1 / -1;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .inline-success {
+        color: #0f766e;
+      }
+
+      .inline-error {
+        color: #be123c;
+      }
+
       .job-results-panel {
         display: grid;
         gap: 14px;
@@ -5364,6 +5411,8 @@ PropertiesService
           <section id="adminStatusGrid" class="settings-status-grid"></section>
           <section id="adminReadinessPanel" class="ops-readiness-panel"></section>
           <div class="grid">
+            <section id="adminReadinessRunnerPanel" class="panel stack"></section>
+            <section id="schemaStatusPanel" class="panel stack"></section>
             <section id="googleCredentialSummaryPanel" class="panel stack"></section>
             <section id="adminGmailReplyCheckPanel" class="panel stack"></section>
             <section id="adminAutomationSettingsPanel" class="panel stack"></section>
@@ -5577,6 +5626,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         selectedTemplateTestLeadId: '',
         replyCheckResult: null,
         replyFalsePositiveResult: null,
+        adminReadinessResult: null,
+        schemaStatus: null,
         activeCollectionTab: 'automation',
         jobResultCategory: 'all',
         selectedJobResultIds: [],
@@ -5775,6 +5826,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.reasons = initial.reasons || [];
           state.customFieldDefinitions = initial.customFieldDefinitions || [];
           state.listViewSettings = initial.listViewSettings || [];
+          state.schemaStatus = initial.schemaStatus || null;
+          state.adminReadinessResult = null;
           document.getElementById('appMeta').textContent = `${initial.app.version} / ${initial.app.spreadsheetUrl}`;
           renderTodayLabel();
           renderAppSafetyStrip(initial.dashboard);
@@ -7321,15 +7374,100 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['種別', statusPill(templateTypeLabel(template.template_type))],
           ['タグ', renderTemplateTags(template)],
           ['テスト', template.last_test_sent_at ? `<span class="pill good">${escapeHtml(dateLabel(template.last_test_sent_at))}</span>` : '<span class="pill warn">未実施</span>'],
-          ['本番', isProductionTemplate(template) ? '<span class="pill good">本番ON</span>' : '<span class="pill">下書き</span>'],
+          ['本番', renderTemplateProductionStatus(template)],
           ['版', `v${escapeHtml(template.version || 1)}`],
-          ['操作', `<button type="button" class="table-link-button" onclick="editTemplate('${escapeJsString(template.id)}')">編集</button>`],
+          ['操作', renderTemplateActionCell(template)],
         ])).join('');
         document.getElementById('templateCountPill').textContent = `${formatNumber(state.templates.length)}件`;
         document.getElementById('templateTable').innerHTML = table(['名称', 'ジャンル', '種別', 'タグ', 'テスト', '本番', '版', '操作'], rows);
         renderTemplateExample(state.templates[0]);
         renderTemplateTagMenuPanel();
         renderLeadSendTemplateOptions();
+      }
+
+      function renderTemplateProductionStatus(template) {
+        if (isProductionTemplate(template)) return '<span class="pill good">ON</span>';
+        const reason = templateProductionBlockedReason(template);
+        return `<span class="pill ${reason ? 'warn' : ''}">OFF</span>${reason ? `<br><small class="muted">${escapeHtml(reason)}</small>` : ''}`;
+      }
+
+      function renderTemplateActionCell(template) {
+        const productionOn = isProductionTemplate(template);
+        const blockReason = productionOn ? '' : templateProductionBlockedReason(template);
+        return `
+          <span class="template-action-row">
+            <button type="button" class="table-link-button" onclick="editTemplate('${escapeJsString(template.id)}')">編集</button>
+            <button type="button" class="table-link-button" onclick="sendTemplateTestFromRow('${escapeJsString(template.id)}')">テスト送信</button>
+            <button type="button" class="table-link-button" onclick="toggleTemplateProduction('${escapeJsString(template.id)}')" ${blockReason ? `disabled title="${escapeHtml(blockReason)}"` : ''}>${productionOn ? '本番OFF' : '本番ON'}</button>
+            <button type="button" class="table-danger-button" onclick="deleteTemplateFromRow('${escapeJsString(template.id)}')">削除</button>
+            ${blockReason ? `<span class="inline-error">${escapeHtml(blockReason)}</span>` : ''}
+          </span>
+        `;
+      }
+
+      function templateProductionBlockedReason(template) {
+        if (!template) return 'テンプレートがありません';
+        if (isProductionTemplate(template)) return '';
+        if (!template.last_test_sent_at) return '先にテスト送信してください';
+        if (template.template_type === 'followup_2m') return '2ヶ月後メールは使用しません';
+        if (template.template_type !== 'form' && !template.genre) return 'ジャンルを設定してください';
+        return '';
+      }
+
+      function selectedTemplateTestLead() {
+        const pools = []
+          .concat(state.emailLeads || [])
+          .concat(state.leads || [])
+          .concat(state.formLeads || []);
+        return pools.find((lead) => lead.id === state.selectedTemplateTestLeadId && lead.email)
+          || pools.find((lead) => lead.email)
+          || null;
+      }
+
+      async function sendTemplateTestFromRow(id) {
+        const template = (state.templates || []).find((item) => item.id === id);
+        if (!template) return;
+        const lead = selectedTemplateTestLead();
+        const defaultEmail = lead ? lead.email : '';
+        const toEmail = window.prompt('テスト送信先メールアドレスを入力してください。', defaultEmail || '');
+        if (!toEmail || !/@/.test(toEmail)) {
+          message('テスト送信先メールアドレスを入力してください', 'error');
+          return;
+        }
+        const sampleLead = lead || {
+          company_name: 'サンプル株式会社',
+          facility_name: 'サンプル屋号',
+          contact_name: '佐藤',
+          genre: template.genre || 'その他',
+          email: toEmail,
+          website_url: 'https://example.com',
+        };
+        await api('sendTestEmail', id, toEmail, sampleLead);
+        message(`${template.name} をテスト送信しました。本番ONにできます。`, 'ok');
+        await refreshAll();
+      }
+
+      async function toggleTemplateProduction(id) {
+        const template = (state.templates || []).find((item) => item.id === id);
+        if (!template) return;
+        const nextEnabled = !isProductionTemplate(template);
+        const blockReason = nextEnabled ? templateProductionBlockedReason(template) : '';
+        if (blockReason) {
+          message(`本番ONにできません: ${blockReason}`, 'error');
+          return;
+        }
+        await api('setEmailTemplateProduction', id, { enabled: nextEnabled });
+        message(`${template.name} を本番${nextEnabled ? 'ON' : 'OFF'}にしました`, 'ok');
+        await refreshAll();
+      }
+
+      async function deleteTemplateFromRow(id) {
+        const template = (state.templates || []).find((item) => item.id === id);
+        if (!template) return;
+        if (!confirm(`「${template.name}」を削除します。送信履歴は残ります。`)) return;
+        await api('deleteEmailTemplate', id);
+        message('テンプレートを削除しました', 'ok');
+        await refreshAll();
       }
 
       function renderTemplateSafetyPanel() {
@@ -9572,6 +9710,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderSyncScreen();
         renderGmailScreen();
         renderAdminScreen();
+        renderAdminReadinessRunnerPanel();
+        renderSchemaStatusPanel();
         renderJobResultsReviewPanel();
         renderGmailConnectionCheckPanel();
         renderGmailReplyCheckPanel('gmailReplyCheckPanel');
@@ -11508,6 +11648,280 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             `).join('')}
           </div>
         `;
+      }
+
+      function renderAdminReadinessRunnerPanel() {
+        const target = document.getElementById('adminReadinessRunnerPanel');
+        if (!target) return;
+        const data = state.adminReadinessResult || buildAdminReadinessData();
+        const plan = data.autoSendPlan;
+        const selectedTargets = plan.selectedInitial || [];
+        const readyCount = data.checks.filter((item) => item.ready).length;
+        const allReady = readyCount === data.checks.length;
+        const latestRun = data.mailSendCron.latestAutomaticRun;
+        const latestRunStatus = latestRun ? normalizeBackgroundJobStatus(latestRun.status || latestRun.event || '') : '';
+        const latestRunTone = latestRunStatus === 'completed' ? 'good' : latestRunStatus === 'failed' || latestRunStatus === 'cancelled' ? 'bad' : latestRunStatus ? 'info' : 'warn';
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>安全な本番前確認</h2>
+              <p class="muted">メールは送らずに、承認状態・送信時間・今日の自動送信対象を確認します。</p>
+            </div>
+            <button type="button" onclick="runAdminReadinessCheck()">確認する</button>
+          </div>
+          <div class="admin-check-summary">
+            <div>
+              <span>総合</span>
+              <strong>${allReady ? '公開準備OK' : '要確認あり'}</strong>
+              ${statusTonePill(`${readyCount}/${data.checks.length}`, allReady ? 'good' : 'warn')}
+            </div>
+            <div>
+              <span>送信時間</span>
+              <strong>${plan.sendWindow.allowed ? '時間内' : '時間外'}</strong>
+              <small>${escapeHtml(plan.sendWindow.currentTime)} / ${escapeHtml(plan.sendWindow.label)}</small>
+            </div>
+            <div>
+              <span>本日の残り</span>
+              <strong>${formatNumber(plan.todayRemaining)}</strong>
+              <small>送信済み ${formatNumber(plan.todaySent)} / 上限 ${formatNumber(plan.dailyLimit)}</small>
+            </div>
+            <div>
+              <span>今回の自動送信候補</span>
+              <strong>${formatNumber(selectedTargets.length)}</strong>
+              <small>1回上限 ${formatNumber(plan.batchLimit)} 件</small>
+            </div>
+          </div>
+          <div class="readiness-list">
+            ${data.checks.map((item) => `
+              <div class="readiness-item compact">
+                <div><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.detail)}</small></div>
+                <span class="pill ${item.ready ? 'good' : 'warn'}">${item.ready ? 'OK' : '要確認'}</span>
+              </div>
+            `).join('')}
+            <div class="readiness-item compact">
+              <div>
+                <strong>送信ロック</strong>
+                <small>${data.sendLock.locked ? `${escapeHtml(data.sendLock.owner || '送信処理')} が実行中${data.sendLock.stale ? '（古いロックの可能性）' : ''}` : '現在ロックなし'}</small>
+              </div>
+              <span class="pill ${data.sendLock.locked && !data.sendLock.stale ? 'warn' : 'good'}">${data.sendLock.locked ? 'ロック中' : 'OK'}</span>
+            </div>
+          </div>
+          <div class="admin-target-preview">
+            <div class="row" style="justify-content:space-between">
+              <strong>自動送信対象プレビュー</strong>
+              ${statusTonePill(`初回 ${formatNumber(plan.initialTargetCount)}`, selectedTargets.length > 0 ? 'info' : 'warn')}
+            </div>
+            ${selectedTargets.length > 0 ? selectedTargets.slice(0, 8).map((lead) => `<span>${escapeHtml(adminPlanLeadLabel(lead))}</span>`).join('') : '<span>現時点の自動送信候補はありません。</span>'}
+            <small class="muted">本番ONの初回メールテンプレートとジャンルが一致する営業先だけを表示します。</small>
+          </div>
+          <div class="admin-target-preview">
+            <div class="row" style="justify-content:space-between">
+              <strong>送信対象外の安全確認</strong>
+              ${statusTonePill(`除外 ${formatNumber(plan.excludedCounts.total)}件`, 'good')}
+            </div>
+            <span>返信あり: ${formatNumber(plan.excludedCounts.reply)}件</span>
+            <span>商談・受注/失注: ${formatNumber(plan.excludedCounts.deal)}件</span>
+            <span>送信NG: ${formatNumber(plan.excludedCounts.sendNg)}件</span>
+            <span>対応不要など: ${formatNumber(plan.excludedCounts.status)}件</span>
+            <small class="muted">この内訳に入っている営業先は、自動送信候補にもメール送信リストにも入りません。</small>
+          </div>
+          <div class="admin-target-preview">
+            <div class="row" style="justify-content:space-between">
+              <strong>自動送信実行ログ</strong>
+              ${statusTonePill(latestRun ? backgroundJobStatusLabel(latestRunStatus) : '履歴なし', latestRunTone)}
+            </div>
+            <span>最新実行: ${escapeHtml(latestRun ? dateTimeLabel(latestRun.updated_at || latestRun.finished_at || latestRun.created_at || latestRun.started_at) : '-')}</span>
+            <span>起動元: ${escapeHtml(latestRun ? (latestRun.source || latestRun.job_type || latestRun.type || 'GAS trigger') : '-')}</span>
+            <span>結果: ${escapeHtml(latestRun ? backgroundJobMessage(latestRun, latestRunStatus, Number(latestRun.processed_count || latestRun.processed || 0), Number(latestRun.total_count || latestRun.total || 0)) : 'まだ自動送信ジョブは記録されていません。')}</span>
+          </div>
+          <p class="muted">確認日時: ${escapeHtml(dateTimeLabel(data.generatedAt) || '-')}</p>
+        `;
+      }
+
+      function buildAdminReadinessData() {
+        const dashboard = state.dashboard || {};
+        const integrations = dashboard.integrations || {};
+        const sendWindow = dashboard.sendWindow || {};
+        const replyCheck = getClientSetting('gmail_reply_check', { enabled: false, maxThreads: 200 }) || {};
+        const calendarAuto = getClientSetting('calendar_auto_create', { enabled: false }) || {};
+        const batchLimit = Number(getClientSetting('email_batch_send_limit', dashboard.emailBatchSendLimit || 20)) || 20;
+        const dailyLimit = Number(dashboard.dailyMailLimit || getClientSetting('gmail_daily_send_limit', 80)) || 80;
+        const todaySent = Number(dashboard.sentToday || 0);
+        const todayRemaining = Number(dashboard.todayRemaining || 0);
+        const allLeads = uniqueReadinessLeads([].concat(state.emailLeads || [], state.leads || [], state.formLeads || []));
+        const emailCandidates = allLeads.filter(canEmailLead);
+        const productionInitialTemplates = (state.templates || []).filter((template) => template.template_type === 'initial' && isProductionTemplate(template));
+        const initialTargets = emailCandidates.filter((lead) => productionInitialTemplates.some((template) => String(template.genre || '') === String(lead.genre || '')));
+        const availableSlots = Math.max(0, Math.min(initialTargets.length, batchLimit, todayRemaining));
+        const selectedInitial = initialTargets.slice(0, availableSlots).map((lead) => ({
+          id: lead.id || '',
+          companyName: lead.company_name || lead.companyName || '',
+          facilityName: lead.facility_name || lead.facilityName || '',
+          email: lead.email || '',
+          genreName: lead.genre || lead.genre_name || '',
+          targetType: 'initial',
+        }));
+        const excludedCounts = buildAdminExcludedCounts(allLeads);
+        const runningMailJobs = (state.jobs || []).filter((job) => /mail|send|email/i.test(String(job.job_type || job.type || '')) && /running|処理中|queued|待機中/i.test(String(job.status || '')));
+        const mailJobs = (state.jobs || [])
+          .filter((job) => /mail|send|email/i.test(String(job.job_type || job.type || job.source || '')))
+          .sort((left, right) => new Date(right.updated_at || right.finished_at || right.created_at || right.started_at || 0) - new Date(left.updated_at || left.finished_at || left.created_at || left.started_at || 0));
+        const currentTime = new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        const checks = [
+          ['Google Sheets DB', true, `${formatNumber(dashboard.leadsTotal || allLeads.length)}件`],
+          ['Gmail送信枠', integrations.gmail !== false && todayRemaining > 0, `本日残り ${formatNumber(todayRemaining)}件 / Gmail残り ${formatNumber(dashboard.mailQuotaRemaining || 0)}件`],
+          ['自動送信時間', sendWindow.enabled !== false && sendWindow.allowed !== false, sendWindow.label || '送信時間設定を確認'],
+          ['本番テンプレート', productionInitialTemplates.length > 0, `初回メール ${formatNumber(productionInitialTemplates.length)}件`],
+          ['営業リスト送信候補', emailCandidates.length > 0, `${formatNumber(emailCandidates.length)}件`],
+          ['本番送信候補', initialTargets.length > 0, `${formatNumber(initialTargets.length)}件`],
+          ['Serper API', Boolean(dashboard.serperConfigured), dashboard.serperKeyMask || 'PropertiesService未設定'],
+          ['時間主導トリガー', Boolean(dashboard.triggerCount), `${formatNumber(dashboard.triggerCount || 0)}件`],
+          ['Gmail返信自動チェック', Boolean(replyCheck.enabled), replyCheck.enabled ? `最大 ${formatNumber(replyCheck.maxThreads || 200)}スレッド` : 'OFF'],
+          ['Calendar連携', integrations.calendar !== false, calendarAuto.enabled ? '自動登録ON' : '手動登録モード'],
+          ['失敗ジョブ', (dashboard.failedJobs || 0) === 0, `${formatNumber(dashboard.failedJobs || 0)}件`],
+        ].map(([label, ready, detail]) => ({ label, ready: Boolean(ready), detail }));
+        return {
+          autoSendPlan: {
+            availableSlots,
+            batchLimit,
+            dailyLimit,
+            excludedCounts,
+            followupTargetCount: 0,
+            initialTargetCount: initialTargets.length,
+            selectedFollowup: [],
+            selectedInitial,
+            sendWindow: {
+              allowed: sendWindow.enabled !== false && sendWindow.allowed !== false,
+              currentTime,
+              label: sendWindow.label || `${escapeHtml(sendWindow.start || '07:00')} - ${escapeHtml(sendWindow.end || '08:00')}`,
+              timezone: sendWindow.timezone || 'Asia/Tokyo',
+            },
+            todayRemaining,
+            todaySent,
+          },
+          checks,
+          generatedAt: new Date().toISOString(),
+          mailSendCron: {
+            latestAutomaticRun: mailJobs[0] || null,
+            latestCompletedRun: mailJobs.find((job) => normalizeBackgroundJobStatus(job.status || '') === 'completed') || null,
+            runs: mailJobs.slice(0, 10),
+          },
+          sendLock: {
+            locked: runningMailJobs.length > 0,
+            owner: runningMailJobs[0] ? (runningMailJobs[0].job_type || runningMailJobs[0].type || runningMailJobs[0].id || 'mail_job') : null,
+            stale: runningMailJobs.some((job) => backgroundUpdatedMinutes(normalizeBackgroundJob(job)) >= 10),
+          },
+          serperCredit: {
+            detail: dashboard.serperConfigured ? `本日残り ${formatNumber(dashboard.serperTodayRemaining || 0)}件` : '未設定',
+            label: dashboard.serperConfigured ? '利用可能' : '未設定',
+            tone: dashboard.serperConfigured ? 'ok' : 'warn',
+          },
+        };
+      }
+
+      function uniqueReadinessLeads(leads) {
+        const seen = new Set();
+        return (leads || []).filter((lead, index) => {
+          const key = lead && (lead.id || lead.email || `${lead.company_name || ''}:${lead.facility_name || ''}:${index}`);
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+
+      function buildAdminExcludedCounts(leads) {
+        const excluded = new Set();
+        const counts = { deal: 0, reply: 0, sendNg: 0, status: 0, total: 0 };
+        (leads || []).forEach((lead, index) => {
+          const key = lead.id || lead.email || String(index);
+          const status = String(lead.status || '');
+          const dealStatus = String(lead.deal_status || '未設定');
+          const replied = normalizeBooleanLike(lead.reply_checked) || status === '返信あり';
+          const sendNg = normalizeBooleanLike(lead.send_ng) || status === '送信NG';
+          const deal = dealStatus !== '未設定' || ['商談予定', '商談済み', '受注', '失注'].includes(status);
+          const statusExcluded = ['対応不要', '配信停止', '対象外'].includes(status);
+          if (replied) {
+            counts.reply += 1;
+            excluded.add(key);
+          }
+          if (deal) {
+            counts.deal += 1;
+            excluded.add(key);
+          }
+          if (sendNg) {
+            counts.sendNg += 1;
+            excluded.add(key);
+          }
+          if (statusExcluded) {
+            counts.status += 1;
+            excluded.add(key);
+          }
+        });
+        counts.total = excluded.size;
+        return counts;
+      }
+
+      function adminPlanLeadLabel(lead) {
+        return [
+          lead.targetType === 'followup_2m' ? '2ヶ月後' : '初回',
+          lead.companyName || lead.facilityName || '営業先名未設定',
+          lead.email || '-',
+          lead.genreName || 'ジャンル未設定',
+        ].join(' / ');
+      }
+
+      function runAdminReadinessCheck() {
+        state.adminReadinessResult = buildAdminReadinessData();
+        renderAdminReadinessRunnerPanel();
+        message('本番前確認を更新しました', 'ok');
+      }
+
+      function renderSchemaStatusPanel() {
+        const target = document.getElementById('schemaStatusPanel');
+        if (!target) return;
+        const schema = state.schemaStatus || { checks: [], ready: false, migrationSql: '' };
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>DB追加項目チェック</h2>
+              <p class="muted">Gmail返信検知、Calendar登録、テンプレート本番管理に必要なGoogle Sheets列とsettingsキーを確認します。</p>
+            </div>
+            <div class="toolbar">
+              <span class="pill ${schema.ready ? 'good' : 'warn'}">${schema.ready ? '反映済み' : 'setup実行が必要'}</span>
+              <button type="button" onclick="refreshSchemaStatus()">再確認</button>
+            </div>
+          </div>
+          <div class="readiness-list">
+            ${(schema.checks || []).map((item) => `
+              <div class="readiness-item compact">
+                <div><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.detail)}</small></div>
+                <span class="pill ${item.ready ? 'good' : 'warn'}">${item.ready ? 'OK' : '未反映'}</span>
+              </div>
+            `).join('') || '<p class="muted">Schema情報を取得できていません。</p>'}
+          </div>
+          ${schema.ready ? '<p class="message ok">必要な列と設定キーは揃っています。</p>' : `
+            <div class="schema-sql-box">
+              <div class="row" style="justify-content:space-between">
+                <strong>Apps Scriptで実行する復旧手順</strong>
+                <button type="button" onclick="runSchemaSetupCheck()">setup()を実行</button>
+              </div>
+              <pre>${escapeHtml(schema.migrationSql || 'setup() を実行してシート列とsettingsを再生成してください。')}</pre>
+            </div>
+          `}
+          <p class="muted">確認日時: ${escapeHtml(dateTimeLabel(schema.generatedAt) || '-')}</p>
+        `;
+      }
+
+      async function refreshSchemaStatus() {
+        const result = await api('getSchemaStatus');
+        state.schemaStatus = result;
+        renderSchemaStatusPanel();
+        message('DB追加項目チェックを更新しました', result && result.ready ? 'ok' : 'error');
+      }
+
+      async function runSchemaSetupCheck() {
+        await runSetup();
+        await refreshSchemaStatus();
       }
 
       async function runReplyCheckFromPanel(inputId) {

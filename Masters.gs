@@ -25,6 +25,42 @@ function deleteEmailTemplate(id) {
   });
 }
 
+function setEmailTemplateProduction(id, input) {
+  return withScriptLock_('setEmailTemplateProduction', function () {
+    const templateId = requireId_(id);
+    const source = input && typeof input === 'object' ? input : {};
+    const enabled = normalizeBooleanLike_(source.enabled);
+    const template = findSheetRecordById_('email_templates', templateId);
+    if (!template) throw new Error('Email template not found: ' + templateId);
+
+    if (enabled) {
+      if (!template.last_test_sent_at) throw new Error('本番ONにする前にテスト送信してください。');
+      if (template.template_type === 'followup_2m') throw new Error('2ヶ月後メールは現在の自動送信では使用しません。');
+      if (template.template_type !== 'form' && !template.genre) throw new Error('本番ONにする前にジャンルを設定してください。');
+
+      listSheetRecords('email_templates', { limit: 1000, includeInactive: true }).items
+        .filter(function (item) {
+          return item.id !== templateId
+            && normalizeBooleanLike_(item.active)
+            && normalizeBooleanLike_(item.is_production)
+            && String(item.template_type || '') === String(template.template_type || '')
+            && String(item.genre || '') === String(template.genre || '');
+        })
+        .forEach(function (item) {
+          updateSheetRecord_('email_templates', item.id, {
+            is_production: false,
+            production_enabled_at: '',
+          });
+        });
+    }
+
+    return updateSheetRecord_('email_templates', templateId, {
+      is_production: enabled,
+      production_enabled_at: enabled ? nowIso_() : '',
+    });
+  });
+}
+
 function normalizeEmailTemplateInput_(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new Error('Template input must be an object.');

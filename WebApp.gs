@@ -49,6 +49,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'getAuthorizationStatus') return getAuthorizationStatus();
   if (action === 'getDashboardStats') return getDashboardStats(data);
   if (action === 'getAppInfo') return getAppInfo();
+  if (action === 'getSchemaStatus') return getSchemaStatus();
   if (action === 'listLeads') return listLeads(data);
   if (action === 'createLead') return createLead(data);
   if (action === 'updateLead') return updateLead(data.id, data.patch || data);
@@ -59,6 +60,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'listSheetRecords') return listSheetRecords(data.sheetName || data.sheet_name, data.options || data);
   if (action === 'listEmailTemplates') return listEmailTemplates(data);
   if (action === 'saveEmailTemplate') return saveEmailTemplate(data);
+  if (action === 'setEmailTemplateProduction') return setEmailTemplateProduction(data.id || data.templateId || data.template_id, data.options || data);
   if (action === 'deleteEmailTemplate') return deleteEmailTemplate(data.id);
   if (action === 'listNgMasters') return listNgMasters(data);
   if (action === 'saveNgMaster') return saveNgMaster(data);
@@ -124,6 +126,7 @@ function getInitialData() {
     settings: listSheetRecords('settings', { limit: 200, includeInactive: true }).items,
     customFieldDefinitions: listCustomFieldDefinitions({ includeInactive: true }).items,
     listViewSettings: listListViewSettings({}).items,
+    schemaStatus: getSchemaStatus(),
     serper: getSerperApiKeyInfo(),
   };
 }
