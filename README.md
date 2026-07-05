@@ -238,6 +238,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 94 / code v94でGmail API連携の不足scopeを修正。`MailApp` 用 `https://www.googleapis.com/auth/script.send_mail` と `GmailApp` 用 `https://mail.google.com/` を追加し、Gmail連携画面から承認状態、Google認可URL、メールを送らない連携テストを確認可能にしました。認可リンクのアイコン巨大化と、追加承認待ちでパネルが空になる表示も実画面で修正済み
 - Apps Script Version 95 / code v95でGmail承認後も `NOT_REQUIRED` が `REQUIRED` の部分一致として扱われ、Gmail連携画面だけ要承認表示が残る判定バグを修正。承認状態は完全一致で `REQUIRED` の時だけ要承認にします
 - Apps Script Version 96 / code v96で管理画面の初期表示をコンパクト化。主要ステータスと本番前確認、自動運用サマリーだけを上部に残し、Google/DB連携、マスター管理、ログ/メンテナンスはアコーディオンへ整理しました
+- Apps Script Version 97 / code v97で管理画面カードの余白を追加調整。`#admin` 配下のカードpadding、見出し、ステータス項目、本番前確認、自動運用サマリーの間隔を広げ、古いgrid表示が残った場合も縦積みで崩れにくくしました
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み

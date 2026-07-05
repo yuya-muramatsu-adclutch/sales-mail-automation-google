@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260706_apps_script_full_workflow_v96_admin_page_compact_layout'), 'v96 app version missing');
+assert(code.includes('20260706_apps_script_full_workflow_v97_admin_spacing_polish'), 'v97 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -160,6 +160,7 @@ assert(html.includes('admin-primary-grid'), 'admin compact primary grid missing'
 assert(html.includes('admin-accordion-list'), 'admin accordion list missing');
 assert(html.includes('admin-inner-disclosure'), 'admin detail disclosure missing');
 assert(html.includes('admin-automation-summary'), 'admin automation summary missing');
+assert(html.includes('#admin .panel.stack'), 'admin panel spacing override missing');
 assert(html.includes("legacyUiIcon('shieldCheck')}連携テスト"), 'legacy Gmail connection check icon button missing');
 assert(html.includes('gmail-connection-status-grid'), 'legacy Gmail connection status grid missing');
 assert(html.includes("legacyUiIcon('triangleAlert')"), 'legacy Gmail missing-scope alert icon missing');
