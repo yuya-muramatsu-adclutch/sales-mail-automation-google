@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @36 / code v36: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @37 / code v37: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v36_sync_import_panel_ui`
+- Code version: `20260705_apps_script_full_workflow_v37_job_results_review_actions`
 
 ## 計画書との対応
 
@@ -63,6 +63,7 @@
 | 旧アプリSerperキー管理反映 | 完了 | 旧 `SerperApiKeyManager` / `SerperSetupGuide` に合わせ、code v34でSerper APIキー管理、検索APIテスト、マスク済みキー一覧を反映 |
 | 旧アプリ背景ジョブ監視UI反映 | 完了 | 旧 `BackgroundJobsOverview` に合わせ、code v35でバックグラウンド進捗KPI、表示フィルタ、カテゴリ別ジョブスロット、直近3日成果カードを反映 |
 | 旧アプリ同期インポートUI反映 | 完了 | 旧 `SyncImportPanel` に合わせ、code v36でCSV/JSON同期、ファイル読込、文字コード推定、列マッピング、プレビューKPI、要確認行、先頭10件プレビューを反映 |
+| 旧アプリ検索結果レビュー操作反映 | 完了 | 旧 `JobResultsReviewTable` に合わせ、code v37で検索結果カードの選択、一括確認、選択除外、メール/フォーム補正、営業リスト追加、レビュー状態保存を反映 |
 
 ## 検証済み
 
@@ -215,6 +216,11 @@
 - 既存Web app URLを `clasp deploy -V 36 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 36へ再デプロイ済み
 - `clasp deployments` で既存Web app URLが `@36 - apps-script-full-workflow-v36-sync-import-panel-ui-on-existing-url` を指すことを確認
 - code v36ローカルスモークで `syncImportPanel`, `sync-preview-metrics`, `renderLegacySyncImportPanel`, `handleSyncImportFile`, `runLegacySyncImport` が含まれることを確認
+- `.gs` 全ファイルのNode構文チェック成功、`node scripts/smoke-test.js` 成功、`git diff --check` 成功
+- `clasp push -f` 成功、`clasp version "apps-script-full-workflow-v37-job-results-review-actions"` でVersion 37作成済み
+- 既存Web app URLを `clasp deploy -V 37 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 37へ再デプロイ済み
+- `clasp deployments` で既存Web app URLが `@37 - apps-script-full-workflow-v37-job-results-review-actions-on-existing-url` を指すことを確認
+- code v37ローカルスモークで `addJobResultLead`, `reviewSelectedJobResults`, `excludeJobResult`, `toggleAllVisibleJobResults`, `addSearchResultToLead`, `reviewSearchResults` が含まれることを確認
 - `.gs` 全ファイルのNode構文チェック成功、`node scripts/smoke-test.js` 成功、`git diff --check` 成功
 
 ## 運用時に確認する外部依存

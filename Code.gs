@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260705_apps_script_full_workflow_v36_sync_import_panel_ui';
+const APP_VERSION = '20260705_apps_script_full_workflow_v37_job_results_review_actions';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -186,6 +186,9 @@ const SHEET_DEFINITIONS = Object.freeze({
     'snippet',
     'rank',
     'raw_json',
+    'review_status',
+    'review_action',
+    'reviewed_at',
     'created_at',
   ],
   search_usage_logs: [

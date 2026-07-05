@@ -79,6 +79,8 @@ function dispatchPostAction_(action, data) {
   if (action === 'deleteSerperApiKeyEntry') return deleteSerperApiKeyEntry(data.id);
   if (action === 'testSerperApiKey') return testSerperApiKey();
   if (action === 'runSmallSearchJob') return runSmallSearchJob(data);
+  if (action === 'addSearchResultToLead') return addSearchResultToLead(data.resultId || data.result_id || data.id, data.options || data);
+  if (action === 'reviewSearchResults') return reviewSearchResults(data);
   if (action === 'sendLeadEmail') return sendLeadEmail(data.leadId || data.lead_id, data.templateId || data.template_id, data.options || {});
   if (action === 'listLeadSendHistories') return listLeadSendHistories(data.leadId || data.lead_id, data.options || data);
   if (action === 'sendTestEmail') return sendTestEmail(data.templateId || data.template_id, data.toEmail || data.to_email, data.sampleLead || data.sample_lead || {});

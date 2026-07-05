@@ -5510,6 +5510,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         selectedTemplateTestLeadId: '',
         activeCollectionTab: 'automation',
         jobResultCategory: 'all',
+        selectedJobResultIds: [],
         backgroundOverviewView: 'all',
         dismissedSearchResultIds: [],
         duplicateGroups: [],
@@ -8167,7 +8168,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderJobResultsReviewPanel() {
         const target = document.getElementById('jobResultsReviewPanel');
         if (!target) return;
-        const rows = (state.searchResults || []).filter((item) => !state.dismissedSearchResultIds.includes(item.id)).map(normalizeJobResultRow);
+        const rows = (state.searchResults || []).filter((item) => !state.dismissedSearchResultIds.includes(item.id)).map(normalizeJobResultRow).filter((item) => !item.review_status || item.review_status === 'unconfirmed');
         const counts = rows.reduce((acc, item) => {
           item.categories.forEach((category) => {
             acc[category] = (acc[category] || 0) + 1;
@@ -8178,6 +8179,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!categories.includes(state.jobResultCategory)) state.jobResultCategory = 'all';
         const visible = state.jobResultCategory === 'all' ? rows : rows.filter((item) => item.categories.includes(state.jobResultCategory));
         const rendered = visible.slice(0, 40);
+        const selectable = visible.filter((item) => item.id);
+        const selected = state.selectedJobResultIds.filter((id) => selectable.some((item) => item.id === id));
+        state.selectedJobResultIds = selected;
         target.innerHTML = `
           <div class="section-title-row">
             <div>
@@ -8185,6 +8189,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <p class="muted">完了したジョブで、どの営業先にリスト・URL・メールが追加されたか確認できます。</p>
             </div>
             <div class="toolbar">
+              ${selected.length ? `<button type="button" onclick="reviewSelectedJobResults('exclude')">選択を除外</button>` : ''}
+              ${selected.length ? `<button type="button" onclick="reviewSelectedJobResults('confirm')">選択を確認済み</button>` : ''}
               <button type="button" onclick="markVisibleJobResultsReviewed()">表示中を確認済み</button>
               <button type="button" onclick="showTab('backgroundJobs')">ジョブ進捗へ</button>
             </div>
@@ -8193,6 +8199,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <small class="muted">結果カテゴリ</small>
             ${categories.map((category) => `<button type="button" class="${state.jobResultCategory === category ? 'active' : ''}" onclick="setJobResultCategory('${escapeJsString(category)}')"><span>${escapeHtml(jobResultCategoryLabel(category))}</span><small>${formatNumber(category === 'all' ? rows.length : counts[category] || 0)}件</small></button>`).join('')}
           </div>
+          ${selectable.length ? `
+            <div class="job-results-toolbar">
+              <label class="table-checkbox"><input type="checkbox" ${selected.length && selected.length === selectable.length ? 'checked' : ''} onchange="toggleAllVisibleJobResults(this.checked)">表示中をすべて選択</label>
+              <small>${formatNumber(selectable.length)}件中 ${formatNumber(selected.length)}件を選択中です。</small>
+            </div>
+          ` : ''}
           ${visible.length === 0 ? '<div class="empty-state"><strong>表示できる結果がありません</strong><p class="muted">この分類の明細は保存されていません。別の分類を選択してください。</p></div>' : `
             <div class="job-results-render-summary"><span>${formatNumber(visible.length)}件中 ${formatNumber(rendered.length)}件を表示</span><small class="muted">確認済みにするとこの画面上では非表示になります</small></div>
             <div class="job-results-list">
@@ -8237,10 +8249,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           source_label: item.query || item.result_type || '',
           updated_at: item.created_at || '',
           status: item.result_type || '',
+          review_status: item.review_status || '',
+          review_action: item.review_action || '',
         };
       }
 
       function renderJobResultCard(item) {
+        const selected = state.selectedJobResultIds.includes(item.id);
+        const editable = !item.lead_id;
         return `
           <article class="job-result-card ${escapeHtml(item.category)}">
             <div class="job-result-card-head">
@@ -8251,16 +8267,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <span class="pill ${jobResultTone(item.category)}">${escapeHtml(jobResultCategoryLabel(item.category))}</span>
             </div>
             <div class="job-result-contact-grid">
-              <div><span>メール</span><strong>${escapeHtml(item.email || '-')}</strong></div>
+              <div><span>メール</span>${editable ? `<input id="jobResultEmail_${escapeHtml(item.id)}" inputmode="email" placeholder="info@example.com" value="${escapeHtml(item.email || '')}">` : `<strong>${escapeHtml(item.email || '-')}</strong>`}</div>
               <div><span>WEBサイト</span>${item.website_url ? `<a href="${escapeHtml(externalUrl(item.website_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.website_url))}</a>` : '<strong>-</strong>'}</div>
-              <div><span>フォーム</span>${item.form_url ? `<a href="${escapeHtml(externalUrl(item.form_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.form_url))}</a>` : '<strong>-</strong>'}</div>
+              <div><span>フォーム</span>${editable ? `<input id="jobResultForm_${escapeHtml(item.id)}" inputmode="url" placeholder="https://example.com/contact" value="${escapeHtml(item.form_url || '')}">` : item.form_url ? `<a href="${escapeHtml(externalUrl(item.form_url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.form_url))}</a>` : '<strong>-</strong>'}</div>
             </div>
             <div class="job-result-meta"><span>更新: ${escapeHtml(dateTimeLabel(item.updated_at) || '-')}</span><span>状態: ${escapeHtml(item.status || '-')}</span></div>
             ${item.message ? `<p class="job-result-message">${escapeHtml(item.message)}</p>` : ''}
             <div class="job-result-actions">
+              <label class="table-checkbox"><input type="checkbox" ${selected ? 'checked' : ''} onchange="toggleJobResultSelection('${escapeJsString(item.id)}')">選択</label>
+              <span class="pill ${escapeHtml(jobResultReviewTone(item.review_status))}">${escapeHtml(jobResultReviewLabel(item.review_status))}</span>
               ${item.lead_id ? `<button type="button" class="table-link-button" onclick="editLead('${escapeJsString(item.lead_id)}')">詳細/編集</button>` : '<span class="muted">営業先未作成</span>'}
-              ${item.website_url || item.form_url || item.email ? `<button type="button" class="table-link-button primary-action" onclick="queueSearchResultLead('${escapeJsString(item.id)}')">営業リスト確認</button>` : '<span class="muted">メールまたはフォームURLが必要です</span>'}
-              <button type="button" class="table-link-button" onclick="dismissJobResult('${escapeJsString(item.id)}')">確認済みにする</button>
+              ${item.lead_id ? `<button type="button" class="table-link-button primary-action" onclick="confirmJobResult('${escapeJsString(item.id)}')">確認済みにする</button>` : `<button type="button" class="table-link-button primary-action" onclick="addJobResultLead('${escapeJsString(item.id)}')">営業リストに追加</button>`}
+              <button type="button" class="table-danger-button" onclick="excludeJobResult('${escapeJsString(item.id)}')">除外</button>
+              ${item.lead_id ? '' : `<button type="button" class="table-link-button" onclick="dismissJobResult('${escapeJsString(item.id)}')">確認済みにする</button>`}
             </div>
           </article>
         `;
@@ -8268,28 +8287,110 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function setJobResultCategory(category) {
         state.jobResultCategory = category || 'all';
+        state.selectedJobResultIds = [];
         renderJobResultsReviewPanel();
       }
 
-      function dismissJobResult(id) {
-        if (!state.dismissedSearchResultIds.includes(id)) state.dismissedSearchResultIds.push(id);
+      function toggleJobResultSelection(id) {
+        if (state.selectedJobResultIds.includes(id)) {
+          state.selectedJobResultIds = state.selectedJobResultIds.filter((item) => item !== id);
+        } else {
+          state.selectedJobResultIds.push(id);
+        }
         renderJobResultsReviewPanel();
       }
 
-      function markVisibleJobResultsReviewed() {
-        const rows = (state.searchResults || []).map(normalizeJobResultRow);
+      function toggleAllVisibleJobResults(checked) {
+        const rows = (state.searchResults || []).filter((item) => !state.dismissedSearchResultIds.includes(item.id)).map(normalizeJobResultRow).filter((item) => !item.review_status || item.review_status === 'unconfirmed');
         const visible = state.jobResultCategory === 'all' ? rows : rows.filter((item) => item.categories.includes(state.jobResultCategory));
-        visible.slice(0, 40).forEach((item) => {
-          if (!state.dismissedSearchResultIds.includes(item.id)) state.dismissedSearchResultIds.push(item.id);
-        });
+        const visibleIds = visible.map((item) => item.id);
+        if (checked) {
+          state.selectedJobResultIds = Array.from(new Set(state.selectedJobResultIds.concat(visibleIds)));
+        } else {
+          state.selectedJobResultIds = state.selectedJobResultIds.filter((id) => !visibleIds.includes(id));
+        }
         renderJobResultsReviewPanel();
-        message(`検索結果レビュー: ${formatNumber(Math.min(visible.length, 40))}件を確認済みにしました`, 'ok');
       }
 
-      function queueSearchResultLead(id) {
+      async function confirmJobResult(id) {
+        await api('reviewSearchResults', { ids: [id], action: 'confirm' });
+        markJobResultLocallyReviewed([id], 'confirmed');
+        message('検索結果を確認済みにしました', 'ok');
+      }
+
+      async function dismissJobResult(id) {
+        await api('reviewSearchResults', { ids: [id], action: 'dismiss' });
+        markJobResultLocallyReviewed([id], 'dismissed');
+        message('検索結果を確認済みにしました', 'ok');
+      }
+
+      async function excludeJobResult(id) {
+        await api('reviewSearchResults', { ids: [id], action: 'exclude' });
+        markJobResultLocallyReviewed([id], 'excluded');
+        message('検索結果を除外しました', 'ok');
+      }
+
+      async function reviewSelectedJobResults(action) {
+        const ids = state.selectedJobResultIds.slice();
+        if (!ids.length) return;
+        await api('reviewSearchResults', { ids, action });
+        const status = action === 'confirm' ? 'confirmed' : action === 'exclude' ? 'excluded' : 'dismissed';
+        markJobResultLocallyReviewed(ids, status);
+        message(`検索結果レビュー: ${formatNumber(ids.length)}件を${status === 'excluded' ? '除外' : '確認済み'}にしました`, 'ok');
+      }
+
+      async function markVisibleJobResultsReviewed() {
+        const rows = (state.searchResults || []).filter((item) => !state.dismissedSearchResultIds.includes(item.id)).map(normalizeJobResultRow).filter((item) => !item.review_status || item.review_status === 'unconfirmed');
+        const visible = (state.jobResultCategory === 'all' ? rows : rows.filter((item) => item.categories.includes(state.jobResultCategory))).slice(0, 40);
+        const ids = visible.map((item) => item.id);
+        if (!ids.length) return;
+        await api('reviewSearchResults', { ids, action: 'dismiss' });
+        markJobResultLocallyReviewed(ids, 'dismissed');
+        message(`検索結果レビュー: ${formatNumber(ids.length)}件を確認済みにしました`, 'ok');
+      }
+
+      function markJobResultLocallyReviewed(ids, status) {
+        state.searchResults = (state.searchResults || []).map((item) => ids.includes(item.id) ? Object.assign({}, item, {
+          review_status: status,
+          review_action: status,
+          reviewed_at: new Date().toISOString(),
+        }) : item);
+        ids.forEach((id) => {
+          if (!state.dismissedSearchResultIds.includes(id)) state.dismissedSearchResultIds.push(id);
+        });
+        state.selectedJobResultIds = state.selectedJobResultIds.filter((id) => !ids.includes(id));
+        renderJobResultsReviewPanel();
+      }
+
+      async function addJobResultLead(id) {
         const item = (state.searchResults || []).map(normalizeJobResultRow).find((row) => row.id === id);
         if (!item) return;
-        message(item.lead_id ? '既存営業先の詳細編集を開けます。' : 'GAS版では検索結果からの新規追加はCSV/検索ジョブ側で確定します。', 'ok');
+        const emailInput = document.getElementById(`jobResultEmail_${id}`);
+        const formInput = document.getElementById(`jobResultForm_${id}`);
+        const email = emailInput ? emailInput.value.trim() : item.email;
+        const formUrl = formInput ? formInput.value.trim() : item.form_url;
+        if (!email && !formUrl && !item.website_url) {
+          message('メール、フォームURL、WEBサイトURLのいずれかが必要です', 'error');
+          return;
+        }
+        const result = await api('addSearchResultToLead', id, {
+          email,
+          form_url: formUrl,
+          website_url: item.website_url,
+          company_name: item.company_name || item.title,
+          facility_name: item.title,
+          snippet: item.message,
+        });
+        state.searchResults = (state.searchResults || []).map((record) => record.id === id ? Object.assign({}, record, {
+          lead_id: result.lead.id,
+          review_status: 'added',
+          review_action: 'add_lead',
+          reviewed_at: new Date().toISOString(),
+        }) : record);
+        if (!state.dismissedSearchResultIds.includes(id)) state.dismissedSearchResultIds.push(id);
+        renderJobResultsReviewPanel();
+        message('営業リストに追加し、検索結果を確認済みにしました', 'ok');
+        await Promise.all([loadLeads(), loadSearchResults()]);
       }
 
       function jobResultCategoryLabel(category) {
@@ -8311,6 +8412,22 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (['duplicate', 'excluded', 'not_found'].includes(category)) return 'warn';
         if (category === 'email') return 'info';
         return 'good';
+      }
+
+      function jobResultReviewLabel(status) {
+        return {
+          added: '追加済み',
+          confirmed: '確認済み',
+          dismissed: '非表示',
+          excluded: '除外',
+          unconfirmed: '未確認',
+        }[status || 'unconfirmed'] || '未確認';
+      }
+
+      function jobResultReviewTone(status) {
+        if (status === 'added' || status === 'confirmed') return 'good';
+        if (status === 'excluded' || status === 'dismissed') return 'warn';
+        return 'info';
       }
 
       function extractEmail(text) {

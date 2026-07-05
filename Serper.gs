@@ -112,6 +112,131 @@ function runSmallSearchJob(input) {
   });
 }
 
+function addSearchResultToLead(resultId, input) {
+  const id = requireId_(resultId);
+  const overrides = input && typeof input === 'object' ? input : {};
+  const result = findSheetRecordById_('search_results', id);
+  if (!result) throw new Error('Search result not found: ' + id);
+
+  if (result.lead_id) {
+    const existingLead = getLeadById(result.lead_id);
+    updateSheetRecord_('search_results', id, {
+      review_status: 'added',
+      review_action: 'add_lead',
+      reviewed_at: nowIso_(),
+    });
+    return {
+      ok: true,
+      lead: existingLead,
+      result: findSheetRecordById_('search_results', id),
+      reused: true,
+    };
+  }
+
+  const title = String(overrides.company_name || overrides.facility_name || result.title || '').trim();
+  const url = String(overrides.website_url || result.url || '').trim();
+  const snippet = String(overrides.snippet || result.snippet || '').trim();
+  const resultType = String(result.result_type || '').trim();
+  const formUrl = String(overrides.form_url || (isFormSearchResult_(result, overrides) ? url : '') || '').trim();
+  const websiteUrl = String(overrides.website_url || (formUrl && url === formUrl ? '' : url) || url || '').trim();
+  const email = String(overrides.email || extractEmailFromSearchResult_(snippet) || '').trim();
+  const companyName = title || deriveSearchResultCompanyName_(websiteUrl || formUrl || email || id);
+  const lead = createLead({
+    source: 'prospecting',
+    source_id: id,
+    external_id: result.job_id || '',
+    genre: overrides.genre || '',
+    company_name: companyName,
+    facility_name: overrides.facility_name || companyName,
+    email: email,
+    website_url: websiteUrl,
+    form_url: formUrl,
+    status: '未対応',
+    notes: 'Serper検索結果レビューから追加',
+    source_payload_json: safeJsonStringify_({
+      search_result_id: id,
+      job_id: result.job_id || '',
+      query: result.query || '',
+      result_type: resultType,
+      title: result.title || '',
+      url: result.url || '',
+      snippet: result.snippet || '',
+      rank: result.rank || '',
+      override: overrides,
+    }),
+  });
+
+  updateSheetRecord_('search_results', id, {
+    lead_id: lead.id,
+    review_status: 'added',
+    review_action: 'add_lead',
+    reviewed_at: nowIso_(),
+  });
+
+  return {
+    ok: true,
+    lead: lead,
+    result: findSheetRecordById_('search_results', id),
+    reused: false,
+  };
+}
+
+function reviewSearchResults(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const ids = Array.isArray(source.ids) ? source.ids : [source.id || source.resultId || source.result_id].filter(Boolean);
+  const action = String(source.action || 'dismiss').trim();
+  const status = action === 'add_lead' ? 'added'
+    : action === 'confirm' || action === 'confirmed' ? 'confirmed'
+      : action === 'exclude' || action === 'excluded' ? 'excluded'
+        : 'dismissed';
+  const reviewed = [];
+
+  ids.forEach(function (id) {
+    if (!id) return;
+    const record = findSheetRecordById_('search_results', id);
+    if (!record) return;
+    reviewed.push(updateSheetRecord_('search_results', id, {
+      review_status: status,
+      review_action: action,
+      reviewed_at: nowIso_(),
+    }));
+  });
+
+  return {
+    ok: true,
+    reviewed: reviewed.length,
+    items: reviewed,
+  };
+}
+
+function isFormSearchResult_(result, overrides) {
+  const text = [
+    result.result_type,
+    result.url,
+    result.title,
+    result.snippet,
+    overrides && overrides.form_url,
+  ].join(' ');
+  return /form|contact|inquiry|問い合わせ|お問い合わせ/i.test(text);
+}
+
+function extractEmailFromSearchResult_(text) {
+  const match = String(text || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? match[0].toLowerCase() : '';
+}
+
+function deriveSearchResultCompanyName_(value) {
+  const text = String(value || '').trim();
+  if (!text) return '検索結果候補';
+  if (text.indexOf('@') !== -1) return text.split('@')[1].replace(/^www\./, '');
+  try {
+    const url = /^https?:\/\//i.test(text) ? text : 'https://' + text;
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch (error) {
+    return text.slice(0, 80) || '検索結果候補';
+  }
+}
+
 function startSerperSearchJob(input) {
   return withScriptLock_('startSerperSearchJob', function () {
     const payload = normalizeSearchJobInput_(input);
