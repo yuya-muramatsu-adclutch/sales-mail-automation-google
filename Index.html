@@ -6086,6 +6086,65 @@
         border-radius: 0;
       }
 
+      .table-email-leads table {
+        table-layout: fixed;
+      }
+
+      .table-email-leads th:nth-child(1),
+      .table-email-leads td:nth-child(1) {
+        width: 13%;
+      }
+
+      .table-email-leads th:nth-child(2),
+      .table-email-leads td:nth-child(2) {
+        width: 22%;
+      }
+
+      .table-email-leads th:nth-child(3),
+      .table-email-leads td:nth-child(3) {
+        width: 8%;
+      }
+
+      .table-email-leads th:nth-child(4),
+      .table-email-leads td:nth-child(4) {
+        width: 17%;
+      }
+
+      .table-email-leads th:nth-child(5),
+      .table-email-leads td:nth-child(5) {
+        width: 10%;
+      }
+
+      .table-email-leads th:nth-child(6),
+      .table-email-leads td:nth-child(6) {
+        width: 9%;
+      }
+
+      .table-email-leads th:nth-child(7),
+      .table-email-leads td:nth-child(7),
+      .table-email-leads th:nth-child(8),
+      .table-email-leads td:nth-child(8) {
+        width: 7%;
+      }
+
+      .table-email-leads th:nth-child(9),
+      .table-email-leads td:nth-child(9) {
+        width: 7%;
+      }
+
+      .table-email-leads td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .table-email-leads td:nth-child(9) {
+        overflow: visible;
+      }
+
+      .table-email-leads .table-link-button {
+        white-space: nowrap;
+      }
+
       th,
       td {
         white-space: nowrap;
@@ -6731,6 +6790,20 @@
 
         td[data-column=""]::before {
           display: none;
+        }
+
+        .table-email-leads table {
+          table-layout: auto;
+        }
+
+        .table-email-leads th,
+        .table-email-leads td {
+          width: auto;
+        }
+
+        .table-email-leads td {
+          overflow: visible;
+          text-overflow: clip;
         }
       }
     </style>
@@ -7398,7 +7471,7 @@
           <section class="stats-grid" id="emailLeadStats"></section>
           <section class="panel">
             <div class="panel-head"><h2>メール送信対象</h2><span class="pill info" id="emailLeadCountPill">0件</span></div>
-            <div class="table-wrap"><table id="emailLeadTable"></table></div>
+            <div class="table-wrap table-email-leads"><table id="emailLeadTable"></table></div>
           </section>
         </section>
 

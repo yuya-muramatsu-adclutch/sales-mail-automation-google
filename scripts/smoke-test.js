@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v83_legacy_readiness_item_restore'), 'v83 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v84_legacy_email_table_restore'), 'v84 app version missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
 assert(!html.includes('https://'), 'Index.html should not contain raw https:// literals that Apps Script can split in userCodeAppPanel');
 assert(html.includes('<span>WEBサイト</span>'), 'website mini link should display WEBサイト label');
@@ -177,6 +177,9 @@ assert(html.includes('settings-status-item with-icon'), 'legacy admin status ico
 assert(html.includes('readiness-item with-icon'), 'legacy readiness icon row missing');
 assert(html.includes('.readiness-item > div'), 'legacy readiness label/detail vertical stack missing');
 assert(html.includes('.readiness-item small'), 'legacy readiness detail block style missing');
+assert(html.includes('table-wrap table-email-leads'), 'legacy email-leads table wrapper missing');
+assert(html.includes('.table-email-leads table'), 'legacy email-leads table layout missing');
+assert(html.includes('.table-email-leads td'), 'legacy email-leads truncation missing');
 assert(html.includes("item.icon || 'rocket'"), 'legacy readiness default rocket icon missing');
 assert(html.includes("icon: 'database', label: 'Google Sheets'"), 'legacy admin database status item missing');
 assert(html.includes("icon: 'searchCheck', label: 'Serper'"), 'legacy admin Serper status item missing');
