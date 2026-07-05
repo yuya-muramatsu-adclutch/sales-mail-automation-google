@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @80 / code v80: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @82 / code v82: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v80_dynamic_panel_ui_restore`
+- Code version: `20260705_apps_script_full_workflow_v82_legacy_sync_grid_restore`
 
 ## 計画書との対応
 
@@ -97,6 +97,8 @@
 | 営業リスト進捗UIレイアウト調整 | 完了 | code v78で全件読み込み進捗中の軽量ロードパネルが横幅不足で潰れないよう折り返し表示へ調整 |
 | 旧アプリフレームUI復元 | 完了 | code v79で通常画面に重なっていた戻るボタンを支援画面限定にし、更新完了メッセージを自動消去して旧アプリに近い余白へ戻した |
 | 動的パネル初期表示復元 | 完了 | code v80で初期ロード中の空カード/空フォーム作業パネルを非表示にし、主要ダッシュボード描画後はグローバルの読み込み表示を消して旧アプリに近い初期表示へ戻した |
+| 送信履歴/同期UI復元 | 完了 | code v81で送信履歴ヘッダーの生テンプレート文字列表示をアイコン表示へ戻し、同期画面のカードが左に細く潰れないよう旧アプリ寄りの専用グリッドへ調整した |
+| 同期グリッド優先度復元 | 完了 | code v82で後段の汎用 `.grid` に同期専用グリッドが上書きされないようセレクタを強め、同期インポートパネルの横幅崩れを実画面で復元 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |

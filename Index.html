@@ -1745,6 +1745,28 @@
           #ffffff;
       }
 
+      .grid.sync-page-grid {
+        grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.72fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .grid.sync-page-grid .sync-import-panel {
+        min-width: 0;
+      }
+
+      .sync-rule-panel {
+        min-width: 0;
+      }
+
+      .sync-rule-panel p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.7;
+      }
+
       .sync-preview-metrics {
         display: grid;
         grid-template-columns: repeat(5, minmax(128px, 1fr));
@@ -7406,8 +7428,8 @@
               <h1>送信履歴</h1>
             </div>
             <div class="row">
-              <button type="button" class="button secondary" onclick="exportFilteredSendHistoriesCsv()">${legacyUiIcon('download')}CSV出力</button>
-              <button type="button" class="button primary" onclick="showTab('sending')">${legacyUiIcon('send')}送信プレビューへ</button>
+              <button type="button" class="button secondary" onclick="exportFilteredSendHistoriesCsv()"><span class="button-icon" data-ui-icon="download"></span>CSV出力</button>
+              <button type="button" class="button primary" onclick="showTab('sending')"><span class="button-icon" data-ui-icon="send"></span>送信プレビューへ</button>
             </div>
           </header>
           <section class="stats-grid" id="historyStats"></section>
@@ -7524,10 +7546,11 @@
             </div>
             <button type="button" onclick="showTab('ops')">同期ログ詳細</button>
           </header>
-          <div class="grid">
+          <div class="grid sync-page-grid">
             <section id="syncImportPanel" class="panel stack sync-import-panel"></section>
-            <section class="panel stack">
+            <section class="panel stack sync-rule-panel">
               <h2>同期ルール</h2>
+              <p>既存データは上書きせず、空欄だけを補完します。会社名、メール、ドメインのどれかが一致する営業先は既存行を優先します。</p>
               <pre class="code-box">POST / doPost importLeadsFromCsv
 source: csv
 mode: fill_blanks

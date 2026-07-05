@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v80_dynamic_panel_ui_restore'), 'v80 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v82_legacy_sync_grid_restore'), 'v82 app version missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
 assert(!html.includes('https://'), 'Index.html should not contain raw https:// literals that Apps Script can split in userCodeAppPanel');
 assert(html.includes('<span>WEBサイト</span>'), 'website mini link should display WEBサイト label');
@@ -200,8 +200,10 @@ assert(!html.includes('class="utility-action"'), 'top shortcut bar should not in
 assert(html.includes("legacyUiIcon('eye')}差し込み後を確認"), 'legacy email preview eye icon missing');
 assert(html.includes("legacyUiIcon('send')}この内容で1件送信"), 'legacy email preview send icon missing');
 assert(html.includes("legacyUiIcon('send')}対象リストを確認して自動送信"), 'legacy email batch send icon missing');
-assert(html.includes("legacyUiIcon('download')}CSV出力"), 'legacy histories CSV download icon missing');
-assert(html.includes("legacyUiIcon('send')}送信プレビューへ"), 'legacy histories send preview icon missing');
+assert(html.includes('data-ui-icon="download"></span>CSV出力'), 'legacy histories CSV download icon missing');
+assert(html.includes('data-ui-icon="send"></span>送信プレビューへ'), 'legacy histories send preview icon missing');
+assert(!html.includes("${legacyUiIcon('download')}CSV出力"), 'histories CSV button should not show raw template text');
+assert(!html.includes("${legacyUiIcon('send')}送信プレビューへ"), 'histories send preview button should not show raw template text');
 assert(html.includes("['listPlus', '今月追加'"), 'legacy analytics list plus icon missing');
 assert(html.includes("legacyUiIcon(step.icon || 'barChart3')"), 'legacy analytics funnel icons missing');
 assert(html.includes("['shieldAlert', '送信NG'"), 'legacy analytics risk shield icon missing');
@@ -231,6 +233,8 @@ assert(html.includes('renderLegacyBackgroundOverview'), 'legacy background overv
 assert(html.includes('setBackgroundOverviewView'), 'legacy background overview filters missing');
 assert(html.includes('syncImportPanel'), 'legacy sync import panel missing');
 assert(html.includes('sync-preview-metrics'), 'legacy sync preview metrics missing');
+assert(html.includes('.grid.sync-page-grid'), 'legacy sync page grid should keep import panel from collapsing');
+assert(html.includes('sync-rule-panel'), 'legacy sync rule panel missing');
 assert(html.includes('renderLegacySyncImportPanel'), 'legacy sync import renderer missing');
 assert(html.includes('handleSyncImportFile'), 'legacy sync file upload handler missing');
 assert(html.includes('runLegacySyncImport'), 'legacy sync import action missing');
