@@ -2599,22 +2599,28 @@
         z-index: 80;
         inset: 0;
         display: none;
-        align-items: stretch;
-        justify-content: flex-end;
-        background: rgba(15, 23, 42, 0.36);
+        place-items: center;
+        padding: 20px;
+        background: rgba(15, 23, 42, 0.48);
+        white-space: normal;
       }
 
       .lead-detail-backdrop.open {
-        display: flex;
+        display: grid;
       }
 
       .lead-detail-dialog {
-        width: min(760px, 100%);
-        height: 100%;
+        display: grid;
+        gap: 18px;
+        width: min(980px, 100%);
+        min-width: 0;
+        max-height: min(860px, calc(100vh - 40px));
         overflow: auto;
-        border-left: 1px solid var(--line-strong);
+        padding: 20px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
         background: var(--surface);
-        box-shadow: -18px 0 50px rgba(15, 23, 42, 0.18);
+        box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24);
       }
 
       .dialog-backdrop {
@@ -2652,35 +2658,56 @@
       }
 
       .quick-dialog-header {
-        position: sticky;
-        z-index: 2;
-        top: 0;
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 12px;
-        padding: 18px;
+        gap: 16px;
+        padding: 0 0 14px;
         border-bottom: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.96);
-        backdrop-filter: blur(12px);
       }
 
       .quick-dialog-header h2 {
-        margin: 0;
+        margin: 2px 0 0;
+        font-size: 22px;
+      }
+
+      .quick-dialog-header p {
+        margin: 8px 0 0;
+      }
+
+      .quick-dialog-header-actions,
+      .lead-dialog-status-pills {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .dialog-eyebrow {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
       }
 
       .dialog-close-button {
-        width: 38px;
-        min-height: 38px;
+        display: inline-grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        min-height: 36px;
         padding: 0;
-        border-radius: 999px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--muted);
       }
 
       .quick-summary-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 10px;
-        padding: 14px 18px 0;
       }
 
       .quick-summary-grid span {
@@ -2707,7 +2734,6 @@
       .lead-detail-body {
         display: grid;
         gap: 14px;
-        padding: 18px;
       }
 
       .lead-status-control-panel,
@@ -6015,13 +6041,17 @@
           </section>
 
           <div id="leadDetailDialog" class="lead-detail-backdrop" onclick="closeLeadDialogOnBackdrop(event)">
-            <aside class="lead-detail-dialog" role="dialog" aria-modal="true" aria-labelledby="leadFormTitle">
+            <aside class="lead-detail-dialog wide-dialog quick-lead-dialog" role="dialog" aria-modal="true" aria-labelledby="leadFormTitle">
               <header class="quick-dialog-header">
                 <div>
-                  <p class="eyebrow">Lead detail</p>
+                  <span class="dialog-eyebrow">営業リスト</span>
                   <h2 id="leadFormTitle">リード編集</h2>
+                  <p class="muted">送信事故を防ぐため、送信履歴とフォーム対応履歴を確認しながら編集します。</p>
                 </div>
-                <button type="button" class="dialog-close-button" aria-label="閉じる" onclick="closeLeadDialog()">×</button>
+                <div class="quick-dialog-header-actions">
+                  <span id="leadDialogStatusPills" class="lead-dialog-status-pills"></span>
+                  <button type="button" class="dialog-close-button" aria-label="閉じる" onclick="closeLeadDialog()"><span class="button-icon" data-ui-icon="x"></span></button>
+                </div>
               </header>
               <div id="leadQuickSummary" class="quick-summary-grid"></div>
               <div class="lead-detail-body">
@@ -6821,6 +6851,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         reset: iconSvg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/>'),
         search: NAV_ICON_SVGS.SP,
         sliders: iconSvg('<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>'),
+        x: iconSvg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
       });
 
       function legacyUiIcon(key) {
@@ -8033,6 +8064,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const lead = state.leads.find((item) => item.id === id);
         if (!lead) return;
         document.getElementById('leadFormTitle').textContent = 'リード編集';
+        renderLeadDialogStatusPills(lead);
         document.getElementById('leadId').value = lead.id || '';
         document.getElementById('leadCompany').value = lead.company_name || '';
         document.getElementById('leadFacility').value = lead.facility_name || '';
@@ -8063,6 +8095,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function clearLeadForm() {
         document.getElementById('leadFormTitle').textContent = 'リード新規';
+        renderLeadDialogStatusPills(null);
         document.getElementById('leadForm').reset();
         document.getElementById('leadSendForm').reset();
         document.getElementById('leadCalendarForm').reset();
@@ -8095,25 +8128,36 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!target) return;
         if (!lead) {
           target.innerHTML = [
-            quickSummaryItem('ステータス', '未対応'),
-            quickSummaryItem('連絡先', '未設定'),
-            quickSummaryItem('送信', '0回'),
+            quickSummaryItem('会社', '-'),
+            quickSummaryItem('屋号', '-'),
+            quickSummaryItem('送信回数', '0回'),
+            quickSummaryItem('最新送信', '-'),
           ].join('');
           return;
         }
-        const contact = [lead.email ? 'メール' : '', lead.form_url ? 'フォーム' : '', lead.phone ? '電話' : ''].filter(Boolean).join(' / ') || 'なし';
         target.innerHTML = [
-          quickSummaryItem('ステータス', normalizeLeadStatusLabel(lead)),
-          quickSummaryItem('ジャンル', lead.genre || '-'),
-          quickSummaryItem('連絡先', contact),
-          quickSummaryItem('送信', `${formatNumber(lead.send_count || 0)}回`),
-          quickSummaryItem('最終送信', dateLabel(lead.last_sent_at) || '-'),
-          quickSummaryItem('更新', dateLabel(lead.updated_at) || '-'),
+          quickSummaryItem('会社', lead.company_name || '-'),
+          quickSummaryItem('屋号', lead.facility_name || '-'),
+          quickSummaryItem('送信回数', `${formatNumber(lead.send_count || 0)}回`),
+          quickSummaryItem('最新送信', dateLabel(lead.last_sent_at) || '-'),
         ].join('');
       }
 
       function quickSummaryItem(label, value) {
         return `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`;
+      }
+
+      function renderLeadDialogStatusPills(lead) {
+        const target = document.getElementById('leadDialogStatusPills');
+        if (!target) return;
+        if (!lead) {
+          target.innerHTML = statusTonePill('新規作成', 'info');
+          return;
+        }
+        target.innerHTML = [
+          isReviewPendingLead(lead) ? statusTonePill('検索追加・確認待ち', 'warn') : '',
+          statusPill(normalizeLeadStatusLabel(lead)),
+        ].join('');
       }
 
       function renderLeadStatusControlPanel(lead) {

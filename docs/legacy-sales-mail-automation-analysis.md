@@ -44,7 +44,7 @@
 - `components/TemplateTagMenu.tsx`, `components/TemplateActions.tsx`, `components/TemplateProductionStatus.tsx`, `components/TemplateCreateForm.tsx`: テンプレート差し込みタグ、テンプレートサンプル、作成/編集フォーム、本番ON/OFF、テスト送信
 - `components/GenreManager.tsx`, `components/ReasonMasterManager.tsx`: 管理画面のジャンル追加/編集/削除、送信NG/失注/対応不要理由の追加/編集/有効無効管理
 - `components/LeadEditForm.tsx`, `components/MeetingScheduleForm.tsx`: リード詳細のステータス編集、送信NG理由/メモ、フォーム対応、商談ステータス、Calendar登録、Meetリンク表示
-- `components/QuickLeadEditButton.tsx`, `components/DuplicateResolutionDialog.tsx`: 営業リスト上の履歴・編集ダイアログ、送信履歴カード、本文詳細、フォーム送信履歴、重複候補確認の見せ方
+- `components/QuickLeadEditButton.tsx`, `components/DuplicateResolutionDialog.tsx`: 営業リスト上の履歴・編集ダイアログ、中央モーダル、ヘッダーPill、4列サマリー、送信履歴カード、本文詳細、フォーム送信履歴、重複候補確認の見せ方
 - `app/api/display-settings/route.ts`, `app/api/custom-fields/route.ts`, `supabase/schema.sql`: `list_view_settings` / `custom_field_definitions` の保存APIとスキーマ
 - `lib/page-data.ts`, `lib/analytics.ts`, `lib/lead-status.ts`: ダッシュボード指標、ステータス、営業リスト絞り込みの考え方
 
@@ -62,7 +62,7 @@
 - 送信プレビューを旧 `EmailPreviewPanel` に寄せ、対象リスト自動送信カード、送信前確認ダイアログ、送信候補プレビュー、Gmail/自動送信停止/送信時間の可否表示を追加した。
 - 営業リストにジャンルバー、検索/ビュー/ステータス/ジャンル/並び替え、クイックビュー、リスト件数バー、KPIグリッド、色分け凡例を追加。
 - 営業リストを旧 `LeadsBulkTable` の情報設計に寄せ、CSV/手動追加ヘッダー、確認待ちガイド、固定バルク操作バー、`No.` / `操作` / `屋号` / `連絡先` / `ジャンル名` / `ステータス` / `送信状況` の列構成を追加。
-- リード編集を旧アプリの「履歴・編集」導線に寄せ、一覧横の常設フォームではなく右側詳細ドロワーで開くように変更。
+- リード編集を旧アプリの「履歴・編集」導線に寄せ、一覧横の常設フォームではなく中央の `quick-lead-dialog` モーダルで開くように変更。
 - フォーム送信リストを新規タブとして追加し、フォーム対象の一覧、本文プレビュー、コピー、対応状態更新を追加。
 - Serper検索タブにAPI設定、日次/月次残量、検索ジョブ状況の概要カードを追加。
 - テンプレート画面に差出人バナー、安全チェック、テンプレート例、テスト/本番/版数の一覧列を追加。
@@ -103,10 +103,11 @@
 - 管理に旧 `ReasonMasterManager` 相当の選択肢管理を追加し、送信NG理由、失注理由、対応不要理由、辞退理由の追加、テーブル内編集、有効/無効切替を `reasons` シートへ保存できるようにした。
 - リード詳細ドロワーに旧 `LeadEditForm` の「対応ステータス」セクションを追加し、自動ステータス説明、手動ステータス選択、フォーム対応、送信NG理由/メモ、商談ステータス、辞退理由を同じ流れで編集できるようにした。
 - リード詳細ドロワーのカレンダー枠を旧 `MeetingScheduleForm` に寄せ、開始/終了日時、場所、商談メモ、Google Calendar登録ボタン、Meetリンク表示の構成へ変更した。
-- リード詳細ドロワーに旧 `QuickLeadEditButton` の送信履歴セクションを追加し、ダイアログ内で送信日時、送信種別、件名、成功/失敗、本文詳細を確認できるようにした。
-- リード詳細ドロワーに旧 `QuickLeadEditButton` のフォーム送信履歴セクションを追加し、`custom_fields_json` の `form_send_events`, `last_form_sent_at`, `form_send_count`, `last_form_body` から最新送信、状態、本文プレビュー、本文コピーを表示できるようにした。
-- リード詳細ドロワー下部に旧 `QuickLeadEditButton` の危険操作セクションを追加し、除外ドメイン登録して営業対象から外す操作、営業先削除確認を同じ流れで実行できるようにした。
-- リード詳細ドロワーに旧 `DuplicateResolutionDialog` 相当の重複候補セクションを追加し、同じ会社名・メール・ドメインの候補を確認しながら、既存候補を残す/編集中の営業先を残す操作を選べるようにした。
+- リード詳細モーダルに旧 `QuickLeadEditButton` のヘッダー右側ステータスPill、検索追加・確認待ちPill、閉じるアイコン、会社/屋号/送信回数/最新送信の4列サマリーを追加した。
+- リード詳細モーダルに旧 `QuickLeadEditButton` の送信履歴セクションを追加し、ダイアログ内で送信日時、送信種別、件名、成功/失敗、本文詳細を確認できるようにした。
+- リード詳細モーダルに旧 `QuickLeadEditButton` のフォーム送信履歴セクションを追加し、`custom_fields_json` の `form_send_events`, `last_form_sent_at`, `form_send_count`, `last_form_body` から最新送信、状態、本文プレビュー、本文コピーを表示できるようにした。
+- リード詳細モーダル下部に旧 `QuickLeadEditButton` の危険操作セクションを追加し、除外ドメイン登録して営業対象から外す操作、営業先削除確認を同じ流れで実行できるようにした。
+- リード詳細モーダルに旧 `DuplicateResolutionDialog` 相当の重複候補セクションを追加し、同じ会社名・メール・ドメインの候補を確認しながら、既存候補を残す/編集中の営業先を残す操作を選べるようにした。
 - フォーム送信リストに旧 `FormOutreachBoard` の送信済みチェック、一覧行の送信済み/解除ボタン、作業バー内の送信済み解除導線を追加した。
 - フォーム送信リストの一覧行に旧 `FormOutreachBoard` の屋号コピーリンク、作業対象ハイライト、フォームURL小リンクを追加し、作業バーと同じコピー状態を共有するようにした。
 - 送信済み更新時は `custom_fields_json` に `form_send_count`, `last_form_sent_at`, `last_form_body`, `form_send_events` を保存し、リード詳細のフォーム送信履歴と同じデータを参照するようにした。

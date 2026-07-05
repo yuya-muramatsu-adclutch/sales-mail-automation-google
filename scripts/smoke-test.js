@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v56_form_work_action_parity'), 'v56 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v57_quick_lead_dialog_parity'), 'v57 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -166,6 +166,10 @@ assert(html.includes('lead-quick-views'), 'lead quick views missing');
 assert(html.includes('lead-kpi-grid'), 'lead KPI grid missing');
 assert(html.includes('leadBulkActionBar'), 'legacy lead bulk action bar missing');
 assert(html.includes('leadDetailDialog'), 'legacy lead detail dialog missing');
+assert(html.includes('quick-lead-dialog'), 'legacy quick lead dialog shell missing');
+assert(html.includes('quick-dialog-header-actions'), 'legacy quick lead dialog header actions missing');
+assert(html.includes('leadDialogStatusPills'), 'legacy quick lead dialog status pills missing');
+assert(html.includes('renderLeadDialogStatusPills'), 'legacy quick lead dialog status renderer missing');
 assert(html.includes('prospecting-review-guide'), 'legacy review guide missing');
 assert(html.includes('table-link-button'), 'legacy lead table action button missing');
 assert(html.includes('lead-select-cell'), 'legacy lead table select cell missing');
@@ -285,6 +289,8 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
   'quick-form-history-summary',
   'formHistoryItemsClient',
   'copyLeadFormHistoryBody',
+  'dialog-eyebrow',
+  'data-ui-icon="x"',
   'form-sent-check',
   'toggleFormLeadSent',
   'markFormLeadSent',
