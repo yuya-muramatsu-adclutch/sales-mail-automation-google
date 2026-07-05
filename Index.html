@@ -2624,6 +2624,90 @@
         color: #fff;
       }
 
+      .lead-load-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        padding: 13px 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #f8fbff;
+      }
+
+      .lead-load-copy {
+        flex: 1 1 320px;
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .lead-load-kicker {
+        color: #2563eb;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+
+      .lead-load-copy strong {
+        color: #0f172a;
+        font-size: 15px;
+      }
+
+      .lead-load-copy small,
+      .lead-load-progress small {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .lead-load-actions {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .lead-load-progress {
+        flex: 1 0 100%;
+        display: grid;
+        gap: 7px;
+        padding-top: 2px;
+      }
+
+      .lead-load-progress[hidden] {
+        display: none;
+      }
+
+      .lead-load-progress-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        color: #1e40af;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .lead-load-progress-bar {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #dbeafe;
+      }
+
+      .lead-load-progress-bar span {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: #2563eb;
+        transition: width 180ms ease;
+      }
+
       .prospecting-review-guide {
         display: flex;
         align-items: center;
@@ -6460,9 +6544,14 @@
 
         .form-outreach-toolbar,
         .collection-status-bar,
-        .exclusion-filter-bar {
+        .exclusion-filter-bar,
+        .lead-load-panel {
           flex-direction: column;
           align-items: stretch;
+        }
+
+        .lead-load-actions {
+          justify-content: flex-start;
         }
 
         .bulk-action-bar {
@@ -6817,6 +6906,27 @@
             <span class="list-filter-panel-icon" data-ui-icon="sliders" aria-hidden="true"></span>
           </div>
           <div class="lead-quick-views" id="leadQuickViews"></div>
+          <section class="lead-load-panel" id="leadLoadPanel" aria-live="polite">
+            <div class="lead-load-copy">
+              <span class="lead-load-kicker">軽量ロード</span>
+              <strong id="leadLoadModeLabel">確認待ちリスト</strong>
+              <small id="leadLoadModeDetail">初動では確認待ちだけ読み込みます。全件は必要な時に読み込めます。</small>
+            </div>
+            <div class="lead-load-actions">
+              <button type="button" class="button secondary compact-button" onclick="loadReviewLeadsOnly()">確認待ちだけ</button>
+              <button id="leadLoadAllButton" type="button" class="button primary compact-button" onclick="loadAllLeadsManually()">
+                <span class="button-icon" data-ui-icon="database"></span><span id="leadLoadAllButtonText">営業リスト全件を読み込む</span>
+              </button>
+            </div>
+            <div id="leadLoadProgress" class="lead-load-progress" hidden>
+              <div class="lead-load-progress-row">
+                <strong id="leadLoadProgressLabel">読み込み中</strong>
+                <span id="leadLoadProgressPercent">0%</span>
+              </div>
+              <div class="lead-load-progress-bar" aria-hidden="true"><span id="leadLoadProgressBar"></span></div>
+              <small id="leadLoadProgressDetail">Google Sheetsから取得しています。</small>
+            </div>
+          </section>
           <section id="leadListViewSettingsPanel"></section>
           <section id="leadReviewGuide" class="prospecting-review-guide" hidden></section>
           <section class="panel">
@@ -7570,8 +7680,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       const TOP_SHORTCUT_TABS = ['leads', 'backgroundJobs', 'search', 'forms', 'sending', 'emailLeads'];
       const RECENT_BACKGROUND_JOB_MS = 10 * 60 * 1000;
+      const INITIAL_REVIEW_LEAD_LIMIT = 100;
+      const FULL_LEAD_DEFAULT_LIMIT = 500;
       const HTTPS_PROTOCOL_PREFIX = 'https:' + String.fromCharCode(47, 47);
       let routeProgressTimer = null;
+      let leadLoadProgressTimer = null;
       let currentTab = 'dashboard';
       let suppressTabHistory = false;
       const tabHistory = [];
@@ -7837,6 +7950,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         formUpdatingLeadId: '',
         copiedFormFacilityId: '',
         selectedLeadIds: [],
+        hasCompletedInitialLoad: false,
+        leadLoadMode: 'review',
+        leadLoadProgress: {
+          active: false,
+          percent: 0,
+          label: '',
+          detail: '',
+        },
         searchResults: [],
         searchUsageLogs: [],
         searchJobs: [],
@@ -8036,10 +8157,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           renderSelects(initial.enums, initial.genres);
           renderDashboard(initial.dashboard);
           renderSerper(initial.serper);
-          await Promise.all([loadLeads(), loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()]);
+          const leadLoadTask = state.hasCompletedInitialLoad ? loadLeads() : loadInitialReviewLeads();
+          await Promise.all([leadLoadTask, loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()]);
           await loadFormLeads();
           renderExpandedLegacyScreens();
           updateTopShortcutBar(document.querySelector('.section.active')?.id || 'dashboard');
+          state.hasCompletedInitialLoad = true;
           message('更新しました', 'ok');
         } catch (error) {
           await showStartupError(error);
@@ -8312,6 +8435,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function filterLeads() {
         state.leadPage.offset = 0;
+        updateLeadLoadModeFromFilter();
         await loadLeads();
       }
 
@@ -8326,6 +8450,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function setLeadFilter(filter) {
         document.getElementById('leadQuickFilter').value = filter || 'all';
+        updateLeadLoadModeFromFilter();
         filterLeads();
       }
 
@@ -8356,17 +8481,208 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         `).join('');
       }
 
-      async function loadLeads(offset) {
+      function updateLeadLoadModeFromFilter(modeOverride) {
+        if (modeOverride) {
+          state.leadLoadMode = modeOverride;
+          updateLeadLoadPanel();
+          return;
+        }
+        const filter = document.getElementById('leadQuickFilter') ? document.getElementById('leadQuickFilter').value : 'all';
+        if (filter === 'review') {
+          state.leadLoadMode = 'review';
+        } else if (filter === 'all') {
+          state.leadLoadMode = 'all';
+        } else {
+          state.leadLoadMode = 'filtered';
+        }
+        updateLeadLoadPanel();
+      }
+
+      function resetLeadFiltersForReview() {
+        document.getElementById('leadSearch').value = '';
+        document.getElementById('leadQuickFilter').value = 'review';
+        document.getElementById('leadStatus').value = '';
+        document.getElementById('leadGenreFilter').value = '';
+        document.getElementById('leadSort').value = 'updated_desc';
+        document.getElementById('leadLimit').value = String(INITIAL_REVIEW_LEAD_LIMIT);
+        state.leadPage.offset = 0;
+        updateLeadLoadModeFromFilter('review');
+      }
+
+      function resetLeadFiltersForAll() {
+        document.getElementById('leadSearch').value = '';
+        document.getElementById('leadQuickFilter').value = 'all';
+        document.getElementById('leadStatus').value = '';
+        document.getElementById('leadGenreFilter').value = '';
+        document.getElementById('leadSort').value = 'updated_desc';
+        const limitInput = document.getElementById('leadLimit');
+        if (Number(limitInput.value || 0) < FULL_LEAD_DEFAULT_LIMIT) {
+          limitInput.value = String(FULL_LEAD_DEFAULT_LIMIT);
+        }
+        state.leadPage.offset = 0;
+        updateLeadLoadModeFromFilter('all');
+      }
+
+      function stopLeadLoadProgressTimer() {
+        if (leadLoadProgressTimer) {
+          clearInterval(leadLoadProgressTimer);
+          leadLoadProgressTimer = null;
+        }
+      }
+
+      function beginLeadLoadProgress(label, detail, startPercent) {
+        stopLeadLoadProgressTimer();
+        state.leadLoadProgress = {
+          active: true,
+          percent: startPercent || 12,
+          label: label,
+          detail: detail,
+        };
+        updateLeadLoadPanel();
+        leadLoadProgressTimer = setInterval(() => {
+          if (!state.leadLoadProgress.active) return;
+          const current = Number(state.leadLoadProgress.percent || 0);
+          state.leadLoadProgress.percent = Math.min(92, current + Math.max(1, Math.round((92 - current) * 0.18)));
+          updateLeadLoadPanel();
+        }, 450);
+      }
+
+      function completeLeadLoadProgress(label, detail) {
+        stopLeadLoadProgressTimer();
+        state.leadLoadProgress = {
+          active: false,
+          percent: 100,
+          label: label,
+          detail: detail,
+        };
+        updateLeadLoadPanel();
+        setTimeout(() => {
+          if (state.leadLoadProgress.active || state.leadLoadProgress.percent !== 100) return;
+          state.leadLoadProgress = {
+            active: false,
+            percent: 0,
+            label: '',
+            detail: '',
+          };
+          updateLeadLoadPanel();
+        }, 1100);
+      }
+
+      function failLeadLoadProgress(error) {
+        stopLeadLoadProgressTimer();
+        state.leadLoadProgress = {
+          active: false,
+          percent: 100,
+          label: '読み込みに失敗しました',
+          detail: error && error.message ? error.message : String(error || 'エラーを確認してください'),
+        };
+        updateLeadLoadPanel();
+      }
+
+      function leadRangeLabel() {
+        const total = Number(state.leadPage.total || 0);
+        const loaded = Number((state.leads || []).length);
+        const offset = Number(state.leadPage.offset || 0);
+        if (!total) return '0件';
+        const start = offset + 1;
+        const end = Math.min(offset + loaded, total);
+        return `${formatNumber(start)}〜${formatNumber(end)} / ${formatNumber(total)}件`;
+      }
+
+      function updateLeadLoadPanel() {
+        const label = document.getElementById('leadLoadModeLabel');
+        const detail = document.getElementById('leadLoadModeDetail');
+        const allButtonText = document.getElementById('leadLoadAllButtonText');
+        const allButton = document.getElementById('leadLoadAllButton');
+        if (label && detail) {
+          if (state.leadLoadMode === 'review') {
+            label.textContent = '確認待ちリスト';
+            detail.textContent = `初動は確認待ちだけ表示中: ${leadRangeLabel()}`;
+          } else if (state.leadLoadMode === 'all') {
+            label.textContent = '営業リスト全件ビュー';
+            detail.textContent = `全件ビュー表示中: ${leadRangeLabel()}`;
+          } else {
+            label.textContent = '絞り込みビュー';
+            detail.textContent = `条件に一致した営業先を表示中: ${leadRangeLabel()}`;
+          }
+        }
+        if (allButtonText) {
+          allButtonText.textContent = state.leadLoadMode === 'all' ? '全件を再読み込み' : '営業リスト全件を読み込む';
+        }
+        if (allButton) {
+          allButton.setAttribute('aria-busy', state.leadLoadProgress.active ? 'true' : 'false');
+        }
+
+        const progress = document.getElementById('leadLoadProgress');
+        if (!progress) return;
+        const progressState = state.leadLoadProgress || {};
+        const percent = Math.max(0, Math.min(100, Number(progressState.percent || 0)));
+        progress.hidden = !progressState.active && percent <= 0;
+        const progressLabel = document.getElementById('leadLoadProgressLabel');
+        const progressPercent = document.getElementById('leadLoadProgressPercent');
+        const progressDetail = document.getElementById('leadLoadProgressDetail');
+        const progressBar = document.getElementById('leadLoadProgressBar');
+        if (progressLabel) progressLabel.textContent = progressState.label || '読み込み中';
+        if (progressPercent) progressPercent.textContent = `${formatNumber(percent)}%`;
+        if (progressDetail) progressDetail.textContent = progressState.detail || 'Google Sheetsから取得しています。';
+        if (progressBar) progressBar.style.width = `${percent}%`;
+      }
+
+      async function loadInitialReviewLeads() {
+        resetLeadFiltersForReview();
+        beginLeadLoadProgress('確認待ちリストを読み込み中', '初期表示を軽くするため確認待ちだけ取得しています。', 18);
+        try {
+          await loadLeads(0, { filter: 'review', mode: 'review', limit: INITIAL_REVIEW_LEAD_LIMIT });
+          completeLeadLoadProgress('確認待ちリストを読み込みました', `${leadRangeLabel()}を表示しています。`);
+        } catch (error) {
+          failLeadLoadProgress(error);
+          throw error;
+        }
+      }
+
+      async function loadReviewLeadsOnly() {
+        resetLeadFiltersForReview();
+        beginLeadLoadProgress('確認待ちリストを読み込み中', '確認待ち候補だけを再取得しています。', 18);
+        try {
+          await loadLeads(0, { filter: 'review', mode: 'review', limit: INITIAL_REVIEW_LEAD_LIMIT });
+          completeLeadLoadProgress('確認待ちリストを読み込みました', `${leadRangeLabel()}を表示しています。`);
+          message('確認待ちリストを読み込みました', 'ok');
+        } catch (error) {
+          failLeadLoadProgress(error);
+          message(error.message, 'bad');
+        }
+      }
+
+      async function loadAllLeadsManually() {
+        resetLeadFiltersForAll();
+        beginLeadLoadProgress('営業リスト全件を読み込み中', '全件ビューへ切り替えています。ページングで続きを確認できます。', 14);
+        try {
+          await loadLeads(0, { filter: 'all', mode: 'all' });
+          completeLeadLoadProgress('営業リスト全件を読み込みました', `${leadRangeLabel()}を表示しています。`);
+          message('営業リスト全件を読み込みました', 'ok');
+        } catch (error) {
+          failLeadLoadProgress(error);
+          message(error.message, 'bad');
+        }
+      }
+
+      async function loadLeads(offset, options) {
+        const loadOptions = options || {};
         if (typeof offset === 'number') {
           state.leadPage.offset = Math.max(offset, 0);
         }
         state.selectedLeadIds = [];
+        if (loadOptions.limit) {
+          document.getElementById('leadLimit').value = String(loadOptions.limit);
+        }
+        const filterValue = loadOptions.filter || document.getElementById('leadQuickFilter').value;
+        updateLeadLoadModeFromFilter(loadOptions.mode || (filterValue === 'review' ? 'review' : filterValue === 'all' ? 'all' : 'filtered'));
         state.leadPage.limit = Number(document.getElementById('leadLimit').value || 500);
         const result = await api('listLeads', {
           search: document.getElementById('leadSearch').value,
           status: document.getElementById('leadStatus').value,
           genre: document.getElementById('leadGenreFilter').value,
-          filter: document.getElementById('leadQuickFilter').value,
+          filter: filterValue,
           sort: document.getElementById('leadSort').value,
           limit: state.leadPage.limit,
           offset: state.leadPage.offset,
@@ -8380,6 +8696,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderGenreBar();
         renderLeadQuickViews();
         renderLeads();
+        updateLeadLoadPanel();
       }
 
       async function loadEmailLeads() {
