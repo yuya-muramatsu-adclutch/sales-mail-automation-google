@@ -1245,6 +1245,213 @@
         font-weight: 900;
       }
 
+      .sync-import-panel {
+        border-color: #bfdbfe;
+        background:
+          linear-gradient(180deg, rgba(239, 246, 255, 0.88), rgba(255, 255, 255, 0.98)),
+          #ffffff;
+      }
+
+      .sync-preview-metrics {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(128px, 1fr));
+        gap: 10px;
+      }
+
+      .sync-preview-card {
+        display: grid;
+        gap: 7px;
+        min-height: 112px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: var(--shadow-soft);
+      }
+
+      .sync-preview-card.bad {
+        border-color: #fecaca;
+        background: #fff7f7;
+      }
+
+      .sync-preview-card .sync-preview-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: var(--blue);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .sync-preview-card.bad .sync-preview-icon,
+      .sync-preview-card.bad strong {
+        color: var(--red);
+      }
+
+      .sync-preview-card.bad .sync-preview-icon {
+        background: #fee2e2;
+      }
+
+      .sync-preview-card span,
+      .sync-preview-card small,
+      .sync-file-info span,
+      .sync-map-chip,
+      .sync-result span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .sync-preview-card strong {
+        color: var(--text);
+        font-size: 26px;
+        line-height: 1;
+      }
+
+      .sync-notice {
+        padding: 12px 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.6;
+      }
+
+      .sync-file-info,
+      .sync-mapping-list,
+      .sync-result,
+      .sync-next-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .sync-file-info span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 5px 10px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1e3a8a;
+      }
+
+      .sync-map-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 5px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface-muted);
+        color: var(--text);
+      }
+
+      .sync-warning-box,
+      .sync-error-preview {
+        display: grid;
+        gap: 6px;
+        padding: 12px 14px;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        background: #fff7ed;
+        color: #9a3412;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .sync-error-preview {
+        border-color: #fecaca;
+        background: #fff7f7;
+        color: #991b1b;
+      }
+
+      .sync-warning-box strong,
+      .sync-error-preview strong {
+        color: inherit;
+        font-size: 14px;
+      }
+
+      .sync-warning-box p,
+      .sync-error-preview p {
+        margin: 0;
+      }
+
+      .sync-preview-table {
+        display: grid;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .sync-preview-table table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+        background: #ffffff;
+      }
+
+      .sync-preview-table th,
+      .sync-preview-table td {
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        font-size: 12px;
+      }
+
+      .sync-preview-table th {
+        color: var(--muted);
+        font-weight: 900;
+      }
+
+      .sync-complete-box,
+      .sync-progress-card {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        background: #f0fdf4;
+      }
+
+      .sync-progress-card.failed {
+        border-color: #fecaca;
+        background: #fff7f7;
+      }
+
+      .sync-result span {
+        display: inline-flex;
+        gap: 4px;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #ffffff;
+      }
+
+      .sync-import-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .sync-hidden-file {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+
       .section {
         display: none;
       }
@@ -5031,14 +5238,7 @@
             <button type="button" onclick="showTab('ops')">同期ログ詳細</button>
           </header>
           <div class="grid">
-            <section class="panel stack">
-              <h2>CSV同期</h2>
-              <p class="muted">既存データは上書きせず、空欄のみ補完します。会社名、メールアドレス、ドメインの一致を重複判定に使います。</p>
-              <form class="grid" onsubmit="importCsv(event)">
-                <label style="grid-column:1/-1">CSV貼り付け<textarea id="syncCsvText" placeholder="会社名,メール,公式サイト"></textarea></label>
-                <button type="submit" class="primary">CSVインポート</button>
-              </form>
-            </section>
+            <section id="syncImportPanel" class="panel stack sync-import-panel"></section>
             <section class="panel stack">
               <h2>同期ルール</h2>
               <pre class="code-box">POST / doPost importLeadsFromCsv
@@ -5157,15 +5357,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <button type="button" class="ops-action-card" onclick="createBackup()"><span>Drive</span><strong>バックアップ作成</strong><small>SpreadsheetをDriveへコピー</small></button>
           </section>
           <div class="content-grid">
-            <section class="panel">
+            <section id="opsSyncImportPanel" class="panel stack sync-import-panel">
               <div class="panel-head"><h2>営業リスト同期</h2><span class="pill good">空欄補完優先</span></div>
-              <div class="panel-body">
-                <p class="muted">既存データは上書きせず、CSVから空欄を補完します。会社名、メール、ドメイン重複はスキップします。</p>
-              <form class="grid" onsubmit="importCsv(event)">
-                <label style="grid-column:1/-1">CSV貼り付け<textarea id="csvText" placeholder="会社名,メール,公式サイト"></textarea></label>
-                <button type="submit" class="primary">CSVインポート</button>
-              </form>
-              </div>
             </section>
             <section class="panel">
               <div class="panel-head"><h2>バックグラウンド進捗</h2><span class="pill info" id="jobCountPill">0件</span></div>
@@ -5218,6 +5411,58 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       let currentTab = 'dashboard';
       let suppressTabHistory = false;
       const tabHistory = [];
+      const SAMPLE_SYNC_CSV = '会社名,屋号,担当者名,メールアドレス,WEBサイトURL,フォームURL,ジャンル\n株式会社サンプルケア,サンプルケア渋谷,山田太郎,info@example-care.jp,https://example-care.jp,,介護\n合同会社ミライサロン,MIRAI Salon,佐藤花子,,https://mirai-salon.example,https://mirai-salon.example/contact,美容';
+
+      const SYNC_HEADER_MAP = {
+        '会社名': 'company_name',
+        '会社': 'company_name',
+        '企業名': 'company_name',
+        '屋号': 'facility_name',
+        'サービス名': 'facility_name',
+        '施設名': 'facility_name',
+        '店舗名': 'facility_name',
+        '担当者名': 'contact_name',
+        '担当者': 'contact_name',
+        '担当者メール': 'contact_email',
+        '担当者メールアドレス': 'contact_email',
+        'メール': 'email',
+        'メールアドレス': 'email',
+        'メール/フォームURL': 'email',
+        'メール／フォームURL': 'email',
+        'メール・フォームURL': 'email',
+        'メールまたはフォームURL': 'email',
+        '連絡先': 'email',
+        '問い合わせ先': 'email',
+        email: 'email',
+        'WebサイトURL': 'website_url',
+        'WEBサイトURL': 'website_url',
+        WEB: 'website_url',
+        Web: 'website_url',
+        'ホームページ': 'website_url',
+        'サイトURL': 'website_url',
+        URL: 'website_url',
+        '公式サイト': 'website_url',
+        'フォームURL': 'form_url',
+        '問い合わせURL': 'form_url',
+        '問い合わせフォーム': 'form_url',
+        'ジャンル': 'genre_name',
+        '業種': 'genre_name',
+        source_id: 'source_id',
+        external_id: 'external_id',
+      };
+
+      const SYNC_FIELD_LABELS = {
+        company_name: '会社名',
+        facility_name: '屋号',
+        contact_name: '担当者名',
+        contact_email: '担当者メール',
+        email: 'メール',
+        website_url: 'WEBサイトURL',
+        form_url: 'フォームURL',
+        genre_name: 'ジャンル',
+        source_id: '同期元ID',
+        external_id: '外部ID',
+      };
 
       const LEAD_QUICK_VIEW_GROUPS = [
         {
@@ -5288,6 +5533,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         histories: [],
         jobs: [],
         syncLogs: [],
+        syncImport: {
+          source: 'csv_upload',
+          rawInput: SAMPLE_SYNC_CSV,
+          fileInfo: null,
+          result: null,
+          error: '',
+        },
         settings: [],
         serperLastTest: null,
         customFieldDefinitions: [],
@@ -8518,6 +8770,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderOpsStatusGrid();
         renderOpsReadinessPanel();
         renderLegacyBackgroundOverview('opsBackgroundOverviewPanel', { compact: true });
+        renderLegacySyncImportPanel('opsSyncImportPanel', 'opsSync', { compact: true });
         renderHistoryTable();
         renderJobTable();
         renderSyncLogTable();
@@ -9607,7 +9860,388 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         ].map(([label, value]) => row([['項目', escapeHtml(label)], ['数値', escapeHtml(value)]])).join(''));
       }
 
+      function parseSyncCsvLine(line) {
+        const values = [];
+        let current = '';
+        let quoted = false;
+        for (let index = 0; index < line.length; index += 1) {
+          const char = line[index];
+          const next = line[index + 1];
+          if (char === '"' && quoted && next === '"') {
+            current += '"';
+            index += 1;
+            continue;
+          }
+          if (char === '"') {
+            quoted = !quoted;
+            continue;
+          }
+          if (char === ',' && !quoted) {
+            values.push(current.trim());
+            current = '';
+            continue;
+          }
+          current += char;
+        }
+        values.push(current.trim());
+        return values;
+      }
+
+      function syncCsvHeaders(input) {
+        const trimmed = String(input || '').trim();
+        if (!trimmed || trimmed.startsWith('[') || trimmed.startsWith('{')) return [];
+        const lines = trimmed.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+        const headerLine = lines.find((line) => parseSyncCsvLine(line).some((header) => SYNC_HEADER_MAP[header]));
+        return headerLine ? parseSyncCsvLine(headerLine) : [];
+      }
+
+      function assignSyncParsedValue(lead, field, rawValue) {
+        const value = String(rawValue || '').trim();
+        if (!value) return;
+        if (field === 'email' || field === 'form_url' || field === 'contact_email') {
+          if (/^https?:\/\//i.test(value) || /^www\./i.test(value)) {
+            if (!lead.form_url) lead.form_url = value;
+            return;
+          }
+          if (value.includes('@')) {
+            lead[field === 'contact_email' ? 'contact_email' : 'email'] = value;
+            return;
+          }
+        }
+        if (!lead[field]) lead[field] = value;
+      }
+
+      function parseSyncCsv(input) {
+        const lines = String(input || '')
+          .replace(/^\uFEFF/, '')
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (lines.length < 2) throw new Error('CSVはヘッダー行とデータ行が必要です。');
+        const headerIndex = lines.findIndex((line) => parseSyncCsvLine(line).some((header) => SYNC_HEADER_MAP[header]));
+        if (headerIndex < 0) throw new Error('取り込み可能なヘッダー行が見つかりません。会社名、屋号、メールアドレスなどの列名を確認してください。');
+        const headers = parseSyncCsvLine(lines[headerIndex]);
+        return lines.slice(headerIndex + 1).flatMap((line) => {
+          const values = parseSyncCsvLine(line);
+          const lead = {};
+          headers.forEach((header, index) => {
+            const field = SYNC_HEADER_MAP[header];
+            if (field) assignSyncParsedValue(lead, field, values[index] || '');
+          });
+          return Object.keys(lead).length > 0 ? [lead] : [];
+        });
+      }
+
+      function parseSyncInput(input) {
+        const trimmed = String(input || '').trim();
+        if (!trimmed) throw new Error('CSVまたはJSONを入力してください。');
+        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed.leads)) return parsed.leads;
+          throw new Error('JSONは配列、または { leads: [...] } の形にしてください。');
+        }
+        return parseSyncCsv(trimmed);
+      }
+
+      function syncValueOf(lead, key, emptyLabel) {
+        if (!lead || typeof lead !== 'object') return emptyLabel || '-';
+        const value = lead[key];
+        if (typeof value === 'string' && value.trim()) return value.trim();
+        return emptyLabel || '-';
+      }
+
+      function syncHasValue(lead, key) {
+        const value = lead && lead[key];
+        return typeof value === 'string' ? value.trim().length > 0 : Boolean(value);
+      }
+
+      function syncRowIssues(lead) {
+        const issues = [];
+        if (!syncHasValue(lead, 'company_name') && !syncHasValue(lead, 'facility_name') && !syncHasValue(lead, 'email') && !syncHasValue(lead, 'form_url')) {
+          issues.push('会社名、屋号、メール、フォームURLのいずれも空欄です。');
+        }
+        return issues;
+      }
+
+      function buildSyncPreviewStats(leads) {
+        const invalidRows = leads
+          .map((lead, index) => ({ index, issues: syncRowIssues(lead) }))
+          .filter((rowItem) => rowItem.issues.length > 0);
+        return {
+          companyBlank: leads.filter((lead) => !syncHasValue(lead, 'company_name')).length,
+          emailTargets: leads.filter((lead) => syncHasValue(lead, 'email')).length,
+          formTargets: leads.filter((lead) => !syncHasValue(lead, 'email') && syncHasValue(lead, 'form_url')).length,
+          invalidRows,
+          total: leads.length,
+        };
+      }
+
+      function syncInputForImport() {
+        const raw = state.syncImport.rawInput || '';
+        const trimmed = raw.trim();
+        if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return raw;
+        const leads = parseSyncInput(raw);
+        const headers = ['会社名', '屋号', '担当者名', 'メールアドレス', 'WEBサイトURL', 'フォームURL', 'ジャンル'];
+        const rows = leads.map((lead) => [
+          lead.company_name || lead.company || '',
+          lead.facility_name || lead.store_name || lead.name || '',
+          lead.contact_name || '',
+          lead.email || lead.contact_email || '',
+          lead.website_url || lead.website || '',
+          lead.form_url || '',
+          lead.genre_name || lead.genre || '',
+        ].map(csvValue).join(','));
+        return headers.map(csvValue).join(',') + '\n' + rows.join('\n');
+      }
+
+      function syncDecodedTextScore(text) {
+        const headerHits = Object.keys(SYNC_HEADER_MAP).filter((header) => text.includes(header)).length;
+        const replacementCount = (text.match(/\uFFFD/g) || []).length;
+        const mojibakeHints = (text.match(/[縺蜊譁莨繧]/g) || []).length;
+        return headerHits * 20 - replacementCount * 12 - mojibakeHints;
+      }
+
+      function renderSyncMetric(label, value, note, tone) {
+        return `
+          <div class="sync-preview-card ${escapeHtml(tone || '')}">
+            <span class="sync-preview-icon">${escapeHtml(label.slice(0, 2))}</span>
+            <span>${escapeHtml(label)}</span>
+            <strong>${formatNumber(value)}件</strong>
+            ${note ? `<small>${escapeHtml(note)}</small>` : ''}
+          </div>
+        `;
+      }
+
+      function renderSyncImportPreviewForPrefix(prefix) {
+        const raw = state.syncImport.rawInput || '';
+        let leads = [];
+        let parseError = '';
+        try {
+          leads = parseSyncInput(raw);
+        } catch (error) {
+          parseError = error.message || 'プレビューできませんでした。';
+        }
+        const headers = syncCsvHeaders(raw);
+        const mappedHeaders = headers
+          .map((header) => ({ header, field: SYNC_HEADER_MAP[header] }))
+          .filter((item) => item.field)
+          .map((item) => ({ ...item, label: SYNC_FIELD_LABELS[item.field] || item.field }));
+        const ignoredHeaders = headers.filter((header) => !SYNC_HEADER_MAP[header]);
+        const stats = buildSyncPreviewStats(leads);
+        const metrics = document.getElementById(prefix + 'SyncMetrics');
+        const notice = document.getElementById(prefix + 'SyncNotice');
+        const mapping = document.getElementById(prefix + 'SyncMapping');
+        const ignored = document.getElementById(prefix + 'SyncIgnored');
+        const warning = document.getElementById(prefix + 'SyncWarning');
+        const preview = document.getElementById(prefix + 'SyncPreviewTable');
+        const result = document.getElementById(prefix + 'SyncResult');
+        const fileInfo = document.getElementById(prefix + 'SyncFileInfo');
+
+        if (metrics) {
+          metrics.innerHTML = parseError
+            ? renderSyncMetric('要確認行', 1, parseError, 'bad')
+            : [
+                renderSyncMetric('読み込み件数', stats.total, '同期候補'),
+                renderSyncMetric('会社名空欄', stats.companyBlank, '屋号は保持'),
+                renderSyncMetric('メール対象', stats.emailTargets, 'メールあり'),
+                renderSyncMetric('フォーム対象', stats.formTargets, 'フォームURLのみ'),
+                renderSyncMetric('要確認行', stats.invalidRows.length, stats.invalidRows.length ? '修正推奨' : '問題なし', stats.invalidRows.length ? 'bad' : ''),
+              ].join('');
+        }
+        if (notice) {
+          notice.innerHTML = stats.companyBlank > 0 && !parseError
+            ? '<div class="sync-notice">会社名が空欄の行は、会社名を空欄のまま取り込みます。屋号を会社名に自動コピーしません。</div>'
+            : '';
+        }
+        if (mapping) {
+          mapping.innerHTML = mappedHeaders.length
+            ? mappedHeaders.map((item) => `<span class="sync-map-chip">${escapeHtml(item.header)} → ${escapeHtml(item.label)}</span>`).join('')
+            : '<span class="sync-map-chip">対応列なし</span>';
+        }
+        if (ignored) {
+          ignored.innerHTML = ignoredHeaders.length
+            ? `<p class="form-message">取り込み対象外の列は無視されます: ${escapeHtml(ignoredHeaders.join('、'))}</p>`
+            : '';
+        }
+        if (warning) {
+          warning.innerHTML = stats.invalidRows.length && !parseError
+            ? `<div class="sync-warning-box"><strong>同期時にエラーになる可能性がある行</strong>${stats.invalidRows.slice(0, 8).map((rowItem) => `<p>${formatNumber(rowItem.index + 1)}行目: ${escapeHtml(rowItem.issues.join(' '))}</p>`).join('')}${stats.invalidRows.length > 8 ? `<small>ほか ${formatNumber(stats.invalidRows.length - 8)}件あります。</small>` : ''}</div>`
+            : '';
+        }
+        if (preview) {
+          preview.innerHTML = `
+            <table>
+              <thead><tr><th>会社名</th><th>屋号</th><th>担当者名</th><th>メール</th><th>フォーム</th><th>ジャンル</th></tr></thead>
+              <tbody>
+                ${leads.slice(0, 10).map((lead) => `
+                  <tr>
+                    <td>${escapeHtml(syncValueOf(lead, 'company_name', '空欄'))}</td>
+                    <td>${escapeHtml(syncValueOf(lead, 'facility_name'))}</td>
+                    <td>${escapeHtml(syncValueOf(lead, 'contact_name'))}</td>
+                    <td>${escapeHtml(syncValueOf(lead, 'email'))}</td>
+                    <td>${escapeHtml(syncValueOf(lead, 'form_url'))}</td>
+                    <td>${escapeHtml(syncValueOf(lead, 'genre_name', syncValueOf(lead, 'genre')))}</td>
+                  </tr>
+                `).join('') || '<tr><td colspan="6">プレビューできるデータがありません。</td></tr>'}
+              </tbody>
+            </table>
+            ${leads.length > 10 ? `<small class="muted">先頭10件だけ表示しています。</small>` : ''}
+          `;
+        }
+        if (fileInfo) {
+          const info = state.syncImport.fileInfo;
+          fileInfo.innerHTML = info
+            ? `<span>選択中: ${escapeHtml(info.name)}</span><span>文字コード: ${escapeHtml(info.encoding)}</span><span>${formatNumber(Math.ceil((info.size || 0) / 1024))}KB</span>`
+            : '';
+        }
+        if (result) {
+          result.innerHTML = renderSyncImportResult();
+        }
+      }
+
+      function renderSyncImportResult() {
+        const error = state.syncImport.error;
+        const result = state.syncImport.result;
+        if (error) return `<div class="sync-error-preview"><strong>同期エラー</strong><p>${escapeHtml(error)}</p></div>`;
+        if (!result) return '';
+        const errorRows = result.errors || [];
+        return `
+          <div class="sync-complete-box">
+            <strong>同期が完了しました</strong>
+            <div class="sync-result">
+              <span>追加 <strong>${formatNumber(result.added || result.added_count || 0)}</strong></span>
+              <span>補完 <strong>${formatNumber(result.filled || result.filled_count || 0)}</strong></span>
+              <span>重複スキップ <strong>${formatNumber(result.skipped || result.duplicate_skip_count || 0)}</strong></span>
+              <span>エラー <strong>${formatNumber(errorRows.length || result.error_count || 0)}</strong></span>
+            </div>
+            <div class="sync-next-actions">
+              <button type="button" class="mini-button" onclick="showTab('leads')">営業リストで確認</button>
+              <button type="button" class="mini-button" onclick="showTab('emailLeads')">メール対象を見る</button>
+              <button type="button" class="mini-button" onclick="showTab('forms')">フォーム対象を見る</button>
+              <button type="button" class="mini-button" onclick="showTab('ops')">同期ログを見る</button>
+            </div>
+          </div>
+          ${errorRows.length ? `<div class="sync-error-preview"><strong>同期エラー</strong>${errorRows.slice(0, 8).map((item) => `<p>${escapeHtml(String(item.row || item.index || '-'))}行目: ${escapeHtml(item.message || '')}</p>`).join('')}${errorRows.length > 8 ? `<small>ほか ${formatNumber(errorRows.length - 8)}件あります。</small>` : ''}</div>` : ''}
+        `;
+      }
+
+      function renderLegacySyncImportPanel(targetId, prefix, options) {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const compact = Boolean(options && options.compact);
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>CSV / JSON 同期</h2>
+              <p class="muted">取り込み対象は会社名、屋号、担当者名、メールアドレス、WEBサイトURL、フォームURL、ジャンルです。既存データは上書きせず、空欄だけ補完します。</p>
+            </div>
+            <span class="pill info">プレビュー後に実行</span>
+          </div>
+          <div id="${prefix}SyncMetrics" class="sync-preview-metrics" aria-label="同期プレビュー"></div>
+          <div id="${prefix}SyncNotice"></div>
+          <div id="${prefix}SyncMapping" class="sync-mapping-list" aria-label="列の対応"></div>
+          <div class="form-grid">
+            <label>同期ソース<input id="${prefix}SyncSource" value="${escapeHtml(state.syncImport.source)}" onchange="updateSyncImportSource(this.value)"></label>
+            <label>CSVファイル<input id="${prefix}SyncFile" type="file" accept=".csv,.json,text/csv,application/json" onchange="handleSyncImportFile(event)"></label>
+          </div>
+          <div id="${prefix}SyncFileInfo" class="sync-file-info"></div>
+          <label>CSVまたはJSON<textarea id="${prefix}SyncInput" rows="${compact ? '6' : '10'}" spellcheck="false" oninput="updateSyncImportInput(this.value)">${escapeHtml(state.syncImport.rawInput)}</textarea></label>
+          <div id="${prefix}SyncIgnored"></div>
+          <div id="${prefix}SyncWarning"></div>
+          ${compact ? '' : `<div id="${prefix}SyncPreviewTable" class="sync-preview-table"></div>`}
+          <div id="${prefix}SyncResult"></div>
+          <div class="sync-import-actions">
+            <button type="button" class="primary" onclick="runLegacySyncImport()">同期を実行</button>
+            <button type="button" onclick="resetSyncImportSample()">サンプルに戻す</button>
+            <button type="button" onclick="downloadSyncTemplate()">CSVテンプレート</button>
+          </div>
+        `;
+        renderSyncImportPreviewForPrefix(prefix);
+      }
+
+      function renderSyncImportPanels() {
+        renderLegacySyncImportPanel('syncImportPanel', 'mainSync', { compact: false });
+        renderLegacySyncImportPanel('opsSyncImportPanel', 'opsSync', { compact: true });
+      }
+
+      function renderSyncImportPreviews() {
+        renderSyncImportPreviewForPrefix('mainSync');
+        renderSyncImportPreviewForPrefix('opsSync');
+      }
+
+      function updateSyncImportInput(value) {
+        state.syncImport.rawInput = value;
+        state.syncImport.result = null;
+        state.syncImport.error = '';
+        renderSyncImportPreviews();
+      }
+
+      function updateSyncImportSource(value) {
+        state.syncImport.source = value || 'csv_upload';
+      }
+
+      async function handleSyncImportFile(event) {
+        const file = event.target && event.target.files ? event.target.files[0] : null;
+        if (!file) return;
+        try {
+          const buffer = await file.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          const candidates = [];
+          for (const encoding of [{ label: 'UTF-8', value: 'utf-8' }, { label: 'Shift_JIS / CP932', value: 'shift_jis' }]) {
+            try {
+              const text = new TextDecoder(encoding.value, { fatal: false }).decode(bytes);
+              candidates.push({ label: encoding.label, score: syncDecodedTextScore(text), text });
+            } catch (error) {
+              // unsupported encoding is ignored
+            }
+          }
+          candidates.sort((left, right) => right.score - left.score);
+          const decoded = candidates[0] || { label: 'UTF-8', text: await file.text() };
+          state.syncImport.rawInput = decoded.text;
+          state.syncImport.fileInfo = { encoding: decoded.label, name: file.name, size: file.size };
+          state.syncImport.result = null;
+          state.syncImport.error = '';
+          renderSyncImportPanels();
+        } catch (error) {
+          state.syncImport.error = error.message || 'CSVファイルを読み込めませんでした。';
+          renderSyncImportPreviews();
+        }
+      }
+
+      function resetSyncImportSample() {
+        state.syncImport.rawInput = SAMPLE_SYNC_CSV;
+        state.syncImport.fileInfo = null;
+        state.syncImport.result = null;
+        state.syncImport.error = '';
+        renderSyncImportPanels();
+      }
+
+      function downloadSyncTemplate() {
+        downloadText('sales-leads-template.csv', SAMPLE_SYNC_CSV);
+      }
+
+      async function runLegacySyncImport() {
+        try {
+          state.syncImport.error = '';
+          state.syncImport.result = null;
+          parseSyncInput(state.syncImport.rawInput);
+          renderSyncImportPreviews();
+          const csvText = syncInputForImport();
+          const result = await api('importLeadsFromCsv', csvText, { source: state.syncImport.source || 'csv_upload' });
+          state.syncImport.result = result;
+          message(`CSV: 追加 ${formatNumber(result.added || 0)} / スキップ ${formatNumber(result.skipped || 0)}`, result.errors && result.errors.length ? 'error' : 'ok');
+          await refreshAll();
+          renderSyncImportPanels();
+        } catch (error) {
+          state.syncImport.error = error.message || '同期に失敗しました。';
+          message(state.syncImport.error, 'error');
+          renderSyncImportPreviews();
+        }
+      }
+
       function renderSyncScreen() {
+        renderLegacySyncImportPanel('syncImportPanel', 'mainSync', { compact: false });
         const logs = state.syncLogs || [];
         document.getElementById('syncScreenPill').textContent = `${formatNumber(logs.length)}件`;
         document.getElementById('syncScreenTable').innerHTML = table(['日時', 'ソース', '追加', '補完', '重複', 'エラー', '詳細'], logs.map((log) => row([
