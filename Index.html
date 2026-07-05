@@ -2025,10 +2025,65 @@
         grid-template-columns: minmax(240px, 1fr) repeat(4, minmax(150px, 190px)) auto;
         align-items: end;
         gap: 12px;
-        padding: 14px;
+        margin: 0 0 18px;
+        padding: 14px 44px 14px 14px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: var(--surface);
+      }
+
+      .list-filter-panel > label,
+      .list-filter-panel .field {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .list-filter-panel input,
+      .list-filter-panel select {
+        min-height: 42px;
+        border-color: var(--line-strong);
+      }
+
+      .list-filter-panel input:hover,
+      .list-filter-panel select:hover {
+        border-color: #b8c4d1;
+      }
+
+      .list-filter-panel input:focus,
+      .list-filter-panel select:focus {
+        border-color: var(--blue);
+        box-shadow: var(--shadow-focus);
+      }
+
+      .list-filter-panel-icon {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        display: inline-flex;
+        color: #94a3b8;
+      }
+
+      .list-filter-panel-icon svg,
+      .button-icon svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .list-filter-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+      }
+
+      .form-outreach-toolbar .list-filter-panel {
+        grid-template-columns: minmax(260px, 1fr) minmax(170px, 220px) minmax(140px, 180px) auto;
+        margin: 0;
+      }
+
+      .history-filter-panel {
+        grid-template-columns: minmax(260px, 1fr) minmax(160px, 220px) auto;
       }
 
       .filter-bar {
@@ -5155,6 +5210,66 @@
         color: var(--red);
       }
 
+      .data-table-empty-cell {
+        padding: 34px 16px;
+        text-align: center;
+        white-space: normal;
+      }
+
+      .data-table-empty-cell span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 10px 14px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: var(--muted);
+        font-weight: 900;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .empty-state-line {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        background: #f0fdf4;
+        color: #166534;
+        font-weight: 900;
+      }
+
+      .table-wrap::-webkit-scrollbar,
+      .lead-quick-views::-webkit-scrollbar,
+      .prospecting-query-list::-webkit-scrollbar,
+      .duplicate-resolution-list::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+
+      .table-wrap::-webkit-scrollbar-thumb,
+      .lead-quick-views::-webkit-scrollbar-thumb,
+      .prospecting-query-list::-webkit-scrollbar-thumb,
+      .duplicate-resolution-list::-webkit-scrollbar-thumb {
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background: #cbd5e1;
+        background-clip: content-box;
+      }
+
+      .table-wrap::-webkit-scrollbar-track,
+      .lead-quick-views::-webkit-scrollbar-track,
+      .prospecting-query-list::-webkit-scrollbar-track,
+      .duplicate-resolution-list::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+
       .lead-quick-view,
       .filter-bar a,
       .mini-button,
@@ -5708,7 +5823,11 @@
               <option value="status_asc">ステータス順</option>
               <option value="last_sent_desc">最終送信が新しい順</option>
             </select></label>
-            <button type="button" onclick="filterLeads()">適用</button>
+            <div class="list-filter-actions">
+              <button type="button" class="button" onclick="filterLeads()"><span class="button-icon" data-ui-icon="search"></span>適用</button>
+              <button type="button" class="button secondary" onclick="clearLeadFilters()"><span class="button-icon" data-ui-icon="reset"></span>クリア</button>
+            </div>
+            <span class="list-filter-panel-icon" data-ui-icon="sliders" aria-hidden="true"></span>
           </div>
           <div class="lead-quick-views" id="leadQuickViews"></div>
           <section id="leadListViewSettingsPanel"></section>
@@ -5950,7 +6069,11 @@
                 <option value="100" selected>100件</option>
                 <option value="300">300件</option>
               </select></label>
-              <button type="button" onclick="loadFormLeads()">適用</button>
+              <div class="list-filter-actions">
+                <button type="button" class="button" onclick="loadFormLeads()"><span class="button-icon" data-ui-icon="search"></span>適用</button>
+                <button type="button" class="button secondary" onclick="clearFormFilters()"><span class="button-icon" data-ui-icon="reset"></span>クリア</button>
+              </div>
+              <span class="list-filter-panel-icon" data-ui-icon="sliders" aria-hidden="true"></span>
             </div>
           </div>
           <div id="formWorkPanel" class="form-work-panel"></div>
@@ -6530,6 +6653,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         TP: iconSvg('<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>'),
       });
 
+      const LEGACY_UI_ICON_SVGS = Object.freeze({
+        reset: iconSvg('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/>'),
+        search: NAV_ICON_SVGS.SP,
+        sliders: iconSvg('<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>'),
+      });
+
+      function legacyUiIcon(key) {
+        return LEGACY_UI_ICON_SVGS[key] || '';
+      }
+
       const DASHBOARD_ICON_KEYS = Object.freeze({
         analytics: 'AN',
         api: 'AD',
@@ -6556,6 +6689,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           if (!svg) return;
           target.dataset.iconKey = key;
           target.innerHTML = svg;
+        });
+      }
+
+      function hydrateLegacyUtilityIcons(root) {
+        const scope = root || document;
+        scope.querySelectorAll('[data-ui-icon]').forEach((target) => {
+          const svg = legacyUiIcon(target.getAttribute('data-ui-icon'));
+          if (!svg) return;
+          target.innerHTML = svg;
+          target.classList.add('button-icon');
+          target.removeAttribute('data-ui-icon');
         });
       }
 
@@ -8912,6 +9056,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.selectedFormLeadId = state.formLeads[0].id;
         }
         renderFormLeads(state.formTotal);
+      }
+
+      function clearFormFilters() {
+        document.getElementById('formSearch').value = '';
+        document.getElementById('formStatusFilter').value = 'active';
+        document.getElementById('formLimit').value = '100';
+        loadFormLeads();
       }
 
       function renderFormLeads(total) {
@@ -11479,8 +11630,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <label>履歴区分<select id="historyFilter">
             ${options.map(([value, label]) => `<option value="${value}" ${state.historyFilter === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}
           </select></label>
-          <button type="button" onclick="applyHistoryFilters()">適用</button>
-          <button type="button" onclick="resetHistoryFilters()">リセット</button>
+          <div class="list-filter-actions">
+            <button type="button" class="button" onclick="applyHistoryFilters()">${legacyUiIcon('search')}適用</button>
+            <button type="button" class="button secondary" onclick="resetHistoryFilters()">${legacyUiIcon('reset')}リセット</button>
+          </div>
+          <span class="list-filter-panel-icon" aria-hidden="true">${legacyUiIcon('sliders')}</span>
         `;
       }
 
@@ -13862,7 +14016,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function table(headers, rows) {
-        if (!rows) rows = `<tr><td data-column="" colspan="${headers.length}" class="empty">データがありません</td></tr>`;
+        if (!rows) rows = `<tr><td data-column="" colspan="${headers.length}" class="data-table-empty-cell"><span>データがありません</span></td></tr>`;
         return `<thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody>`;
       }
 
@@ -14010,6 +14164,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       hydrateLegacyNavigationIcons();
+      hydrateLegacyUtilityIcons();
       refreshAll();
     </script>
   </body>

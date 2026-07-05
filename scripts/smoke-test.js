@@ -81,7 +81,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-assert(code.includes('20260705_apps_script_full_workflow_v53_status_table_button_parity'), 'v53 app version missing');
+assert(code.includes('20260705_apps_script_full_workflow_v54_filter_empty_state_parity'), 'v54 app version missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
@@ -106,6 +106,13 @@ assert(html.includes('tr:focus-within td'), 'legacy DataTable focus state missin
 assert(html.includes('table-link-button.primary-action'), 'legacy table primary action button style missing');
 assert(html.includes('.mini-button.active'), 'legacy mini button active style missing');
 assert(html.includes('.button-link.secondary'), 'legacy secondary action button style missing');
+assert(html.includes('LEGACY_UI_ICON_SVGS'), 'legacy utility icon map missing');
+assert(html.includes('hydrateLegacyUtilityIcons'), 'legacy utility icon hydration missing');
+assert(html.includes('list-filter-panel-icon'), 'legacy ListSearchFilters slider icon missing');
+assert(html.includes('list-filter-actions'), 'legacy ListSearchFilters action row missing');
+assert(html.includes('clearFormFilters'), 'legacy form filter clear action missing');
+assert(html.includes('data-table-empty-cell'), 'legacy DataTable empty state missing');
+assert(html.includes('table-wrap::-webkit-scrollbar'), 'legacy table scrollbar styling missing');
 assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
 assert(html.includes('appRouteProgress'), 'legacy route progress missing');
