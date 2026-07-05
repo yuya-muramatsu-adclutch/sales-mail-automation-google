@@ -5989,6 +5989,220 @@
         font-size: 20px;
       }
 
+      .admin-status-grid {
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      }
+
+      .admin-readiness-panel {
+        margin-top: 12px;
+      }
+
+      .admin-command-center {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+      }
+
+      .admin-command-copy {
+        display: grid;
+        gap: 6px;
+      }
+
+      .admin-command-copy h2 {
+        margin: 0;
+        font-size: 21px;
+      }
+
+      .admin-command-copy p {
+        max-width: 760px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.65;
+      }
+
+      .admin-command-actions,
+      .admin-action-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .admin-readiness-mini-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px;
+      }
+
+      .admin-primary-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+        gap: 14px;
+        align-items: start;
+        margin-top: 14px;
+      }
+
+      .admin-primary-panel {
+        min-width: 0;
+      }
+
+      .admin-accordion-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .admin-disclosure {
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--surface);
+        box-shadow: var(--shadow-soft);
+        overflow: hidden;
+      }
+
+      .admin-disclosure > summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 58px;
+        padding: 14px 16px;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .admin-disclosure > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .admin-disclosure > summary::after {
+        content: "＋";
+        display: inline-grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        flex: 0 0 auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        font-weight: 900;
+      }
+
+      .admin-disclosure[open] > summary::after {
+        content: "−";
+      }
+
+      .admin-disclosure > summary span {
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 900;
+      }
+
+      .admin-disclosure > summary small {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.45;
+        text-align: right;
+      }
+
+      .admin-disclosure-body {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 12px;
+        padding: 0 14px 14px;
+        border-top: 1px solid var(--line);
+        background: #f8fafc;
+      }
+
+      .admin-disclosure-body > .panel {
+        margin-top: 14px;
+      }
+
+      .admin-inner-disclosure-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .admin-inner-disclosure {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .admin-inner-disclosure > summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        min-height: 48px;
+        padding: 12px 14px;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .admin-inner-disclosure > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .admin-inner-disclosure > summary span {
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .admin-inner-disclosure > summary small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .admin-inner-disclosure > summary::after {
+        content: "＋";
+        color: var(--muted);
+        font-weight: 900;
+      }
+
+      .admin-inner-disclosure[open] > summary::after {
+        content: "−";
+      }
+
+      .admin-detail-body {
+        display: grid;
+        gap: 12px;
+        padding: 0 14px 14px;
+      }
+
+      .admin-automation-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 8px;
+      }
+
+      .admin-automation-summary .settings-status-item {
+        min-height: 76px;
+        align-items: start;
+        background: #fff;
+      }
+
+      .admin-automation-summary .settings-status-item.with-icon {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .admin-automation-summary .settings-status-item .pill {
+        grid-column: 1 / -1;
+        justify-self: start;
+      }
+
+      .admin-maintenance-panel {
+        min-height: auto;
+      }
+
       .history-date-cell,
       .history-recipient-cell,
       .history-lead-cell,
@@ -6835,6 +7049,8 @@
         .source-page-grid,
         .domain-form,
         .ops-action-grid,
+        .admin-primary-grid,
+        .admin-disclosure-body,
         .list-filter-panel {
           grid-template-columns: 1fr;
         }
@@ -6872,9 +7088,25 @@
         .form-outreach-toolbar,
         .collection-status-bar,
         .exclusion-filter-bar,
-        .lead-load-panel {
+        .lead-load-panel,
+        .admin-command-center {
           flex-direction: column;
           align-items: stretch;
+        }
+
+        .admin-command-center {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .admin-disclosure > summary {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .admin-disclosure > summary small {
+          margin-left: 0;
+          text-align: left;
         }
 
         .lead-load-actions {
@@ -6929,6 +7161,9 @@
         .form-outreach-summary-grid,
         .setup-guide-grid,
         .settings-status-grid,
+        .admin-status-grid,
+        .admin-readiness-mini-list,
+        .admin-automation-summary,
         .list-count-bar {
           grid-template-columns: 1fr;
         }
@@ -7912,33 +8147,52 @@ PropertiesService
             </div>
             <button type="button" onclick="showTab('gmail')">Gmail連携</button>
           </header>
-          <section id="adminStatusGrid" class="settings-status-grid"></section>
-          <section id="adminReadinessPanel" class="ops-readiness-panel"></section>
-          <div class="grid">
-            <section id="adminReadinessRunnerPanel" class="panel stack"></section>
-            <section id="schemaStatusPanel" class="panel stack"></section>
-            <section id="googleCredentialSummaryPanel" class="panel stack"></section>
-            <section id="adminGmailReplyCheckPanel" class="panel stack"></section>
+          <section id="adminStatusGrid" class="settings-status-grid admin-status-grid"></section>
+          <section id="adminReadinessPanel" class="ops-readiness-panel admin-readiness-panel"></section>
+          <div class="admin-primary-grid">
+            <section id="adminReadinessRunnerPanel" class="panel stack admin-primary-panel"></section>
             <section id="adminAutomationSettingsPanel" class="panel stack"></section>
-            <section id="calendarAutoCreateSettingsPanel" class="panel stack"></section>
-            <section id="genreManagerPanel" class="panel stack"></section>
-            <section id="reasonMasterManagerPanel" class="panel stack"></section>
-            <section id="customFieldDefinitionPanel" class="panel stack"></section>
-            <section id="duplicateLeadManagerPanel" class="panel stack"></section>
-            <section id="adminErrorDetailsPanel" class="panel stack"></section>
-            <section class="panel stack">
-              <h2>運用アクション</h2>
-              <button type="button" onclick="installTriggers()">定期トリガー作成</button>
-              <button type="button" onclick="advanceJobs()">バックグラウンド処理</button>
-              <button type="button" onclick="createBackup()">Driveバックアップ</button>
-            </section>
-            <section class="panel stack">
-              <h2>設定メモ</h2>
-              <pre class="code-box">Serper API: PropertiesService
+          </div>
+          <div class="admin-accordion-list">
+            <details class="admin-disclosure">
+              <summary><span>Google / DB 連携</span><small>列チェック、Gmail認可、返信確認、Calendar設定</small></summary>
+              <div class="admin-disclosure-body">
+                <section id="schemaStatusPanel" class="panel stack"></section>
+                <section id="googleCredentialSummaryPanel" class="panel stack"></section>
+                <section id="adminGmailReplyCheckPanel" class="panel stack"></section>
+                <section id="calendarAutoCreateSettingsPanel" class="panel stack"></section>
+              </div>
+            </details>
+            <details class="admin-disclosure">
+              <summary><span>マスター管理</span><small>ジャンル、選択肢、カスタム項目、重複確認</small></summary>
+              <div class="admin-disclosure-body">
+                <section id="genreManagerPanel" class="panel stack"></section>
+                <section id="reasonMasterManagerPanel" class="panel stack"></section>
+                <section id="customFieldDefinitionPanel" class="panel stack"></section>
+                <section id="duplicateLeadManagerPanel" class="panel stack"></section>
+              </div>
+            </details>
+            <details class="admin-disclosure">
+              <summary><span>ログ / メンテナンス</span><small>エラー、ジョブ処理、バックアップ、設定メモ</small></summary>
+              <div class="admin-disclosure-body">
+                <section id="adminErrorDetailsPanel" class="panel stack"></section>
+                <section class="panel stack admin-maintenance-panel">
+                  <h2>運用アクション</h2>
+                  <div class="admin-action-strip">
+                    <button type="button" onclick="installTriggers()">定期トリガー作成</button>
+                    <button type="button" onclick="advanceJobs()">バックグラウンド処理</button>
+                    <button type="button" onclick="createBackup()">Driveバックアップ</button>
+                  </div>
+                </section>
+                <section class="panel stack admin-maintenance-panel">
+                  <h2>設定メモ</h2>
+                  <pre class="code-box">Serper API: PropertiesService
 Spreadsheet DB: Script Properties SPREADSHEET_ID
 Mail limit: settings.daily_mail_limit
 Batch budget: settings.batch_runtime_budget_ms</pre>
-            </section>
+                </section>
+              </div>
+            </details>
           </div>
         </section>
 
@@ -15989,43 +16243,63 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             </div>
             <span class="pill ${dashboard.triggerCount > 0 ? 'good' : 'warn'}">Trigger ${formatNumber(dashboard.triggerCount || 0)}件</span>
           </div>
-          <div class="automation-settings-grid">
-            <article class="automation-setting-card">
-              ${automationCardHeader('clock3', '自動送信時間', '手動の1件送信ではなく、まとめ送信時の安全窓です。', `<span class="pill ${sendWindow.enabled !== false ? 'good' : 'warn'}">${sendWindow.enabled !== false ? 'ON' : 'OFF'}</span>`)}
-              <label class="check-row"><input id="adminSendWindowEnabled" type="checkbox" ${sendWindow.enabled !== false ? 'checked' : ''}><span>この時間帯だけ自動送信を許可する</span></label>
-              <div class="setting-inline-controls">
-                <label>開始<input id="adminSendWindowStart" type="time" value="${escapeHtml(sendWindow.start || '07:00')}"></label>
-                <label>終了<input id="adminSendWindowEnd" type="time" value="${escapeHtml(sendWindow.end || '08:00')}"></label>
-                <label>タイムゾーン<select id="adminSendWindowTimezone"><option value="Asia/Tokyo" ${String(sendWindow.timezone || 'Asia/Tokyo') === 'Asia/Tokyo' ? 'selected' : ''}>Asia/Tokyo</option><option value="UTC" ${sendWindow.timezone === 'UTC' ? 'selected' : ''}>UTC</option></select></label>
+          <div class="admin-automation-summary">
+            ${[
+              { icon: 'clock3', label: '自動送信時間', ready: sendWindow.enabled !== false, detail: `${sendWindow.start || '07:00'}-${sendWindow.end || '08:00'}`, status: sendWindow.enabled !== false ? 'ON' : 'OFF', tone: sendWindow.enabled !== false ? 'good' : 'warn' },
+              { icon: 'reply', label: '返信自動チェック', ready: Boolean(replyCheck.enabled), detail: replyCheck.enabled ? `最大${formatNumber(replyCheck.maxThreads || 200)}件` : 'OFF', status: replyCheck.enabled ? 'ON' : 'OFF', tone: replyCheck.enabled ? 'good' : 'info' },
+              { icon: 'mailSearch', label: 'メール自動取得', ready: Boolean(emailDiscovery.enabled), detail: emailDiscovery.enabled ? (emailDiscovery.scheduleLabel || '03:00') : 'OFF', status: emailDiscovery.enabled ? 'ON' : 'OFF', tone: emailDiscovery.enabled ? 'good' : 'info' },
+              { icon: 'serverCog', label: '分割実行予算', ready: batchBudget > 0, detail: `${formatNumber(Math.round(batchBudget / 1000))}秒`, status: 'GAS', tone: 'info' },
+            ].map(adminStatusItemMarkup).join('')}
+          </div>
+          <div class="admin-inner-disclosure-list">
+            <details class="admin-inner-disclosure">
+              <summary><span>自動送信時間</span><small>${sendWindow.enabled !== false ? 'ON' : 'OFF'}</small></summary>
+              <div class="admin-detail-body">
+                ${automationCardHeader('clock3', '自動送信時間', '手動の1件送信ではなく、まとめ送信時の安全窓です。', `<span class="pill ${sendWindow.enabled !== false ? 'good' : 'warn'}">${sendWindow.enabled !== false ? 'ON' : 'OFF'}</span>`)}
+                <label class="check-row"><input id="adminSendWindowEnabled" type="checkbox" ${sendWindow.enabled !== false ? 'checked' : ''}><span>この時間帯だけ自動送信を許可する</span></label>
+                <div class="setting-inline-controls">
+                  <label>開始<input id="adminSendWindowStart" type="time" value="${escapeHtml(sendWindow.start || '07:00')}"></label>
+                  <label>終了<input id="adminSendWindowEnd" type="time" value="${escapeHtml(sendWindow.end || '08:00')}"></label>
+                  <label>タイムゾーン<select id="adminSendWindowTimezone"><option value="Asia/Tokyo" ${String(sendWindow.timezone || 'Asia/Tokyo') === 'Asia/Tokyo' ? 'selected' : ''}>Asia/Tokyo</option><option value="UTC" ${sendWindow.timezone === 'UTC' ? 'selected' : ''}>UTC</option></select></label>
+                </div>
+                <button type="button" onclick="saveSendWindowSetting()">${legacyUiIcon('save')}保存する</button>
               </div>
-              <button type="button" onclick="saveSendWindowSetting()">${legacyUiIcon('save')}保存する</button>
-            </article>
-            <article class="automation-setting-card">
-              ${automationCardHeader('reply', 'Gmail返信自動チェック', '時間主導トリガーで返信確認を回す設定です。', `<span class="pill ${replyCheck.enabled ? 'good' : 'info'}">${replyCheck.enabled ? 'ON' : 'OFF'}</span>`)}
-              <label class="check-row"><input id="adminReplyCheckEnabled" type="checkbox" ${replyCheck.enabled ? 'checked' : ''}><span>返信自動チェックを有効にする</span></label>
-              <label>最大スレッド数<input id="adminReplyCheckMaxThreads" type="number" min="1" max="500" value="${escapeHtml(replyCheck.maxThreads || 200)}"></label>
-              <button type="button" onclick="saveReplyCheckSetting()">${legacyUiIcon('save')}保存する</button>
-            </article>
-            <article class="automation-setting-card">
-              ${automationCardHeader('mailSearch', 'メール自動取得', '既存リストのWEBサイト/フォームURL確認ジョブをGASの分割処理で進めます。', `<span class="pill ${emailDiscovery.enabled ? 'good' : 'info'}">${emailDiscovery.enabled ? 'ON' : 'OFF'}</span>`)}
-              <div class="settings-status-grid automation-status-grid">
-                ${emailDiscoveryStatuses.map(adminStatusItemMarkup).join('')}
+            </details>
+            <details class="admin-inner-disclosure">
+              <summary><span>Gmail返信自動チェック</span><small>${replyCheck.enabled ? 'ON' : 'OFF'}</small></summary>
+              <div class="admin-detail-body">
+                ${automationCardHeader('reply', 'Gmail返信自動チェック', '時間主導トリガーで返信確認を回す設定です。', `<span class="pill ${replyCheck.enabled ? 'good' : 'info'}">${replyCheck.enabled ? 'ON' : 'OFF'}</span>`)}
+                <label class="check-row"><input id="adminReplyCheckEnabled" type="checkbox" ${replyCheck.enabled ? 'checked' : ''}><span>返信自動チェックを有効にする</span></label>
+                <label>最大スレッド数<input id="adminReplyCheckMaxThreads" type="number" min="1" max="500" value="${escapeHtml(replyCheck.maxThreads || 200)}"></label>
+                <button type="button" onclick="saveReplyCheckSetting()">${legacyUiIcon('save')}保存する</button>
               </div>
-              <label class="check-row"><input id="adminEmailDiscoveryEnabled" type="checkbox" ${emailDiscovery.enabled ? 'checked' : ''}><span>メール/フォーム自動取得を有効にする</span></label>
-              <div class="setting-inline-controls">
-                <label>実行目安<input id="adminEmailDiscoverySchedule" value="${escapeHtml(emailDiscovery.scheduleLabel || '03:00')}"></label>
-                <label>直近スキップ日数<input id="adminEmailDiscoverySkipDays" type="number" min="0" max="365" value="${escapeHtml(emailDiscovery.skipRecentDays || 30)}"></label>
+            </details>
+            <details class="admin-inner-disclosure">
+              <summary><span>メール / フォーム自動取得</span><small>${emailDiscovery.enabled ? 'ON' : 'OFF'}</small></summary>
+              <div class="admin-detail-body">
+                ${automationCardHeader('mailSearch', 'メール自動取得', '既存リストのWEBサイト/フォームURL確認ジョブをGASの分割処理で進めます。', `<span class="pill ${emailDiscovery.enabled ? 'good' : 'info'}">${emailDiscovery.enabled ? 'ON' : 'OFF'}</span>`)}
+                <div class="settings-status-grid automation-status-grid">
+                  ${emailDiscoveryStatuses.map(adminStatusItemMarkup).join('')}
+                </div>
+                <label class="check-row"><input id="adminEmailDiscoveryEnabled" type="checkbox" ${emailDiscovery.enabled ? 'checked' : ''}><span>メール/フォーム自動取得を有効にする</span></label>
+                <div class="setting-inline-controls">
+                  <label>実行目安<input id="adminEmailDiscoverySchedule" value="${escapeHtml(emailDiscovery.scheduleLabel || '03:00')}"></label>
+                  <label>直近スキップ日数<input id="adminEmailDiscoverySkipDays" type="number" min="0" max="365" value="${escapeHtml(emailDiscovery.skipRecentDays || 30)}"></label>
+                </div>
+                <button type="button" onclick="saveEmailDiscoverySetting()">${legacyUiIcon('save')}保存する</button>
               </div>
-              <button type="button" onclick="saveEmailDiscoverySetting()">${legacyUiIcon('save')}保存する</button>
-            </article>
-            <article class="automation-setting-card">
-              ${automationCardHeader('serverCog', 'バックグラウンド実行', 'Apps Scriptの6分制限に近づく前に中断・再開する実行予算です。', `<span class="pill info">${formatNumber(Math.round(batchBudget / 1000))}秒</span>`)}
-              <label>1回の最大実行時間（ms）<input id="adminBatchRuntimeBudget" type="number" min="10000" max="330000" step="1000" value="${escapeHtml(batchBudget)}"></label>
-              <div class="toolbar">
-                <button type="button" onclick="saveBatchRuntimeSetting()">${legacyUiIcon('save')}実行予算を保存</button>
-                <button type="button" onclick="installTriggers()">${legacyUiIcon('timerReset')}定期トリガー作成</button>
+            </details>
+            <details class="admin-inner-disclosure">
+              <summary><span>バックグラウンド実行</span><small>${formatNumber(Math.round(batchBudget / 1000))}秒</small></summary>
+              <div class="admin-detail-body">
+                ${automationCardHeader('serverCog', 'バックグラウンド実行', 'Apps Scriptの6分制限に近づく前に中断・再開する実行予算です。', `<span class="pill info">${formatNumber(Math.round(batchBudget / 1000))}秒</span>`)}
+                <label>1回の最大実行時間（ms）<input id="adminBatchRuntimeBudget" type="number" min="10000" max="330000" step="1000" value="${escapeHtml(batchBudget)}"></label>
+                <div class="toolbar">
+                  <button type="button" onclick="saveBatchRuntimeSetting()">${legacyUiIcon('save')}実行予算を保存</button>
+                  <button type="button" onclick="installTriggers()">${legacyUiIcon('timerReset')}定期トリガー作成</button>
+                </div>
               </div>
-            </article>
+            </details>
           </div>
         `;
       }
@@ -16794,15 +17068,30 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const dashboard = state.dashboard || {};
         const integrations = dashboard.integrations || {};
         const items = buildAdminStatusItems(dashboard, integrations);
-        document.getElementById('adminStatusGrid').innerHTML = items.map(adminStatusItemMarkup).join('');
+        const primaryLabels = ['Google Sheets', 'Gmail', 'Calendar', 'Serper', '時間主導トリガー', '送信時間'];
+        const primaryItems = items.filter((item) => primaryLabels.includes(item.label));
+        document.getElementById('adminStatusGrid').innerHTML = primaryItems.map(adminStatusItemMarkup).join('');
         const readyCount = items.filter((item) => item.ready).length;
+        const blockingItems = items.filter((item) => !item.ready);
+        const nextItems = blockingItems.length ? blockingItems.slice(0, 4) : [
+          { icon: 'checkCircle', label: '主要設定', ready: true, detail: '基本設定は確認済み', status: 'OK', tone: 'good' },
+          { icon: 'mailCheck', label: '送信プレビュー', ready: true, detail: '送信前に本文と対象を確認', status: '次に確認', tone: 'info' },
+        ];
         document.getElementById('adminReadinessPanel').innerHTML = `
-          <div class="dashboard-section-heading">
-            <div><span class="dashboard-kicker">Production readiness</span><h2>本番公開前チェック</h2></div>
-            <span class="pill ${readyCount === items.length ? 'good' : 'warn'}">${readyCount}/${items.length}</span>
+          <div class="admin-command-center">
+            <div class="admin-command-copy">
+              <span class="dashboard-kicker">Production readiness</span>
+              <h2>${blockingItems.length ? '次に確認する設定があります' : '管理画面の基本設定は整っています'}</h2>
+              <p>初期表示は主要な運用状態だけに絞っています。DB列、Gmail認可、マスター編集、ログ確認は下の詳細セクションから開けます。</p>
+            </div>
+            <div class="admin-command-actions">
+              <span class="pill ${readyCount === items.length ? 'good' : 'warn'}">${readyCount}/${items.length}</span>
+              <button type="button" class="button secondary" onclick="showTab('gmail')">${legacyUiIcon('mailCheck')}Gmail連携</button>
+              <button type="button" class="button" onclick="installTriggers()">${legacyUiIcon('timerReset')}定期トリガー作成</button>
+            </div>
           </div>
-          <div class="readiness-list">
-            ${items.map((item) => readinessItemMarkup(item)).join('')}
+          <div class="admin-readiness-mini-list">
+            ${nextItems.map((item) => readinessItemMarkup(item, true)).join('')}
           </div>
         `;
       }
@@ -16848,44 +17137,59 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <small>1回上限 ${formatNumber(plan.batchLimit)} 件</small>
             </div>
           </div>
-          <div class="readiness-list">
-            ${data.checks.map((item) => `
-              ${readinessItemMarkup(item, true)}
-            `).join('')}
-            ${readinessItemMarkup({
-              label: '送信ロック',
-              detail: data.sendLock.locked ? `${data.sendLock.owner || '送信処理'} が実行中${data.sendLock.stale ? '（古いロックの可能性）' : ''}` : '現在ロックなし',
-              ready: !data.sendLock.locked || data.sendLock.stale,
-            }, true)}
-          </div>
-          <div class="admin-target-preview">
-            <div class="row" style="justify-content:space-between">
-              <strong>自動送信対象プレビュー</strong>
-              ${statusTonePill(`初回 ${formatNumber(plan.initialTargetCount)}`, selectedTargets.length > 0 ? 'info' : 'warn')}
+          <details class="admin-inner-disclosure">
+            <summary><span>本番前チェック詳細</span><small>${readyCount}/${data.checks.length} 項目</small></summary>
+            <div class="admin-detail-body">
+              <div class="readiness-list">
+                ${data.checks.map((item) => `
+                  ${readinessItemMarkup(item, true)}
+                `).join('')}
+                ${readinessItemMarkup({
+                  label: '送信ロック',
+                  detail: data.sendLock.locked ? `${data.sendLock.owner || '送信処理'} が実行中${data.sendLock.stale ? '（古いロックの可能性）' : ''}` : '現在ロックなし',
+                  ready: !data.sendLock.locked || data.sendLock.stale,
+                }, true)}
+              </div>
             </div>
-            ${selectedTargets.length > 0 ? selectedTargets.slice(0, 8).map((lead) => `<span>${escapeHtml(adminPlanLeadLabel(lead))}</span>`).join('') : '<span>現時点の自動送信候補はありません。</span>'}
-            <small class="muted">本番ONの初回メールテンプレートとジャンルが一致する営業先だけを表示します。</small>
-          </div>
-          <div class="admin-target-preview">
-            <div class="row" style="justify-content:space-between">
-              <strong>送信対象外の安全確認</strong>
-              ${statusTonePill(`除外 ${formatNumber(plan.excludedCounts.total)}件`, 'good')}
+          </details>
+          <details class="admin-inner-disclosure">
+            <summary><span>送信対象と除外内訳</span><small>候補 ${formatNumber(selectedTargets.length)}件 / 除外 ${formatNumber(plan.excludedCounts.total)}件</small></summary>
+            <div class="admin-detail-body">
+              <div class="admin-target-preview">
+                <div class="row" style="justify-content:space-between">
+                  <strong>自動送信対象プレビュー</strong>
+                  ${statusTonePill(`初回 ${formatNumber(plan.initialTargetCount)}`, selectedTargets.length > 0 ? 'info' : 'warn')}
+                </div>
+                ${selectedTargets.length > 0 ? selectedTargets.slice(0, 8).map((lead) => `<span>${escapeHtml(adminPlanLeadLabel(lead))}</span>`).join('') : '<span>現時点の自動送信候補はありません。</span>'}
+                <small class="muted">本番ONの初回メールテンプレートとジャンルが一致する営業先だけを表示します。</small>
+              </div>
+              <div class="admin-target-preview">
+                <div class="row" style="justify-content:space-between">
+                  <strong>送信対象外の安全確認</strong>
+                  ${statusTonePill(`除外 ${formatNumber(plan.excludedCounts.total)}件`, 'good')}
+                </div>
+                <span>返信あり: ${formatNumber(plan.excludedCounts.reply)}件</span>
+                <span>商談・受注/失注: ${formatNumber(plan.excludedCounts.deal)}件</span>
+                <span>送信NG: ${formatNumber(plan.excludedCounts.sendNg)}件</span>
+                <span>対応不要など: ${formatNumber(plan.excludedCounts.status)}件</span>
+                <small class="muted">この内訳に入っている営業先は、自動送信候補にもメール送信リストにも入りません。</small>
+              </div>
             </div>
-            <span>返信あり: ${formatNumber(plan.excludedCounts.reply)}件</span>
-            <span>商談・受注/失注: ${formatNumber(plan.excludedCounts.deal)}件</span>
-            <span>送信NG: ${formatNumber(plan.excludedCounts.sendNg)}件</span>
-            <span>対応不要など: ${formatNumber(plan.excludedCounts.status)}件</span>
-            <small class="muted">この内訳に入っている営業先は、自動送信候補にもメール送信リストにも入りません。</small>
-          </div>
-          <div class="admin-target-preview">
-            <div class="row" style="justify-content:space-between">
-              <strong>自動送信実行ログ</strong>
-              ${statusTonePill(latestRun ? backgroundJobStatusLabel(latestRunStatus) : '履歴なし', latestRunTone)}
+          </details>
+          <details class="admin-inner-disclosure">
+            <summary><span>自動送信実行ログ</span><small>${escapeHtml(latestRun ? backgroundJobStatusLabel(latestRunStatus) : '履歴なし')}</small></summary>
+            <div class="admin-detail-body">
+              <div class="admin-target-preview">
+                <div class="row" style="justify-content:space-between">
+                  <strong>自動送信実行ログ</strong>
+                  ${statusTonePill(latestRun ? backgroundJobStatusLabel(latestRunStatus) : '履歴なし', latestRunTone)}
+                </div>
+                <span>最新実行: ${escapeHtml(latestRun ? dateTimeLabel(latestRun.updated_at || latestRun.finished_at || latestRun.created_at || latestRun.started_at) : '-')}</span>
+                <span>起動元: ${escapeHtml(latestRun ? (latestRun.source || latestRun.job_type || latestRun.type || 'GAS trigger') : '-')}</span>
+                <span>結果: ${escapeHtml(latestRun ? backgroundJobMessage(latestRun, latestRunStatus, Number(latestRun.processed_count || latestRun.processed || 0), Number(latestRun.total_count || latestRun.total || 0)) : 'まだ自動送信ジョブは記録されていません。')}</span>
+              </div>
             </div>
-            <span>最新実行: ${escapeHtml(latestRun ? dateTimeLabel(latestRun.updated_at || latestRun.finished_at || latestRun.created_at || latestRun.started_at) : '-')}</span>
-            <span>起動元: ${escapeHtml(latestRun ? (latestRun.source || latestRun.job_type || latestRun.type || 'GAS trigger') : '-')}</span>
-            <span>結果: ${escapeHtml(latestRun ? backgroundJobMessage(latestRun, latestRunStatus, Number(latestRun.processed_count || latestRun.processed || 0), Number(latestRun.total_count || latestRun.total || 0)) : 'まだ自動送信ジョブは記録されていません。')}</span>
-          </div>
+          </details>
           <p class="muted">確認日時: ${escapeHtml(dateTimeLabel(data.generatedAt) || '-')}</p>
         `;
       }
