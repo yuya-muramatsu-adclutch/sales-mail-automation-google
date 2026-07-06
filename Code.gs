@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260706_apps_script_full_workflow_v106_spacing_empty_state_polish';
+const APP_VERSION = '20260706_apps_script_full_workflow_v108_prospecting_icon_size_guards';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',

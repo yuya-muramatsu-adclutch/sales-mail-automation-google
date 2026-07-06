@@ -1256,8 +1256,21 @@
         font-weight: 800;
       }
 
+      .prospecting-progress-empty > svg {
+        flex: 0 0 auto;
+        width: 34px;
+        height: 34px;
+        color: #64748b;
+        stroke-width: 1.9;
+      }
+
       .prospecting-progress-empty.compact {
         padding: 12px;
+      }
+
+      .prospecting-progress-empty.compact > svg {
+        width: 26px;
+        height: 26px;
       }
 
       .prospecting-progress-empty div {
@@ -3572,6 +3585,15 @@
       .setup-step a {
         color: var(--blue);
         font-weight: 900;
+      }
+
+      .setup-step a svg {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        margin-left: 3px;
+        vertical-align: -2px;
+        stroke-width: 2.1;
       }
 
       .setup-command-box {
