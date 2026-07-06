@@ -1801,6 +1801,22 @@
         box-shadow: var(--shadow-soft);
       }
 
+      .sync-preview-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .sync-preview-label {
+        min-width: 0;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+      }
+
       .sync-preview-card.bad {
         border-color: #fecaca;
         background: #fff7f7;
@@ -1812,11 +1828,16 @@
         justify-content: center;
         width: 28px;
         height: 28px;
+        flex: 0 0 28px;
         border-radius: 8px;
         background: #eff6ff;
         color: var(--blue);
-        font-size: 11px;
-        font-weight: 900;
+      }
+
+      .sync-preview-card .sync-preview-icon svg {
+        width: 16px;
+        height: 16px;
+        stroke-width: 2.2;
       }
 
       .sync-preview-card.bad .sync-preview-icon,
@@ -16402,11 +16423,22 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return headerHits * 20 - replacementCount * 12 - mojibakeHints;
       }
 
+      function syncMetricIcon(label) {
+        if (/読み込み/.test(label)) return 'database';
+        if (/会社/.test(label)) return 'building2';
+        if (/メール/.test(label)) return 'mailCheck';
+        if (/フォーム/.test(label)) return 'clipboard';
+        if (/要確認|エラー/.test(label)) return 'triangleAlert';
+        return 'listChecks';
+      }
+
       function renderSyncMetric(label, value, note, tone) {
         return `
           <div class="sync-preview-card ${escapeHtml(tone || '')}">
-            <span class="sync-preview-icon">${escapeHtml(label.slice(0, 2))}</span>
-            <span>${escapeHtml(label)}</span>
+            <div class="sync-preview-head">
+              <span class="sync-preview-icon">${legacyUiIcon(syncMetricIcon(label))}</span>
+              <span class="sync-preview-label">${escapeHtml(label)}</span>
+            </div>
             <strong>${formatNumber(value)}件</strong>
             ${note ? `<small>${escapeHtml(note)}</small>` : ''}
           </div>

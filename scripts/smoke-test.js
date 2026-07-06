@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260707_apps_script_full_workflow_v117_detail_card_two_column_spacing'), 'v117 app version missing');
+assert(code.includes('20260707_apps_script_full_workflow_v118_sync_metric_card_spacing'), 'v118 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -183,6 +183,9 @@ assert(html.includes('.background-guide-panel .panel-body'), 'background guide l
 assert(html.includes('.exclusion-hero-panel:empty'), 'empty exclusion/send-ng hero panel should not render as a blank card');
 assert(html.includes('.template-tag-card *'), 'template tag card text wrapping guard missing');
 assert(html.includes('.sync-preview-card'), 'sync preview nested card guard missing');
+assert(html.includes('.sync-preview-head'), 'sync metric card header spacing missing');
+assert(html.includes('function syncMetricIcon(label)'), 'sync metric card should use icons instead of truncated label text');
+assert(!html.includes('label.slice(0, 2)'), 'sync metric card should not render clipped label text as an icon');
 assert(html.includes('.collection-status-item *'), 'collection status nested card text wrapping guard missing');
 assert(html.includes('.panel:empty'), 'empty dynamic panel guard missing');
 assert(html.includes('.stats-grid:empty'), 'empty stats grid guard missing');
