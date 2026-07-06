@@ -6360,7 +6360,7 @@
 
       .admin-disclosure-body {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
         gap: 14px;
         align-items: start;
         padding: 0 16px 16px;
@@ -6371,6 +6371,10 @@
       .admin-disclosure-body > .panel {
         align-self: start;
         margin-top: 16px;
+      }
+
+      .admin-disclosure-body > .panel:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
       }
 
       .admin-inner-disclosure-list {
@@ -9742,13 +9746,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             return;
           }
           if (name === 'admin') {
-            await Promise.all([
+            const adminLoadResults = await Promise.allSettled([
               ensureDataLoaded('reference', loadReferenceData),
               ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true })),
               ensureDataLoaded('templates', loadTemplates),
               ensureDataLoaded('masters', loadMasters),
               ensureDataLoaded('ops', loadOpsData),
             ]);
+            adminLoadResults
+              .filter((result) => result.status === 'rejected')
+              .forEach((result) => console.warn('Admin deferred data load skipped:', result.reason && result.reason.message ? result.reason.message : result.reason));
             renderLoadedLegacyScreens();
           }
         } catch (error) {

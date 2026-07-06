@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260706_apps_script_full_workflow_v114_admin_disclosure_card_alignment';
+const APP_VERSION = '20260707_apps_script_full_workflow_v117_detail_card_two_column_spacing';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
