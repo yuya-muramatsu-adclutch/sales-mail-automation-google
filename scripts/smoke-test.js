@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260707_apps_script_full_workflow_v118_sync_metric_card_spacing'), 'v118 app version missing');
+assert(code.includes('20260707_apps_script_full_workflow_v121_collection_management_icon_fix'), 'v121 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -241,6 +241,10 @@ assert(html.includes('.table-email-leads td'), 'legacy email-leads truncation mi
 assert(html.includes('prospecting-collection-tool'), 'legacy prospecting collection tool shell missing');
 assert(html.includes('collection-command-center simple'), 'legacy collection command center should be first-class shell');
 assert(html.includes('collection-simple-links'), 'legacy collection command header links missing');
+assert(html.includes('collection-management-summary'), 'simplified collection management summary missing');
+assert(html.includes('collection-overview-panel'), 'simplified collection overview panel missing');
+assert(html.includes('collection-advanced-actions'), 'simplified collection advanced accordion missing');
+assert(html.includes('.collection-overview-card svg'), 'collection overview icon size guard missing');
 assert(html.includes('prospecting-activity-panel compact'), 'legacy collection activity panel should be compact');
 assert(html.includes('prospecting-activity-detail-toggle'), 'legacy collection recent results should be collapsible');
 assert(html.includes('prospecting-activity-empty-note'), 'legacy collection empty recent results note missing');

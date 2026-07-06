@@ -5831,6 +5831,21 @@
         font-weight: 800;
       }
 
+      .collection-simple-head-copy {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .collection-simple-head-copy p {
+        max-width: 680px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.55;
+      }
+
       .collection-simple-links {
         display: flex;
         flex: 0 0 auto;
@@ -5839,31 +5854,39 @@
         justify-content: flex-end;
       }
 
+      .collection-simple-links svg,
+      .collection-management-actions svg {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+      }
+
       .collection-status-bar {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0;
+        gap: 10px;
+        padding: 14px;
         border-bottom: 1px solid var(--line);
-        background: #f8fafc;
+        background: #fff;
       }
 
       .collection-status-item {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
         gap: 2px 10px;
-        min-height: 78px;
-        padding: 14px 16px;
-        border-right: 1px solid var(--line);
+        min-height: 68px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
         color: var(--text);
-      }
-
-      .collection-status-item:last-child {
-        border-right: 0;
       }
 
       .collection-status-item svg {
         grid-row: 1 / span 3;
         align-self: center;
+        width: 20px;
+        height: 20px;
         color: #2563eb;
       }
 
@@ -5903,12 +5926,76 @@
         white-space: nowrap;
       }
 
+      .collection-management-summary {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .collection-management-primary {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+      }
+
+      .collection-management-copy {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        min-width: 0;
+      }
+
+      .collection-management-copy svg {
+        margin-top: 2px;
+        width: 22px;
+        height: 22px;
+        color: #2563eb;
+      }
+
+      .collection-management-copy span {
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .collection-management-copy strong {
+        display: block;
+        margin-top: 3px;
+        color: var(--text);
+        font-size: 18px;
+        line-height: 1.35;
+      }
+
+      .collection-management-copy small {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
+      .collection-management-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
       .collection-main-actions {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 10px;
-        padding: 14px;
-        background: #fff;
+        padding: 0;
+        background: transparent;
       }
 
       .collection-main-action {
@@ -5916,8 +6003,8 @@
         grid-template-columns: auto minmax(0, 1fr) auto;
         gap: 10px;
         align-items: center;
-        min-height: 76px;
-        padding: 14px;
+        min-height: 72px;
+        padding: 13px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fff;
@@ -5946,10 +6033,14 @@
       }
 
       .collection-main-action > svg:first-child {
+        width: 20px;
+        height: 20px;
         color: #2563eb;
       }
 
       .collection-main-action > svg:last-child {
+        width: 18px;
+        height: 18px;
         color: #94a3b8;
       }
 
@@ -5967,6 +6058,112 @@
       }
 
       .collection-main-action small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        overflow-wrap: anywhere;
+      }
+
+      .collection-advanced-actions {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+        background: #f8fafc;
+      }
+
+      .collection-advanced-actions summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .collection-advanced-actions summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .collection-advanced-actions summary span {
+        display: block;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .collection-advanced-actions summary small {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
+      .collection-advanced-actions summary svg {
+        flex: 0 0 auto;
+        width: 18px;
+        height: 18px;
+        color: #64748b;
+      }
+
+      .collection-advanced-body {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding-top: 10px;
+      }
+
+      .collection-secondary-action {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 64px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+      }
+
+      .collection-secondary-action.active {
+        border-color: #93c5fd;
+        background: #eff6ff;
+      }
+
+      .collection-secondary-action > svg:first-child {
+        width: 20px;
+        height: 20px;
+        color: #2563eb;
+      }
+
+      .collection-secondary-action > svg:last-child {
+        width: 18px;
+        height: 18px;
+        color: #94a3b8;
+      }
+
+      .collection-secondary-action span {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .collection-secondary-action strong {
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .collection-secondary-action small {
         color: var(--muted);
         font-size: 12px;
         font-weight: 800;
@@ -6016,6 +6213,70 @@
         padding: 14px;
         border-top: 1px solid var(--line);
         background: #fff;
+      }
+
+      .collection-overview-panel {
+        display: grid;
+        gap: 12px;
+      }
+
+      .collection-overview-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .collection-overview-head h3 {
+        margin: 0;
+        color: var(--text);
+        font-size: 16px;
+      }
+
+      .collection-overview-head p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.5;
+      }
+
+      .collection-overview-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .collection-overview-card {
+        display: grid;
+        gap: 8px;
+        min-height: 112px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .collection-overview-card svg {
+        width: 22px;
+        height: 22px;
+        color: #2563eb;
+      }
+
+      .collection-overview-card strong {
+        color: var(--text);
+        font-size: 15px;
+      }
+
+      .collection-overview-card small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.45;
       }
 
       .collection-panel-grid,
@@ -7691,6 +7952,11 @@
         .exclusion-hero-panel,
         .prospecting-route-grid,
         .collection-command-center,
+        .collection-management-primary,
+        .collection-status-bar,
+        .collection-main-actions,
+        .collection-advanced-body,
+        .collection-overview-grid,
         .collection-panel-grid,
         .auto-prospecting-grid,
         .source-page-grid,
@@ -7700,6 +7966,17 @@
         .admin-disclosure-body,
         .list-filter-panel {
           grid-template-columns: 1fr;
+        }
+
+        .collection-simple-head,
+        .collection-overview-head {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .collection-simple-links,
+        .collection-management-actions {
+          justify-content: flex-start;
         }
 
         .dashboard-signal-grid,
@@ -9225,7 +9502,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         gmailIntegrationCheckResult: null,
         adminReadinessResult: null,
         schemaStatus: null,
-        activeCollectionTab: 'automation',
+        activeCollectionTab: 'overview',
         jobResultCategory: 'all',
         jobResultRenderLimit: 60,
         selectedJobResultIds: [],
@@ -13164,20 +13441,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const jobs = buildProspectingProgressJobs();
         if (!jobs.length) {
           state.selectedProspectingProgressJobId = '';
-          target.innerHTML = `
-            <div class="section-title-row">
-              <div>
-                <h2>自動収集の進捗</h2>
-                <p class="muted">検索中のキーワード、追加件数、重複・除外理由、追加された営業リストをまとめて確認できます。</p>
-              </div>
-              <button type="button" class="button secondary compact" onclick="loadSearchResults()">${legacyUiIcon('refreshCw')}更新</button>
-            </div>
-            <div class="prospecting-progress-empty">
-              ${legacyUiIcon('clock3')}
-              <div><strong>自動収集の実行履歴はまだありません。</strong><span>次回の小規模検索、または「今すぐ小規模実行」の開始後に進捗が表示されます。</span></div>
-            </div>
-          `;
-          hydrateLegacyUtilityIcons(target);
+          target.innerHTML = '';
           return;
         }
 
@@ -13531,6 +13795,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const target = document.getElementById('jobResultsReviewPanel');
         if (!target) return;
         const rows = jobResultRowsForReview();
+        if (!rows.length) {
+          target.innerHTML = '';
+          return;
+        }
         const counts = rows.reduce((acc, item) => {
           item.categories.forEach((category) => {
             acc[category] = (acc[category] || 0) + 1;
@@ -13873,16 +14141,41 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const sourceSettings = getSourcePageCollectionSettings();
         const enabledRuleCount = autoCollectionPriorityGenres(autoSettings).length;
         const enabledSourceCount = (sourceSettings.sites || []).filter((site) => site.enabled !== false && site.url).length;
+        const activeTab = state.activeCollectionTab || 'overview';
+        const advancedOpen = ['keyword', 'file'].includes(activeTab) ? ' open' : '';
         target.innerHTML = `
           <div class="collection-simple-head">
-            <div>
+            <div class="collection-simple-head-copy">
               <span>営業リスト収集</span>
-              <strong>収集条件と実行設定</strong>
+              <strong>収集管理</strong>
+              <p>よく使う操作だけを先に表示します。詳細な取り込みや設定は必要な時に開いてください。</p>
               <small>Serper ${searchReady ? (state.serper.key_mask || '設定済み') : '未設定'} / ジャンル ${formatNumber((state.genres || []).length)}件</small>
             </div>
             <div class="collection-simple-links">
+              <button type="button" class="mini-button" onclick="showTab('list')">${legacyUiIcon('clipboard')}リスト確認</button>
               <button type="button" class="mini-button" onclick="document.getElementById('serperKey').focus()">${legacyUiIcon('keyRound')}Serperキー</button>
               <button type="button" class="mini-button" onclick="showTab('exclusions')">${legacyUiIcon('settings')}除外ドメイン</button>
+            </div>
+          </div>
+          <div class="collection-management-summary">
+            <div class="collection-management-primary">
+              <div class="collection-management-copy">
+                ${legacyUiIcon(activeTab === 'overview' ? 'listChecks' : collectionActionIcon(activeTab))}
+                <div>
+                  <span>次にやること</span>
+                  <strong>${escapeHtml(collectionManagementTitle(activeTab, searchReady))}</strong>
+                  <small>${escapeHtml(collectionManagementDescription(activeTab, searchReady, enabledRuleCount, enabledSourceCount))}</small>
+                </div>
+              </div>
+              <div class="collection-management-actions">
+                <button type="button" class="primary" onclick="setCollectionTab('area')" ${searchReady ? '' : 'disabled'}>${legacyUiIcon('search')}今すぐ収集</button>
+                <button type="button" onclick="setCollectionTab('automation')">${legacyUiIcon('settings')}自動運用</button>
+              </div>
+            </div>
+            <div class="collection-main-actions">
+              ${collectionAction('今すぐ収集', 'ジャンルとエリアで候補を追加', 'area')}
+              ${collectionAction('自動運用', '定期収集の条件を管理', 'automation')}
+              ${collectionAction('まとめサイト', 'URL起点で公式サイトを探索', 'sourcePage')}
             </div>
           </div>
           <div class="collection-status-bar">
@@ -13890,17 +14183,43 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ${collectionStatusItem('settings', '自動検索', autoSettings.enabled ? 'ON' : 'OFF', `優先ジャンル ${formatNumber(enabledRuleCount)}件`, autoSettings.enabled && enabledRuleCount ? 'ok' : 'warn')}
             ${collectionStatusItem('globe2', 'まとめサイト監視', `${formatNumber(enabledSourceCount)}サイト`, `保存済み ${formatNumber((sourceSettings.sites || []).length)}件`, enabledSourceCount ? 'ok' : 'warn')}
           </div>
-          <div class="collection-main-actions">
-            ${collectionAction('0 自動運用', 'Apps Scriptトリガーとジョブ処理', 'automation')}
-            ${collectionAction('1 ジャンル×エリア', '業種と地域から営業候補検索', 'area')}
-            ${collectionAction('2 キーワード検索', '会社名・問い合わせ検索', 'keyword')}
-            ${collectionAction('3 ファイル収集', 'CSV貼り付けで一括追加', 'file')}
-            ${collectionAction('4 まとめサイトURL', 'URLから公式サイト探索', 'sourcePage')}
-          </div>
+          <details class="collection-advanced-actions"${advancedOpen}>
+            <summary>
+              <div>
+                <span>詳細な取り込み方法</span>
+                <small>キーワード検索、CSV貼り付け、周辺設定はここから開きます。</small>
+              </div>
+              ${legacyUiIcon('chevronRight')}
+            </summary>
+            <div class="collection-advanced-body">
+              ${collectionSecondaryAction('キーワード検索', '会社名や問い合わせ語句で探す', 'keyword')}
+              ${collectionSecondaryAction('CSV取り込み', '手元の一覧をまとめて追加', 'file')}
+            </div>
+          </details>
           <div class="collection-tab-panel" role="tabpanel">
-            ${renderCollectionTabPanel(state.activeCollectionTab, searchReady, dashboard)}
+            ${renderCollectionTabPanel(activeTab, searchReady, dashboard)}
           </div>
         `;
+      }
+
+      function collectionManagementTitle(tab, searchReady) {
+        if (!searchReady) return 'Serperキーを設定すると検索収集を始められます';
+        if (tab === 'area') return 'ジャンルとエリアを選んで営業候補を追加';
+        if (tab === 'automation') return '定期収集の条件を管理';
+        if (tab === 'sourcePage') return 'まとめサイトURLから公式サイト候補を探索';
+        if (tab === 'keyword') return 'キーワードを指定して候補を検索';
+        if (tab === 'file') return 'CSVから営業先をまとめて取り込み';
+        return 'まずは収集方法を1つ選んで開始';
+      }
+
+      function collectionManagementDescription(tab, searchReady, enabledRuleCount, enabledSourceCount) {
+        if (!searchReady) return '画面下部のSerperキー管理でAPIキーを保存してください。保存後、今すぐ収集と自動運用が使えます。';
+        if (tab === 'area') return '最も使う入口です。ジャンルと地域を少数指定して、Apps Scriptの実行時間内で小さく追加します。';
+        if (tab === 'automation') return `現在の優先ジャンルは${formatNumber(enabledRuleCount)}件です。ONにする前に対象エリアと検索語数を確認してください。`;
+        if (tab === 'sourcePage') return `監視サイトは${formatNumber(enabledSourceCount)}件有効です。施設一覧やまとめ記事URLを起点にできます。`;
+        if (tab === 'keyword') return '通常の条件に当てはまらない会社名、施設名、問い合わせ語句で追加検索します。';
+        if (tab === 'file') return 'CSV貼り付けで既存リストを追加します。重複保護は初期状態で有効です。';
+        return 'よく使う「今すぐ収集」「自動運用」「まとめサイト」を先に置き、補助機能は詳細にまとめています。';
       }
 
       function collectionStatusItem(icon, label, value, detail, tone) {
@@ -13922,17 +14241,56 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return `<button type="button" class="collection-main-action ${state.activeCollectionTab === mode ? 'active' : ''}" aria-pressed="${state.activeCollectionTab === mode ? 'true' : 'false'}" onclick="setCollectionTab('${escapeJsString(mode)}')">${legacyUiIcon(collectionActionIcon(mode))}<span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></span>${legacyUiIcon('chevronRight')}</button>`;
       }
 
+      function collectionSecondaryAction(label, description, mode) {
+        return `<button type="button" class="collection-secondary-action ${state.activeCollectionTab === mode ? 'active' : ''}" aria-pressed="${state.activeCollectionTab === mode ? 'true' : 'false'}" onclick="setCollectionTab('${escapeJsString(mode)}')">${legacyUiIcon(collectionActionIcon(mode))}<span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></span>${legacyUiIcon('chevronRight')}</button>`;
+      }
+
       function setCollectionTab(tab) {
-        state.activeCollectionTab = tab || 'automation';
+        state.activeCollectionTab = tab || 'overview';
         renderCollectionCommandCenter(state.serper || {});
       }
 
       function renderCollectionTabPanel(tab, searchReady, dashboard) {
+        if (!tab || tab === 'overview') return renderCollectionOverviewPanel(searchReady, dashboard);
         if (tab === 'area') return renderCollectionAreaPanel(searchReady, dashboard);
         if (tab === 'keyword') return renderCollectionKeywordPanel(searchReady, dashboard);
         if (tab === 'file') return renderCollectionFilePanel(searchReady, dashboard);
         if (tab === 'sourcePage') return renderSourcePageCollectionPanel(searchReady, dashboard);
         return renderAutoCollectionPanel(searchReady, dashboard);
+      }
+
+      function renderCollectionOverviewPanel(searchReady, dashboard) {
+        const settings = getAutoCollectionSettings();
+        const sourceSettings = getSourcePageCollectionSettings();
+        const enabledSourceCount = (sourceSettings.sites || []).filter((site) => site.enabled !== false && site.url).length;
+        return `
+          <section class="collection-overview-panel">
+            <div class="collection-overview-head">
+              <div>
+                <h3>必要な操作だけ選んで進めます</h3>
+                <p>初期表示では詳細フォームを閉じています。収集方法を選ぶと、下に必要な入力欄だけ表示します。</p>
+              </div>
+              <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? '収集準備OK' : 'Serper未設定'}</span>
+            </div>
+            <div class="collection-overview-grid">
+              <div class="collection-overview-card">
+                ${legacyUiIcon('mapPinned')}
+                <strong>営業候補を追加</strong>
+                <small>ジャンルと地域から少量ずつ検索します。迷ったらここから始めます。</small>
+              </div>
+              <div class="collection-overview-card">
+                ${legacyUiIcon('settings')}
+                <strong>自動運用を管理</strong>
+                <small>${settings.enabled ? '自動収集はONです。検索語数と対象エリアを確認できます。' : '自動収集はOFFです。条件確認後にONへ切り替えます。'}</small>
+              </div>
+              <div class="collection-overview-card">
+                ${legacyUiIcon('globe2')}
+                <strong>まとめサイトを使う</strong>
+                <small>${enabledSourceCount ? `${formatNumber(enabledSourceCount)}件の監視サイトを利用できます。` : '一覧ページやまとめ記事URLを保存して探索できます。'}</small>
+              </div>
+            </div>
+          </section>
+        `;
       }
 
       function renderAutoCollectionPanel(searchReady, dashboard) {
