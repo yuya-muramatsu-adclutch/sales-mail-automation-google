@@ -6114,10 +6114,18 @@
         height: 17px;
       }
 
+      .settings-status-item > div,
       .readiness-item > div {
         display: grid;
         gap: 3px;
         min-width: 0;
+      }
+
+      .settings-status-item strong,
+      .readiness-item strong {
+        min-width: 0;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
       }
 
       .readiness-item.with-icon strong {
@@ -6126,10 +6134,25 @@
         line-height: 1.25;
       }
 
+      .settings-status-item small,
       .readiness-item small {
         display: block;
         min-width: 0;
+        margin: 0;
+        line-height: 1.45;
         overflow-wrap: anywhere;
+      }
+
+      .settings-status-item .pill,
+      .readiness-item .pill {
+        align-self: center;
+        justify-self: end;
+        white-space: nowrap;
+      }
+
+      .settings-status-item.with-icon .pill,
+      .readiness-item.with-icon .pill {
+        align-self: start;
       }
 
       .readiness-list {
@@ -6213,6 +6236,8 @@
 
       #admin .settings-status-item > div,
       #admin .readiness-item > div {
+        display: grid;
+        gap: 4px;
         min-width: 0;
       }
 

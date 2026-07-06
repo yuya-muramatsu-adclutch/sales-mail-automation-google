@@ -1,13 +1,13 @@
 # 完成監査メモ
 
-最終更新: 2026-07-05
+最終更新: 2026-07-06
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @85 / code v85: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @113 / code v113: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260705_apps_script_full_workflow_v85_legacy_collection_tool_restore`
+- Code version: `20260706_apps_script_full_workflow_v113_admin_status_text_spacing`
 
 ## 計画書との対応
 
@@ -109,7 +109,7 @@
 | 管理画面レイアウト改善 | 完了 | code v96で管理トップのカード密度を下げ、主要ステータス/本番前確認/自動運用サマリーを初期表示に集約。DB/Gmail詳細、マスター管理、ログ/メンテナンスはアコーディオン化 |
 | 管理画面カード余白調整 | 完了 | code v97で管理ページ配下のカードpadding、見出し余白、ステータス項目、詳細アコーディオン、自動運用サマリーの間隔を調整し、旧gridが表示されても横詰まりしにくい指定を追加 |
 | Gmail連携画面レイアウト改善 | 完了 | code v98でGmail連携ページの初期表示をサマリー中心に整理し、連携診断/テスト送信履歴/返信チェック/送信ロックをアコーディオン化。カードpadding、見出し余白、ステータス項目の間隔も調整 |
-| 全体カード余白調整 | 進行中 | code v112で共通カード余白トークンを維持しつつ、空の `.exclusion-hero-panel` / 動的`.panel` / 統計グリッド / テンプレートタグパネル / テーブル枠などを非表示化。フォーム送信リストの空対象カード、ダッシュボードの高さ揃え、営業リスト表示項目アコーディオン、自動収集進捗/Serper設定ガイドのSVG巨大化に加え、Gmail連携の初期表示を3カードへ整理し、親子カードのpadding、説明文、Pill配置、レスポンシブ折り返しを調整。さらにダッシュボード上部API連携カードを読みやすい2列コンパクト表示にし、デスクトップでは詳細行を畳んで右カードの高さで左側に大きな空白が出る状態を詰めた。主要/残り画面の実表示確認を継続 |
+| 全体カード余白調整 | 進行中 | code v113で共通カード余白トークンを維持しつつ、空の `.exclusion-hero-panel` / 動的`.panel` / 統計グリッド / テンプレートタグパネル / テーブル枠などを非表示化。フォーム送信リストの空対象カード、ダッシュボードの高さ揃え、営業リスト表示項目アコーディオン、自動収集進捗/Serper設定ガイドのSVG巨大化に加え、Gmail連携の初期表示を3カードへ整理し、親子カードのpadding、説明文、Pill配置、レスポンシブ折り返しを調整。さらにダッシュボード上部API連携カードを読みやすい2列コンパクト表示にし、デスクトップでは詳細行を畳んで右カードの高さで左側に大きな空白が出る状態を詰めた。今回、Gmail連携/管理の共通ステータスカードでラベルと詳細を縦積み固定にし、`Google Sheets5,441件` のようなテキスト詰まりを防ぐ余白・折り返し・Pill配置ガードを追加。主要/残り画面の実表示確認を継続 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |

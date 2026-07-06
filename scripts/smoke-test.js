@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260706_apps_script_full_workflow_v112_dashboard_api_readable_compact'), 'v112 app version missing');
+assert(code.includes('20260706_apps_script_full_workflow_v113_admin_status_text_spacing'), 'v113 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -159,6 +159,9 @@ assert(html.includes('onclick="runGmailIntegrationCheck()"'), 'Gmail integration
 assert(html.includes('初期表示はGmail承認、送信枠、時間主導トリガーだけ'), 'Gmail overview should stay compact');
 assert(html.includes('grid-template-columns: repeat(3, minmax(180px, 1fr))'), 'Gmail overview card grid spacing missing');
 assert(html.includes('.settings-status-item small'), 'status card detail text should use compact small spacing');
+assert(html.includes('.settings-status-item > div,\n      .readiness-item > div'), 'status card label/detail stack spacing guard missing');
+assert(html.includes('.settings-status-item strong,\n      .readiness-item strong'), 'status card title wrapping guard missing');
+assert(html.includes('.settings-status-item .pill,\n      .readiness-item .pill'), 'status card pill alignment guard missing');
 assert(html.includes('grid-template-columns: repeat(2, minmax(0, 1fr))'), 'dashboard API list should use readable compact grid');
 assert(html.includes('.dashboard-api-row > span:nth-child(2)'), 'dashboard API row text spacing guard missing');
 assert(html.includes('.dashboard-api-row small') && html.includes('display: none;'), 'dashboard API details should be compact on desktop');
