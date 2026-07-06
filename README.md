@@ -250,6 +250,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 106 / code v106でフォーム送信リストの空対象カードに読み込み/空状態を明示し、ダッシュボードの左右カードの無理な高さ揃えと営業リスト表示項目アコーディオンの見え方を調整しました
 - Apps Script Version 107 / code v107で営業リスト収集ツール下部の自動収集進捗カードに残っていた空状態アイコン巨大化を修正。親カード内でアイコンと説明テキストが適切な余白で並ぶようにしました
 - Apps Script Version 108 / code v108で営業リスト収集ツールのSerper設定ガイド内に残っていた外部リンクアイコン巨大化も修正。収集画面の空状態/ガイドカード内SVGを固定サイズに揃えました
+- Apps Script Version 109 / code v109でGmail連携ページの初期表示をGmail承認・送信枠・時間主導トリガーの3カードに整理。詳細診断/履歴/返信チェックはアコーディオン内に残し、親カード/子カードのpadding、説明文、Pill配置、レスポンシブ折り返しを調整しました
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み

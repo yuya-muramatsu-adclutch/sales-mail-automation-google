@@ -4937,6 +4937,7 @@
       .template-sender-banner span,
       .template-safety-card span,
       .settings-status-item span,
+      .settings-status-item small,
       .readiness-item small,
       .form-outreach-summary-card span,
       .collection-status-item span,
@@ -6429,8 +6430,8 @@
 
       #gmail .panel.stack {
         min-width: 0;
-        padding: 18px;
-        gap: 16px;
+        padding: 20px;
+        gap: 18px;
       }
 
       #gmail .panel.stack h2,
@@ -6456,25 +6457,58 @@
 
       #gmail .settings-status-item,
       #gmail .readiness-item {
-        min-height: 66px;
-        padding: 14px;
+        min-height: auto;
+        padding: 15px;
+        align-items: start;
+        background: #fff;
       }
 
       #gmail .settings-status-item.with-icon,
       #gmail .readiness-item.with-icon {
-        gap: 12px;
+        grid-template-columns: 20px minmax(0, 1fr) auto;
+        gap: 12px 14px;
+      }
+
+      #gmail .settings-status-item > div,
+      #gmail .readiness-item > div {
+        display: grid;
+        min-width: 0;
+        gap: 4px;
+      }
+
+      #gmail .settings-status-item strong,
+      #gmail .readiness-item strong {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      #gmail .settings-status-item small,
+      #gmail .readiness-item small,
+      #gmail .settings-status-item span:not(.pill) {
+        display: block;
+        margin: 0;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+      }
+
+      #gmail .settings-status-item .pill,
+      #gmail .readiness-item .pill {
+        align-self: start;
+        justify-self: end;
       }
 
       .gmail-overview-panel {
         display: grid;
-        gap: 16px;
+        gap: 18px;
         margin-top: 0;
       }
 
       .gmail-command-center {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 16px;
+        gap: 18px;
         align-items: start;
       }
 
@@ -6502,10 +6536,17 @@
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+        align-items: center;
         justify-content: flex-end;
       }
 
-      .gmail-overview-status-grid,
+      .gmail-overview-status-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(180px, 1fr));
+        gap: 12px;
+        align-items: start;
+      }
+
       .gmail-guide-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -6524,10 +6565,17 @@
 
       .gmail-disclosure-body {
         grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+        padding: 14px;
+      }
+
+      #gmail .admin-disclosure-body > .panel {
+        margin-top: 0;
+        box-shadow: none;
       }
 
       #gmail .gmail-connection-status-grid {
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
         gap: 12px;
       }
 
@@ -6543,7 +6591,14 @@
       }
 
       #gmail .reply-check-note {
+        grid-template-columns: auto minmax(0, 1fr) auto;
         padding: 14px 16px;
+        align-items: center;
+      }
+
+      #gmail .reply-check-note span {
+        min-width: 0;
+        line-height: 1.6;
       }
 
       #gmail .reply-fix-panel {
@@ -7577,6 +7632,7 @@
         .lead-kpi-grid,
         .background-overview-kpis,
         .form-outreach-summary-grid,
+        .gmail-overview-status-grid,
         .collection-tabs,
         .setup-guide-grid,
         .settings-status-grid {
@@ -7684,6 +7740,7 @@
         .form-outreach-summary-grid,
         .setup-guide-grid,
         .settings-status-grid,
+        .gmail-overview-status-grid,
         .admin-status-grid,
         .admin-readiness-mini-list,
         .admin-automation-summary,
@@ -7693,6 +7750,16 @@
 
         .quick-summary-grid {
           grid-template-columns: 1fr;
+        }
+
+        #gmail .reply-check-note {
+          grid-template-columns: 1fr;
+        }
+
+        #gmail .reply-check-note > svg,
+        #gmail .reply-check-note .button-link,
+        #gmail .reply-check-note button {
+          justify-self: start;
         }
 
         .table-wrap {
@@ -14738,7 +14805,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return `
           <div class="settings-status-item with-icon">
             ${legacyUiIcon(item.icon)}
-            <div><strong>${escapeHtml(item.label)}</strong><br><span>${escapeHtml(item.detail)}</span></div>
+            <div><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.detail)}</small></div>
             <span class="pill ${tone}">${escapeHtml(item.status || (item.ready ? 'OK' : '要確認'))}</span>
           </div>
         `;
@@ -16544,17 +16611,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const overviewTarget = document.getElementById('gmailOverviewPanel');
         const overviewItems = [
           { icon: 'mailCheck', label: 'Gmailアカウント', ready: gmailReady, detail: !authKnown ? '承認状態を確認' : auth.required === true ? '追加承認が必要' : 'Apps Script承認済み', status: gmailReady ? 'OK' : authKnown ? '要承認' : '確認' },
-          { icon: 'calendarCheck', label: 'Calendar', ready: calendarReady, detail: '商談予定作成', status: calendarReady ? 'OK' : '要確認', tone: calendarReady ? 'good' : 'warn' },
           { icon: 'mailCheck', label: '本日送信枠', ready: remaining > 0, detail: `送信済み ${formatNumber(dashboard.sentToday || dashboard.todaySent || 0)} / 上限 ${formatNumber(dashboard.dailyMailLimit || dashboard.mailDailyLimit || 80)}`, status: `${formatNumber(remaining)}件`, tone: remaining > 0 ? 'good' : 'warn' },
           { icon: 'timerReset', label: '時間主導トリガー', ready: triggerReady, detail: `${formatNumber(triggerCount)}件`, status: triggerReady ? 'OK' : '未設定', tone: triggerReady ? 'good' : 'warn' },
-          { icon: 'mailCheck', label: '返信自動チェック', ready: Boolean(replyCheck.enabled), detail: replyCheck.enabled ? `最大${formatNumber(replyCheck.maxThreads || 200)}件` : 'OFF', status: replyCheck.enabled ? 'ON' : 'OFF', tone: replyCheck.enabled ? 'good' : 'info' },
         ];
         if (overviewTarget) {
           overviewTarget.innerHTML = `
             <div class="gmail-command-center">
               <div class="gmail-command-copy">
                 <h2>Gmail連携ステータス</h2>
-                <p>初期表示は承認状態、送信枠、定期処理だけに絞っています。詳細な診断、テスト送信履歴、返信チェックは下の詳細セクションから開けます。</p>
+                <p>初期表示はGmail承認、送信枠、時間主導トリガーだけに絞っています。詳細な診断、テスト送信履歴、返信チェックは下の詳細セクションから開けます。</p>
               </div>
               <div class="gmail-overview-actions">
                 <button type="button" class="button secondary" onclick="refreshGmailAuthorizationStatus()">${legacyUiIcon('refreshCw')}承認状態</button>
@@ -16562,7 +16627,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 <button type="button" class="button secondary" onclick="showTab('admin')">${legacyUiIcon('settings')}管理</button>
               </div>
             </div>
-            <div class="gmail-status-toolbar" id="gmailStatusPills">${statusPillsHtml}</div>
             <div class="gmail-overview-status-grid">
               ${overviewItems.map(adminStatusItemMarkup).join('')}
             </div>

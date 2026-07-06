@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260706_apps_script_full_workflow_v108_prospecting_icon_size_guards'), 'v108 app version missing');
+assert(code.includes('20260706_apps_script_full_workflow_v109_gmail_spacing_compact'), 'v109 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -156,6 +156,9 @@ assert(html.includes("icon: 'refreshCw', label: 'Refresh Token'"), 'legacy Googl
 assert(html.includes("icon: 'mailCheck', label: 'テスト宛先'"), 'legacy Google credentials test recipient icon missing');
 assert(html.includes('onclick="refreshGmailAuthorizationStatus()"'), 'Gmail authorization status refresh button missing');
 assert(html.includes('onclick="runGmailIntegrationCheck()"'), 'Gmail integration check button missing');
+assert(html.includes('初期表示はGmail承認、送信枠、時間主導トリガーだけ'), 'Gmail overview should stay compact');
+assert(html.includes('grid-template-columns: repeat(3, minmax(180px, 1fr))'), 'Gmail overview card grid spacing missing');
+assert(html.includes('.settings-status-item small'), 'status card detail text should use compact small spacing');
 assert(html.includes('admin-primary-grid'), 'admin compact primary grid missing');
 assert(html.includes('admin-accordion-list'), 'admin accordion list missing');
 assert(html.includes('admin-inner-disclosure'), 'admin detail disclosure missing');
