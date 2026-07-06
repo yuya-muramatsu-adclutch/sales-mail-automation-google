@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260706_apps_script_full_workflow_v105_empty_table_wrap_guard'), 'v105 app version missing');
+assert(code.includes('20260706_apps_script_full_workflow_v106_spacing_empty_state_polish'), 'v106 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -177,6 +177,10 @@ assert(html.includes('.lead-quick-views:empty'), 'empty lead quick view guard mi
 assert(html.includes('.collection-command-center:empty'), 'empty collection command center guard missing');
 assert(html.includes('.table-wrap:has(> table:empty)'), 'empty table wrapper guard missing');
 assert(html.includes('sending-plan-panel:has(#sendingPlanGrid:empty):has(#sendingPlanTable:empty)'), 'empty sending plan panel guard missing');
+assert(html.includes('formLeadEmptyState'), 'form lead empty state missing');
+assert(html.includes('renderFormLeadEmptyState'), 'form lead empty renderer missing');
+assert(html.includes('.dashboard-hero-grid') && html.includes('align-items: start'), 'dashboard card stretch guard missing');
+assert(html.includes('list-view-settings-summary-copy'), 'list view settings accordion copy missing');
 assert(html.includes('.dashboard-focus-section:has(.dashboard-signal-grid:empty)'), 'empty dashboard focus section guard missing');
 assert(html.includes('id="gmailOverviewPanel"'), 'Gmail compact overview panel missing');
 assert(html.includes('gmail-accordion-list'), 'Gmail accordion list missing');

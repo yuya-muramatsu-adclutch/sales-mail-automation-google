@@ -2075,7 +2075,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr);
         gap: 14px;
-        align-items: stretch;
+        align-items: start;
       }
 
       .dashboard-section-heading {
@@ -4655,12 +4655,55 @@
       .list-view-settings-panel summary {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: 8px;
         min-height: 42px;
         padding: 10px 14px;
         cursor: pointer;
         color: var(--text);
         font-weight: 900;
+        list-style: none;
+      }
+
+      .list-view-settings-panel summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .list-view-settings-panel summary::after {
+        content: "+";
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1;
+      }
+
+      .list-view-settings-panel[open] summary {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .list-view-settings-panel[open] summary::after {
+        content: "-";
+      }
+
+      .list-view-settings-summary-copy {
+        display: inline-grid;
+        flex: 1 1 auto;
+        min-width: 0;
+        gap: 2px;
+      }
+
+      .list-view-settings-summary-copy small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
       }
 
       .list-view-settings-form,
@@ -5423,6 +5466,32 @@
 
       #formWorkPanel:empty {
         display: none;
+      }
+
+      .form-list-empty-state {
+        display: grid;
+        gap: 6px;
+        margin: var(--card-pad);
+        padding: 18px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .form-list-empty-state[hidden] {
+        display: none;
+      }
+
+      .form-list-empty-state strong {
+        color: var(--ink);
+        font-size: 14px;
+      }
+
+      .form-list-empty-state span {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.55;
       }
 
       .form-work-main {
@@ -8217,8 +8286,12 @@
           </div>
           <div id="formWorkPanel" class="form-work-panel"></div>
           <div class="form-board-grid">
-            <section class="panel">
+            <section class="panel form-lead-list-panel">
               <div class="panel-head"><h2>フォーム対象</h2><span class="pill info" id="formLeadCount">0件</span></div>
+              <div id="formLeadEmptyState" class="form-list-empty-state">
+                <strong>フォーム対象を読み込み中です</strong>
+                <span>対象リストを取得しています。読み込み後にここへフォーム送信候補を表示します。</span>
+              </div>
               <div class="table-wrap table-form-outreach"><table id="formLeadTable"></table></div>
             </section>
             <section class="panel side">
@@ -10166,7 +10239,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           : 'ジャンルを選ぶと、そのジャンル用の表示項目を保存できます。';
         target.innerHTML = `
           <details class="list-view-settings-panel">
-            <summary><span class="nav-icon">SL</span>表示項目</summary>
+            <summary>
+              <span class="nav-icon">SL</span>
+              <span class="list-view-settings-summary-copy">
+                <span>表示項目</span>
+                <small>${messageText}</small>
+              </span>
+            </summary>
             <form class="list-view-settings-form" onsubmit="saveLeadListViewSettings(event)">
               <p class="muted">${messageText}</p>
               <div class="list-view-settings-grid">
@@ -12258,23 +12337,33 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function loadFormLeads() {
-        const result = await api('listLeads', {
-          search: document.getElementById('formSearch').value,
-          filter: 'form_all',
-          formStatus: document.getElementById('formStatusFilter').value,
-          limit: Number(document.getElementById('formLimit').value || 100),
-          offset: 0,
-        });
-        state.formLeads = result.items || [];
-        state.formTotal = result.total || state.formLeads.length;
-        state.dataLoaded.formLeads = true;
-        if (!state.formLeads.some((lead) => lead.id === state.selectedFormLeadId)) {
-          state.selectedFormLeadId = '';
+        state.formLeadLoading = true;
+        document.getElementById('formLeadTable').innerHTML = '';
+        renderFormLeadEmptyState(state.formTotal || 0, true);
+        try {
+          const result = await api('listLeads', {
+            search: document.getElementById('formSearch').value,
+            filter: 'form_all',
+            formStatus: document.getElementById('formStatusFilter').value,
+            limit: Number(document.getElementById('formLimit').value || 100),
+            offset: 0,
+          });
+          state.formLeads = result.items || [];
+          state.formTotal = result.total || state.formLeads.length;
+          state.dataLoaded.formLeads = true;
+          if (!state.formLeads.some((lead) => lead.id === state.selectedFormLeadId)) {
+            state.selectedFormLeadId = '';
+          }
+          if (!state.selectedFormLeadId && state.formLeads.length > 0) {
+            state.selectedFormLeadId = state.formLeads[0].id;
+          }
+          renderFormLeads(state.formTotal);
+        } catch (error) {
+          renderFormLeadEmptyState(0, false, error.message || String(error));
+          throw error;
+        } finally {
+          state.formLeadLoading = false;
         }
-        if (!state.selectedFormLeadId && state.formLeads.length > 0) {
-          state.selectedFormLeadId = state.formLeads[0].id;
-        }
-        renderFormLeads(state.formTotal);
       }
 
       function clearFormFilters() {
@@ -12308,8 +12397,34 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ];
           return `<tr class="${escapeHtml(classes)}">` + cells.map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
         }).join('');
-        document.getElementById('formLeadTable').innerHTML = table(['選択', '送信済み', '営業先', 'ジャンル', 'フォーム状態', '営業状態', 'フォーム送信', 'フォームURL', '操作'], rows);
+        document.getElementById('formLeadTable').innerHTML = rows ? table(['選択', '送信済み', '営業先', 'ジャンル', 'フォーム状態', '営業状態', 'フォーム送信', 'フォームURL', '操作'], rows) : '';
+        renderFormLeadEmptyState(total, false);
         renderSelectedFormLead();
+      }
+
+      function renderFormLeadEmptyState(total, loading, errorText) {
+        const target = document.getElementById('formLeadEmptyState');
+        if (!target) return;
+        const hasRows = (state.formLeads || []).length > 0;
+        const shouldShow = loading || errorText || !hasRows;
+        target.hidden = !shouldShow;
+        if (!shouldShow) return;
+        const hasAny = Number(total || 0) > 0;
+        const title = loading
+          ? 'フォーム対象を読み込み中です'
+          : errorText
+            ? 'フォーム対象を読み込めませんでした'
+            : hasAny
+              ? '条件に一致するフォーム対象がありません'
+              : 'フォーム対象はまだありません';
+        const detail = loading
+          ? 'Google Sheetsからフォーム送信候補を取得しています。'
+          : errorText
+            ? errorText
+            : hasAny
+              ? '検索条件やフォーム状態を変更して、対象があるか確認してください。'
+              : 'フォームURLがある営業先、または未対応のフォーム候補が追加されるとここに表示されます。';
+        target.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span>`;
       }
 
       function renderFormSentCheck(lead, sent, updating) {

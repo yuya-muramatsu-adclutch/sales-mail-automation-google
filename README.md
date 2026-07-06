@@ -247,6 +247,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 103 / code v103で空の動的パネルと統計グリッドを非表示化。バックグラウンド進捗などでデータ描画前に余白だけのカードが一瞬残る初期表示崩れを抑制しました
 - Apps Script Version 104 / code v104でテンプレート作成フォームの空タグパネルなど、動的に後から埋まる子カード/ステータス帯の空表示を追加で非表示化。本文下に余白だけの細いカードが残る崩れを修正しました
 - Apps Script Version 105 / code v105で空のテーブルラッパーと送信プレビューの送信予定/送信制限カードを追加ガード。読込前に罫線だけの細い枠やタイトルだけのカードが残る表示を抑制しました
+- Apps Script Version 106 / code v106でフォーム送信リストの空対象カードに読み込み/空状態を明示し、ダッシュボードの左右カードの無理な高さ揃えと営業リスト表示項目アコーディオンの見え方を調整しました
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み
