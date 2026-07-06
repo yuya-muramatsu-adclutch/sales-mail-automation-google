@@ -263,6 +263,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 119 / code v119で営業リスト収集ツールの初期表示をシンプルな収集管理画面へ変更。よく使う「今すぐ収集」「自動運用」「まとめサイト」を主操作に絞り、キーワード検索/CSV取り込みは詳細アコーディオン内へ移動しました
 - Apps Script Version 120 / code v120で営業リスト収集ツールの未実行時に、空の自動収集進捗/結果一覧パネルを初期表示しないようにし、収集管理画面下部の大きな余白を解消しました
 - Apps Script Version 121 / code v121で営業リスト収集ツールの収集管理カード/概要カード内SVGにサイズ指定を追加し、概要アイコンが巨大化して画面下部に大きな余白を作る崩れを解消しました
+- Apps Script Version 122 / code v122でテンプレート画面の初期表示を一覧中心に整理。作成/編集フォーム、差し込みメニュー、テンプレート例をアコーディオン化し、安全チェックカードの余白と列幅も調整しました
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み

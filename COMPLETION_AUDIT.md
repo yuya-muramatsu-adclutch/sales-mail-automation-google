@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @121 / code v121: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @122 / code v122: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260707_apps_script_full_workflow_v121_collection_management_icon_fix`
+- Code version: `20260707_apps_script_full_workflow_v122_template_page_simplify`
 
 ## 計画書との対応
 
@@ -75,6 +75,7 @@
 | 旧アプリフォーム作業UI再現 | 完了 | code v56で旧 `FormOutreachBoard` の作業中バー、屋号コピー、フォームURLミニリンク、本文コピー、送信済み、次へ操作を反映 |
 | 旧アプリリード詳細モーダル再現 | 完了 | code v57で旧 `QuickLeadEditButton` の中央モーダル、ヘッダーPill、閉じるアイコン、4列サマリーを反映 |
 | 旧アプリテンプレート作成UI再現 | 完了 | code v58で旧 `TemplateCreateForm` のサンプル適用、保存済みテンプレート更新、別テンプレート作成、フォーム営業件名なし保存を反映 |
+| テンプレート画面レイアウト改善 | 完了 | code v122で初期表示をテンプレート一覧中心に整理。作成/編集フォーム、差し込みメニュー、テンプレート例をアコーディオン化し、安全チェックカードの余白、列幅、長文折り返しも調整 |
 | 旧アプリ安全ステータス帯再現 | 完了 | code v59で旧 `AppSafetyStrip` のShield/Clock/Mail/Plugアイコン付きステータスチップを全メニュー共通ヘッダーへ反映 |
 | 旧アプリ上部ショートカット再現 | 完了 | code v60で旧 `AppTopShortcutBar` と同じ6項目だけに戻し、更新/setupはサイドバー下部へ集約 |
 | 旧アプリ送信プレビューアイコン再現 | 完了 | code v61で旧 `EmailPreviewPanel` のEye/Sendアイコンを差し込み確認Pill、1件送信、自動送信ボタンへ反映 |
@@ -112,7 +113,7 @@
 | 管理画面レイアウト改善 | 完了 | code v96で管理トップのカード密度を下げ、主要ステータス/本番前確認/自動運用サマリーを初期表示に集約。DB/Gmail詳細、マスター管理、ログ/メンテナンスはアコーディオン化 |
 | 管理画面カード余白調整 | 完了 | code v97で管理ページ配下のカードpadding、見出し余白、ステータス項目、詳細アコーディオン、自動運用サマリーの間隔を調整し、旧gridが表示されても横詰まりしにくい指定を追加 |
 | Gmail連携画面レイアウト改善 | 完了 | code v98でGmail連携ページの初期表示をサマリー中心に整理し、連携診断/テスト送信履歴/返信チェック/送信ロックをアコーディオン化。カードpadding、見出し余白、ステータス項目の間隔も調整 |
-| 全体カード余白調整 | 進行中 | code v121で共通カード余白トークンを維持しつつ、空の `.exclusion-hero-panel` / 動的`.panel` / 統計グリッド / テンプレートタグパネル / テーブル枠などを非表示化。フォーム送信リストの空対象カード、ダッシュボードの高さ揃え、営業リスト表示項目アコーディオン、自動収集進捗/Serper設定ガイドのSVG巨大化に加え、Gmail連携の初期表示を3カードへ整理し、親カードのpadding、説明文、Pill配置、レスポンシブ折り返しを調整。さらにダッシュボード上部API連携カードを読みやすい2列コンパクト表示にし、管理/Gmailの詳細アコーディオン内カードを上揃えにして、子カードが同じ高さに引き伸ばされる状態を抑制。今回、営業リスト収集ツールの初期表示を収集管理画面へ簡素化し、主要操作と詳細アコーディオンへ分け、未実行時の空進捗/結果パネルを非表示化。収集管理カード内SVGのサイズ固定も追加し、視線の負荷と大きな空白を下げた。主要/残り画面の実表示確認を継続 |
+| 全体カード余白調整 | 進行中 | code v122で共通カード余白トークンを維持しつつ、空の `.exclusion-hero-panel` / 動的`.panel` / 統計グリッド / テンプレートタグパネル / テーブル枠などを非表示化。フォーム送信リストの空対象カード、ダッシュボードの高さ揃え、営業リスト表示項目アコーディオン、自動収集進捗/Serper設定ガイドのSVG巨大化に加え、Gmail連携の初期表示を3カードへ整理し、親カードのpadding、説明文、Pill配置、レスポンシブ折り返しを調整。さらにダッシュボード上部API連携カードを読みやすい2列コンパクト表示にし、管理/Gmailの詳細アコーディオン内カードを上揃えにして、子カードが同じ高さに引き伸ばされる状態を抑制。今回、テンプレート画面を一覧中心に整理し、作成/編集フォーム、差し込みメニュー、テンプレート例をアコーディオン化。安全チェックカードの余白と列幅も調整して、初期表示の情報量とカード内の詰まりを下げた。主要/残り画面の実表示確認を継続 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |

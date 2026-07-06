@@ -5003,6 +5003,10 @@
         gap: 14px;
       }
 
+      .template-list-panel {
+        min-width: 0;
+      }
+
       .template-create-head {
         display: flex;
         align-items: center;
@@ -5026,6 +5030,65 @@
 
       .template-form-footer {
         justify-content: flex-start;
+      }
+
+      .template-workbench-disclosure,
+      .template-example-disclosure {
+        margin-top: var(--card-gap);
+      }
+
+      .template-workbench-disclosure .admin-disclosure-body,
+      .template-example-disclosure .admin-disclosure-body {
+        grid-template-columns: 1fr;
+      }
+
+      .template-workbench-disclosure .admin-disclosure-body > .panel,
+      .template-example-disclosure .admin-disclosure-body > .panel {
+        grid-column: 1 / -1;
+      }
+
+      .template-inline-disclosure {
+        grid-column: 1 / -1;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .template-inline-disclosure > summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 56px;
+        padding: 12px 14px;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .template-inline-disclosure > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .template-inline-disclosure > summary span {
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 900;
+      }
+
+      .template-inline-disclosure > summary small {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
+      .template-inline-disclosure .template-tag-panel {
+        border: 0;
+        border-top: 1px solid var(--line);
+        border-radius: 0;
+        background: #f8fafc;
       }
 
       .template-tag-panel {
@@ -5246,14 +5309,15 @@
       }
 
       .template-safety-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       }
 
       .template-safety-card {
         display: grid;
-        gap: 5px;
-        min-height: 118px;
-        padding: 13px;
+        gap: 7px;
+        min-height: 92px;
+        align-content: start;
+        padding: 12px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: linear-gradient(180deg, #fff, #f8fafc);
@@ -5270,8 +5334,9 @@
       .collection-status-item strong,
       .readiness-item strong {
         color: var(--text);
-        font-size: 20px;
-        line-height: 1.1;
+        font-size: 18px;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
       }
 
       .template-safety-card small,
@@ -5298,6 +5363,15 @@
       .template-safety-list div {
         display: grid;
         gap: 3px;
+      }
+
+      .template-safety-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .template-safety-list span {
+        min-width: 0;
+        overflow-wrap: anywhere;
       }
 
       .template-body {
@@ -7949,6 +8023,7 @@
         .template-test-layout,
         .template-test-recipient,
         .template-safety-grid,
+        .template-safety-list,
         .exclusion-hero-panel,
         .prospecting-route-grid,
         .collection-command-center,
@@ -8576,54 +8651,79 @@
 
           <section id="templateSafetyPanel" class="template-safety-panel"></section>
 
-          <div class="content-grid">
-            <section class="panel template-create-panel">
-              <div class="template-create-head">
-                <h2 id="templateFormTitle">テンプレート作成</h2>
-                <div class="template-sample-actions">
-                  <button type="button" class="button secondary" onclick="applyTemplateSample('initial')"><span class="button-icon" data-ui-icon="wand2"></span>初回メール</button>
-                  <button type="button" class="button secondary" onclick="applyTemplateSample('form')"><span class="button-icon" data-ui-icon="wand2"></span>フォーム営業用</button>
-                </div>
-              </div>
-              <div class="panel-body">
-                <form id="templateForm" class="grid" onsubmit="saveTemplate(event)">
-                  <input type="hidden" id="templateId">
-                  <input type="hidden" id="templateProduction" value="false">
-                  <label>名前<input id="templateName" required></label>
-                  <label>ジャンル<input id="templateGenre" list="genreList"></label>
-                  <label>種類<select id="templateType" onchange="renderTemplateTagMenuPanel()">
-                    <option value="initial">初回</option>
-                    <option value="form">フォーム</option>
-                  </select></label>
-                  <label>件名<input id="templateSubject" oninput="renderTemplateTagMenuPanel()"></label>
-                  <label style="grid-column:1/-1">本文<textarea id="templateBody" required oninput="renderTemplateTagMenuPanel()"></textarea></label>
-                  <section id="templateTagMenuPanel" class="template-tag-panel" style="grid-column:1/-1"></section>
-                  <div id="templateFormStatusRow" class="template-form-status-row" style="grid-column:1/-1"></div>
-                  <p id="templateFormMessage" class="form-message" style="grid-column:1/-1" hidden></p>
-                  <div class="template-form-footer" style="grid-column:1/-1">
-                    <button id="templateSubmitButton" type="submit" class="button"><span class="button-icon" data-ui-icon="save"></span>テンプレートを保存</button>
-                    <button id="templateNewButton" type="button" class="button secondary" onclick="startNewTemplate()" hidden>別テンプレートとして作成</button>
-                    <button type="button" class="button secondary" onclick="clearTemplateForm()">クリア</button>
-                  </div>
-                </form>
-              </div>
-            </section>
-            <section class="panel">
-              <div class="panel-head">
+          <section class="panel template-list-panel">
+            <div class="panel-head">
+              <div>
                 <h2>テンプレート一覧</h2>
-                <span class="pill info" id="templateCountPill">0件</span>
+                <p class="muted">編集、テスト送信、本番ON/OFFは一覧から操作します。</p>
               </div>
-              <div class="table-wrap"><table id="templateTable"></table></div>
-            </section>
-          </div>
-
-          <section class="panel">
-            <div class="panel-head"><h2>テンプレート例</h2><span class="pill" id="templateExamplePill">未選択</span></div>
-            <div class="panel-body">
-              <div id="templateTagList" class="template-tag-list"></div>
-              <div id="templateExampleBody" class="template-body">テンプレートを登録してください。</div>
+              <span class="pill info" id="templateCountPill">0件</span>
             </div>
+            <div class="table-wrap"><table id="templateTable"></table></div>
           </section>
+
+          <details id="templateWorkbenchDetails" class="admin-disclosure template-workbench-disclosure">
+            <summary>
+              <span>テンプレート作成・編集</span>
+              <small>新規作成や保存済みテンプレートの下書き編集はここで開きます。</small>
+            </summary>
+            <div class="admin-disclosure-body">
+              <section class="panel template-create-panel">
+                <div class="template-create-head">
+                  <h2 id="templateFormTitle">テンプレート作成</h2>
+                  <div class="template-sample-actions">
+                    <button type="button" class="button secondary" onclick="applyTemplateSample('initial')"><span class="button-icon" data-ui-icon="wand2"></span>初回メール</button>
+                    <button type="button" class="button secondary" onclick="applyTemplateSample('form')"><span class="button-icon" data-ui-icon="wand2"></span>フォーム営業用</button>
+                  </div>
+                </div>
+                <div class="panel-body">
+                  <form id="templateForm" class="grid" onsubmit="saveTemplate(event)">
+                    <input type="hidden" id="templateId">
+                    <input type="hidden" id="templateProduction" value="false">
+                    <label>名前<input id="templateName" required></label>
+                    <label>ジャンル<input id="templateGenre" list="genreList"></label>
+                    <label>種類<select id="templateType" onchange="renderTemplateTagMenuPanel()">
+                      <option value="initial">初回</option>
+                      <option value="form">フォーム</option>
+                    </select></label>
+                    <label>件名<input id="templateSubject" oninput="renderTemplateTagMenuPanel()"></label>
+                    <label style="grid-column:1/-1">本文<textarea id="templateBody" required oninput="renderTemplateTagMenuPanel()"></textarea></label>
+                    <details id="templateTagDetails" class="template-inline-disclosure">
+                      <summary>
+                        <span>差し込みメニュー</span>
+                        <small>本文や件名に使うタグを必要な時だけ開きます。</small>
+                        <span class="pill info" id="templateTagCountPill">0タグ</span>
+                      </summary>
+                      <section id="templateTagMenuPanel" class="template-tag-panel"></section>
+                    </details>
+                    <div id="templateFormStatusRow" class="template-form-status-row" style="grid-column:1/-1"></div>
+                    <p id="templateFormMessage" class="form-message" style="grid-column:1/-1" hidden></p>
+                    <div class="template-form-footer" style="grid-column:1/-1">
+                      <button id="templateSubmitButton" type="submit" class="button"><span class="button-icon" data-ui-icon="save"></span>テンプレートを保存</button>
+                      <button id="templateNewButton" type="button" class="button secondary" onclick="startNewTemplate()" hidden>別テンプレートとして作成</button>
+                      <button type="button" class="button secondary" onclick="clearTemplateForm()">クリア</button>
+                    </div>
+                  </form>
+                </div>
+              </section>
+            </div>
+          </details>
+
+          <details class="admin-disclosure template-example-disclosure">
+            <summary>
+              <span>テンプレート例・使用タグ</span>
+              <small>選択中テンプレートの件名、本文、使用タグを確認します。</small>
+            </summary>
+            <div class="admin-disclosure-body">
+              <section class="panel">
+                <div class="panel-head"><h2>テンプレート例</h2><span class="pill" id="templateExamplePill">未選択</span></div>
+                <div class="panel-body">
+                  <div id="templateTagList" class="template-tag-list"></div>
+                  <div id="templateExampleBody" class="template-body">テンプレートを登録してください。</div>
+                </div>
+              </section>
+            </div>
+          </details>
           <div id="templateActionDialogHost"></div>
         </section>
 
@@ -12324,6 +12424,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const subjectDisabled = type === 'form';
         const usedTags = collectTemplateTags(`${document.getElementById('templateSubject')?.value || ''}\n${document.getElementById('templateBody')?.value || ''}`);
         const tags = templateTagOptions();
+        const countPill = document.getElementById('templateTagCountPill');
+        if (countPill) countPill.textContent = `${formatNumber(tags.length)}タグ`;
         target.innerHTML = `
           <div class="template-tag-panel-header">
             <div>
@@ -12399,6 +12501,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function applyTemplateSample(type) {
+        openTemplateWorkbench();
         const samples = {
           initial: {
             name: '初回メール',
@@ -12500,12 +12603,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function newTemplate() {
         clearTemplateForm();
+        openTemplateWorkbench();
         document.getElementById('templateName').focus();
+      }
+
+      function openTemplateWorkbench() {
+        const details = document.getElementById('templateWorkbenchDetails');
+        if (details) details.open = true;
       }
 
       function editTemplate(id) {
         const template = state.templates.find((item) => item.id === id);
         if (!template) return;
+        openTemplateWorkbench();
         document.getElementById('templateId').value = template.id || '';
         document.getElementById('templateFormTitle').textContent = 'テンプレート編集';
         document.getElementById('templateName').value = template.name || '';
@@ -12530,6 +12640,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function startNewTemplate() {
+        openTemplateWorkbench();
         document.getElementById('templateId').value = '';
         document.getElementById('templateFormTitle').textContent = 'テンプレート作成';
         setTemplateFormMessage('別テンプレートとして保存できます。', 'success');
