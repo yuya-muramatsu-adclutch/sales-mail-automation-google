@@ -3739,7 +3739,22 @@
       }
 
       .panel:empty,
+      .table-wrap:has(> table:empty),
       .stats-grid:empty,
+      .filter-bar:empty,
+      .lead-quick-views:empty,
+      .lead-kpi-grid:empty,
+      .lead-status-legend:empty,
+      .bulk-action-bar:empty,
+      .quick-summary-grid:empty,
+      .template-tag-panel:empty,
+      .template-form-status-row:empty,
+      .template-tag-list:empty,
+      .form-outreach-summary-grid:empty,
+      .collection-command-center:empty,
+      .prospecting-activity-panel:empty,
+      .ops-readiness-panel:empty,
+      .send-check-grid:empty,
       .dashboard-api-list:empty,
       .dashboard-signal-grid:empty,
       .dashboard-action-grid:empty,
@@ -3759,6 +3774,11 @@
       .analytics-summary-panel:has(#analyticsSummaryGrid:empty),
       .analytics-source-panel:has(#analyticsSourceGrid:empty),
       .panel.stack:has(> #analyticsFunnel:empty) {
+        display: none;
+      }
+
+      .sending-plan-panel:has(#sendingPlanGrid:empty):has(#sendingPlanTable:empty),
+      .sending-limit-panel:has(#sendingLimitPills:empty) {
         display: none;
       }
 
@@ -8352,14 +8372,14 @@
           <section class="panel stack" id="emailPreviewPanel"></section>
           <section class="panel stack" id="templateTestRecipientPanel"></section>
           <div class="split">
-            <section class="panel stack">
+            <section class="panel stack sending-plan-panel">
               <div class="panel-head"><h2>自動送信予定</h2><span class="pill" id="sendingPlanPill">確認中</span></div>
               <div class="send-check-grid" id="sendingPlanGrid"></div>
               <div id="sendingBlockedReasons" class="send-check-grid"></div>
               <div class="table-wrap"><table id="sendingPlanTable"></table></div>
             </section>
             <aside class="stack">
-              <section class="panel stack">
+              <section class="panel stack sending-limit-panel">
                 <h2>送信制限</h2>
                 <div class="toolbar" id="sendingLimitPills"></div>
                 <p class="muted" id="sendingLimitText"></p>

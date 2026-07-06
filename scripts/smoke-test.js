@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260706_apps_script_full_workflow_v103_empty_metric_panel_guard'), 'v103 app version missing');
+assert(code.includes('20260706_apps_script_full_workflow_v105_empty_table_wrap_guard'), 'v105 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -172,6 +172,11 @@ assert(html.includes('.sync-preview-card'), 'sync preview nested card guard miss
 assert(html.includes('.collection-status-item *'), 'collection status nested card text wrapping guard missing');
 assert(html.includes('.panel:empty'), 'empty dynamic panel guard missing');
 assert(html.includes('.stats-grid:empty'), 'empty stats grid guard missing');
+assert(html.includes('.template-tag-panel:empty'), 'empty template tag panel guard missing');
+assert(html.includes('.lead-quick-views:empty'), 'empty lead quick view guard missing');
+assert(html.includes('.collection-command-center:empty'), 'empty collection command center guard missing');
+assert(html.includes('.table-wrap:has(> table:empty)'), 'empty table wrapper guard missing');
+assert(html.includes('sending-plan-panel:has(#sendingPlanGrid:empty):has(#sendingPlanTable:empty)'), 'empty sending plan panel guard missing');
 assert(html.includes('.dashboard-focus-section:has(.dashboard-signal-grid:empty)'), 'empty dashboard focus section guard missing');
 assert(html.includes('id="gmailOverviewPanel"'), 'Gmail compact overview panel missing');
 assert(html.includes('gmail-accordion-list'), 'Gmail accordion list missing');
