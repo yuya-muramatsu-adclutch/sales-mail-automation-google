@@ -255,6 +255,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 111 / code v111でダッシュボードのAPI連携カードをauto-fitグリッドへ変更。デスクトップ幅では3列相当まで広げ、送信キューとの高さ差で出る左側の空白をさらに抑制しました
 - Apps Script Version 112 / code v112でv111の3列化によるAPI名の不自然な折り返しを修正。デスクトップは読みやすい2列のまま詳細行を畳み、モバイルでは詳細を表示する構成にしました
 - Apps Script Version 113 / code v113でGmail連携/管理の共通ステータスカード内のラベルと詳細を縦積み固定にし、`Google Sheets5,441件` のようにテキストが詰まる崩れを防ぐ余白・折り返し・Pill配置ガードを追加しました
+- Apps Script Version 114 / code v114で管理/Gmailの詳細アコーディオン内カードを上揃えにし、子カードが同じ高さに引き伸ばされてボタンやPillの上に大きな空白が出る状態を抑制しました
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み
