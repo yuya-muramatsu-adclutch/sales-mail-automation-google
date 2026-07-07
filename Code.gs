@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260708_apps_script_full_workflow_v127_serper_credit_refresh_preserve';
+const APP_VERSION = '20260708_apps_script_full_workflow_v128_design_system_polish';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',

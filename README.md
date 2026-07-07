@@ -267,6 +267,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 124 / code v124で営業リスト収集ツールをStep式の収集管理画面へ再構成。初期表示を準備/方法/条件/結果の4ステップ、地域から探す/自動収集/一覧ページの3主操作、結果サマリーに絞り、収集状況・詳細ログ・API設定・検索結果は折りたたみに移動しました
 - Apps Script Version 125 / code v125で営業リスト収集ツールの初期表示をさらに簡素化。ステップバー、状態カード、結果4指標を外し、「今日やること」カード1枚と主ボタンに集約。ほかの収集方法、収集状況、ログ、API設定は必要な時だけ開く形にしました
 - Apps Script Version 127 / code v127でSerper APIキー管理の「残量確認」を実処理化。保存済みキーでSerper残量系エンドポイントを確認し、確認日時、Serper残量、失敗理由をキー行へ保存表示します。検索APIテストで取得済み残量が空へ戻らないよう、検索テスト結果と残量確認結果も分離しました
+- Apps Script Version 128 / code v128で全体デザインのポリッシュレイヤーを追加。カードは白背景と薄い罫線中心、重要状態のみ淡い色面、ボタン階層、Pill小型化、表の密度、カード内余白、見出し階層を全体で揃えました
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み
