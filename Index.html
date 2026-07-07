@@ -8313,6 +8313,135 @@
         font-size: 11px;
       }
 
+      /* v129-header-status-action-pill-rules: common page tops, abnormal-only status, quieter row actions, strict pills. */
+      .section-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 12px 18px;
+        min-height: 72px;
+        padding: 0 0 16px;
+      }
+
+      .section-header > div:first-child {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .section-header .eyebrow {
+        margin: 0;
+      }
+
+      .section-header h1 {
+        margin: 0;
+        line-height: 1.18;
+      }
+
+      .section-header > .toolbar,
+      .section-header > button,
+      .section-header > .button,
+      .section-header > .button-link {
+        align-self: center;
+        justify-self: end;
+      }
+
+      .section-header > .toolbar {
+        justify-content: flex-end;
+        max-width: min(100%, 720px);
+      }
+
+      .app-safety-strip[hidden] {
+        display: none !important;
+      }
+
+      .app-safety-strip.is-alert {
+        border-color: var(--tone-warn-line);
+        background: #fffbeb;
+      }
+
+      .app-safety-strip.is-danger {
+        border-color: var(--tone-danger-line);
+        background: #fff7f7;
+      }
+
+      .app-safety-strip.is-alert .app-safety-chip,
+      .app-safety-strip.is-danger .app-safety-chip {
+        border-color: rgba(148, 163, 184, 0.36);
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .lead-action-cell,
+      .table-action-row,
+      .template-action-row,
+      .job-result-actions,
+      .excluded-domain-actions {
+        align-items: center;
+        gap: 4px;
+      }
+
+      .table-link-button,
+      .table-danger-button {
+        min-height: 26px;
+        max-width: 168px;
+        padding: 4px 8px;
+        border-radius: 7px;
+        font-size: 11px;
+        line-height: 1.25;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .table-link-button:not(.primary-action):not(.danger) {
+        color: #334155;
+      }
+
+      .table-link-button.primary-action {
+        border-color: #111827;
+        background: #111827;
+        color: #ffffff;
+      }
+
+      .table-link-button.danger,
+      .table-danger-button {
+        border-color: #fecaca;
+        background: #fff7f7;
+        color: #b91c1c;
+      }
+
+      .lead-action-cell .table-link-button:not(:first-child),
+      .table-action-row .table-link-button:not(.primary-action):not(:first-child),
+      .template-action-row .table-link-button:not(.primary-action):not(:first-child),
+      .job-result-actions .table-link-button:not(.primary-action),
+      .excluded-domain-actions .table-link-button:not(:first-child) {
+        border-color: #e2e8f0;
+        background: #ffffff;
+        color: #475569;
+      }
+
+      .status-pill,
+      .pill {
+        max-width: min(100%, 13rem);
+        overflow: hidden;
+        overflow-wrap: normal;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+
+      .settings-status-item .pill,
+      .readiness-item .pill,
+      .app-safety-chip .pill {
+        max-width: 9.5rem;
+      }
+
+      .lead-dialog-status-pills .pill,
+      .status-stack .pill,
+      .contact-channel-cell .pill {
+        max-width: 11rem;
+      }
+
       @media (max-width: 900px) {
         .app {
           grid-template-columns: 1fr;
@@ -8531,6 +8660,18 @@
         .main-toolbar {
           align-items: stretch;
           flex-direction: column;
+        }
+
+        .section-header {
+          grid-template-columns: 1fr;
+          min-height: 0;
+        }
+
+        .section-header > .toolbar,
+        .section-header > button,
+        .section-header > .button,
+        .section-header > .button-link {
+          justify-self: stretch;
         }
 
         .toolbar,
@@ -10227,41 +10368,117 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const sendWindow = data.sendWindow || {};
         const gmailReady = integrations.gmail !== false;
         const mailControlEnabled = data.mailSendingEnabled !== false;
-        const mailReady = gmailReady && (data.todayRemaining || 0) > 0;
+        const mailRemaining = Number(data.todayRemaining);
+        const mailRemainingKnown = Number.isFinite(mailRemaining);
+        const mailReady = gmailReady && (!mailRemainingKnown || mailRemaining > 0);
         const sendWindowAllowed = sendWindow.allowed !== false && sendWindow.enabled !== false;
         const sendingEnabled = mailControlEnabled && mailReady && sendWindowAllowed;
-        const reason = sendingEnabled
-          ? '自動送信だけ時間制限内で実行します'
-          : !mailControlEnabled
-            ? (data.mailSendingReason || '安全のため自動送信を停止しています')
-          : !gmailReady
-            ? 'Gmail送信枠または承認状態を確認してください'
-            : (data.todayRemaining || 0) <= 0
-              ? '本日の送信上限に達しています'
-              : '自動送信時間外または時間制限OFFです';
         const serperReady = Boolean(data.serperConfigured);
-        const serperLabel = serperReady ? `${formatNumber(data.serperTodayRemaining || 0)}件` : '未設定';
+        const serperRemaining = Number(data.serperTodayRemaining);
+        const serperRemainingKnown = Number.isFinite(serperRemaining);
+        const issues = [];
+        if (!mailControlEnabled) {
+          issues.push({
+            icon: 'shieldCheck',
+            label: '自動送信',
+            value: '停止中',
+            tone: 'bad',
+            headline: '自動送信 停止中',
+            detail: data.mailSendingReason || '安全のため自動送信を停止しています',
+          });
+        }
+        if (!gmailReady) {
+          issues.push({
+            icon: 'mailCheck',
+            label: 'Gmail',
+            value: '確認',
+            tone: 'bad',
+            headline: 'Gmail確認が必要',
+            detail: 'Gmail送信枠または承認状態を確認してください',
+          });
+        }
+        if (mailRemainingKnown && mailRemaining <= 0) {
+          issues.push({
+            icon: 'mailCheck',
+            label: '送信枠',
+            value: '0件',
+            tone: 'warn',
+            headline: '本日の送信上限',
+            detail: '本日の送信上限に達しています',
+          });
+        }
+        if (!sendWindowAllowed) {
+          issues.push({
+            icon: 'clock3',
+            label: '送信時間',
+            value: sendWindow.label || '時間外',
+            tone: 'warn',
+            headline: '送信時間外',
+            detail: '自動送信時間外または時間制限OFFです',
+          });
+        }
+        if (integrations.calendar === false) {
+          issues.push({
+            icon: 'plug',
+            label: 'Calendar',
+            value: '確認',
+            tone: 'warn',
+            headline: 'Calendar確認が必要',
+            detail: '商談登録を使う場合はCalendar承認を確認してください',
+          });
+        }
+        if (!serperReady) {
+          issues.push({
+            icon: 'plug',
+            label: 'Serper',
+            value: '未設定',
+            tone: 'warn',
+            headline: 'Serper未設定',
+            detail: '営業リスト収集を使う場合はSerper APIキーを設定してください',
+          });
+        } else if (serperRemainingKnown && serperRemaining <= 0) {
+          issues.push({
+            icon: 'plug',
+            label: 'Serper残量',
+            value: '0件',
+            tone: 'warn',
+            headline: 'Serper残量なし',
+            detail: '検索APIの残量を確認してください',
+          });
+        }
+        if (!issues.length && sendingEnabled) {
+          target.hidden = true;
+          target.innerHTML = '';
+          target.className = 'app-safety-strip';
+          return;
+        }
+        if (!issues.length) {
+          target.hidden = true;
+          target.innerHTML = '';
+          target.className = 'app-safety-strip';
+          return;
+        }
+        const primaryIssue = issues[0];
+        const severityClass = issues.some((item) => item.tone === 'bad') ? 'is-danger' : 'is-alert';
+        target.hidden = false;
+        target.className = `app-safety-strip ${severityClass}`;
         target.innerHTML = `
           <div class="app-safety-strip-main">
-            <span class="app-safety-icon ${sendingEnabled ? 'ok' : ''}">${legacyUiIcon('shieldCheck')}</span>
+            <span class="app-safety-icon">${legacyUiIcon(primaryIssue.icon || 'shieldCheck')}</span>
             <div>
-              <strong>自動送信 ${sendingEnabled ? '稼働中' : '停止中'}</strong>
-              <span>${escapeHtml(reason)}</span>
+              <strong>${escapeHtml(primaryIssue.headline || '運用確認が必要')}</strong>
+              <span>${escapeHtml(primaryIssue.detail || '設定と残量を確認してください')}</span>
             </div>
           </div>
-          <div class="app-safety-strip-items">
-            <span class="app-safety-chip">${legacyUiIcon('clock3')}送信時間 ${statusTonePill(sendWindow.label || '確認中', sendWindowAllowed ? 'good' : 'warn')}</span>
-            <span class="app-safety-chip">${legacyUiIcon('shieldCheck')}自動送信 ${statusTonePill(mailControlEnabled ? '稼働中' : '停止中', mailControlEnabled ? 'good' : 'bad')}</span>
-            <span class="app-safety-chip">${legacyUiIcon('mailCheck')}Gmail ${statusTonePill(gmailReady ? 'OK' : '確認', gmailReady ? 'good' : 'bad')}</span>
-            <span class="app-safety-chip">${legacyUiIcon('plug')}Calendar ${statusTonePill(integrations.calendar !== false ? 'OK' : '確認', integrations.calendar !== false ? 'good' : 'warn')}</span>
-            <span class="app-safety-chip">${legacyUiIcon('plug')}Serper残量 ${statusTonePill(serperLabel, serperReady ? ((data.serperTodayRemaining || 0) > 0 ? 'good' : 'warn') : 'warn')}</span>
-          </div>
+          <div class="app-safety-strip-items">${issues.map((item) => `
+            <span class="app-safety-chip">${legacyUiIcon(item.icon)}${escapeHtml(item.label)} ${statusTonePill(item.value, item.tone)}</span>
+          `).join('')}</div>
         `;
       }
 
       function statusTonePill(label, tone) {
         const normalizedTone = tone === 'good' ? 'ok good' : (tone || '');
-        return `<span class="status-pill pill ${escapeHtml(normalizedTone)}">${escapeHtml(label)}</span>`;
+        return `<span class="status-pill pill ${escapeHtml(normalizedTone)}" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
       }
 
       function hideAuthorizationGate() {
@@ -19170,7 +19387,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const info = ['初回メール送信済み', '2ヶ月後メール送信済み', '送信済み', '要確認'];
         const tone = danger.includes(status) ? 'bad' : warn.includes(status) ? 'warn' : good.includes(status) ? 'good' : info.includes(status) ? 'info' : '';
         const normalizedTone = tone === 'good' ? 'ok good' : tone;
-        return `<span class="status-pill pill ${normalizedTone}">${escapeHtml(status || '未設定')}</span>`;
+        const label = status || '未設定';
+        return `<span class="status-pill pill ${normalizedTone}" title="${escapeHtml(label)}">${escapeHtml(label)}</span>`;
       }
 
       function leadRowClass(lead) {

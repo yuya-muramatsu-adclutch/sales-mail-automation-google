@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260708_apps_script_full_workflow_v128_design_system_polish'), 'v128 app version missing');
+assert(code.includes('20260708_apps_script_full_workflow_v129_header_status_action_pill_rules'), 'v129 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -155,6 +155,14 @@ assert(html.includes('--role-primary: #111827'), 'design color role token missin
 assert(html.includes('.status-pill,\n      .pill') && html.includes('font-size: 11px'), 'compact status pill rule missing');
 assert(html.includes('table {\n        font-size: 12px;'), 'dense table typography rule missing');
 assert(html.includes('.panel,\n      .template-sender-banner'), 'quiet panel/card rule missing');
+assert(html.includes('v129-header-status-action-pill-rules'), 'v129 design rule layer missing');
+assert(html.includes('grid-template-columns: minmax(0, 1fr) auto'), 'common section header layout missing');
+assert(html.includes('.app-safety-strip[hidden]'), 'normal status strip hide rule missing');
+assert(html.includes('if (!issues.length && sendingEnabled)'), 'normal app safety status should hide when healthy');
+assert(html.includes('target.className = `app-safety-strip ${severityClass}`'), 'abnormal status tone class missing');
+assert(html.includes('.lead-action-cell,\n      .table-action-row,\n      .template-action-row,\n      .job-result-actions,\n      .excluded-domain-actions'), 'table row action hierarchy selector missing');
+assert(html.includes('max-width: min(100%, 13rem);'), 'strict pill max-width rule missing');
+assert(html.includes('title="${escapeHtml(label)}"'), 'pill full-label title guard missing');
 assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
 assert(html.includes("icon: 'keyRound', label: 'OAuth Client'"), 'legacy Google credentials OAuth icon missing');
 assert(html.includes("icon: 'refreshCw', label: 'Refresh Token'"), 'legacy Google credentials refresh icon missing');
@@ -232,10 +240,10 @@ assert(html.includes('.template-test-layout,'), 'legacy template test dialog res
 assert(html.includes('runTemplateTestSend'), 'legacy template test dialog send action missing');
 assert(html.includes("legacyUiIcon('send')}この内容でテスト送信"), 'legacy template test send icon button missing');
 assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
-assert(html.includes("legacyUiIcon('shieldCheck')"), 'legacy safety strip shield icon missing');
-assert(html.includes("legacyUiIcon('clock3')"), 'legacy safety strip clock icon missing');
-assert(html.includes("legacyUiIcon('mailCheck')"), 'legacy safety strip Gmail icon missing');
-assert(html.includes("legacyUiIcon('plug')"), 'legacy safety strip plug icon missing');
+assert(html.includes("icon: 'shieldCheck'"), 'abnormal safety strip shield issue icon missing');
+assert(html.includes("icon: 'clock3'"), 'abnormal safety strip clock issue icon missing');
+assert(html.includes("icon: 'mailCheck'"), 'abnormal safety strip Gmail issue icon missing');
+assert(html.includes("icon: 'plug'"), 'abnormal safety strip plug issue icon missing');
 assert(html.includes('settings-status-item with-icon'), 'legacy admin status icon row missing');
 assert(html.includes('readiness-item with-icon'), 'legacy readiness icon row missing');
 assert(html.includes('.readiness-item > div'), 'legacy readiness label/detail vertical stack missing');

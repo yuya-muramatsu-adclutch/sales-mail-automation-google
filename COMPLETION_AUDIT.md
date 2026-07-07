@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @128 / code v128: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @129 / code v129: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260708_apps_script_full_workflow_v128_design_system_polish`
+- Code version: `20260708_apps_script_full_workflow_v129_header_status_action_pill_rules`
 
 ## 計画書との対応
 
@@ -111,6 +111,7 @@
 | 営業リスト収集ツール集中表示化 | 完了 | code v125で初期表示を「今日やること」カード1枚に集約。ステップバー、状態カード、結果4指標を初期表示から外し、ほかの収集方法、収集状況、ログ、API設定は折りたたみへ移動 |
 | Serper残量確認実動作化 | 完了 | code v127でSerper APIキー管理の「残量確認」を単なる再読込から専用API `refreshSerperCredits()` に変更。保存済みキーでSerper残量系エンドポイントを確認し、確認日時、残量、失敗理由をキー行へ保存表示。検索APIテスト結果と残量確認結果を分離し、検索テストで取得済み残量が空に戻らないよう調整 |
 | 全体デザインポリッシュ | 完了 | code v128で全体CSSに `design-system-polish` レイヤーを追加。カードを白背景と薄い罫線中心に抑え、重要状態のみ淡い色面に限定。ボタン階層、Pill小型化、表の密度、カード内余白、見出し階層を全体で統一 |
+| 全体デザインルール強化 | 完了 | code v129で各ページ上部を共通フォーマットへ統一。正常時の運用ステータス帯を非表示化し、異常時のみ原因チップを表示。行アクションの強弱とPillの最大幅/省略/title保持を追加 |
 | 初回起動遅延改善 | 完了 | code v91で原因を `getInitialData()` の全件ダッシュボード集計、毎回の `setup()`、マスタ/設定/スキーマ/Serper集計、起動時の他メニュー全取得と特定。起動は軽量ダッシュボード + 確認待ちリストに限定し、詳細集計と各メニュー用データは背景/タブ表示時に遅延ロード。初回の確認待ち取得はquiet通信にして表示後のナビ操作をブロックしない |
 | Gmail API連携設定 | 完了 | code v94で `MailApp` 用 `script.send_mail` と `GmailApp` 用 `https://mail.google.com/` をOAuth scopeへ追加し、Gmail連携画面から承認状態、Google認可URL、非送信の連携テストを確認できるようにした。認可リンクのアイコン巨大化と追加承認待ちの空パネル表示も修正 |
 | Gmail承認状態判定修正 | 完了 | code v95で `NOT_REQUIRED` を `REQUIRED` の部分一致として扱い、承認後もGmail連携画面だけ要承認になる判定バグを修正 |
@@ -507,6 +508,16 @@
 - 既存Web app URLを `clasp deploy -V 128 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 128へ再デプロイ済み。
 - `clasp deployments` で既存Web app URLが `@128 - apps-script-full-workflow-v128-design-system-polish-on-existing-url` を指すことを確認。
 - Chrome実表示確認は、Google Apps Scriptの `Authorization required` 画面が先に表示されたためアプリ画面まで未到達。承認操作はユーザーアカウント権限に関わるため未実施。
+
+## 2026-07-08 v129 上部/ステータス/Pill/行アクション整理
+
+- `node scripts/smoke-test.js` 成功。`v129-header-status-action-pill-rules`, 共通section header、正常時ステータス非表示、異常時status class、行アクション階層、Pill最大幅/title保持を確認。
+- `git diff --check` 成功。
+- `clasp push -f` 成功。
+- `clasp version "apps-script-full-workflow-v129-header-status-action-pill-rules"` でVersion 129を作成済み。
+- 既存Web app URLを `clasp deploy -V 129 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 129へ再デプロイ済み。
+- `clasp deployments` で既存Web app URLが `@129 - apps-script-full-workflow-v129-header-status-action-pill-rules-on-existing-url` を指すことを確認。
+- Chrome実表示確認は、Google Apps Scriptの `Authorization required` 画面が先に表示された場合、承認操作がユーザーアカウント権限に関わるため未実施。
 
 ## 運用時に確認する外部依存
 
