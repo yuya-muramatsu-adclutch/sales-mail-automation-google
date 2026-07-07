@@ -1,13 +1,13 @@
 # 完成監査メモ
 
-最終更新: 2026-07-07
+最終更新: 2026-07-08
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @124 / code v124: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @125 / code v125: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260707_apps_script_full_workflow_v124_collection_step_manager`
+- Code version: `20260708_apps_script_full_workflow_v125_collection_focus_card`
 
 ## 計画書との対応
 
@@ -108,13 +108,14 @@
 | 営業リスト収集ツール空パネル抑制 | 完了 | code v120で未実行時の自動収集進捗/結果一覧パネルを初期表示しないようにし、収集管理画面の下に大きな空白カードが残る状態を解消 |
 | 営業リスト収集ツールアイコン崩れ修正 | 完了 | code v121で収集管理カード/概要カード/詳細アコーディオン内SVGにサイズ指定を追加し、概要アイコンが巨大化して画面下部に大きな余白を作る崩れを解消 |
 | 営業リスト収集ツールStep式化 | 完了 | code v124で初期表示を準備/方法/条件/結果の4ステップ、地域から探す/自動収集/一覧ページの3主操作、結果サマリーに整理。収集状況、小規模検索ジョブ、検索結果、Serperキー、使用量ログは詳細アコーディオンへ移動し、地域検索フォームは検索語プレビューを入力に合わせて更新 |
+| 営業リスト収集ツール集中表示化 | 完了 | code v125で初期表示を「今日やること」カード1枚に集約。ステップバー、状態カード、結果4指標を初期表示から外し、ほかの収集方法、収集状況、ログ、API設定は折りたたみへ移動 |
 | 初回起動遅延改善 | 完了 | code v91で原因を `getInitialData()` の全件ダッシュボード集計、毎回の `setup()`、マスタ/設定/スキーマ/Serper集計、起動時の他メニュー全取得と特定。起動は軽量ダッシュボード + 確認待ちリストに限定し、詳細集計と各メニュー用データは背景/タブ表示時に遅延ロード。初回の確認待ち取得はquiet通信にして表示後のナビ操作をブロックしない |
 | Gmail API連携設定 | 完了 | code v94で `MailApp` 用 `script.send_mail` と `GmailApp` 用 `https://mail.google.com/` をOAuth scopeへ追加し、Gmail連携画面から承認状態、Google認可URL、非送信の連携テストを確認できるようにした。認可リンクのアイコン巨大化と追加承認待ちの空パネル表示も修正 |
 | Gmail承認状態判定修正 | 完了 | code v95で `NOT_REQUIRED` を `REQUIRED` の部分一致として扱い、承認後もGmail連携画面だけ要承認になる判定バグを修正 |
 | 管理画面レイアウト改善 | 完了 | code v96で管理トップのカード密度を下げ、主要ステータス/本番前確認/自動運用サマリーを初期表示に集約。DB/Gmail詳細、マスター管理、ログ/メンテナンスはアコーディオン化 |
 | 管理画面カード余白調整 | 完了 | code v97で管理ページ配下のカードpadding、見出し余白、ステータス項目、詳細アコーディオン、自動運用サマリーの間隔を調整し、旧gridが表示されても横詰まりしにくい指定を追加 |
 | Gmail連携画面レイアウト改善 | 完了 | code v98でGmail連携ページの初期表示をサマリー中心に整理し、連携診断/テスト送信履歴/返信チェック/送信ロックをアコーディオン化。カードpadding、見出し余白、ステータス項目の間隔も調整 |
-| 全体カード余白調整 | 進行中 | code v124で共通カード余白トークンを維持しつつ、空の `.exclusion-hero-panel` / 動的`.panel` / 統計グリッド / テンプレートタグパネル / テーブル枠などを非表示化。フォーム送信リストの空対象カード、ダッシュボードの高さ揃え、営業リスト表示項目アコーディオン、自動収集進捗/Serper設定ガイドのSVG巨大化に加え、Gmail連携の初期表示を3カードへ整理し、親カードのpadding、説明文、Pill配置、レスポンシブ折り返しを調整。さらにダッシュボード上部API連携カードを読みやすい2列コンパクト表示にし、管理/Gmailの詳細アコーディオン内カードを上揃えにして、子カードが同じ高さに引き伸ばされる状態を抑制。テンプレート画面を一覧中心に整理し、今回、営業リスト収集ツールをStep式の収集管理画面に再構成して初期表示の情報量と迷いをさらに下げた。主要/残り画面の実表示確認を継続 |
+| 全体カード余白調整 | 進行中 | code v125で共通カード余白トークンを維持しつつ、空の `.exclusion-hero-panel` / 動的`.panel` / 統計グリッド / テンプレートタグパネル / テーブル枠などを非表示化。フォーム送信リストの空対象カード、ダッシュボードの高さ揃え、営業リスト表示項目アコーディオン、自動収集進捗/Serper設定ガイドのSVG巨大化に加え、Gmail連携の初期表示を3カードへ整理し、親カードのpadding、説明文、Pill配置、レスポンシブ折り返しを調整。さらにダッシュボード上部API連携カードを読みやすい2列コンパクト表示にし、管理/Gmailの詳細アコーディオン内カードを上揃えにして、子カードが同じ高さに引き伸ばされる状態を抑制。テンプレート画面を一覧中心に整理し、今回、営業リスト収集ツールを「今日やること」カード1枚に集約して初期表示の判断数をさらに下げた。主要/残り画面の実表示確認を継続 |
 | 旧アプリメール送信制御カード反映 | 完了 | 旧 `MailSendingControlCard` に合わせ、code v42で `mail_sending_control` 設定、ダッシュボードの自動送信ON/OFF、送信停止時の安全バー/送信プレビュー表示を反映 |
 | 旧アプリ送信プレビュー確認UI反映 | 完了 | 旧 `EmailPreviewPanel` に合わせ、code v43で対象リスト自動送信カード、確認ダイアログ、送信候補プレビュー、送信可否Pillを反映 |
 | 旧アプリGmailテスト送信履歴反映 | 完了 | 旧Gmail連携画面に合わせ、code v44でテスト送信履歴、成功/失敗サマリー、失敗理由詳細、テンプレート画面導線を反映 |
@@ -474,6 +475,16 @@
 - `clasp deployments` で既存Web app URLが `@39 - apps-script-full-workflow-v39-gmail-reply-calendar-panels-on-existing-url` を指すことを確認
 - code v39ローカルスモークで `gmailReplyCheckPanel`, `adminGmailReplyCheckPanel`, `calendarAutoCreateSettingsPanel`, `scanReplyFalsePositives`, `listReplyFalsePositiveCandidates` が含まれることを確認
 - `.gs` 全ファイルのNode構文チェック成功、`node scripts/smoke-test.js` 成功、`git diff --check` 成功
+
+## 2026-07-08 v125 収集ツール集中表示
+
+- `node scripts/smoke-test.js` 成功。`collection-focus-panel`, `collection-focus-meta`, `collectionPrimaryAction`, `ほかの収集方法・詳細`, `collectionSupportDetails`, `updateCollectionAreaPreview` を確認。
+- `git diff --check` 成功。
+- `clasp push -f` 成功。
+- `clasp version "apps-script-full-workflow-v125-collection-focus-card"` でVersion 125を作成済み。
+- 既存Web app URLを `clasp deploy -V 125 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 125へ再デプロイ済み。
+- `clasp deployments` で既存Web app URLが `@125 - apps-script-full-workflow-v125-collection-focus-card-on-existing-url` を指すことを確認。
+- Chrome実表示確認は、Google Apps Scriptの `Authorization required` 画面が先に表示されたため収集画面まで未到達。承認操作はユーザーアカウント権限に関わるため未実施。
 
 ## 運用時に確認する外部依存
 
