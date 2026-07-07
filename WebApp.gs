@@ -79,6 +79,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'updateReason') return updateReason(data.id, data.patch || data);
   if (action === 'saveSerperApiKey') return saveSerperApiKey(data.apiKey || data.api_key || data.key);
   if (action === 'listSerperApiKeyManager') return listSerperApiKeyManager();
+  if (action === 'refreshSerperCredits') return refreshSerperCredits();
   if (action === 'saveSerperApiKeyEntry') return saveSerperApiKeyEntry(data);
   if (action === 'updateSerperApiKeyEntry') return updateSerperApiKeyEntry(data.id, data.patch || data);
   if (action === 'deleteSerperApiKeyEntry') return deleteSerperApiKeyEntry(data.id);

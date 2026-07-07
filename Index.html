@@ -13401,12 +13401,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const readonly = item.readonly === true;
         const statusTone = item.last_status === '利用可能' ? 'good' : item.last_status === 'エラー' || item.last_status === '残量なし' ? 'warn' : 'info';
         const searchTone = item.last_search_status === '成功' ? 'good' : item.last_search_status === '失敗' ? 'warn' : 'info';
+        const remainingLabel = item.last_remaining || (item.last_status === 'エラー' ? '取得失敗' : '-');
         return `
           <div class="api-key-item">
             <div>
               <strong><span class="api-key-icon" aria-hidden="true">${item.role === 'main' ? 'M' : 'S'}</span>${escapeHtml(item.name || 'Serperキー')}</strong>
               <span>${escapeHtml(item.role === 'main' ? 'メイン' : 'サブ')} / ${escapeHtml(item.key_mask || '****')} / ${escapeHtml(item.source === 'env' ? 'PropertiesService' : 'WEB管理')}</span>
-              <small>残量確認: ${escapeHtml(dateTimeLabel(item.last_checked_at) || '-')} / 残量: ${escapeHtml(item.last_remaining || '-')}</small>
+              <small>残量確認: ${escapeHtml(dateTimeLabel(item.last_checked_at) || '-')} / Serper残量: ${escapeHtml(remainingLabel)}</small>
               <small>検索テスト: ${escapeHtml(item.last_search_status || '未確認')} / ${escapeHtml(dateTimeLabel(item.last_search_test_at) || '-')} / 結果: ${escapeHtml(item.last_search_result_count || '-')}件</small>
               ${item.last_error ? `<small class="error-text">${escapeHtml(item.last_error)}</small>` : ''}
               ${item.last_search_error ? `<small class="error-text">${escapeHtml(item.last_search_error)}</small>` : ''}
@@ -13445,10 +13446,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function refreshSerperKeyManager() {
-        const result = await api('listSerperApiKeyManager');
+        const result = await api('refreshSerperCredits');
         state.serper = result || state.serper;
         renderSerperKeyManager(state.serper);
-        message('Serper APIキー管理を更新しました', 'ok');
+        message((result && result.message) || 'Serper残量を確認しました', 'ok');
       }
 
       async function toggleSerperKeyActive(id, active) {

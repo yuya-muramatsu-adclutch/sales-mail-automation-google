@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260708_apps_script_full_workflow_v125_collection_focus_card'), 'v125 app version missing');
+assert(code.includes('20260708_apps_script_full_workflow_v127_serper_credit_refresh_preserve'), 'v127 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -271,6 +271,9 @@ assert(html.includes("icon: 'searchCheck', label: 'Serper'"), 'legacy admin Serp
 assert(html.includes("icon: 'serverCog', label: 'GAS分割処理'"), 'legacy admin server cog status item missing');
 assert(html.includes("legacyUiIcon('keyRound')"), 'legacy Serper setup key icon missing');
 assert(html.includes("legacyUiIcon('refreshCw')}残量確認"), 'legacy Serper refresh icon missing');
+assert(html.includes("api('refreshSerperCredits')"), 'Serper remaining credit refresh should call the server credit checker');
+assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('function refreshSerperCredits'), 'Serper credit refresh API missing');
+assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('SERPER_CREDIT_ENDPOINTS'), 'Serper credit endpoint fallback list missing');
 assert(html.includes("legacyUiIcon('searchCheck')}検索APIテスト"), 'legacy Serper search test icon missing');
 assert(html.includes("legacyUiIcon('serverCog')}<span>環境変数ではなくApps ScriptのPropertiesService"), 'legacy Serper setup command icon missing');
 assert(!html.includes('aria-hidden=\"true\">SK</span>'), 'legacy Serper summary text badge should be icon');
@@ -663,6 +666,7 @@ assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflec
   'updateReason',
   'saveSerperApiKey',
   'listSerperApiKeyManager',
+  'refreshSerperCredits',
   'saveSerperApiKeyEntry',
   'updateSerperApiKeyEntry',
   'deleteSerperApiKeyEntry',

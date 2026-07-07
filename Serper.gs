@@ -1,4 +1,9 @@
 const SERPER_SEARCH_ENDPOINT = 'https://google.serper.dev/search';
+const SERPER_CREDIT_ENDPOINTS = Object.freeze([
+  'https://google.serper.dev/account',
+  'https://google.serper.dev/credits',
+  'https://google.serper.dev/usage',
+]);
 
 function getSerperApiKeyInfo() {
   const key = getSerperApiKey_();
@@ -31,6 +36,59 @@ function testSerperApiKey() {
 
 function listSerperApiKeyManager() {
   return buildSerperApiKeyManagerInfo_();
+}
+
+function refreshSerperCredits() {
+  return withScriptLock_('refreshSerperCredits', function () {
+    const now = nowIso_();
+    const legacyKey = String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SERPER_API_KEY) || '').trim();
+    let records = readSerperApiKeyRecords_();
+    if (!records.length && legacyKey) {
+      records = [{
+        active: true,
+        created_at: now,
+        id: Utilities.getUuid(),
+        key: legacyKey,
+        last_checked_at: '',
+        last_error: '',
+        last_remaining: '',
+        last_search_error: '',
+        last_search_result_count: '',
+        last_search_status: '未確認',
+        last_search_test_at: '',
+        last_status: '未確認',
+        name: 'PropertiesService メインキー',
+        role: 'main',
+        source: 'env',
+        updated_at: now,
+      }];
+    }
+    if (!records.length) {
+      return buildSerperApiKeyManagerInfo_('Serper APIキーが未設定です。');
+    }
+
+    const nextRecords = records.map(function (record) {
+      if (record.active === false) {
+        return Object.assign({}, record, {
+          last_checked_at: now,
+          last_error: '無効なキーのため残量確認をスキップしました。',
+          last_status: '無効',
+          updated_at: now,
+        });
+      }
+      const result = fetchSerperCreditInfo_(record.key);
+      return Object.assign({}, record, {
+        last_checked_at: now,
+        last_error: result.ok ? '' : result.errorMessage,
+        last_remaining: result.remainingLabel || '',
+        last_status: result.ok ? (result.remainingZero ? '残量なし' : '利用可能') : 'エラー',
+        updated_at: now,
+      });
+    });
+    writeSerperApiKeyRecords_(nextRecords);
+    syncPrimarySerperApiKeyProperty_(nextRecords);
+    return buildSerperApiKeyManagerInfo_('Serper残量を確認しました。');
+  });
 }
 
 function saveSerperApiKeyEntry(input) {
@@ -582,6 +640,8 @@ function callSerperSearch_(query, options) {
     data = { raw: text };
   }
 
+  const creditInfo = extractSerperCreditInfo_(data, response.getAllHeaders ? response.getAllHeaders() : {});
+
   logSerperUsage_({
     credits: 1,
     jobId: input.jobId || null,
@@ -595,6 +655,10 @@ function callSerperSearch_(query, options) {
     errorMessage: code >= 200 && code < 300 ? '' : String(data.message || text || 'Serper request failed'),
   });
 
+  if (creditInfo.remainingLabel) {
+    recordSerperActiveKeyCreditResult_(creditInfo);
+  }
+
   if (code < 200 || code >= 300) {
     throw new Error('Serper request failed: HTTP ' + code + ' ' + String(data.message || text));
   }
@@ -603,6 +667,165 @@ function callSerperSearch_(query, options) {
     organic: Array.isArray(data.organic) ? data.organic : [],
     raw: data,
   };
+}
+
+function fetchSerperCreditInfo_(apiKey) {
+  const key = String(apiKey || '').trim();
+  if (!key) {
+    return {
+      ok: false,
+      errorMessage: 'Serper APIキーが空です。',
+      remainingLabel: '',
+      remainingZero: false,
+    };
+  }
+
+  const errors = [];
+  for (let index = 0; index < SERPER_CREDIT_ENDPOINTS.length; index += 1) {
+    const endpoint = SERPER_CREDIT_ENDPOINTS[index];
+    try {
+      const response = UrlFetchApp.fetch(endpoint, {
+        method: 'get',
+        headers: {
+          'X-API-KEY': key,
+          Accept: 'application/json',
+        },
+        muteHttpExceptions: true,
+      });
+      const code = response.getResponseCode();
+      const text = response.getContentText();
+      let data = {};
+      try {
+        data = JSON.parse(text || '{}');
+      } catch (error) {
+        data = { raw: text };
+      }
+      const creditInfo = extractSerperCreditInfo_(data, response.getAllHeaders ? response.getAllHeaders() : {});
+      if (code >= 200 && code < 300 && creditInfo.remainingLabel) {
+        return {
+          ok: true,
+          endpoint: endpoint,
+          errorMessage: '',
+          remainingLabel: creditInfo.remainingLabel,
+          remainingZero: creditInfo.remainingZero,
+        };
+      }
+      const message = String(data.message || data.error || text || '残量項目なし').slice(0, 180);
+      errors.push(endpoint.replace('https://google.serper.dev', '') + ': HTTP ' + code + ' ' + message);
+    } catch (error) {
+      errors.push(endpoint.replace('https://google.serper.dev', '') + ': ' + (error.message || String(error)));
+    }
+  }
+
+  return {
+    ok: false,
+    errorMessage: 'Serper残量APIから残量を取得できませんでした。' + errors.join(' / '),
+    remainingLabel: '',
+    remainingZero: false,
+  };
+}
+
+function extractSerperCreditInfo_(payload, headers) {
+  const headerValue = readNumericHeader_(headers, [
+    'x-credits-left',
+    'x-credit-left',
+    'x-credits-remaining',
+    'x-credit-remaining',
+    'x-ratelimit-remaining',
+    'credits-remaining',
+  ]);
+  if (headerValue !== '') {
+    return buildSerperCreditInfo_(headerValue);
+  }
+
+  const remaining = findSerperCreditValue_(payload, [
+    'remainingCredits',
+    'creditsRemaining',
+    'remaining_credits',
+    'credits_remaining',
+    'creditBalance',
+    'credit_balance',
+    'balance',
+    'credits',
+    'credit',
+    'remaining',
+  ], 0);
+  if (remaining !== '') {
+    return buildSerperCreditInfo_(remaining);
+  }
+
+  return {
+    remainingLabel: '',
+    remainingZero: false,
+  };
+}
+
+function readNumericHeader_(headers, names) {
+  const source = headers && typeof headers === 'object' ? headers : {};
+  const normalized = {};
+  Object.keys(source).forEach(function (key) {
+    normalized[String(key).toLowerCase()] = source[key];
+  });
+  for (let index = 0; index < names.length; index += 1) {
+    const value = normalized[String(names[index]).toLowerCase()];
+    if (value === undefined || value === null || value === '') continue;
+    const numeric = normalizeSerperCreditNumber_(value);
+    if (numeric !== '') return numeric;
+  }
+  return '';
+}
+
+function findSerperCreditValue_(value, keys, depth) {
+  if (depth > 4 || value === null || value === undefined) return '';
+  if (typeof value === 'number' || typeof value === 'string') {
+    return '';
+  }
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const nested = findSerperCreditValue_(value[index], keys, depth + 1);
+      if (nested !== '') return nested;
+    }
+    return '';
+  }
+  if (typeof value !== 'object') return '';
+
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
+    const numeric = normalizeSerperCreditNumber_(value[key]);
+    if (numeric !== '') return numeric;
+  }
+
+  const objectKeys = Object.keys(value);
+  for (let index = 0; index < objectKeys.length; index += 1) {
+    const nested = findSerperCreditValue_(value[objectKeys[index]], keys, depth + 1);
+    if (nested !== '') return nested;
+  }
+  return '';
+}
+
+function normalizeSerperCreditNumber_(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const text = String(value || '').replace(/,/g, '').trim();
+  if (!text) return '';
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  if (!match) return '';
+  const number = Number(match[0]);
+  return Number.isFinite(number) ? number : '';
+}
+
+function buildSerperCreditInfo_(remaining) {
+  const number = normalizeSerperCreditNumber_(remaining);
+  return {
+    remainingLabel: number === '' ? '' : formatSerperCreditNumber_(number) + ' credits',
+    remainingZero: number !== '' && number <= 0,
+  };
+}
+
+function formatSerperCreditNumber_(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value || '');
+  return number.toLocaleString ? number.toLocaleString('en-US') : String(number);
 }
 
 function assertSerperLimitAvailable_(leadId) {
@@ -854,14 +1077,32 @@ function recordSerperActiveKeyTestResult_(ok, resultCount, errorMessage) {
   const nextRecords = records.map(function (record) {
     if (record.id !== selected.id) return record;
     return Object.assign({}, record, {
-      last_checked_at: now,
-      last_error: ok ? '' : errorMessage,
-      last_remaining: '',
+      last_checked_at: record.last_checked_at || '',
+      last_error: ok ? (record.last_error || '') : errorMessage,
+      last_remaining: record.last_remaining || '',
       last_search_error: ok ? '' : errorMessage,
       last_search_result_count: Number(resultCount || 0),
       last_search_status: ok ? '成功' : '失敗',
       last_search_test_at: now,
       last_status: ok ? '利用可能' : 'エラー',
+      updated_at: now,
+    });
+  });
+  writeSerperApiKeyRecords_(nextRecords);
+}
+
+function recordSerperActiveKeyCreditResult_(creditInfo) {
+  const records = readSerperApiKeyRecords_();
+  const selected = selectPrimarySerperApiKeyRecord_(records);
+  if (!selected) return;
+  const now = nowIso_();
+  const nextRecords = records.map(function (record) {
+    if (record.id !== selected.id) return record;
+    return Object.assign({}, record, {
+      last_checked_at: now,
+      last_error: '',
+      last_remaining: creditInfo.remainingLabel || record.last_remaining || '',
+      last_status: creditInfo.remainingZero ? '残量なし' : '利用可能',
       updated_at: now,
     });
   });
