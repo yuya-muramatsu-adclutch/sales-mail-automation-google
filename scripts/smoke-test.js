@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260707_apps_script_full_workflow_v122_template_page_simplify'), 'v122 app version missing');
+assert(code.includes('20260707_apps_script_full_workflow_v124_collection_step_manager'), 'v124 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -244,6 +244,13 @@ assert(html.includes('collection-simple-links'), 'legacy collection command head
 assert(html.includes('collection-management-summary'), 'simplified collection management summary missing');
 assert(html.includes('collection-overview-panel'), 'simplified collection overview panel missing');
 assert(html.includes('collection-advanced-actions'), 'simplified collection advanced accordion missing');
+assert(html.includes('collection-stepper'), 'step collection manager stepper missing');
+assert(html.includes('collection-workflow-panel'), 'step collection manager workflow panel missing');
+assert(html.includes('collection-result-summary'), 'step collection result summary missing');
+assert(html.includes('collectionSupportDetails'), 'collection detail logs accordion missing');
+assert(html.includes('openCollectionSupport'), 'collection detail logs opener missing');
+assert(html.includes('updateCollectionAreaPreview'), 'collection area preview live updater missing');
+assert(html.includes('地域から営業先を探す'), 'step collection primary action label missing');
 assert(html.includes('.collection-overview-card svg'), 'collection overview icon size guard missing');
 assert(html.includes('prospecting-activity-panel compact'), 'legacy collection activity panel should be compact');
 assert(html.includes('prospecting-activity-detail-toggle'), 'legacy collection recent results should be collapsible');
@@ -252,7 +259,7 @@ assert(html.includes('.prospecting-activity-empty-note svg'), 'legacy collection
 assert(html.includes('function collectionStatusItem'), 'legacy collection status icon row helper missing');
 assert(html.includes("legacyUiIcon('mapPinned')") || html.includes('mapPinned'), 'legacy genre-area collection icon missing');
 assert(html.includes("legacyUiIcon('globe2')") || html.includes('globe2'), 'legacy source-page collection icon missing');
-assert(html.indexOf('id="searchActivityPanel"') < html.indexOf('id="collectionCommandCenter"'), 'legacy prospecting activity should precede collection tool');
+assert(html.indexOf('id="collectionCommandCenter"') < html.indexOf('id="searchActivityPanel"'), 'step collection manager should precede detailed activity');
 assert(html.indexOf('id="collectionCommandCenter"') < html.indexOf('id="searchOverview"'), 'legacy collection tool should appear before support overview cards');
 assert(html.includes("item.icon || 'rocket'"), 'legacy readiness default rocket icon missing');
 assert(html.includes("icon: 'database', label: 'Google Sheets'"), 'legacy admin database status item missing');

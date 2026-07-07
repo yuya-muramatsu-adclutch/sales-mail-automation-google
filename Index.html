@@ -5935,6 +5935,82 @@
         flex: 0 0 auto;
       }
 
+      .collection-stepper {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .collection-step {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        min-height: 62px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .collection-step-number {
+        display: inline-grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .collection-step span:last-child {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .collection-step strong {
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.25;
+      }
+
+      .collection-step small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .collection-step.done {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+      }
+
+      .collection-step.done .collection-step-number {
+        background: #bbf7d0;
+        color: #166534;
+      }
+
+      .collection-step.active {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        box-shadow: inset 0 0 0 1px #bfdbfe;
+      }
+
+      .collection-step.active .collection-step-number {
+        background: #2563eb;
+        color: #fff;
+      }
+
       .collection-status-bar {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -6008,6 +6084,17 @@
         background: #fff;
       }
 
+      .collection-step-management {
+        gap: 14px;
+      }
+
+      .collection-workflow-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 0.44fr);
+        gap: 12px;
+        align-items: stretch;
+      }
+
       .collection-management-primary {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
@@ -6064,6 +6151,60 @@
         justify-content: flex-end;
       }
 
+      .collection-result-summary {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .collection-result-summary-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .collection-result-summary-head strong {
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .collection-result-summary-head small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .collection-result-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .collection-result-metric {
+        display: grid;
+        gap: 2px;
+        padding: 9px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .collection-result-metric span {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .collection-result-metric strong {
+        color: var(--text);
+        font-size: 17px;
+        line-height: 1.2;
+      }
+
       .collection-main-actions {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -6104,6 +6245,18 @@
         border-color: #2563eb;
         background: #eff6ff;
         box-shadow: inset 0 0 0 1px #bfdbfe;
+      }
+
+      .collection-main-action .collection-action-step {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 10px;
+        font-weight: 900;
       }
 
       .collection-main-action > svg:first-child {
@@ -6289,6 +6442,56 @@
         background: #fff;
       }
 
+      .collection-support-disclosure {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.04);
+      }
+
+      .collection-support-disclosure summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .collection-support-disclosure summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .collection-support-disclosure summary span {
+        display: grid;
+        gap: 3px;
+      }
+
+      .collection-support-disclosure summary strong {
+        color: var(--text);
+        font-size: 15px;
+      }
+
+      .collection-support-disclosure summary small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .collection-support-disclosure summary > svg {
+        width: 18px;
+        height: 18px;
+        color: #64748b;
+      }
+
+      .collection-support-body {
+        display: grid;
+        gap: 14px;
+        padding: 0 14px 14px;
+      }
+
       .collection-overview-panel {
         display: grid;
         gap: 12px;
@@ -6351,6 +6554,11 @@
         font-size: 12px;
         font-weight: 800;
         line-height: 1.45;
+      }
+
+      .collection-overview-card button {
+        justify-self: start;
+        margin-top: 2px;
       }
 
       .collection-panel-grid,
@@ -8027,6 +8235,8 @@
         .exclusion-hero-panel,
         .prospecting-route-grid,
         .collection-command-center,
+        .collection-stepper,
+        .collection-workflow-panel,
         .collection-management-primary,
         .collection-status-bar,
         .collection-main-actions,
@@ -8035,6 +8245,7 @@
         .collection-panel-grid,
         .auto-prospecting-grid,
         .source-page-grid,
+        .collection-result-metrics,
         .domain-form,
         .ops-action-grid,
         .admin-primary-grid,
@@ -8870,41 +9081,49 @@
               <button type="button" class="button secondary icon-text-button" onclick="showTab('exclusions')"><span class="button-icon" data-ui-icon="settings"></span>除外ドメイン管理</button>
             </div>
           </header>
-          <section id="searchActivityPanel" class="prospecting-activity-panel compact"></section>
           <div class="prospecting-collection-tool">
             <section id="collectionCommandCenter" class="collection-command-center simple"></section>
           </div>
-          <section id="prospectingProgressDashboard" class="panel stack prospecting-progress-dashboard"></section>
-          <section id="jobResultsReviewPanel" class="panel job-results-panel"></section>
-          <section id="serperKeyManagerPanel" class="panel stack"></section>
-          <div class="dashboard-action-grid search-support-overview" id="searchOverview"></div>
-          <div class="content-grid">
-            <section class="panel">
-              <div class="panel-head"><h2>小規模検索ジョブ</h2></div>
-              <div class="panel-body">
-                <form class="grid" onsubmit="runSearch(event)">
-                  <label>種類<select id="searchJobType">
-                    <option value="lead_official_site">公式サイト探索</option>
-                    <option value="lead_form_url">フォーム探索</option>
-                    <option value="prospecting">営業候補検索</option>
-                  </select></label>
-                  <label>リードID<input id="searchLeadId" placeholder="空なら対象リードから抽出"></label>
-                  <label>ジャンル<input id="searchGenre"></label>
-                  <label>地域<input id="searchRegion"></label>
-                  <label>最大件数<input id="searchMax" type="number" min="1" max="20" value="5"></label>
-                  <button type="submit" class="blue">実行</button>
-                </form>
+          <details id="collectionSupportDetails" class="collection-support-disclosure">
+            <summary>
+              <span><strong>結果・詳細設定を見る</strong><small>前回の進捗、検索結果、Serperキー、詳細ジョブは必要な時だけ開きます。</small></span>
+              <span class="button-icon" data-ui-icon="chevronRight"></span>
+            </summary>
+            <div class="collection-support-body">
+              <section id="searchActivityPanel" class="prospecting-activity-panel compact"></section>
+              <section id="prospectingProgressDashboard" class="panel stack prospecting-progress-dashboard"></section>
+              <section id="jobResultsReviewPanel" class="panel job-results-panel"></section>
+              <section id="serperKeyManagerPanel" class="panel stack"></section>
+              <div class="dashboard-action-grid search-support-overview" id="searchOverview"></div>
+              <div class="content-grid">
+                <section class="panel">
+                  <div class="panel-head"><h2>小規模検索ジョブ</h2></div>
+                  <div class="panel-body">
+                    <form class="grid" onsubmit="runSearch(event)">
+                      <label>種類<select id="searchJobType">
+                        <option value="lead_official_site">公式サイト探索</option>
+                        <option value="lead_form_url">フォーム探索</option>
+                        <option value="prospecting">営業候補検索</option>
+                      </select></label>
+                      <label>リードID<input id="searchLeadId" placeholder="空なら対象リードから抽出"></label>
+                      <label>ジャンル<input id="searchGenre"></label>
+                      <label>地域<input id="searchRegion"></label>
+                      <label>最大件数<input id="searchMax" type="number" min="1" max="20" value="5"></label>
+                      <button type="submit" class="blue">実行</button>
+                    </form>
+                  </div>
+                </section>
               </div>
-            </section>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h2>検索結果</h2><span class="pill info" id="searchResultCountPill">0件</span></div>
-            <div class="table-wrap"><table id="searchResultsTable"></table></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h2>Serper使用量ログ</h2><span class="pill" id="searchUsageCountPill">0件</span></div>
-            <div class="table-wrap"><table id="searchUsageTable"></table></div>
-          </div>
+              <div class="panel">
+                <div class="panel-head"><h2>検索結果</h2><span class="pill info" id="searchResultCountPill">0件</span></div>
+                <div class="table-wrap"><table id="searchResultsTable"></table></div>
+              </div>
+              <div class="panel">
+                <div class="panel-head"><h2>Serper使用量ログ</h2><span class="pill" id="searchUsageCountPill">0件</span></div>
+                <div class="table-wrap"><table id="searchUsageTable"></table></div>
+              </div>
+            </div>
+          </details>
         </section>
 
         <section id="backgroundJobs" class="section">
@@ -14254,39 +14473,22 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const enabledSourceCount = (sourceSettings.sites || []).filter((site) => site.enabled !== false && site.url).length;
         const activeTab = state.activeCollectionTab || 'overview';
         const advancedOpen = ['keyword', 'file'].includes(activeTab) ? ' open' : '';
+        const reviewTargets = Number(dashboard.reviewTargets || 0);
+        const addedCount = Number(dashboard.prospectingAddedCount || dashboard.serperToday || 0);
+        const duplicateCount = Number(dashboard.prospectingDuplicateCount || 0);
+        const excludedCount = Number(dashboard.prospectingExcludedCount || 0);
         target.innerHTML = `
           <div class="collection-simple-head">
             <div class="collection-simple-head-copy">
               <span>営業リスト収集</span>
               <strong>収集管理</strong>
-              <p>よく使う操作だけを先に表示します。詳細な取り込みや設定は必要な時に開いてください。</p>
+              <p>Stepに沿って、検索条件を決めてから小さく収集します。詳細な取り込みやログは必要な時だけ開けます。</p>
               <small>Serper ${searchReady ? (state.serper.key_mask || '設定済み') : '未設定'} / ジャンル ${formatNumber((state.genres || []).length)}件</small>
             </div>
             <div class="collection-simple-links">
               <button type="button" class="mini-button" onclick="showTab('list')">${legacyUiIcon('clipboard')}リスト確認</button>
-              <button type="button" class="mini-button" onclick="document.getElementById('serperKey').focus()">${legacyUiIcon('keyRound')}Serperキー</button>
+              <button type="button" class="mini-button" onclick="openCollectionSupport('serper')">${legacyUiIcon('keyRound')}Serperキー</button>
               <button type="button" class="mini-button" onclick="showTab('exclusions')">${legacyUiIcon('settings')}除外ドメイン</button>
-            </div>
-          </div>
-          <div class="collection-management-summary">
-            <div class="collection-management-primary">
-              <div class="collection-management-copy">
-                ${legacyUiIcon(activeTab === 'overview' ? 'listChecks' : collectionActionIcon(activeTab))}
-                <div>
-                  <span>次にやること</span>
-                  <strong>${escapeHtml(collectionManagementTitle(activeTab, searchReady))}</strong>
-                  <small>${escapeHtml(collectionManagementDescription(activeTab, searchReady, enabledRuleCount, enabledSourceCount))}</small>
-                </div>
-              </div>
-              <div class="collection-management-actions">
-                <button type="button" class="primary" onclick="setCollectionTab('area')" ${searchReady ? '' : 'disabled'}>${legacyUiIcon('search')}今すぐ収集</button>
-                <button type="button" onclick="setCollectionTab('automation')">${legacyUiIcon('settings')}自動運用</button>
-              </div>
-            </div>
-            <div class="collection-main-actions">
-              ${collectionAction('今すぐ収集', 'ジャンルとエリアで候補を追加', 'area')}
-              ${collectionAction('自動運用', '定期収集の条件を管理', 'automation')}
-              ${collectionAction('まとめサイト', 'URL起点で公式サイトを探索', 'sourcePage')}
             </div>
           </div>
           <div class="collection-status-bar">
@@ -14294,11 +14496,52 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ${collectionStatusItem('settings', '自動検索', autoSettings.enabled ? 'ON' : 'OFF', `優先ジャンル ${formatNumber(enabledRuleCount)}件`, autoSettings.enabled && enabledRuleCount ? 'ok' : 'warn')}
             ${collectionStatusItem('globe2', 'まとめサイト監視', `${formatNumber(enabledSourceCount)}サイト`, `保存済み ${formatNumber((sourceSettings.sites || []).length)}件`, enabledSourceCount ? 'ok' : 'warn')}
           </div>
+          <div class="collection-stepper" aria-label="収集ステップ">
+            ${collectionStepItem(1, '準備', searchReady ? 'APIキーOK' : 'APIキー設定', searchReady ? 'done' : 'active')}
+            ${collectionStepItem(2, '方法', '地域 / 自動 / 一覧', activeTab === 'overview' && searchReady ? 'active' : (searchReady ? 'done' : ''))}
+            ${collectionStepItem(3, '条件', activeTab === 'overview' ? '方法を選択' : collectionStepConditionLabel(activeTab), activeTab !== 'overview' ? 'active' : '')}
+            ${collectionStepItem(4, '結果', `${formatNumber(reviewTargets)}件確認待ち`, addedCount || reviewTargets ? 'done' : '')}
+          </div>
+          <div class="collection-management-summary collection-step-management">
+            <div class="collection-workflow-panel">
+              <div class="collection-management-primary">
+                <div class="collection-management-copy">
+                  ${legacyUiIcon(activeTab === 'overview' ? 'listChecks' : collectionActionIcon(activeTab))}
+                  <div>
+                    <span>次にやること</span>
+                    <strong>${escapeHtml(collectionManagementTitle(activeTab, searchReady))}</strong>
+                    <small>${escapeHtml(collectionManagementDescription(activeTab, searchReady, enabledRuleCount, enabledSourceCount))}</small>
+                  </div>
+                </div>
+                <div class="collection-management-actions">
+                  <button type="button" class="primary" onclick="setCollectionTab('area')" ${searchReady ? '' : 'disabled'}>${legacyUiIcon('search')}地域から探す</button>
+                  <button type="button" onclick="openCollectionSupport('results')">${legacyUiIcon('listChecks')}前回の結果</button>
+                </div>
+              </div>
+              <aside class="collection-result-summary">
+                <div class="collection-result-summary-head">
+                  <span><strong>結果確認</strong><small>直近の収集状況</small></span>
+                  <button type="button" class="mini-button" onclick="openCollectionSupport('results')">詳細</button>
+                </div>
+                <div class="collection-result-metrics">
+                  ${collectionResultMetric('追加', `${formatNumber(addedCount)}件`)}
+                  ${collectionResultMetric('確認待ち', `${formatNumber(reviewTargets)}件`)}
+                  ${collectionResultMetric('重複', `${formatNumber(duplicateCount)}件`)}
+                  ${collectionResultMetric('除外', `${formatNumber(excludedCount)}件`)}
+                </div>
+              </aside>
+            </div>
+            <div class="collection-main-actions collection-method-grid">
+              ${collectionAction('地域から営業先を探す', 'ジャンル・エリア・件数だけ指定', 'area', 'おすすめ')}
+              ${collectionAction('自動収集を設定する', '定期収集の条件を管理', 'automation', '運用')}
+              ${collectionAction('一覧ページから探す', 'まとめサイトURLを起点に収集', 'sourcePage', '補助')}
+            </div>
+          </div>
           <details class="collection-advanced-actions"${advancedOpen}>
             <summary>
               <div>
                 <span>詳細な取り込み方法</span>
-                <small>キーワード検索、CSV貼り付け、周辺設定はここから開きます。</small>
+                <small>キーワード検索、CSV貼り付けは通常時は閉じておきます。</small>
               </div>
               ${legacyUiIcon('chevronRight')}
             </summary>
@@ -14315,26 +14558,48 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function collectionManagementTitle(tab, searchReady) {
         if (!searchReady) return 'Serperキーを設定すると検索収集を始められます';
-        if (tab === 'area') return 'ジャンルとエリアを選んで営業候補を追加';
-        if (tab === 'automation') return '定期収集の条件を管理';
-        if (tab === 'sourcePage') return 'まとめサイトURLから公式サイト候補を探索';
-        if (tab === 'keyword') return 'キーワードを指定して候補を検索';
-        if (tab === 'file') return 'CSVから営業先をまとめて取り込み';
-        return 'まずは収集方法を1つ選んで開始';
+        if (tab === 'area') return '地域から営業先を探す';
+        if (tab === 'automation') return '自動収集を設定する';
+        if (tab === 'sourcePage') return '一覧ページから営業先を探す';
+        if (tab === 'keyword') return 'キーワードで営業先を探す';
+        if (tab === 'file') return 'CSVで営業先を追加する';
+        return 'まずは収集方法を選ぶ';
       }
 
       function collectionManagementDescription(tab, searchReady, enabledRuleCount, enabledSourceCount) {
-        if (!searchReady) return '画面下部のSerperキー管理でAPIキーを保存してください。保存後、今すぐ収集と自動運用が使えます。';
-        if (tab === 'area') return '最も使う入口です。ジャンルと地域を少数指定して、Apps Scriptの実行時間内で小さく追加します。';
-        if (tab === 'automation') return `現在の優先ジャンルは${formatNumber(enabledRuleCount)}件です。ONにする前に対象エリアと検索語数を確認してください。`;
+        if (!searchReady) return '詳細設定を開いてSerperキーを保存してください。保存後、この画面から収集を開始できます。';
+        if (tab === 'area') return 'おすすめの入口です。ジャンル、エリア、件数だけ決めて小さく実行します。';
+        if (tab === 'automation') return `現在の優先ジャンルは${formatNumber(enabledRuleCount)}件です。ONにする前に対象エリアと検索語数を確認します。`;
         if (tab === 'sourcePage') return `監視サイトは${formatNumber(enabledSourceCount)}件有効です。施設一覧やまとめ記事URLを起点にできます。`;
         if (tab === 'keyword') return '通常の条件に当てはまらない会社名、施設名、問い合わせ語句で追加検索します。';
         if (tab === 'file') return 'CSV貼り付けで既存リストを追加します。重複保護は初期状態で有効です。';
-        return 'よく使う「今すぐ収集」「自動運用」「まとめサイト」を先に置き、補助機能は詳細にまとめています。';
+        return '迷ったら「地域から営業先を探す」を選んでください。詳細機能は下に閉じています。';
       }
 
       function collectionStatusItem(icon, label, value, detail, tone) {
         return `<div class="collection-status-item ${escapeHtml(tone || 'info')}">${legacyUiIcon(icon)}<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`;
+      }
+
+      function collectionStepItem(number, label, detail, stateName) {
+        return `
+          <div class="collection-step ${escapeHtml(stateName || '')}">
+            <span class="collection-step-number">${formatNumber(number)}</span>
+            <span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(detail || '')}</small></span>
+          </div>
+        `;
+      }
+
+      function collectionStepConditionLabel(tab) {
+        if (tab === 'area') return '地域条件';
+        if (tab === 'automation') return '自動条件';
+        if (tab === 'sourcePage') return 'URL条件';
+        if (tab === 'keyword') return '検索語';
+        if (tab === 'file') return 'CSV';
+        return '条件';
+      }
+
+      function collectionResultMetric(label, value) {
+        return `<div class="collection-result-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
       }
 
       function collectionActionIcon(mode) {
@@ -14348,8 +14613,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return icons[mode] || 'search';
       }
 
-      function collectionAction(label, description, mode) {
-        return `<button type="button" class="collection-main-action ${state.activeCollectionTab === mode ? 'active' : ''}" aria-pressed="${state.activeCollectionTab === mode ? 'true' : 'false'}" onclick="setCollectionTab('${escapeJsString(mode)}')">${legacyUiIcon(collectionActionIcon(mode))}<span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></span>${legacyUiIcon('chevronRight')}</button>`;
+      function collectionAction(label, description, mode, stepLabel) {
+        return `<button type="button" class="collection-main-action ${state.activeCollectionTab === mode ? 'active' : ''}" aria-pressed="${state.activeCollectionTab === mode ? 'true' : 'false'}" onclick="setCollectionTab('${escapeJsString(mode)}')">${legacyUiIcon(collectionActionIcon(mode))}<span>${stepLabel ? `<em class="collection-action-step">${escapeHtml(stepLabel)}</em>` : ''}<strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></span>${legacyUiIcon('chevronRight')}</button>`;
       }
 
       function collectionSecondaryAction(label, description, mode) {
@@ -14359,6 +14624,24 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function setCollectionTab(tab) {
         state.activeCollectionTab = tab || 'overview';
         renderCollectionCommandCenter(state.serper || {});
+      }
+
+      function openCollectionSupport(targetName) {
+        const details = document.getElementById('collectionSupportDetails');
+        if (details) details.open = true;
+        if (targetName === 'serper') {
+          setTimeout(() => {
+            const input = document.getElementById('serperKey');
+            if (input) input.focus();
+            (input || document.getElementById('serperKeyManagerPanel') || details)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 80);
+          return;
+        }
+        loadSearchResults();
+        setTimeout(() => {
+          const resultTarget = document.getElementById('prospectingProgressDashboard') || document.getElementById('jobResultsReviewPanel') || details;
+          if (resultTarget) resultTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
       }
 
       function renderCollectionTabPanel(tab, searchReady, dashboard) {
@@ -14378,26 +14661,29 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <section class="collection-overview-panel">
             <div class="collection-overview-head">
               <div>
-                <h3>必要な操作だけ選んで進めます</h3>
-                <p>初期表示では詳細フォームを閉じています。収集方法を選ぶと、下に必要な入力欄だけ表示します。</p>
+                <h3>Step 2: 収集方法を選びます</h3>
+                <p>まずはおすすめの「地域から営業先を探す」から始めてください。自動運用や一覧ページ収集は必要になった時だけ開きます。</p>
               </div>
               <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? '収集準備OK' : 'Serper未設定'}</span>
             </div>
             <div class="collection-overview-grid">
               <div class="collection-overview-card">
                 ${legacyUiIcon('mapPinned')}
-                <strong>営業候補を追加</strong>
-                <small>ジャンルと地域から少量ずつ検索します。迷ったらここから始めます。</small>
+                <strong>地域から営業先を探す</strong>
+                <small>ジャンルと地域を選ぶだけの基本ルートです。</small>
+                <button type="button" class="mini-button" onclick="setCollectionTab('area')" ${searchReady ? '' : 'disabled'}>開く</button>
               </div>
               <div class="collection-overview-card">
                 ${legacyUiIcon('settings')}
-                <strong>自動運用を管理</strong>
-                <small>${settings.enabled ? '自動収集はONです。検索語数と対象エリアを確認できます。' : '自動収集はOFFです。条件確認後にONへ切り替えます。'}</small>
+                <strong>自動収集を設定する</strong>
+                <small>${settings.enabled ? '自動収集はONです。条件を確認できます。' : '自動収集はOFFです。条件確認後にONへ切り替えます。'}</small>
+                <button type="button" class="mini-button" onclick="setCollectionTab('automation')">開く</button>
               </div>
               <div class="collection-overview-card">
                 ${legacyUiIcon('globe2')}
-                <strong>まとめサイトを使う</strong>
-                <small>${enabledSourceCount ? `${formatNumber(enabledSourceCount)}件の監視サイトを利用できます。` : '一覧ページやまとめ記事URLを保存して探索できます。'}</small>
+                <strong>一覧ページから探す</strong>
+                <small>${enabledSourceCount ? `${formatNumber(enabledSourceCount)}件の監視サイトを利用できます。` : 'まとめ記事URLや施設一覧ページを起点にできます。'}</small>
+                <button type="button" class="mini-button" onclick="setCollectionTab('sourcePage')" ${searchReady ? '' : 'disabled'}>開く</button>
               </div>
             </div>
           </section>
@@ -14414,8 +14700,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <section class="auto-prospecting-panel">
               <div class="section-title-row">
                 <div>
-                  <h3>自動で営業候補を増やす</h3>
-                  <p class="muted">旧アプリの自動収集設定を、Apps Scriptの時間主導トリガーと小規模検索ジョブに読み替えます。</p>
+                  <h3>Step 3: 自動収集の条件を決める</h3>
+                  <p class="muted">定期的に増やしたいジャンル、エリア、1回あたりの検索量を管理します。</p>
                 </div>
                 <span class="pill ${settings.enabled ? 'good' : 'warn'}">${settings.enabled ? '自動検索 ON' : '自動検索 OFF'}</span>
               </div>
@@ -14433,7 +14719,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               </form>
             </section>
             <aside class="collection-panel-card">
-              <h3>実行プレビュー</h3>
+              <h3>Step 4: 実行プレビュー</h3>
               <div class="collection-preview-list">
                 ${preview.length ? preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('') : '<span><strong>優先ジャンルを入力してください</strong></span>'}
               </div>
@@ -14455,23 +14741,23 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <section class="prospecting-batch-panel">
             <div class="section-title-row">
               <div>
-                <h3>ジャンル×エリアの検索収集</h3>
-                <p class="muted">ジャンルとエリアから検索語を生成し、公式サイト候補と問い合わせ先を収集します。</p>
+                <h3>Step 3: 地域から営業先を探す</h3>
+                <p class="muted">ジャンル、エリア、今回追加する上限だけ指定します。最初は5件程度で小さく実行してください。</p>
               </div>
               <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? '実行可能' : 'Serper未設定'}</span>
             </div>
             <form class="collection-panel-grid" onsubmit="submitCollectionAreaSearch(event)">
               <div class="grid">
-                <label>ジャンル<select id="collectionAreaGenre">${collectionGenreOptions(genre)}</select></label>
-                <label>最大処理件数<input id="collectionAreaMaxItems" type="number" min="1" max="20" value="5"></label>
-                <label style="grid-column:1/-1">エリア<textarea id="collectionAreaRegions" rows="5">${escapeHtml(regions)}</textarea></label>
-                <label style="grid-column:1/-1">補助キーワード<textarea id="collectionAreaSuffixes" rows="5">${escapeHtml(suffixes)}</textarea></label>
-                <button type="submit" class="primary collection-run-button" ${searchReady ? '' : 'disabled'}>営業候補を追加</button>
+                <label>ジャンル<select id="collectionAreaGenre" onchange="updateCollectionAreaPreview()">${collectionGenreOptions(genre)}</select></label>
+                <label>今回追加する上限<input id="collectionAreaMaxItems" type="number" min="1" max="20" value="5"></label>
+                <label style="grid-column:1/-1">エリア<textarea id="collectionAreaRegions" rows="4" oninput="updateCollectionAreaPreview()">${escapeHtml(regions)}</textarea></label>
+                <label style="grid-column:1/-1">探し方<textarea id="collectionAreaSuffixes" rows="3" oninput="updateCollectionAreaPreview()">${escapeHtml(suffixes)}</textarea></label>
+                <button type="submit" class="primary collection-run-button" ${searchReady ? '' : 'disabled'}>収集を開始</button>
               </div>
               <aside class="collection-panel-card">
-                <h3>検索語プレビュー</h3>
+                <h3>Step 4: 検索語プレビュー</h3>
                 <div id="collectionAreaPreview" class="collection-preview-list">${preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('')}</div>
-                <p class="muted">GAS版では1回の実行を小さく保つため、プレビュー先頭の検索語から小規模ジョブを作成します。</p>
+                <p class="muted">GAS版では1回の実行を小さく保つため、先頭の検索語から小規模ジョブを作成します。</p>
               </aside>
             </form>
           </section>
@@ -14545,8 +14831,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <section class="source-page-prospecting-panel">
             <div class="section-title-row">
               <div>
-                <h3>まとめサイトURLから収集</h3>
-                <p class="muted">施設一覧ページやまとめ記事URLを起点に、公式サイト探索ジョブへ繋げます。GAS版ではURLとジャンルを保存し、小規模検索で補完します。</p>
+                <h3>Step 3: 一覧ページから探す</h3>
+                <p class="muted">施設一覧ページやまとめ記事URLを起点にします。URLとジャンルを入れて、小規模検索で公式サイト候補を補完します。</p>
               </div>
               <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? '検索補完ON' : 'Serper未設定'}</span>
             </div>
@@ -14562,7 +14848,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 </div>
               </div>
               <aside class="collection-panel-card">
-                <h3>監視サイト</h3>
+                <h3>保存済み一覧ページ</h3>
                 <div class="source-page-monitor-list">
                   ${sites.length ? sites.slice(0, 6).map((site) => `<span><strong>${escapeHtml(site.label || compactUrl(site.url))}</strong><em>${escapeHtml(site.genre || site.genreName || '-')}</em></span>`).join('') : '<span><strong>まだ保存されていません</strong><em>URLを保存してください</em></span>'}
                 </div>
@@ -14633,6 +14919,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           });
         });
         return queries.slice(0, 20);
+      }
+
+      function updateCollectionAreaPreview() {
+        const target = document.getElementById('collectionAreaPreview');
+        if (!target) return;
+        const genre = document.getElementById('collectionAreaGenre')?.value || '';
+        const regions = document.getElementById('collectionAreaRegions')?.value || '';
+        const suffixes = document.getElementById('collectionAreaSuffixes')?.value || '';
+        const preview = buildCollectionQueryPreview(genre, regions, suffixes).slice(0, 8);
+        target.innerHTML = preview.length
+          ? preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('')
+          : '<span><strong>ジャンルとエリアを入力してください</strong></span>';
       }
 
       async function saveAutoCollectionSettings(event) {
