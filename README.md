@@ -269,6 +269,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 127 / code v127でSerper APIキー管理の「残量確認」を実処理化。保存済みキーでSerper残量系エンドポイントを確認し、確認日時、Serper残量、失敗理由をキー行へ保存表示します。検索APIテストで取得済み残量が空へ戻らないよう、検索テスト結果と残量確認結果も分離しました
 - Apps Script Version 128 / code v128で全体デザインのポリッシュレイヤーを追加。カードは白背景と薄い罫線中心、重要状態のみ淡い色面、ボタン階層、Pill小型化、表の密度、カード内余白、見出し階層を全体で揃えました
 - Apps Script Version 129 / code v129で各ページ上部を共通フォーマット化。正常時の運用ステータス帯は非表示にし、異常時だけ原因チップを表示。テーブル行アクションの強弱、Pillの最大幅・省略・title保持を全体で強化しました
+- Apps Script Version 130 / code v130でメール送信の二重送信防止を強化。送信直前チェック、MailApp送信、履歴保存、リード更新を同一 `LockService` 範囲にまとめ、`send_histories` の成功履歴と同一メールアドレスも送信候補から除外します
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み

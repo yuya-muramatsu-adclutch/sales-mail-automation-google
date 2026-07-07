@@ -3,8 +3,7 @@ function isEmailSendTarget_(lead, masterContext) {
   if (!isValidEmailAddress_(lead.email)) return false;
   if (normalizeBooleanLike_(lead.send_ng)) return false;
   if (normalizeBooleanLike_(lead.reply_checked)) return false;
-  if (lead.last_sent_at) return false;
-  if (Number(lead.send_count || 0) > 0) return false;
+  if (getPriorSuccessfulEmailBlockReason_(lead, masterContext)) return false;
   if (String(lead.deal_status || '未設定') !== '未設定') return false;
   if (SEND_EXCLUDED_STATUSES.indexOf(String(lead.status || '')) !== -1) return false;
   const blocked = masterContext ? isLeadBlockedByMastersInContext_(lead, masterContext) : isLeadBlockedByMasters_(lead);
@@ -33,59 +32,56 @@ function isFormOutreachLead_(lead) {
 
 function sendLeadEmail(leadId, templateId, options) {
   const input = options && typeof options === 'object' ? options : {};
-  const result = withScriptLock_('sendLeadEmail', function () {
+  return withScriptLock_('sendLeadEmail', function () {
     const lead = getLeadById(leadId);
     const template = templateId ? findSheetRecordById_('email_templates', templateId) : findProductionTemplateForLead_(lead, input.template_type || 'initial');
     if (!template) {
       throw new Error('Email template not found.');
     }
-    if (!isEmailSendTarget_(lead) && input.force !== true) {
+    const masterContext = buildMasterBlockContext_();
+    const priorSendReason = getPriorSuccessfulEmailBlockReason_(lead, masterContext);
+    if (priorSendReason) {
+      throw new Error(priorSendReason);
+    }
+    if (!isEmailSendTarget_(lead, masterContext) && input.force !== true) {
       const blocked = isLeadBlockedByMasters_(lead);
       throw new Error(blocked.blocked ? blocked.reason : 'Lead is not eligible for email sending.');
     }
     assertEmailSendLimitAvailable_();
-
-    return {
-      lead: lead,
-      template: template,
-      rendered: renderTemplateForLead_(template, lead, {
-        sender_name: input.sender_name || input.senderName || '',
-        '差出人名': input.sender_name || input.senderName || '',
-      }),
-    };
-  });
-
-  const sentAt = nowIso_();
-  let sendResult = '成功';
-  let errorMessage = '';
-  let gmailMessageId = '';
-
-  try {
-    MailApp.sendEmail({
-      to: result.lead.email,
-      subject: result.rendered.subject,
-      htmlBody: result.rendered.htmlBody,
-      body: result.rendered.body,
-      name: input.sender_name || input.senderName || '',
+    const rendered = renderTemplateForLead_(template, lead, {
+      sender_name: input.sender_name || input.senderName || '',
+      '差出人名': input.sender_name || input.senderName || '',
     });
-  } catch (error) {
-    sendResult = '失敗';
-    errorMessage = error.message;
-  }
+    const sentAt = nowIso_();
+    let sendResult = '成功';
+    let errorMessage = '';
+    let gmailMessageId = '';
 
-  return withScriptLock_('sendLeadEmail:afterSend', function () {
+    try {
+      MailApp.sendEmail({
+        to: lead.email,
+        subject: rendered.subject,
+        htmlBody: rendered.htmlBody,
+        body: rendered.body,
+        name: input.sender_name || input.senderName || '',
+      });
+    } catch (error) {
+      sendResult = '失敗';
+      errorMessage = error.message;
+    }
+
     const history = appendSheetRecord_('send_histories', {
-      lead_id: result.lead.id,
+      lead_id: lead.id,
       sent_at: sentAt,
       send_type: input.send_type || input.sendType || '初回メール',
-      to_email: result.lead.email,
-      company_name: result.lead.company_name,
-      facility_name: result.lead.facility_name,
-      genre: result.lead.genre,
-      template_id: result.template.id,
-      template_name: result.template.name,
-      subject: result.rendered.subject,
-      body: result.rendered.body,
+      to_email: lead.email,
+      company_name: lead.company_name,
+      facility_name: lead.facility_name,
+      genre: lead.genre,
+      template_id: template.id,
+      template_name: template.name,
+      subject: rendered.subject,
+      body: rendered.body,
       send_result: sendResult,
       error_message: errorMessage,
       gmail_message_id: gmailMessageId,
@@ -95,10 +91,10 @@ function sendLeadEmail(leadId, templateId, options) {
 
     if (sendResult === '成功') {
       const nextStatus = input.send_type === '2ヶ月後メール' || input.sendType === '2ヶ月後メール' ? '2ヶ月後メール送信済み' : '初回メール送信済み';
-      updateLeadAfterSend_(result.lead.id, {
+      updateLeadAfterSend_(lead.id, {
         status: nextStatus,
         last_sent_at: sentAt,
-        send_count: Number(result.lead.send_count || 0) + 1,
+        send_count: Number(lead.send_count || 0) + 1,
       });
     }
 
@@ -108,6 +104,47 @@ function sendLeadEmail(leadId, templateId, options) {
       errorMessage: errorMessage,
     };
   });
+}
+
+function buildMailSendSafetyContext_() {
+  const histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  const sentLeadIds = {};
+  const sentEmails = {};
+  histories.forEach(function (history) {
+    if (!isSuccessfulProductionSendHistory_(history)) return;
+    const leadId = String(history.lead_id || '').trim();
+    const email = normalizeEmailForSendSafety_(history.to_email || '');
+    if (leadId) sentLeadIds[leadId] = true;
+    if (email) sentEmails[email] = true;
+  });
+  return {
+    sentLeadIds: sentLeadIds,
+    sentEmails: sentEmails,
+  };
+}
+
+function isSuccessfulProductionSendHistory_(history) {
+  return history &&
+    history.send_result === '成功' &&
+    String(history.send_type || '').indexOf('テスト') === -1;
+}
+
+function normalizeEmailForSendSafety_(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+function getPriorSuccessfulEmailBlockReason_(lead, context) {
+  if (!lead) return 'Lead is not eligible for email sending.';
+  if (lead.last_sent_at) return 'Lead already has a successful send timestamp.';
+  if (Number(lead.send_count || 0) > 0) return 'Lead already has successful send count.';
+  if (String(lead.status || '').indexOf('送信済み') !== -1) return 'Lead status is already sent.';
+  const safety = context && context.mailSendSafety;
+  if (!safety) return '';
+  const leadId = String(lead.id || '').trim();
+  const email = normalizeEmailForSendSafety_(lead.email);
+  if (leadId && safety.sentLeadIds && safety.sentLeadIds[leadId]) return 'Lead already has a successful send history.';
+  if (email && safety.sentEmails && safety.sentEmails[email]) return 'Email address already has a successful send history.';
+  return '';
 }
 
 function sendTestEmail(templateId, toEmail, sampleLeadInput) {

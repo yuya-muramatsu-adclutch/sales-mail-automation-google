@@ -16393,8 +16393,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function getEmailPreviewBatchTargets(template) {
         if (!template) return [];
         const templateGenre = String(template.genre || '').trim();
+        const seenEmails = new Set();
         return (state.emailLeads || [])
-          .filter((lead) => canEmailLead(lead) && !lead.last_sent_at)
+          .filter((lead) => {
+            if (!canEmailLead(lead)) return false;
+            const email = String(lead.email || '').trim().toLowerCase();
+            if (email && seenEmails.has(email)) return false;
+            if (email) seenEmails.add(email);
+            return true;
+          })
           .filter((lead) => !templateGenre || String(lead.genre || '').trim() === templateGenre);
       }
 
@@ -16610,7 +16617,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (normalizeBooleanLike(lead.send_ng) || lead.status === '送信NG') return '送信NGです';
         if (normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり') return '返信ありのため対象外です';
         if (lead.deal_status && lead.deal_status !== '未設定') return '商談対象のため対象外です';
-        if (template.template_type === 'initial' && lead.last_sent_at) return '初回メールは送信済みです';
+        if (template.template_type === 'initial' && (lead.last_sent_at || Number(lead.send_count || 0) > 0 || String(lead.status || '').includes('送信済み'))) return '初回メールは送信済みです';
         return '';
       }
 
@@ -16641,7 +16648,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (lead && normalizeBooleanLike(lead.send_ng)) pills.push('<span class="pill bad">送信NG</span>');
         if (lead && normalizeBooleanLike(lead.reply_checked)) pills.push('<span class="pill warn">返信あり</span>');
         if (lead && lead.deal_status && lead.deal_status !== '未設定') pills.push('<span class="pill warn">商談対象</span>');
-        if (lead && template && template.template_type === 'initial' && lead.last_sent_at) pills.push('<span class="pill warn">初回送信済み</span>');
+        if (lead && template && template.template_type === 'initial' && (lead.last_sent_at || Number(lead.send_count || 0) > 0 || String(lead.status || '').includes('送信済み'))) pills.push('<span class="pill warn">初回送信済み</span>');
         if (lead && !lead.email) pills.push('<span class="pill warn">メールアドレスなし</span>');
         if (integrations.gmail === false) pills.push('<span class="pill bad">Gmail未設定</span>');
         if (dashboard.mailSendingEnabled === false) pills.push('<span class="pill warn">自動送信停止中</span>');
@@ -19408,6 +19415,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!lead || !lead.email || !String(lead.email).includes('@')) return false;
         if (normalizeBooleanLike(lead.send_ng) || lead.status === '送信NG' || lead.status === '対応不要') return false;
         if (normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり') return false;
+        if (lead.last_sent_at || Number(lead.send_count || 0) > 0 || String(lead.status || '').includes('送信済み')) return false;
         if (lead.deal_status && lead.deal_status !== '未設定') return false;
         return true;
       }

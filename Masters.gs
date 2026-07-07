@@ -355,6 +355,7 @@ function buildMasterBlockContext_() {
   return {
     ngMasters: listNgMasters({ limit: 1000 }).items,
     excludedDomains: listExcludedDomains({ limit: 1000 }).items,
+    mailSendSafety: buildMailSendSafetyContext_(),
   };
 }
 
