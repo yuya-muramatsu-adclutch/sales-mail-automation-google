@@ -2847,6 +2847,115 @@
         font-weight: 800;
       }
 
+      .review-command-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 16px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: linear-gradient(180deg, #eff6ff, #ffffff);
+      }
+
+      .review-command-panel.is-empty {
+        border-color: #bbf7d0;
+        background: linear-gradient(180deg, #ecfdf5, #ffffff);
+      }
+
+      .review-command-copy {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .review-command-copy h2 {
+        margin: 0;
+        color: var(--text);
+        font-size: 20px;
+        line-height: 1.25;
+      }
+
+      .review-command-copy p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.6;
+      }
+
+      .review-command-meta,
+      .review-action-row,
+      .review-contact-cell {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .review-command-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .review-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .review-stat-card {
+        display: grid;
+        gap: 5px;
+        min-height: 74px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .review-stat-card span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .review-stat-card strong {
+        color: var(--text);
+        font-size: 24px;
+        line-height: 1;
+      }
+
+      .review-lead-name-cell {
+        display: grid;
+        gap: 4px;
+        min-width: 220px;
+      }
+
+      .review-lead-name-cell strong {
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      .review-lead-name-cell small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .review-table-wrap table {
+        min-width: 880px;
+      }
+
+      .review-table-wrap th:first-child,
+      .review-table-wrap td:first-child {
+        width: 42px;
+        text-align: center;
+      }
+
       .list-count-bar {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3150,6 +3259,18 @@
         cursor: pointer;
         font-size: 12px;
         font-weight: 900;
+      }
+
+      .table-link-button.primary-row-action {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      .table-link-button.danger-row-action {
+        border-color: #fecaca;
+        background: #fff7f7;
+        color: #b91c1c;
       }
 
       .table-action-row {
@@ -8600,6 +8721,7 @@
         .ops-action-grid,
         .admin-primary-grid,
         .admin-disclosure-body,
+        .review-command-panel,
         .list-filter-panel {
           grid-template-columns: 1fr;
         }
@@ -8617,6 +8739,7 @@
         .dashboard-signal-grid,
         .dashboard-action-grid,
         .lead-kpi-grid,
+        .review-stats-grid,
         .background-overview-kpis,
         .form-outreach-summary-grid,
         .gmail-overview-status-grid,
@@ -8734,6 +8857,7 @@
         .dashboard-signal-grid,
         .dashboard-action-grid,
         .lead-kpi-grid,
+        .review-stats-grid,
         .background-overview-kpis,
         .form-outreach-summary-grid,
         .setup-guide-grid,
@@ -8887,6 +9011,9 @@
             <button type="button" class="tab nav-item" data-tab="leads" onclick="showTab('leads')">
               <span class="nav-icon">LD</span><span>営業リスト</span>
             </button>
+            <button type="button" class="tab nav-item" data-tab="reviewLeads" onclick="showTab('reviewLeads')">
+              <span class="nav-icon">RV</span><span>確認待ち</span>
+            </button>
             <button type="button" class="tab nav-item" data-tab="search" onclick="showTab('search')">
               <span class="nav-icon">SP</span><span>営業リスト収集ツール</span>
             </button>
@@ -8969,11 +9096,11 @@
             <strong id="todayLabel">-</strong>
           </div>
           <nav class="main-toolbar-actions" aria-label="よく使う操作">
+            <button type="button" class="toolbar-shortcut" data-shortcut-tab="reviewLeads" onclick="showTab('reviewLeads')"><span class="shortcut-icon">RV</span>確認</button>
+            <button type="button" class="toolbar-shortcut" data-shortcut-tab="search" onclick="showTab('search')"><span class="shortcut-icon">SP</span>収集</button>
             <button type="button" class="toolbar-shortcut" data-shortcut-tab="leads" onclick="showTab('leads')"><span class="shortcut-icon">LD</span>リスト</button>
             <button type="button" class="toolbar-shortcut" data-shortcut-tab="backgroundJobs" onclick="showTab('backgroundJobs')"><span class="shortcut-icon">BG</span>進捗</button>
-            <button type="button" class="toolbar-shortcut" data-shortcut-tab="search" onclick="showTab('search')"><span class="shortcut-icon">SP</span>収集</button>
             <button type="button" class="toolbar-shortcut" data-shortcut-tab="forms" onclick="showTab('forms')"><span class="shortcut-icon">FM</span>フォーム</button>
-            <button type="button" class="toolbar-shortcut" data-shortcut-tab="sending" onclick="showTab('sending')"><span class="shortcut-icon">PV</span>送信</button>
             <button type="button" class="toolbar-shortcut" data-shortcut-tab="emailLeads" onclick="showTab('emailLeads')"><span class="shortcut-icon">ML</span>メール</button>
           </nav>
         </div>
@@ -9032,6 +9159,31 @@
               <div class="panel-body table-wrap"><table id="genreTable"></table></div>
             </div>
           </div>
+        </section>
+
+        <section id="reviewLeads" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">Review queue</p>
+              <h1>確認待ち</h1>
+            </div>
+            <div class="toolbar">
+              <button type="button" class="button secondary icon-text-button" onclick="showTab('search')"><span class="button-icon" data-ui-icon="search"></span>収集ツール</button>
+              <button type="button" class="button primary icon-text-button" onclick="loadReviewLeadMenu()"><span class="button-icon" data-ui-icon="refreshCw"></span>更新</button>
+            </div>
+          </header>
+          <section id="reviewLeadCommandPanel" class="review-command-panel"></section>
+          <div id="reviewLeadStats" class="review-stats-grid"></div>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>確認待ちリスト</h2>
+              <div class="toolbar">
+                <span class="pill warn" id="reviewLeadCountPill">0件</span>
+                <button type="button" onclick="openReviewLeadsInList()">営業リストで開く</button>
+              </div>
+            </div>
+            <div class="table-wrap review-table-wrap"><table id="reviewLeadTable"></table></div>
+          </section>
         </section>
 
         <section id="leads" class="section">
@@ -9910,6 +10062,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       const TAB_TITLES = {
         dashboard: 'ダッシュボード',
         leads: '営業リスト',
+        reviewLeads: '確認待ち',
         backgroundJobs: 'バックグラウンド進捗',
         backgroundActivity: '直近実行結果',
         emailLeads: 'メール送信リスト',
@@ -9930,7 +10083,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         ops: '管理/運用',
       };
 
-      const TOP_SHORTCUT_TABS = ['leads', 'backgroundJobs', 'search', 'forms', 'sending', 'emailLeads'];
+      const TOP_SHORTCUT_TABS = ['reviewLeads', 'search', 'leads', 'backgroundJobs', 'forms', 'emailLeads'];
       const RECENT_BACKGROUND_JOB_MS = 10 * 60 * 1000;
       const INITIAL_REVIEW_LEAD_LIMIT = 100;
       const FULL_LEAD_DEFAULT_LIMIT = 500;
@@ -10045,6 +10198,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         OP: iconSvg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
         PV: iconSvg('<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>'),
         RS: iconSvg('<path d="M12 20h9"/><path d="M12 4h9"/><path d="M4 9h16"/><path d="m4 4 3 3-3 3"/><path d="m4 14 3 3-3 3"/>'),
+        RV: iconSvg('<path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'),
         SL: iconSvg('<path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/><path d="M8 6v12"/><path d="M16 6v12"/>'),
         SP: iconSvg('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>'),
         SY: iconSvg('<path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M16 8h5V3"/>'),
@@ -10126,6 +10280,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         leads: 'LD',
         mail: 'ML',
         reply: 'HS',
+        review: 'RV',
         search: 'SP',
         send: 'PV',
         sendNg: 'NG',
@@ -10158,6 +10313,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         app: null,
         enums: {},
         leads: [],
+        reviewLeads: [],
+        reviewTotal: 0,
+        reviewStats: {},
+        reviewLoading: false,
         templates: [],
         ngMasters: [],
         excludedDomains: [],
@@ -10217,6 +10376,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           templates: false,
           masters: false,
           search: false,
+          reviewLeads: false,
           ops: false,
           gmailAuth: false,
           emailLeads: false,
@@ -10747,6 +10907,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             renderLeads();
             return;
           }
+          if (name === 'reviewLeads') {
+            await ensureDataLoaded('reviewLeads', () => loadReviewLeadMenu({ quiet: true }));
+            renderReviewLeadsScreen();
+            return;
+          }
           if (name === 'search') {
             renderCollectionCommandCenter(state.serper || {});
             return;
@@ -10912,6 +11077,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
         if (active === 'backgroundActivity') {
           renderBackgroundActivityScreen();
+          return;
+        }
+        if (active === 'reviewLeads') {
+          renderReviewLeadsScreen();
           return;
         }
         if (active === 'ops') {
@@ -11080,7 +11249,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('dashboardActions').innerHTML = [
           actionCard('送信前チェック', dashboard.mailSendingEnabled === false ? '停止中' : `${formatNumber(dashboard.todayRemaining)}件`, dashboard.mailSendingEnabled === false ? 'メール送信機能' : '本日残り送信枠', dashboard.mailSendingEnabled === false ? 'bad' : dashboard.todayRemaining > 0 ? 'ok' : 'bad', "showTab('sending')", 'send'),
           actionCard('フォーム対象', `${formatNumber(dashboard.formTargets)}件`, 'メールなし・フォームあり', dashboard.formTargets > 0 ? 'info' : 'ok', "showTab('forms')", 'forms'),
-          actionCard('確認待ち/未対応', `${formatNumber((dashboard.byStatus || {})['未対応'] || 0)}件`, '未対応リード確認', 'warn', "showTab('leads'); setLeadFilter('all'); document.getElementById('leadStatus').value='未対応'; filterLeads()", 'search'),
+          actionCard('確認待ち/未対応', `${formatNumber((dashboard.byStatus || {})['未対応'] || 0)}件`, '未対応リード確認', 'warn', "showTab('reviewLeads')", 'review'),
           actionCard('異常確認', `${formatNumber(dashboard.errorCount)}件`, 'sync_logs warn/error', dashboard.errorCount > 0 ? 'bad' : 'ok', dashboard.errorCount > 0 ? "showTab('errors')" : "showTab('templates')", 'errors'),
         ].join('');
       }
@@ -11409,6 +11578,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         beginLeadLoadProgress('確認待ちリストを読み込み中', '初期表示を軽くするため確認待ちだけ取得しています。', 18);
         try {
           await loadLeads(0, { filter: 'review', mode: 'review', limit: INITIAL_REVIEW_LEAD_LIMIT, quiet: true });
+          syncReviewStateFromLeadPage();
           completeLeadLoadProgress('確認待ちリストを読み込みました', `${leadRangeLabel()}を表示しています。`);
         } catch (error) {
           failLeadLoadProgress(error);
@@ -11421,12 +11591,224 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         beginLeadLoadProgress('確認待ちリストを読み込み中', '確認待ち候補だけを再取得しています。', 18);
         try {
           await loadLeads(0, { filter: 'review', mode: 'review', limit: INITIAL_REVIEW_LEAD_LIMIT });
+          syncReviewStateFromLeadPage();
           completeLeadLoadProgress('確認待ちリストを読み込みました', `${leadRangeLabel()}を表示しています。`);
           message('確認待ちリストを読み込みました', 'ok');
         } catch (error) {
           failLeadLoadProgress(error);
           message(error.message, 'bad');
         }
+      }
+
+      function getReviewLeadRequest() {
+        return {
+          filter: 'review',
+          sort: 'updated_desc',
+          limit: INITIAL_REVIEW_LEAD_LIMIT,
+          offset: 0,
+        };
+      }
+
+      function syncReviewStateFromLeadPage() {
+        state.reviewLeads = (state.leads || []).filter(isReviewPendingLead);
+        state.reviewTotal = state.leadPage.total || state.reviewLeads.length;
+        state.reviewStats = state.leadPage.filteredStats || state.leadPage.stats || {};
+        state.dataLoaded.reviewLeads = true;
+        renderReviewLeadsScreen();
+      }
+
+      async function loadReviewLeadMenu(options) {
+        const config = options || {};
+        state.reviewLoading = true;
+        renderReviewLeadsScreen();
+        try {
+          const request = getReviewLeadRequest();
+          const result = config.quiet ? await apiQuiet('listLeads', request) : await api('listLeads', request);
+          state.reviewLeads = result.items || [];
+          state.reviewTotal = result.total || 0;
+          state.reviewStats = result.filteredStats || result.stats || {};
+          state.dataLoaded.reviewLeads = true;
+          renderReviewLeadsScreen();
+          if (!config.quiet) message('確認待ちを更新しました', 'ok');
+          return result;
+        } catch (error) {
+          if (!config.quiet) message(error.message || String(error), 'error');
+          throw error;
+        } finally {
+          state.reviewLoading = false;
+          renderReviewLeadsScreen();
+        }
+      }
+
+      function renderReviewLeadsScreen() {
+        const command = document.getElementById('reviewLeadCommandPanel');
+        const statsTarget = document.getElementById('reviewLeadStats');
+        const tableTarget = document.getElementById('reviewLeadTable');
+        if (!command || !statsTarget || !tableTarget) return;
+        const leads = state.reviewLeads || [];
+        const total = Number(state.reviewTotal || leads.length || 0);
+        const loading = Boolean(state.reviewLoading);
+        const withWebsite = leads.filter((lead) => Boolean(lead.website_url)).length;
+        const withEmail = leads.filter((lead) => Boolean(lead.email)).length;
+        const withForm = leads.filter((lead) => Boolean(lead.form_url)).length;
+        const noContact = leads.filter((lead) => !lead.email && !lead.form_url).length;
+        const hiddenCount = Math.max(0, total - leads.length);
+        const commandHeading = loading ? '確認待ちを読み込み中です' : total ? `${formatNumber(total)}件を確認できます` : '確認待ちはありません';
+        const commandDetail = loading
+          ? 'Google Sheetsから確認待ち候補だけを取得しています。'
+          : total
+            ? '検索で追加された候補を上から確認し、公式サイトや連絡先を整えてから送信対象へ進めます。'
+            : '新しい候補を増やす場合は営業リスト収集ツールから収集を実行してください。';
+        command.className = `review-command-panel ${!loading && !total ? 'is-empty' : ''}`;
+        command.innerHTML = `
+          <div class="review-command-copy">
+            <div class="review-command-meta">
+              ${statusTonePill(loading ? '読み込み中' : total ? '確認待ちあり' : '確認待ちなし', loading ? 'info' : total ? 'warn' : 'good')}
+              <span class="pill info">初期表示は最大${formatNumber(INITIAL_REVIEW_LEAD_LIMIT)}件</span>
+            </div>
+            <h2>${escapeHtml(commandHeading)}</h2>
+            <p>${escapeHtml(commandDetail)}</p>
+          </div>
+          <div class="review-command-actions">
+            <button type="button" class="button primary icon-text-button" onclick="focusReviewLeadTable()" ${total ? '' : 'disabled'}><span class="button-icon" data-ui-icon="checkCircle"></span>確認を始める</button>
+            <button type="button" class="button secondary icon-text-button" onclick="showTab('search')"><span class="button-icon" data-ui-icon="search"></span>収集ツール</button>
+            <button type="button" class="button secondary icon-text-button" onclick="openReviewLeadsInList()" ${total ? '' : 'disabled'}><span class="button-icon" data-ui-icon="clipboard"></span>一括操作</button>
+          </div>
+        `;
+        statsTarget.innerHTML = [
+          ['表示中', `${formatNumber(leads.length)}件`, hiddenCount ? `ほか${formatNumber(hiddenCount)}件` : '全件表示中'],
+          ['WEBサイト', `${formatNumber(withWebsite)}件`, '確認済みリンク'],
+          ['連絡先あり', `${formatNumber(withEmail + withForm)}件`, `メール${formatNumber(withEmail)} / フォーム${formatNumber(withForm)}`],
+          ['連絡先なし', `${formatNumber(noContact)}件`, '公式再探索を推奨'],
+        ].map(([label, value, detail]) => `
+          <div class="review-stat-card">
+            <span>${escapeHtml(label)}</span>
+            <strong>${escapeHtml(value)}</strong>
+            <small class="muted">${escapeHtml(detail)}</small>
+          </div>
+        `).join('');
+        const countPill = document.getElementById('reviewLeadCountPill');
+        if (countPill) {
+          countPill.textContent = `${formatNumber(total)}件`;
+          countPill.className = `pill ${total ? 'warn' : 'good'}`;
+        }
+        const headers = ['No.', '営業先', '連絡先', 'ジャンル', 'WEBサイト', '状態', '操作'];
+        const rows = leads.map((lead, index) => renderReviewLeadRow(lead, index + 1)).join('');
+        tableTarget.innerHTML = table(headers, rows);
+        hydrateLegacyUtilityIcons(command);
+      }
+
+      function renderReviewLeadRow(lead, rowNumber) {
+        const name = lead.facility_name || lead.company_name || '-';
+        const company = lead.facility_name && lead.company_name ? `<small>${escapeHtml(lead.company_name)}</small>` : '';
+        const source = lead.source ? `<small>追加元 ${escapeHtml(lead.source)}</small>` : '';
+        return `<tr class="row-review">${[
+          ['No.', `<strong>${formatNumber(rowNumber)}</strong>`],
+          ['営業先', `<span class="review-lead-name-cell"><strong>${escapeHtml(name)}</strong>${company}${source}</span>`],
+          ['連絡先', renderReviewContactCell(lead)],
+          ['ジャンル', escapeHtml(lead.genre || '-')],
+          ['WEBサイト', renderReviewWebsiteCell(lead)],
+          ['状態', statusStack(lead)],
+          ['操作', renderReviewLeadActions(lead)],
+        ].map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('')}</tr>`;
+      }
+
+      function renderReviewContactCell(lead) {
+        if (!lead.email && !lead.form_url) return '<span class="muted">なし</span>';
+        return `
+          <span class="review-contact-cell">
+            ${lead.email ? '<span class="pill info">メール</span>' : ''}
+            ${lead.form_url ? '<span class="pill good">フォーム</span>' : ''}
+          </span>
+        `;
+      }
+
+      function renderReviewWebsiteCell(lead) {
+        if (lead.website_url) {
+          return `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener" title="${escapeHtml(lead.website_url)}">${legacyUiIcon('external')}<span>WEBサイト</span></a>`;
+        }
+        return `<button type="button" class="table-link-button" onclick="queueLeadSearch('${escapeJsString(lead.id)}')">公式再探索</button>`;
+      }
+
+      function renderReviewLeadActions(lead) {
+        const id = escapeJsString(lead.id);
+        return `
+          <span class="review-action-row">
+            <button type="button" class="table-link-button primary-row-action" onclick="updateReviewLeadStatus('${id}', '対応中')">確認済み</button>
+            <button type="button" class="table-link-button" onclick="openReviewLeadEditor('${id}')">編集</button>
+            <button type="button" class="table-link-button danger-row-action" onclick="updateReviewLeadStatus('${id}', '対応不要')">対応不要</button>
+          </span>
+        `;
+      }
+
+      function focusReviewLeadTable() {
+        const target = document.getElementById('reviewLeadTable');
+        if (!target) return;
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      async function openReviewLeadsInList() {
+        if (!state.dataLoaded.reviewLeads) {
+          await loadReviewLeadMenu();
+        }
+        syncReviewLeadsToLeadList();
+        showTab('leads');
+      }
+
+      function syncReviewLeadsToLeadList() {
+        resetLeadFiltersForReview();
+        state.leads = (state.reviewLeads || []).slice();
+        state.selectedLeadIds = [];
+        state.leadPage.total = state.reviewTotal || state.leads.length;
+        state.leadPage.offset = 0;
+        state.leadPage.limit = INITIAL_REVIEW_LEAD_LIMIT;
+        state.leadPage.stats = state.reviewStats || {};
+        state.leadPage.filteredStats = state.reviewStats || {};
+        renderGenreBar();
+        renderLeadQuickViews();
+        renderLeads();
+        updateLeadLoadPanel();
+      }
+
+      function openReviewLeadEditor(id) {
+        syncReviewLeadsToLeadList();
+        showTab('leads');
+        window.setTimeout(() => editLead(id), 80);
+      }
+
+      async function updateReviewLeadStatus(id, status) {
+        const lead = findLeadByIdClient(id);
+        if (!lead) {
+          message('確認待ちリードが見つかりませんでした', 'error');
+          return;
+        }
+        const label = status === '対応中' ? '確認済み' : status;
+        const suffix = status === '対応中' ? '（GAS版では「対応中」として保存します）' : '';
+        if (!confirm(`${lead.facility_name || lead.company_name || 'このリード'}を${label}にしますか。${suffix}`)) return;
+        try {
+          await api('updateLead', id, { status });
+          applyReviewLeadLocalStatus(id, status);
+          message(`${label}に更新しました`, 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      function applyReviewLeadLocalStatus(id, status) {
+        const applyTo = (lead) => {
+          if (!lead || lead.id !== id) return lead;
+          return Object.assign({}, lead, { status });
+        };
+        const beforeCount = (state.reviewLeads || []).length;
+        state.reviewLeads = (state.reviewLeads || []).filter((lead) => lead.id !== id);
+        state.reviewTotal = Math.max(0, Number(state.reviewTotal || beforeCount) - (beforeCount === state.reviewLeads.length ? 0 : 1));
+        state.leads = (state.leads || []).map(applyTo);
+        if (state.dashboard && Number.isFinite(Number(state.dashboard.reviewTargets))) {
+          state.dashboard.reviewTargets = Math.max(0, Number(state.dashboard.reviewTargets || 0) - 1);
+          renderDashboardActions(state.dashboard);
+        }
+        renderReviewLeadsScreen();
+        renderLeads();
       }
 
       async function loadAllLeadsManually() {
@@ -12019,8 +12401,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         message('一括操作は、表示中の行を選択して「確認済みにする」「除外削除」「CSV出力」から実行できます。', 'ok');
       }
 
+      function findLeadByIdClient(id) {
+        const lists = [state.leads, state.reviewLeads, state.emailLeads, state.formLeads, state.dealLeads];
+        for (const list of lists) {
+          const found = (list || []).find((item) => item && item.id === id);
+          if (found) return found;
+        }
+        return null;
+      }
+
       async function queueLeadSearch(id) {
-        const lead = state.leads.find((item) => item.id === id);
+        const lead = findLeadByIdClient(id);
         if (!lead) return;
         if (!confirm(`${lead.facility_name || lead.company_name || 'このリード'}の公式サイトをSerperで再探索しますか。`)) return;
         try {
@@ -12062,7 +12453,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function editLead(id) {
-        const lead = state.leads.find((item) => item.id === id);
+        const lead = findLeadByIdClient(id);
         if (!lead) return;
         document.getElementById('leadFormTitle').textContent = 'リード編集';
         renderLeadDialogStatusPills(lead);
@@ -15055,7 +15446,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <small>Serper ${searchReady ? (state.serper.key_mask || '設定済み') : '未設定'} / ジャンル ${formatNumber((state.genres || []).length)}件</small>
             </div>
             <div class="collection-simple-links">
-              <button type="button" class="mini-button" onclick="showTab('list')">${legacyUiIcon('clipboard')}リスト確認</button>
+              <button type="button" class="mini-button" onclick="showTab('reviewLeads')">${legacyUiIcon('clipboard')}確認待ち</button>
               <button type="button" class="mini-button" onclick="openCollectionSupport('serper')">${legacyUiIcon('keyRound')}Serperキー</button>
               <button type="button" class="mini-button" onclick="showTab('exclusions')">${legacyUiIcon('settings')}除外ドメイン</button>
             </div>
@@ -16432,7 +16823,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['1回上限', `${formatNumber(Math.min(100, dashboard.todayRemaining || 0))}件`],
         ].map(([label, value]) => `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`).join('');
         const blocked = [
-          ['案件確認待ち', dashboard.reviewTargets || 0, "showTab('leads'); setLeadFilter('review')"],
+          ['案件確認待ち', dashboard.reviewTargets || 0, "showTab('reviewLeads')"],
           ['除外/送信NG', dashboard.sendNg || 0, "showTab('leads'); setLeadFilter('send_ng')"],
           ['テンプレートなし', (dashboard.productionInitialTemplates || 0) <= 0 ? state.emailTotal : 0, "showTab('templates')"],
           ['送信済み', dashboard.sent || 0, "showTab('histories')"],

@@ -38,6 +38,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `TemplateTagMenu` に寄せたテンプレート差し込みメニュー、サンプル文面、差し込み値プレビュー
 - 旧Next/Supabase版の `TemplateCreateForm` に寄せたサンプル適用、保存済みテンプレート更新、別テンプレート作成、フォーム営業件名なし許可
 - 旧Next/Supabase版の `AppSafetyStrip` / `AppTopShortcutBar` / `AppRouteProgress` に寄せた運用ステータスバー、上部ショートカット、タブ切替進行バー
+- 確認待ち専用メニュー、確認待ち/収集ツールを優先した上部ショートカット、確認待ち候補だけを読む軽量キュー画面
 - 旧Next/Supabase版の `AppFrame` に寄せたサイドバーのリスト/運用グループ順序
 - 旧Next/Supabase版の `AppNavLink` / `AppTopShortcutBar` に寄せた線アイコン表示と一次メニューのみのサイドバー構成
 - 旧Next/Supabase版の `BackgroundJobWidgets` / `BackgroundJobToasts` / `BackgroundJobCenter` に寄せた共通ジョブ通知と戻るボタン
@@ -93,7 +94,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @85 / code v85: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @132 / code v132: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -355,6 +356,7 @@ const archived = deleteLead(lead.id);
 - 大量処理は `search_jobs` に進捗を保存し、`advanceQueuedJobs()` で分割実行します。
 - バッチ処理は `batch_runtime_budget_ms` を見て、Apps Scriptの6分制限に近づく前に中断・再開します。
 - 履歴、分析、管理詳細、収集ログは初期表示で読み込まず、対象タブまたは詳細アコーディオンを開いた時に遅延読み込みします。
+- 確認待ちは独立メニューで最大100件だけを軽量取得し、詳細な一括操作が必要な時だけ営業リスト本体へ引き継ぎます。
 - 大きなテーブルは初期描画件数を絞り、必要な時だけ「さらに表示」で追加描画します。CSV出力や集計元データは維持します。
 - 運用タブの `バックアップ作成` でSpreadsheet DBのDriveコピーを作成できます。
 

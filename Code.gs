@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260708_apps_script_full_workflow_v131_lazy_tables_performance';
+const APP_VERSION = '20260709_apps_script_full_workflow_v132_review_menu_shortcuts';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
