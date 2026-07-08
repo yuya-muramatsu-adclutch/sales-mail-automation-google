@@ -94,7 +94,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @132 / code v132: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @133 / code v133: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -356,7 +356,7 @@ const archived = deleteLead(lead.id);
 - 大量処理は `search_jobs` に進捗を保存し、`advanceQueuedJobs()` で分割実行します。
 - バッチ処理は `batch_runtime_budget_ms` を見て、Apps Scriptの6分制限に近づく前に中断・再開します。
 - 履歴、分析、管理詳細、収集ログは初期表示で読み込まず、対象タブまたは詳細アコーディオンを開いた時に遅延読み込みします。
-- 確認待ちは独立メニューで最大100件だけを軽量取得し、詳細な一括操作が必要な時だけ営業リスト本体へ引き継ぎます。
+- Webアプリ起動時は確認待ちメニューを初期表示し、最大100件だけを軽量取得します。詳細な一括操作が必要な時だけ営業リスト本体へ引き継ぎます。
 - 大きなテーブルは初期描画件数を絞り、必要な時だけ「さらに表示」で追加描画します。CSV出力や集計元データは維持します。
 - 運用タブの `バックアップ作成` でSpreadsheet DBのDriveコピーを作成できます。
 

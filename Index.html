@@ -9011,7 +9011,7 @@
             <button type="button" class="tab nav-item" data-tab="leads" onclick="showTab('leads')">
               <span class="nav-icon">LD</span><span>営業リスト</span>
             </button>
-            <button type="button" class="tab nav-item" data-tab="reviewLeads" onclick="showTab('reviewLeads')">
+            <button type="button" class="tab nav-item active" data-tab="reviewLeads" onclick="showTab('reviewLeads')">
               <span class="nav-icon">RV</span><span>確認待ち</span>
             </button>
             <button type="button" class="tab nav-item" data-tab="search" onclick="showTab('search')">
@@ -9029,7 +9029,7 @@
           </div>
           <div class="nav-group">
             <div class="nav-group-label">運用</div>
-            <button type="button" class="tab nav-item active" data-tab="dashboard" onclick="showTab('dashboard')">
+            <button type="button" class="tab nav-item" data-tab="dashboard" onclick="showTab('dashboard')">
               <span class="nav-icon">DB</span><span>ダッシュボード</span>
             </button>
             <button type="button" class="tab nav-item" data-tab="analytics" onclick="showTab('analytics')">
@@ -9096,7 +9096,7 @@
             <strong id="todayLabel">-</strong>
           </div>
           <nav class="main-toolbar-actions" aria-label="よく使う操作">
-            <button type="button" class="toolbar-shortcut" data-shortcut-tab="reviewLeads" onclick="showTab('reviewLeads')"><span class="shortcut-icon">RV</span>確認</button>
+            <button type="button" class="toolbar-shortcut active" data-shortcut-tab="reviewLeads" onclick="showTab('reviewLeads')" aria-current="page"><span class="shortcut-icon">RV</span>確認</button>
             <button type="button" class="toolbar-shortcut" data-shortcut-tab="search" onclick="showTab('search')"><span class="shortcut-icon">SP</span>収集</button>
             <button type="button" class="toolbar-shortcut" data-shortcut-tab="leads" onclick="showTab('leads')"><span class="shortcut-icon">LD</span>リスト</button>
             <button type="button" class="toolbar-shortcut" data-shortcut-tab="backgroundJobs" onclick="showTab('backgroundJobs')"><span class="shortcut-icon">BG</span>進捗</button>
@@ -9106,7 +9106,7 @@
         </div>
         <div id="globalMessage" class="message"></div>
 
-        <section id="dashboard" class="section active">
+        <section id="dashboard" class="section">
           <header class="section-header">
             <div>
               <p class="eyebrow">Sales overview</p>
@@ -9161,7 +9161,7 @@
           </div>
         </section>
 
-        <section id="reviewLeads" class="section">
+        <section id="reviewLeads" class="section active">
           <header class="section-header">
             <div>
               <p class="eyebrow">Review queue</p>
@@ -10091,7 +10091,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       let routeProgressTimer = null;
       let leadLoadProgressTimer = null;
       let messageClearTimer = null;
-      let currentTab = 'dashboard';
+      let currentTab = 'reviewLeads';
       let busyRequestCount = 0;
       let suppressTabHistory = false;
       const tabHistory = [];

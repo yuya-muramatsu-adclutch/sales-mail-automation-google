@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @132 / code v132: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @133 / code v133: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260709_apps_script_full_workflow_v132_review_menu_shortcuts`
+- Code version: `20260709_apps_script_full_workflow_v133_review_startup`
 
 ## 計画書との対応
 
@@ -114,6 +114,7 @@
 | 全体デザインルール強化 | 完了 | code v129で各ページ上部を共通フォーマットへ統一。正常時の運用ステータス帯を非表示化し、異常時のみ原因チップを表示。行アクションの強弱とPillの最大幅/省略/title保持を追加 |
 | メール二重送信防止強化 | 完了 | code v130で `sendLeadEmail()` の送信直前チェック、MailApp送信、`send_histories` 保存、リード更新を同一 `LockService` 範囲へ統合。成功履歴のあるlead_id/メールアドレスを候補から除外し、画面側もsend_count/送信済み/同一メール重複を除外 |
 | 確認待ち専用メニュー | 完了 | code v132で確認待ちを独立タブ化。左メニュー/上部ショートカット/ダッシュボード導線を確認待ちへ集約し、最大100件だけを読む軽量キュー、確認済み/対応不要/公式再探索/詳細編集を追加 |
+| 確認待ち初期起動 | 完了 | code v133でWebアプリ起動時のactiveタブをダッシュボードから確認待ちへ変更。初期ロードは既存の確認待ち100件取得を維持 |
 | 初回起動遅延改善 | 完了 | code v91で原因を `getInitialData()` の全件ダッシュボード集計、毎回の `setup()`、マスタ/設定/スキーマ/Serper集計、起動時の他メニュー全取得と特定。起動は軽量ダッシュボード + 確認待ちリストに限定し、詳細集計と各メニュー用データは背景/タブ表示時に遅延ロード。初回の確認待ち取得はquiet通信にして表示後のナビ操作をブロックしない |
 | Gmail API連携設定 | 完了 | code v94で `MailApp` 用 `script.send_mail` と `GmailApp` 用 `https://mail.google.com/` をOAuth scopeへ追加し、Gmail連携画面から承認状態、Google認可URL、非送信の連携テストを確認できるようにした。認可リンクのアイコン巨大化と追加承認待ちの空パネル表示も修正 |
 | Gmail承認状態判定修正 | 完了 | code v95で `NOT_REQUIRED` を `REQUIRED` の部分一致として扱い、承認後もGmail連携画面だけ要承認になる判定バグを修正 |
@@ -552,6 +553,17 @@
 - 既存Web app URLを `clasp deploy -V 132 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 132へ再デプロイ済み。
 - `clasp deployments` で既存Web app URLが `@132 - apps-script-full-workflow-v132-review-menu-shortcuts-on-existing-url` を指すことを確認。
 - 確認待ちは最大100件だけを軽量取得し、詳細な一括操作は営業リスト本体へ同期して引き継ぐ。営業収集ツールへの導線も左メニュー/上部ショートカット/確認待ち画面から常時利用できる。
+
+## 2026-07-09 v133 確認待ち初期起動
+
+- `node scripts/smoke-test.js` 成功。`reviewLeads` セクション、サイドバー、上部ショートカット、`currentTab` が初期状態で確認待ちになることを確認。
+- `.gs` 全ファイルのNode構文チェック成功。
+- `git diff --check` 成功。
+- `clasp push -f` 成功。
+- `clasp version "apps-script-full-workflow-v133-review-startup"` でVersion 133を作成済み。
+- 既存Web app URLを `clasp deploy -V 133 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 133へ再デプロイ済み。
+- `clasp deployments` で既存Web app URLが `@133 - apps-script-full-workflow-v133-review-startup-on-existing-url` を指すことを確認。
+- 起動時のデータ取得は既存の確認待ち100件取得を維持し、全件営業リストは引き続き手動読み込み。
 
 ## 運用時に確認する外部依存
 

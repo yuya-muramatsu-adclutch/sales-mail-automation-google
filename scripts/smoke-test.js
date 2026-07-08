@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260709_apps_script_full_workflow_v132_review_menu_shortcuts'), 'v132 app version missing');
+assert(code.includes('20260709_apps_script_full_workflow_v133_review_startup'), 'v133 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -120,6 +120,9 @@ assert(html.includes('updateReviewLeadStatus'), 'review leads status action miss
 assert(html.includes('openReviewLeadsInList'), 'review leads list handoff missing');
 assert(html.includes("if (name === 'reviewLeads')"), 'review leads tab should lazy-load its own queue');
 assert(html.includes("data-shortcut-tab=\"reviewLeads\""), 'top shortcut should prioritize review leads');
+assert(html.includes('<section id="reviewLeads" class="section active">'), 'app should start on review leads section');
+assert(html.includes("let currentTab = 'reviewLeads';"), 'current tab should start as review leads');
+assert(html.includes(`data-shortcut-tab="reviewLeads" onclick="showTab('reviewLeads')" aria-current="page"`), 'review leads shortcut should start active');
 assert(html.includes('loadAllLeadsManually'), 'manual full lead load action missing');
 assert(html.includes('leadLoadProgressBar'), 'lead load progress UI missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
