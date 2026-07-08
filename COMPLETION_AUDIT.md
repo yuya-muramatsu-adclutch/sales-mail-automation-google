@@ -530,6 +530,17 @@
 - `clasp deployments` で既存Web app URLが `@130 - apps-script-full-workflow-v130-mail-send-duplicate-guard-on-existing-url` を指すことを確認。
 - 実メール送信はユーザーの送信先確認が必要なため未実施。ローカルでは構文/静的安全検査まで確認。
 
+## 2026-07-08 v131 遅延読み込み / テーブル軽量化
+
+- `node scripts/smoke-test.js` 成功。`TABLE_RENDER_BATCHES`, `limitedTableRows`, `table-load-more-row`, `renderActiveLoadedScreen`, `onCollectionSupportToggle`, `onAdminDisclosureToggle`, `onGmailDisclosureToggle` を確認。
+- `.gs` 全ファイルのNode構文チェック成功。
+- `git diff --check` 成功。
+- `clasp push -f` 成功。
+- `clasp version "apps-script-full-workflow-v131-lazy-tables-performance"` でVersion 131を作成済み。
+- 既存Web app URLを `clasp deploy -V 131 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 131へ再デプロイ済み。
+- `clasp deployments` で既存Web app URLが `@131 - apps-script-full-workflow-v131-lazy-tables-performance-on-existing-url` を指すことを確認。
+- 初期表示では収集ログ、管理詳細、Gmail詳細、履歴/同期/分析の重いテーブルをまとめて描画しない。必要な詳細を開いた時だけAPI取得し、画面テーブルは「さらに表示」で段階描画する。
+
 ## 運用時に確認する外部依存
 
 - Serper実検索は、実APIキーを保存後に `testSerperApiKey()` と小規模ジョブで確認する。

@@ -82,7 +82,7 @@ assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260708_apps_script_full_workflow_v130_mail_send_duplicate_guard'), 'v130 app version missing');
+assert(code.includes('20260708_apps_script_full_workflow_v131_lazy_tables_performance'), 'v131 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -95,6 +95,15 @@ assert(html.includes('getStartupDashboardStats_') || fs.readFileSync(path.join(r
 assert(html.includes('schedulePostStartupRefresh'), 'startup should schedule deferred dashboard refresh');
 assert(html.includes('ensureTabDataLoaded'), 'tabs should lazy-load their own data');
 assert(!html.includes('await Promise.all([leadLoadTask, loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()])'), 'startup should not block on every secondary list');
+assert(html.includes('TABLE_RENDER_BATCHES'), 'table render batch limits missing');
+assert(html.includes('limitedTableRows'), 'limited table row renderer missing');
+assert(html.includes('table-load-more-row'), 'table load more row UI missing');
+assert(html.includes('renderActiveLoadedScreen'), 'active-screen only deferred renderer missing');
+assert(html.includes('onCollectionSupportToggle'), 'collection support lazy load handler missing');
+assert(html.includes('onAdminDisclosureToggle'), 'admin detail lazy load handler missing');
+assert(html.includes('onGmailDisclosureToggle'), 'Gmail detail lazy load handler missing');
+assert(html.includes("if (name === 'search') {\n            renderCollectionCommandCenter(state.serper || {});\n            return;"), 'search tab should not load collection logs before details open');
+assert(html.includes("ensureDataLoaded('ops', () => loadOpsData({ render: false }))"), 'ops data should load without rendering every legacy table');
 assert(html.includes('show-background-center-button'), 'background center button should not always overlay primary screens');
 assert(html.includes('function updateBackgroundCenterButton'), 'background center visibility controller missing');
 assert(html.includes('messageClearTimer'), 'success message auto-clear missing');

@@ -7260,6 +7260,42 @@
         scrollbar-gutter: stable;
       }
 
+      .table-load-more-row td {
+        padding: 14px 16px;
+        background: #f8fafc;
+        text-align: center;
+      }
+
+      .table-load-more-control {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .table-load-more-control button {
+        min-height: 34px;
+        padding: 7px 12px;
+      }
+
+      .deferred-panel-placeholder {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 72px;
+        padding: var(--card-child-pad);
+        border: 1px dashed var(--line-strong);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
       .panel-body.table-wrap {
         padding: 0;
       }
@@ -9408,7 +9444,7 @@
           <div class="prospecting-collection-tool">
             <section id="collectionCommandCenter" class="collection-command-center simple"></section>
           </div>
-          <details id="collectionSupportDetails" class="collection-support-disclosure">
+          <details id="collectionSupportDetails" class="collection-support-disclosure" ontoggle="onCollectionSupportToggle(this)">
             <summary>
               <span><strong>結果・詳細設定を見る</strong><small>前回の進捗、検索結果、Serperキー、詳細ジョブは必要な時だけ開きます。</small></span>
               <span class="button-icon" data-ui-icon="chevronRight"></span>
@@ -9709,25 +9745,25 @@ duplicate keys: email / domain / company</pre>
           </header>
           <section id="gmailOverviewPanel" class="panel stack gmail-overview-panel"></section>
           <div class="gmail-accordion-list admin-accordion-list">
-            <details class="admin-disclosure gmail-disclosure">
+            <details class="admin-disclosure gmail-disclosure" ontoggle="onGmailDisclosureToggle(this, 'diagnostics')">
               <summary><span>連携診断</span><small>承認、権限、送信枠、時間主導トリガー</small></summary>
               <div class="admin-disclosure-body gmail-disclosure-body">
                 <section id="gmailConnectionCheckPanel" class="panel stack"></section>
               </div>
             </details>
-            <details class="admin-disclosure gmail-disclosure">
+            <details class="admin-disclosure gmail-disclosure" ontoggle="onGmailDisclosureToggle(this, 'testHistory')">
               <summary><span>テスト送信履歴</span><small>テンプレートから実行したテスト結果</small></summary>
               <div class="admin-disclosure-body gmail-disclosure-body">
                 <section id="gmailTestSendHistoryPanel" class="panel stack gmail-test-history-panel"></section>
               </div>
             </details>
-            <details class="admin-disclosure gmail-disclosure">
+            <details class="admin-disclosure gmail-disclosure" ontoggle="onGmailDisclosureToggle(this, 'replyCheck')">
               <summary><span>返信チェック</span><small>Gmail Thread IDから返信ありを更新</small></summary>
               <div class="admin-disclosure-body gmail-disclosure-body">
                 <section id="gmailReplyCheckPanel" class="panel stack"></section>
               </div>
             </details>
-            <details class="admin-disclosure gmail-disclosure">
+            <details class="admin-disclosure gmail-disclosure" ontoggle="onGmailDisclosureToggle(this, 'sendLock')">
               <summary><span>送信ロック / 利用手順</span><small>同時送信防止とGoogle側の確認項目</small></summary>
               <div class="admin-disclosure-body gmail-disclosure-body">
                 <section id="mailSendLockPanel" class="panel stack"></section>
@@ -9769,7 +9805,7 @@ PropertiesService
             <section id="adminAutomationSettingsPanel" class="panel stack"></section>
           </div>
           <div class="admin-accordion-list">
-            <details class="admin-disclosure">
+            <details class="admin-disclosure" ontoggle="onAdminDisclosureToggle(this, 'googleDb')">
               <summary><span>Google / DB 連携</span><small>列チェック、Gmail認可、返信確認、Calendar設定</small></summary>
               <div class="admin-disclosure-body">
                 <section id="schemaStatusPanel" class="panel stack"></section>
@@ -9778,7 +9814,7 @@ PropertiesService
                 <section id="calendarAutoCreateSettingsPanel" class="panel stack"></section>
               </div>
             </details>
-            <details class="admin-disclosure">
+            <details class="admin-disclosure" ontoggle="onAdminDisclosureToggle(this, 'masters')">
               <summary><span>マスター管理</span><small>ジャンル、選択肢、カスタム項目、重複確認</small></summary>
               <div class="admin-disclosure-body">
                 <section id="genreManagerPanel" class="panel stack"></section>
@@ -9787,7 +9823,7 @@ PropertiesService
                 <section id="duplicateLeadManagerPanel" class="panel stack"></section>
               </div>
             </details>
-            <details class="admin-disclosure">
+            <details class="admin-disclosure" ontoggle="onAdminDisclosureToggle(this, 'logs')">
               <summary><span>ログ / メンテナンス</span><small>エラー、ジョブ処理、バックアップ、設定メモ</small></summary>
               <div class="admin-disclosure-body">
                 <section id="adminErrorDetailsPanel" class="panel stack"></section>
@@ -10203,6 +10239,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         historyQuery: '',
         jobs: [],
         syncLogs: [],
+        tableRenderLimits: {},
         syncImport: {
           source: 'csv_upload',
           rawInput: SAMPLE_SYNC_CSV,
@@ -10226,6 +10263,23 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           messageKind: '',
         },
       };
+
+      const TABLE_RENDER_BATCHES = Object.freeze({
+        opsHistory: 60,
+        opsJobs: 60,
+        opsSyncLogs: 60,
+        backgroundJobs: 60,
+        backgroundActivity: 60,
+        sendHistory: 80,
+        analyticsDaily: 30,
+        analyticsMonthly: 12,
+        analyticsTemplate: 60,
+        analyticsGenre: 40,
+        syncScreen: 80,
+        searchResults: 80,
+        searchUsage: 80,
+        errors: 60,
+      });
 
       function api(name, ...args) {
         return callApi(name, args, { busy: true });
@@ -10578,7 +10632,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderAppSafetyStrip(result);
         renderSearchActivityPanel();
         renderCollectionCommandCenter(state.serper || {});
-        renderLoadedLegacyScreens();
+        renderActiveLoadedScreen();
         state.dataLoaded.dashboard = true;
         return result;
       }
@@ -10694,12 +10748,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             return;
           }
           if (name === 'search') {
-            await ensureDataLoaded('search', loadSearchResults);
+            renderCollectionCommandCenter(state.serper || {});
             return;
           }
           if (['backgroundJobs', 'backgroundActivity', 'ops', 'errors', 'sync', 'histories'].includes(name)) {
-            await ensureDataLoaded('ops', loadOpsData);
-            renderLoadedLegacyScreens();
+            await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
+            renderActiveLoadedScreen(name);
             return;
           }
           if (name === 'forms') {
@@ -10716,7 +10770,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             await Promise.all([
               ensureDataLoaded('templates', loadTemplates),
               ensureDataLoaded('emailLeads', loadEmailLeads),
-              ensureDataLoaded('ops', loadOpsData),
+              ensureDataLoaded('ops', () => loadOpsData({ render: false })),
             ]);
             renderSendingScreen();
             renderEmailPreviewPanel();
@@ -10738,7 +10792,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           }
           if (name === 'analytics') {
             await Promise.all([
-              ensureDataLoaded('ops', loadOpsData),
+              ensureDataLoaded('ops', () => loadOpsData({ render: false })),
               ensureDataLoaded('emailLeads', loadEmailLeads),
               ensureDataLoaded('dealLeads', loadDealLeads),
             ]);
@@ -10754,29 +10808,140 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true })).catch((error) => {
               console.warn('Gmail authorization check skipped:', error && error.message ? error.message : error);
             });
-            await ensureDataLoaded('ops', loadOpsData);
-            renderGmailScreen();
-            renderGmailConnectionCheckPanel();
-            renderGmailTestSendHistoryPanel();
-            renderGmailReplyCheckPanel('gmailReplyCheckPanel');
-            renderMailSendLockPanel();
             return;
           }
           if (name === 'admin') {
             const adminLoadResults = await Promise.allSettled([
-              ensureDataLoaded('reference', loadReferenceData),
               ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true })),
-              ensureDataLoaded('templates', loadTemplates),
-              ensureDataLoaded('masters', loadMasters),
-              ensureDataLoaded('ops', loadOpsData),
             ]);
             adminLoadResults
               .filter((result) => result.status === 'rejected')
               .forEach((result) => console.warn('Admin deferred data load skipped:', result.reason && result.reason.message ? result.reason.message : result.reason));
-            renderLoadedLegacyScreens();
+            renderAdminScreen();
+            renderAdminReadinessRunnerPanel();
+            renderAdminAutomationSettingsPanel();
           }
         } catch (error) {
           console.warn('Deferred tab load failed:', error && error.message ? error.message : error);
+        }
+      }
+
+      async function onCollectionSupportToggle(details) {
+        if (!details || !details.open) return;
+        try {
+          await ensureDataLoaded('search', loadSearchResults);
+        } catch (error) {
+          console.warn('Collection support lazy load failed:', error && error.message ? error.message : error);
+        }
+      }
+
+      async function reloadCollectionSupportIfOpen() {
+        const details = document.getElementById('collectionSupportDetails');
+        if (!details || !details.open) return;
+        state.dataLoaded.search = false;
+        await ensureDataLoaded('search', loadSearchResults);
+      }
+
+      async function onGmailDisclosureToggle(details, group) {
+        if (!details || !details.open) return;
+        try {
+          if (group === 'diagnostics') {
+            await ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true }));
+            renderGmailConnectionCheckPanel();
+            return;
+          }
+          if (group === 'testHistory') {
+            await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
+            renderGmailTestSendHistoryPanel();
+            return;
+          }
+          if (group === 'replyCheck') {
+            await ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true }));
+            renderGmailReplyCheckPanel('gmailReplyCheckPanel');
+            return;
+          }
+          if (group === 'sendLock') {
+            await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
+            renderMailSendLockPanel();
+          }
+        } catch (error) {
+          console.warn('Gmail detail lazy load failed:', error && error.message ? error.message : error);
+        }
+      }
+
+      async function onAdminDisclosureToggle(details, group) {
+        if (!details || !details.open) return;
+        try {
+          if (group === 'googleDb') {
+            await Promise.allSettled([
+              ensureDataLoaded('reference', loadReferenceData),
+              ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true })),
+            ]);
+            renderSchemaStatusPanel();
+            renderGoogleCredentialSummaryPanel();
+            renderGmailReplyCheckPanel('adminGmailReplyCheckPanel', { compact: true });
+            renderCalendarAutoCreateSettingsPanel();
+            return;
+          }
+          if (group === 'masters') {
+            await Promise.allSettled([
+              ensureDataLoaded('reference', loadReferenceData),
+              ensureDataLoaded('masters', loadMasters),
+            ]);
+            renderGenreManagerPanel();
+            renderReasonMasterManagerPanel();
+            renderCustomFieldDefinitionPanel();
+            renderDuplicateLeadManagerPanel();
+            return;
+          }
+          if (group === 'logs') {
+            await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
+            renderAdminErrorDetailsPanel();
+          }
+        } catch (error) {
+          console.warn('Admin detail lazy load failed:', error && error.message ? error.message : error);
+        }
+      }
+
+      function renderActiveLoadedScreen(name) {
+        const active = name || document.querySelector('.section.active')?.id || currentTab || 'dashboard';
+        if (active === 'backgroundJobs') {
+          renderBackgroundJobsScreen();
+          renderBackgroundJobWidgets();
+          return;
+        }
+        if (active === 'backgroundActivity') {
+          renderBackgroundActivityScreen();
+          return;
+        }
+        if (active === 'ops') {
+          renderOpsPanels();
+          return;
+        }
+        if (active === 'errors') {
+          renderErrorDetailsScreen();
+          return;
+        }
+        if (active === 'sync') {
+          renderSyncScreen();
+          return;
+        }
+        if (active === 'histories') {
+          renderHistoriesScreen();
+          return;
+        }
+        if (active === 'analytics') {
+          renderAnalyticsScreen();
+          return;
+        }
+        if (active === 'gmail') {
+          renderGmailScreen();
+          return;
+        }
+        if (active === 'admin') {
+          renderAdminScreen();
+          renderAdminReadinessRunnerPanel();
+          renderAdminAutomationSettingsPanel();
         }
       }
 
@@ -14084,6 +14249,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         });
         message(`検索処理: ${result.processed}件`, result.errors && result.errors.length ? 'error' : 'ok');
         await refreshAll();
+        await reloadCollectionSupportIfOpen();
       }
 
       async function loadSearchResults() {
@@ -14103,22 +14269,24 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderSearchTables() {
+        const resultHeaders = ['種類', 'タイトル', 'URL', '根拠', '作成'];
+        const usageHeaders = ['日時', '用途', '検索語', '件数', '状態'];
         document.getElementById('searchResultCountPill').textContent = `${formatNumber(state.searchResults.length)}件`;
         document.getElementById('searchUsageCountPill').textContent = `${formatNumber(state.searchUsageLogs.length)}件`;
-        document.getElementById('searchResultsTable').innerHTML = table(['種類', 'タイトル', 'URL', '根拠', '作成'], state.searchResults.map((item) => row([
+        document.getElementById('searchResultsTable').innerHTML = table(resultHeaders, limitedTableRows(resultHeaders, state.searchResults, 'searchResults', 'renderSearchTables', (item) => row([
           ['種類', statusPill(item.result_type || '検索結果')],
           ['タイトル', escapeHtml(item.title || '-')],
           ['URL', item.url ? `<a href="${escapeHtml(externalUrl(item.url))}" target="_blank" rel="noopener">${escapeHtml(compactUrl(item.url))}</a>` : '<span class="muted">-</span>'],
           ['根拠', escapeHtml(item.snippet || item.reason || '-')],
           ['作成', escapeHtml(dateLabel(item.created_at) || '-')],
-        ])).join(''));
-        document.getElementById('searchUsageTable').innerHTML = table(['日時', '用途', '検索語', '件数', '状態'], state.searchUsageLogs.map((item) => row([
+        ])));
+        document.getElementById('searchUsageTable').innerHTML = table(usageHeaders, limitedTableRows(usageHeaders, state.searchUsageLogs, 'searchUsage', 'renderSearchTables', (item) => row([
           ['日時', escapeHtml(dateLabel(item.created_at || item.used_at) || '-')],
           ['用途', escapeHtml(item.purpose || item.job_type || '-')],
           ['検索語', escapeHtml(item.query || item.keyword || '-')],
           ['件数', formatNumber(item.result_count || item.results_count || item.count || 0)],
           ['状態', statusPill(item.status || item.result || '記録')],
-        ])).join(''));
+        ])));
       }
 
       function renderSearchActivityPanel() {
@@ -15008,7 +15176,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           }, 80);
           return;
         }
-        loadSearchResults();
+        ensureDataLoaded('search', loadSearchResults).catch((error) => {
+          console.warn('Collection support load skipped:', error && error.message ? error.message : error);
+        });
         setTimeout(() => {
           const resultTarget = document.getElementById('prospectingProgressDashboard') || document.getElementById('jobResultsReviewPanel') || details;
           if (resultTarget) resultTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -15422,9 +15592,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const result = await api('runSmallSearchJob', payload);
         message(`${label}: ${formatNumber(result.processed || 0)}件処理しました`, result.errors && result.errors.length ? 'error' : 'ok');
         await refreshAll();
+        await reloadCollectionSupportIfOpen();
       }
 
-      async function loadOpsData() {
+      async function loadOpsData(options) {
+        const config = options || {};
         const [histories, syncLogs, jobs, searchJobs] = await Promise.all([
           api('listSheetRecords', 'send_histories', { limit: 100, includeInactive: true }),
           api('listSheetRecords', 'sync_logs', { limit: 100, includeInactive: true }),
@@ -15435,7 +15607,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.syncLogs = syncLogs.items || [];
         state.jobs = (jobs.items || []).concat(searchJobs.items || []);
         state.dataLoaded.ops = true;
-        renderOpsPanels();
+        if (config.render !== false) renderOpsPanels();
       }
 
       async function loadHistories() {
@@ -16084,8 +16256,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderHistoryTable() {
         const histories = state.histories || [];
+        const headers = ['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名'];
         document.getElementById('historyCountPill').textContent = `${formatNumber(histories.length)}件`;
-        document.getElementById('historyTable').innerHTML = table(['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名'], histories.map((item) => row([
+        document.getElementById('historyTable').innerHTML = table(headers, limitedTableRows(headers, histories, 'opsHistory', 'renderHistoryTable', (item) => row([
           ['送信日時', `<span class="history-date-cell"><strong>${escapeHtml(dateTimeLabel(item.sent_at || item.created_at) || '-')}</strong><small>日本時間</small></span>`],
           ['結果', item.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="history-error"><span class="pill bad">${escapeHtml(item.send_result || '失敗')}</span><small>${escapeHtml(item.error_message || '')}</small></span>`],
           ['種別', statusPill(item.send_type || '-')],
@@ -16094,25 +16267,27 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['ジャンル', escapeHtml(item.genre || '-')],
           ['テンプレート', escapeHtml(item.template_name || '-')],
           ['件名', escapeHtml(item.subject || '-')],
-        ])).join(''));
+        ])));
       }
 
       function renderJobTable() {
         const jobs = state.jobs || [];
+        const headers = ['作成', '種類', '状態', '進捗', 'エラー'];
         document.getElementById('jobCountPill').textContent = `${formatNumber(jobs.length)}件`;
-        document.getElementById('jobTable').innerHTML = table(['作成', '種類', '状態', '進捗', 'エラー'], jobs.map((job) => row([
+        document.getElementById('jobTable').innerHTML = table(headers, limitedTableRows(headers, jobs, 'opsJobs', 'renderJobTable', (job) => row([
           ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
           ['種類', escapeHtml(job.job_type || job.type || '-')],
           ['状態', statusPill(job.status || '-')],
           ['進捗', `${formatNumber(job.processed_count || job.processed || 0)} / ${formatNumber(job.total_count || job.total || 0)}`],
           ['エラー', escapeHtml(job.error_message || job.last_error || '-')],
-        ])).join(''));
+        ])));
       }
 
       function renderSyncLogTable() {
         const logs = state.syncLogs || [];
+        const headers = ['日時', 'ソース', '追加', '補完', '重複', 'エラー', '詳細'];
         document.getElementById('syncLogCountPill').textContent = `${formatNumber(logs.length)}件`;
-        document.getElementById('syncLogTable').innerHTML = table(['日時', 'ソース', '追加', '補完', '重複', 'エラー', '詳細'], logs.map((log) => row([
+        document.getElementById('syncLogTable').innerHTML = table(headers, limitedTableRows(headers, logs, 'opsSyncLogs', 'renderSyncLogTable', (log) => row([
           ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
           ['ソース', escapeHtml(log.source || log.log_type || '-')],
           ['追加', formatNumber(log.added_count || log.added || 0)],
@@ -16120,14 +16295,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['重複', formatNumber(log.duplicate_skip_count || log.skipped || 0)],
           ['エラー', formatNumber(log.error_count || (log.level === 'error' ? 1 : 0))],
           ['詳細', escapeHtml(log.message || log.detail || log.error_message || '-')],
-        ])).join(''));
+        ])));
       }
 
       function renderExpandedLegacyScreens() {
-        renderLoadedLegacyScreens();
+        renderLoadedLegacyScreens({ full: true });
       }
 
-      function renderLoadedLegacyScreens() {
+      function renderLoadedLegacyScreens(options) {
+        if (!options || options.full !== true) {
+          renderActiveLoadedScreen();
+          return;
+        }
         renderBackgroundJobsScreen();
         renderBackgroundActivityScreen();
         renderEmailLeadsScreen();
@@ -16175,15 +16354,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           statCard('GAS分割実行', '6分以内', '少量ずつ処理', 'amber'),
         ].join('');
         renderLegacyBackgroundOverview('backgroundOverviewPanel');
+        const headers = ['作成', '種類', '状態', '進捗', '次の処理', 'エラー'];
         document.getElementById('backgroundJobCountPill').textContent = `${formatNumber(jobs.length)}件`;
-        document.getElementById('backgroundJobTable').innerHTML = table(['作成', '種類', '状態', '進捗', '次の処理', 'エラー'], jobs.map((job) => row([
+        document.getElementById('backgroundJobTable').innerHTML = table(headers, limitedTableRows(headers, jobs, 'backgroundJobs', 'renderBackgroundJobsScreen', (job) => row([
           ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
           ['種類', escapeHtml(job.job_type || job.type || '-')],
           ['状態', statusPill(job.status || '-')],
           ['進捗', `${formatNumber(job.processed_count || job.processed || 0)} / ${formatNumber(job.total_count || job.total || 0)}`],
           ['次の処理', escapeHtml(dateTimeLabel(job.next_run_at || job.updated_at) || '-')],
           ['エラー', escapeHtml(job.error_message || job.last_error || '-')],
-        ])).join(''));
+        ])));
       }
 
       function renderBackgroundActivityScreen() {
@@ -16205,14 +16385,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           `<div><span>処理済み</span><strong>${formatNumber(processed)}件</strong></div>`,
         ].join('');
         document.getElementById('backgroundActivityErrorPill').textContent = `エラー含む ${formatNumber(errorCount)}件`;
-        target.innerHTML = table(['更新', '種別', '実行内容', '進捗', '得られた結果', '詳細'], rows.map((job) => row([
+        const headers = ['更新', '種別', '実行内容', '進捗', '得られた結果', '詳細'];
+        target.innerHTML = table(headers, limitedTableRows(headers, rows, 'backgroundActivity', 'renderBackgroundActivityScreen', (job) => row([
           ['更新', `<span>${escapeHtml(dateTimeLabel(job.timeMs ? new Date(job.timeMs).toISOString() : '') || '-')}</span><small>${escapeHtml(job.statusLabel)}</small>`],
           ['種別', `${statusPill(job.label)}<small>${escapeHtml(job.statusLabel)}</small>`],
           ['実行内容', `<strong>${escapeHtml(job.message)}</strong><small>${escapeHtml(job.sourceLabel || job.type || '-')}</small>`],
           ['進捗', `<strong>${formatNumber(job.processed)} / ${formatNumber(job.total)}</strong><small>${formatNumber(job.percent)}%</small>`],
           ['得られた結果', `<div class="background-activity-result-list">${backgroundJobResultItems(job.raw).map((item) => `<span>${escapeHtml(item.label)} <strong>${formatNumber(item.value)}</strong></span>`).join('')}</div>`],
           ['詳細', `<button type="button" class="table-link-button" onclick="showTab('backgroundJobs')">詳細を見る</button>`],
-        ])).join(''));
+        ])));
       }
 
       function renderEmailLeadsScreen() {
@@ -16830,10 +17011,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           statCard('テスト送信', `${formatNumber(test)}件`, '確認用', 'amber'),
         ].join('');
         renderHistoryFilterPanel();
-        document.getElementById('sendHistoryScreenCaption').textContent = `送信日時は日本時間で表示しています。表示中 ${formatNumber(visible.length)}件 / 最新${formatNumber(histories.length)}件`;
+        const headers = ['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名', '本文/Gmail'];
+        const renderedCount = Math.min(tableRenderLimit('sendHistory'), visible.length);
+        document.getElementById('sendHistoryScreenCaption').textContent = `送信日時は日本時間で表示しています。表示 ${formatNumber(renderedCount)}件 / 絞り込み ${formatNumber(visible.length)}件 / 最新${formatNumber(histories.length)}件`;
         document.getElementById('sendHistoryTodayPill').outerHTML = `<span class="pill info" id="sendHistoryTodayPill">本日 ${formatNumber(today)}件</span>`;
         document.getElementById('sendHistoryScreenPill').outerHTML = `<span class="pill ${filtering ? 'warn' : 'info'}" id="sendHistoryScreenPill">${filtering ? '絞り込み中' : `${formatNumber(visible.length)}件`}</span>`;
-        document.getElementById('sendHistoryScreenTable').innerHTML = table(['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名', '本文/Gmail'], visible.map((item) => row([
+        document.getElementById('sendHistoryScreenTable').innerHTML = table(headers, limitedTableRows(headers, visible, 'sendHistory', 'renderHistoriesScreen', (item) => row([
           ['送信日時', `<span class="history-date-cell"><strong>${escapeHtml(dateTimeLabel(item.sent_at || item.created_at) || '-')}</strong><small>日本時間</small></span>`],
           ['結果', item.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="history-error"><span class="pill bad">${escapeHtml(item.send_result || '失敗')}</span><small>${escapeHtml(item.error_message || '')}</small></span>`],
           ['種別', renderHistorySendTypePill(item.send_type || '-')],
@@ -16843,7 +17026,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['テンプレート', `<span class="history-template-cell"><strong>${escapeHtml(item.template_name || '-')}</strong><small>${escapeHtml(item.template_id || 'テンプレートIDなし')}</small></span>`],
           ['件名', `<span class="history-subject-cell"><strong>${escapeHtml(item.subject || '-')}</strong></span>`],
           ['本文/Gmail', renderHistoryActionCell(item)],
-        ])).join(''));
+        ])));
       }
 
       function renderHistoryFilterPanel() {
@@ -16874,12 +17057,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const filter = document.getElementById('historyFilter');
         state.historyQuery = search ? search.value : '';
         state.historyFilter = filter ? filter.value : 'all';
+        resetTableRenderLimit('sendHistory');
         renderHistoriesScreen();
       }
 
       function resetHistoryFilters() {
         state.historyQuery = '';
         state.historyFilter = 'all';
+        resetTableRenderLimit('sendHistory');
         renderHistoriesScreen();
       }
 
@@ -17044,13 +17229,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['mailCheck', '送信成功率', formatPercent(data.quality.sendSuccessRate), `${formatNumber(data.quality.sendSuccesses)} / ${formatNumber(data.quality.sendTotal)}件`],
         ].map(([icon, label, value, detail]) => `<div>${legacyUiIcon(icon)}<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></div>`).join('');
 
-        document.getElementById('analyticsDailyTable').innerHTML = table(['日付', '営業リスト追加', '送信'], data.dailyRows.map((item) => row([
+        const dailyHeaders = ['日付', '営業リスト追加', '送信'];
+        document.getElementById('analyticsDailyTable').innerHTML = table(dailyHeaders, limitedTableRows(dailyHeaders, data.dailyRows, 'analyticsDaily', 'renderAnalyticsScreen', (item) => row([
           ['日付', escapeHtml(item.label)],
           ['営業リスト追加', `${formatNumber(item.addedLeads)}件`],
           ['送信', `${formatNumber(item.sent)}件`],
-        ])).join(''));
+        ])));
         document.getElementById('analyticsMonthlyPill').textContent = `今月追加 ${formatNumber(month.addedLeads)}件`;
-        document.getElementById('analyticsMonthlyTable').innerHTML = table(['月', '追加', '送信', '返信', '返信率', '送信NG', '商談', '商談化率', '成約', '成約率', '失注'], data.monthlyRows.map((item) => row([
+        const monthlyHeaders = ['月', '追加', '送信', '返信', '返信率', '送信NG', '商談', '商談化率', '成約', '成約率', '失注'];
+        document.getElementById('analyticsMonthlyTable').innerHTML = table(monthlyHeaders, limitedTableRows(monthlyHeaders, data.monthlyRows, 'analyticsMonthly', 'renderAnalyticsScreen', (item) => row([
           ['月', escapeHtml(item.label)],
           ['追加', formatNumber(item.addedLeads)],
           ['送信', formatNumber(item.sent)],
@@ -17062,7 +17249,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['成約', formatNumber(item.contracts)],
           ['成約率', renderAnalyticsRatePill(item.contractRate)],
           ['失注', formatNumber(item.lost)],
-        ])).join(''));
+        ])));
 
         document.getElementById('analyticsQualityPill').outerHTML = `<span class="pill ${data.quality.sendFailures > 0 ? 'warn' : 'good'}" id="analyticsQualityPill">${data.quality.sendFailures > 0 ? '要確認' : '正常'}</span>`;
         document.getElementById('analyticsQualityTable').innerHTML = table(['項目', '数値'], [
@@ -17078,7 +17265,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['成約率', '商談から成約への率は、ジャンルごとの提案内容や価格感の見直しに使います。'],
         ].map(([label, text]) => `<div class="analytics-note"><strong>${escapeHtml(label)}</strong><p>${escapeHtml(text)}</p></div>`).join('');
 
-        document.getElementById('analyticsTemplateTable').innerHTML = table(['メール文', 'ジャンル', '送信', '返信', '返信率', '送信NG', '商談', '成約', '失注', '最新送信', '内容'], data.templateRows.map((item) => row([
+        const templateHeaders = ['メール文', 'ジャンル', '送信', '返信', '返信率', '送信NG', '商談', '成約', '失注', '最新送信', '内容'];
+        document.getElementById('analyticsTemplateTable').innerHTML = table(templateHeaders, limitedTableRows(templateHeaders, data.templateRows, 'analyticsTemplate', 'renderAnalyticsScreen', (item) => row([
           ['メール文', `<span class="mail-copy-cell"><strong>${escapeHtml(item.templateName)}</strong><small>${escapeHtml(item.templateId ? `ID: ${String(item.templateId).slice(0, 8)}` : 'テンプレートIDなし')}</small></span>`],
           ['ジャンル', escapeHtml(item.genre || '-')],
           ['送信', `${formatNumber(item.sent)}件`],
@@ -17090,9 +17278,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['失注', `${formatNumber(item.lost)}件`],
           ['最新送信', escapeHtml(dateTimeLabel(item.latestSentAt) || '-')],
           ['内容', `<span class="mail-copy-cell wide"><strong>${escapeHtml(item.subject || '-')}</strong><small>${escapeHtml(item.bodyPreview || '-')}</small></span>`],
-        ])).join(''));
+        ])));
 
-        document.getElementById('analyticsGenreTable').innerHTML = table(['ジャンル', '営業リスト', '送信', '返信', '返信率', '送信NG', '商談', '商談化率', '成約', '成約率', '失注'], data.genreRows.map((item) => row([
+        const genreHeaders = ['ジャンル', '営業リスト', '送信', '返信', '返信率', '送信NG', '商談', '商談化率', '成約', '成約率', '失注'];
+        document.getElementById('analyticsGenreTable').innerHTML = table(genreHeaders, limitedTableRows(genreHeaders, data.genreRows, 'analyticsGenre', 'renderAnalyticsScreen', (item) => row([
           ['ジャンル', escapeHtml(item.genre)],
           ['営業リスト', formatNumber(item.leads)],
           ['送信', formatNumber(item.sent)],
@@ -17104,7 +17293,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['成約', formatNumber(item.contracts)],
           ['成約率', renderAnalyticsRatePill(item.contractRate)],
           ['失注', formatNumber(item.lost)],
-        ])).join(''));
+        ])));
       }
 
       function buildClientAnalyticsData() {
@@ -17820,8 +18009,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderSyncScreen() {
         renderLegacySyncImportPanel('syncImportPanel', 'mainSync', { compact: false });
         const logs = state.syncLogs || [];
+        const headers = ['日時', 'ソース', '追加', '補完', '重複', 'エラー', '詳細'];
         document.getElementById('syncScreenPill').textContent = `${formatNumber(logs.length)}件`;
-        document.getElementById('syncScreenTable').innerHTML = table(['日時', 'ソース', '追加', '補完', '重複', 'エラー', '詳細'], logs.map((log) => row([
+        document.getElementById('syncScreenTable').innerHTML = table(headers, limitedTableRows(headers, logs, 'syncScreen', 'renderSyncScreen', (log) => row([
           ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
           ['ソース', escapeHtml(log.source || log.log_type || '-')],
           ['追加', formatNumber(log.added_count || log.added || 0)],
@@ -17829,7 +18019,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['重複', formatNumber(log.duplicate_skip_count || log.skipped || 0)],
           ['エラー', log.error_count > 0 || log.level === 'error' ? '<span class="pill bad">あり</span>' : '<span class="pill good">なし</span>'],
           ['詳細', escapeHtml(log.message || log.detail || log.error_message || '-')],
-        ])).join(''));
+        ])));
       }
 
       function renderGmailScreen() {
@@ -18999,12 +19189,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const pill = document.getElementById('errorsStatusPill');
         pill.className = `pill ${detail.logs.length ? 'warn' : 'good'}`;
         pill.textContent = detail.logs.length ? '要確認' : 'エラーなし';
-        tableTarget.innerHTML = table(['日時', '種別', '内容', '詳細'], detail.logs.map((log) => row([
+        const headers = ['日時', '種別', '内容', '詳細'];
+        tableTarget.innerHTML = table(headers, limitedTableRows(headers, detail.logs, 'errors', 'renderErrorDetailsScreen', (log) => row([
           ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
           ['種別', statusPill(log.level || 'warn')],
           ['内容', escapeHtml(log.operation || log.event_type || '-')],
           ['詳細', escapeHtml(log.message || log.stack || log.context_json || '-')],
-        ])).join(''));
+        ])));
       }
 
       function renderAdminScreen() {
@@ -19042,6 +19233,27 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderAdminReadinessRunnerPanel() {
         const target = document.getElementById('adminReadinessRunnerPanel');
         if (!target) return;
+        const detailReady = Boolean(state.adminReadinessResult) || (state.dataLoaded.templates && state.dataLoaded.emailLeads && state.dataLoaded.ops);
+        if (!detailReady) {
+          const dashboard = state.dashboard || {};
+          const sendWindow = dashboard.sendWindow || {};
+          target.innerHTML = `
+            <div class="section-title-row">
+              <div>
+                <h2>安全な本番前確認</h2>
+                <p class="muted">初期表示では詳細リストを読み込まず、必要な時だけ送信候補・除外内訳・実行ログを確認します。</p>
+              </div>
+              <button type="button" onclick="runAdminReadinessCheck()">詳細確認</button>
+            </div>
+            <div class="admin-check-summary">
+              <div><span>送信時間</span><strong>${escapeHtml(sendWindow.allowed === false ? '時間外' : '確認可')}</strong><small>${escapeHtml(sendWindow.label || '送信時間設定を確認')}</small></div>
+              <div><span>本日の残り</span><strong>${formatNumber(dashboard.todayRemaining || 0)}</strong><small>送信枠の軽量ステータス</small></div>
+              <div><span>Gmail</span><strong>${dashboard.integrations && dashboard.integrations.gmail === false ? '要確認' : '確認済み'}</strong><small>詳細はGmail連携で確認</small></div>
+              <div><span>詳細データ</span><strong>未読込</strong><small>押した時だけ読み込みます</small></div>
+            </div>
+          `;
+          return;
+        }
         const data = state.adminReadinessResult || buildAdminReadinessData();
         const plan = data.autoSendPlan;
         const selectedTargets = plan.selectedInitial || [];
@@ -19272,9 +19484,24 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function runAdminReadinessCheck() {
-        state.adminReadinessResult = buildAdminReadinessData();
-        renderAdminReadinessRunnerPanel();
-        message('本番前確認を更新しました', 'ok');
+        loadAdminReadinessDetail();
+      }
+
+      async function loadAdminReadinessDetail() {
+        try {
+          message('本番前確認の詳細を読み込んでいます...');
+          await Promise.allSettled([
+            ensureDataLoaded('templates', loadTemplates),
+            ensureDataLoaded('emailLeads', loadEmailLeads),
+            ensureDataLoaded('formLeads', loadFormLeads),
+            ensureDataLoaded('ops', () => loadOpsData({ render: false })),
+          ]);
+          state.adminReadinessResult = buildAdminReadinessData();
+          renderAdminReadinessRunnerPanel();
+          message('本番前確認を更新しました', 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
       }
 
       function renderSchemaStatusPanel() {
@@ -19376,6 +19603,61 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const result = await api('importLeadsFromCsv', csvText, { source: 'csv' });
         message(`CSV: 追加 ${result.added} / スキップ ${result.skipped}`, result.errors.length ? 'error' : 'ok');
         await refreshAll();
+      }
+
+      function tableRenderLimit(key) {
+        const fallback = TABLE_RENDER_BATCHES[key] || 80;
+        const current = Number(state.tableRenderLimits[key] || fallback);
+        return Math.max(1, current);
+      }
+
+      function resetTableRenderLimit(key) {
+        delete state.tableRenderLimits[key];
+      }
+
+      function limitedTableItems(items, key) {
+        return (items || []).slice(0, tableRenderLimit(key));
+      }
+
+      function limitedTableRows(headers, items, key, renderName, rowRenderer, step) {
+        const list = items || [];
+        return limitedTableItems(list, key).map(rowRenderer).join('') + tableLoadMoreRow(headers, key, list.length, renderName, step);
+      }
+
+      function tableLoadMoreRow(headers, key, total, renderName, step) {
+        const limit = tableRenderLimit(key);
+        if (total <= limit) return '';
+        const nextStep = step || TABLE_RENDER_BATCHES[key] || 80;
+        return `
+          <tr class="table-load-more-row">
+            <td data-column="" colspan="${headers.length}">
+              <span class="table-load-more-control">
+                <span>表示 ${formatNumber(Math.min(limit, total))} / ${formatNumber(total)}件</span>
+                <button type="button" class="table-link-button" onclick="showMoreTableRows('${escapeJsString(key)}', ${Number(nextStep)}, '${escapeJsString(renderName)}')">さらに表示</button>
+              </span>
+            </td>
+          </tr>
+        `;
+      }
+
+      function showMoreTableRows(key, step, renderName) {
+        state.tableRenderLimits[key] = tableRenderLimit(key) + Math.max(1, Number(step || TABLE_RENDER_BATCHES[key] || 80));
+        const renderers = {
+          renderOpsPanels,
+          renderHistoryTable,
+          renderJobTable,
+          renderSyncLogTable,
+          renderBackgroundJobsScreen,
+          renderBackgroundActivityScreen,
+          renderHistoriesScreen,
+          renderAnalyticsScreen,
+          renderSyncScreen,
+          renderSearchTables,
+          renderErrorDetailsScreen,
+          renderAdminErrorDetailsPanel,
+        };
+        const renderer = renderers[renderName] || window[renderName];
+        if (typeof renderer === 'function') renderer();
       }
 
       function table(headers, rows) {

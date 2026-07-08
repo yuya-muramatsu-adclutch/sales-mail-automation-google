@@ -354,6 +354,8 @@ const archived = deleteLead(lead.id);
 - Serper検索は日次/月次/1リード上限を確認します。
 - 大量処理は `search_jobs` に進捗を保存し、`advanceQueuedJobs()` で分割実行します。
 - バッチ処理は `batch_runtime_budget_ms` を見て、Apps Scriptの6分制限に近づく前に中断・再開します。
+- 履歴、分析、管理詳細、収集ログは初期表示で読み込まず、対象タブまたは詳細アコーディオンを開いた時に遅延読み込みします。
+- 大きなテーブルは初期描画件数を絞り、必要な時だけ「さらに表示」で追加描画します。CSV出力や集計元データは維持します。
 - 運用タブの `バックアップ作成` でSpreadsheet DBのDriveコピーを作成できます。
 
 ## 検証
