@@ -237,6 +237,106 @@ function listLeadSendHistories(leadId, options) {
   };
 }
 
+function importSendHistories(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const records = Array.isArray(source.records) ? source.records
+    : Array.isArray(source.items) ? source.items
+      : Array.isArray(source.histories) ? source.histories
+        : [];
+  const dryRun = source.dryRun === true || source.dry_run === true;
+  if (!records.length) {
+    return { ok: true, inserted: 0, existing: 0, skipped: 0, total: 0, dryRun: dryRun };
+  }
+
+  return withScriptLock_('importSendHistories', function () {
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'send_histories');
+    const headers = getHeaders_(sheet);
+    const existing = readSheetRecords_(sheet);
+    const existingById = {};
+    existing.forEach(function (record) {
+      const id = String(record.id || '').trim();
+      if (id) existingById[id] = true;
+    });
+
+    const inserts = [];
+    let existingCount = 0;
+    let skipped = 0;
+    records.forEach(function (record) {
+      try {
+        const normalized = normalizeSendHistoryImportRecord_(record);
+        if (existingById[normalized.id]) {
+          existingCount += 1;
+        } else {
+          inserts.push(normalized);
+        }
+      } catch (error) {
+        skipped += 1;
+      }
+    });
+
+    if (dryRun) {
+      return {
+        ok: true,
+        inserted: inserts.length,
+        existing: existingCount,
+        skipped: skipped,
+        total: records.length,
+        dryRun: true,
+      };
+    }
+
+    if (inserts.length) {
+      const values = inserts.map(function (record) {
+        return headers.map(function (header) {
+          return valueOrBlank_(record[header]);
+        });
+      });
+      sheet.getRange(sheet.getLastRow() + 1, 1, values.length, headers.length).setValues(values);
+      clearRuntimeCaches_('send_histories');
+    }
+
+    return {
+      ok: true,
+      inserted: inserts.length,
+      existing: existingCount,
+      skipped: skipped,
+      total: records.length,
+      dryRun: false,
+    };
+  });
+}
+
+function normalizeSendHistoryImportRecord_(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    throw new Error('Send history input must be an object.');
+  }
+  const id = String(input.id || '').trim();
+  if (!id) throw new Error('Send history id is required.');
+  const sentAt = String(input.sent_at || input.sentAt || input.created_at || '').trim();
+  const createdAt = String(input.created_at || input.createdAt || sentAt || '').trim();
+  return {
+    id: id,
+    lead_id: String(input.lead_id || input.leadId || '').trim(),
+    sent_at: sentAt || nowIso_(),
+    send_type: String(input.send_type || input.sendType || '初回メール').trim(),
+    to_email: String(input.to_email || input.toEmail || '').trim().toLowerCase(),
+    company_name: String(input.company_name || input.companyName || '').trim(),
+    facility_name: String(input.facility_name || input.facilityName || '').trim(),
+    genre: String(input.genre || '').trim(),
+    template_id: String(input.template_id || input.templateId || '').trim(),
+    template_name: String(input.template_name || input.templateName || '').trim(),
+    subject: String(input.subject || '').trim(),
+    body: String(input.body || ''),
+    send_result: String(input.send_result || input.sendResult || '成功').trim(),
+    error_message: String(input.error_message || input.errorMessage || '').trim(),
+    gmail_message_id: String(input.gmail_message_id || input.gmailMessageId || '').trim(),
+    gmail_thread_id: String(input.gmail_thread_id || input.gmailThreadId || '').trim(),
+    sender_name: String(input.sender_name || input.senderName || '').trim(),
+    created_at: createdAt || nowIso_(),
+  };
+}
+
 function updateLeadAfterSend_(leadId, patch) {
   const spreadsheet = getOrCreateSpreadsheet_();
   const sheet = ensureSheet_(spreadsheet, 'leads');

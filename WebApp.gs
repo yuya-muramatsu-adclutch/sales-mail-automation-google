@@ -63,6 +63,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'listSheetRecords') return listSheetRecords(data.sheetName || data.sheet_name, data.options || data);
   if (action === 'listEmailTemplates') return listEmailTemplates(data);
   if (action === 'saveEmailTemplate') return saveEmailTemplate(data);
+  if (action === 'importEmailTemplates') return importEmailTemplates(data);
   if (action === 'setEmailTemplateProduction') return setEmailTemplateProduction(data.id || data.templateId || data.template_id, data.options || data);
   if (action === 'deleteEmailTemplate') return deleteEmailTemplate(data.id);
   if (action === 'listNgMasters') return listNgMasters(data);
@@ -91,6 +92,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'reviewSearchResults') return reviewSearchResults(data);
   if (action === 'sendLeadEmail') return sendLeadEmail(data.leadId || data.lead_id, data.templateId || data.template_id, data.options || {});
   if (action === 'listLeadSendHistories') return listLeadSendHistories(data.leadId || data.lead_id, data.options || data);
+  if (action === 'importSendHistories') return importSendHistories(data);
   if (action === 'sendTestEmail') return sendTestEmail(data.templateId || data.template_id, data.toEmail || data.to_email, data.sampleLead || data.sample_lead || {});
   if (action === 'checkRepliesForLeads') return checkRepliesForLeads(data);
   if (action === 'listReplyFalsePositiveCandidates') return listReplyFalsePositiveCandidates(data);

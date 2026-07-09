@@ -16,6 +16,101 @@ function saveEmailTemplate(input) {
   });
 }
 
+function importEmailTemplates(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const records = Array.isArray(source.records) ? source.records
+    : Array.isArray(source.items) ? source.items
+      : Array.isArray(source.templates) ? source.templates
+        : [];
+  const dryRun = source.dryRun === true || source.dry_run === true;
+  if (!records.length) {
+    return { ok: true, inserted: 0, updated: 0, skipped: 0, total: 0, dryRun: dryRun };
+  }
+
+  return withScriptLock_('importEmailTemplates', function () {
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'email_templates');
+    const headers = getHeaders_(sheet);
+    const existing = readSheetRecords_(sheet);
+    const existingById = {};
+    existing.forEach(function (record) {
+      const id = String(record.id || '').trim();
+      if (id) existingById[id] = record;
+    });
+
+    const inserts = [];
+    const updates = [];
+    let skipped = 0;
+    records.forEach(function (record) {
+      try {
+        const normalized = normalizeEmailTemplateInput_(record);
+        const createdAt = String(record.created_at || record.createdAt || '').trim();
+        const updatedAt = String(record.updated_at || record.updatedAt || '').trim();
+        const nextRecord = Object.assign({}, normalized, {
+          id: normalized.id || Utilities.getUuid(),
+          created_at: createdAt || nowIso_(),
+          updated_at: updatedAt || nowIso_(),
+        });
+        if (existingById[nextRecord.id]) {
+          updates.push(nextRecord);
+        } else {
+          inserts.push(nextRecord);
+        }
+      } catch (error) {
+        skipped += 1;
+      }
+    });
+
+    if (dryRun) {
+      return {
+        ok: true,
+        inserted: inserts.length,
+        updated: updates.length,
+        skipped: skipped,
+        total: records.length,
+        dryRun: true,
+      };
+    }
+
+    updates.forEach(function (record) {
+      updateSheetRecord_('email_templates', record.id, {
+        genre: record.genre,
+        template_type: record.template_type,
+        name: record.name,
+        subject: record.subject,
+        body: record.body,
+        is_production: record.is_production,
+        production_enabled_at: record.production_enabled_at,
+        last_test_sent_at: record.last_test_sent_at,
+        version: record.version,
+        active: record.active,
+      });
+    });
+
+    if (inserts.length) {
+      const values = inserts.map(function (record) {
+        return headers.map(function (header) {
+          return valueOrBlank_(record[header]);
+        });
+      });
+      sheet.getRange(sheet.getLastRow() + 1, 1, values.length, headers.length).setValues(values);
+    }
+
+    if (inserts.length || updates.length) {
+      clearRuntimeCaches_('email_templates');
+    }
+
+    return {
+      ok: true,
+      inserted: inserts.length,
+      updated: updates.length,
+      skipped: skipped,
+      total: records.length,
+      dryRun: false,
+    };
+  });
+}
+
 function deleteEmailTemplate(id) {
   return withScriptLock_('deleteEmailTemplate', function () {
     return updateSheetRecord_('email_templates', requireId_(id), {

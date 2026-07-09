@@ -132,10 +132,15 @@ const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const masters = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
+const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260710_apps_script_full_workflow_v136_excluded_domain_import'), 'v136 app version missing');
+assert(code.includes('20260710_apps_script_full_workflow_v137_mail_data_import'), 'v137 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
+assert(webApp.includes("action === 'importEmailTemplates'"), 'email template bulk import dispatch missing');
+assert(webApp.includes("action === 'importSendHistories'"), 'send history bulk import dispatch missing');
+assert(masters.includes('function importEmailTemplates'), 'email template bulk import API missing');
+assert(emailSource.includes('function importSendHistories'), 'send history bulk import API missing');
 assert(webApp.includes("action === 'importExcludedDomains'"), 'excluded domain bulk import dispatch missing');
 assert(masters.includes('function importExcludedDomains'), 'excluded domain bulk import API missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -685,7 +690,6 @@ assert(html.includes('syncLogTable'), 'operations sync log table missing');
 ].forEach((marker) => {
   assert(html.includes(marker), `legacy UI marker missing: ${marker}`);
 });
-const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 assert(emailSource.includes("send_type: 'テスト送信'"), 'test send history type missing');
 assert(emailSource.includes("error_message: errorMessage"), 'test send failure reason history missing');
 assert(emailSource.includes("return withScriptLock_('sendLeadEmail'"), 'sendLeadEmail should keep send/check/update in one script lock');
@@ -756,6 +760,7 @@ assert(webApp.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_()
 assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflect v11 operations payload');
 [
   'saveEmailTemplate',
+  'importEmailTemplates',
   'setEmailTemplateProduction',
   'setMailSendingControl',
   'saveNgMaster',
@@ -774,6 +779,7 @@ assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflec
   'updateSerperApiKeyEntry',
   'deleteSerperApiKeyEntry',
   'listLeadSendHistories',
+  'importSendHistories',
   'listLeadDuplicateCandidates',
   'markLeadFormSent',
   'unmarkLeadFormSent',

@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @136 / code v136: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @137 / code v137: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260710_apps_script_full_workflow_v136_excluded_domain_import`
+- Code version: `20260710_apps_script_full_workflow_v137_mail_data_import`
 
 ## 計画書との対応
 
@@ -587,6 +587,20 @@
 - `getAppInfo` で `20260710_apps_script_full_workflow_v136_excluded_domain_import` が返ることを確認。
 - 旧アプリの `excluded_domains` 598件をGAS版 `excluded_domains` へ移行済み。内訳は追加544件、既存54件更新、スキップ0件。
 - 移行後ドライランで `targetExistingRows: 598`、追加予定0件を確認。以降の再実行は重複追加せず既存更新になる。
+
+## 2026-07-10 v137 旧アプリメールデータ移行
+
+- `node scripts/smoke-test.js` 成功。`importEmailTemplates` / `importSendHistories` のWeb app dispatchと一括APIを確認。
+- `.gs` 主要ファイルと `scripts/migrate-mail-data.js` のNode構文チェック成功。
+- `git diff --check` 成功。
+- `clasp push` 成功。
+- `clasp version "apps-script-full-workflow-v137-mail-data-import"` でVersion 137を作成済み。
+- 既存Web app URLを `clasp deploy -V 137 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 137へ再デプロイ済み。
+- `getAppInfo` で `20260710_apps_script_full_workflow_v137_mail_data_import` が返ることを確認。
+- 旧アプリの `email_templates` 9件をGAS版へ移行済み。スキップ0件。
+- 旧アプリの `send_histories` 1,168件をGAS版へ移行済み。スキップ0件。
+- 移行後ドライランで `send_histories` は追加0件・既存1,168件を確認。履歴は再実行しても重複追加しない。
+- 旧アプリ `app_settings` は1,045キー中、安定運用キー候補11件、秘密値らしきキー2件、一時/ジョブ系キー979件を確認。丸ごと移行は行わず、必要キー単位で確認する方針。
 
 ## 運用時に確認する外部依存
 
