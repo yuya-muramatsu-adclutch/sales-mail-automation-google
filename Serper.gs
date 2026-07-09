@@ -349,6 +349,9 @@ function advanceSearchJob(jobId, options) {
       if (payload.job_type === 'lead_official_site' || payload.job_type === 'lead_form_url') {
         const result = processLeadSearchItem_(item, payload.job_type, job.id);
         if (result.updated) summary.updatedLeads += 1;
+      } else if (payload.job_type === 'source_page') {
+        const result = processSourcePageSearchItem_(item, payload, job.id);
+        summary.updatedLeads += Number(result.created || 0);
       } else {
         processProspectingSearchItem_(item, payload, job.id);
       }
@@ -394,7 +397,7 @@ function advanceSearchJob(jobId, options) {
 function normalizeSearchJobInput_(input) {
   const source = input && typeof input === 'object' ? input : {};
   const jobType = String(source.job_type || source.jobType || 'lead_official_site').trim();
-  const allowedTypes = ['lead_official_site', 'lead_form_url', 'prospecting'];
+  const allowedTypes = ['lead_official_site', 'lead_form_url', 'prospecting', 'source_page'];
   if (allowedTypes.indexOf(jobType) === -1) {
     throw new Error('Invalid search job type: ' + jobType);
   }
@@ -412,6 +415,8 @@ function normalizeSearchJobInput_(input) {
     daily_limit: dailyLimit,
     job_limit: jobLimit,
     items: items,
+    results_per_query: Math.min(Math.max(Number(source.results_per_query || source.resultsPerQuery || 10) || 10, 1), 20),
+    use_serper_fallback: source.use_serper_fallback === false || source.useSerperFallback === false ? false : true,
     created_at: nowIso_(),
   };
 }
@@ -430,9 +435,25 @@ function buildSearchJobItems_(source, jobType) {
   if (jobType === 'prospecting') {
     const genre = String(source.genre || '').trim();
     const region = String(source.region || source.area || '').trim();
-    const query = String(source.query || [genre, region].filter(Boolean).join(' ')).trim();
-    if (!query) throw new Error('Prospecting query is required.');
-    return [{ query: query, genre: genre, region: region }];
+    const queries = parseSearchJobLines_(source.queries || source.query || [genre, region].filter(Boolean).join(' '));
+    if (!queries.length) throw new Error('Prospecting query is required.');
+    return queries.map(function (query) {
+      return { query: query, genre: genre, region: region };
+    });
+  }
+
+  if (jobType === 'source_page') {
+    const genre = String(source.genre || '').trim();
+    const label = String(source.label || source.name || '').trim();
+    const urls = parseSearchJobLines_(source.sourceUrls || source.source_urls || source.sourceUrl || source.source_url || source.url);
+    if (!urls.length) throw new Error('Source page URL is required.');
+    return urls.map(function (url) {
+      return {
+        source_url: normalizeUrl_(url),
+        genre: genre,
+        label: label,
+      };
+    });
   }
 
   const leads = listLeads({
@@ -446,6 +467,16 @@ function buildSearchJobItems_(source, jobType) {
   }).map(function (lead) {
     return { lead_id: lead.id };
   });
+}
+
+function parseSearchJobLines_(value) {
+  if (Array.isArray(value)) {
+    return value.map(function (item) { return String(item || '').trim(); }).filter(Boolean);
+  }
+  return String(value || '')
+    .split(/\r?\n|,/)
+    .map(function (item) { return item.trim(); })
+    .filter(Boolean);
 }
 
 function processLeadSearchItem_(item, jobType, jobId) {
@@ -493,7 +524,7 @@ function processLeadSearchItem_(item, jobType, jobId) {
 function processProspectingSearchItem_(item, payload, jobId) {
   assertSerperLimitAvailable_();
   const response = callSerperSearch_(item.query, {
-    num: 10,
+    num: payload.results_per_query || 10,
     purpose: 'genre_area_search',
     source: 'prospecting',
   });
@@ -511,6 +542,433 @@ function processProspectingSearchItem_(item, payload, jobId) {
       raw_json: safeJsonStringify_(result),
     });
   });
+}
+
+function processSourcePageSearchItem_(item, payload, jobId) {
+  const sourceUrl = normalizeUrl_(item.source_url || item.url || '');
+  const limit = Math.min(Math.max(Number(payload.results_per_query || item.max_items || 5) || 5, 1), 20);
+  const page = fetchProspectingHtml_(sourceUrl);
+  const candidates = extractSourcePageCandidates_(page.html, sourceUrl, limit);
+  const summary = {
+    created: 0,
+    candidates: candidates.length,
+  };
+
+  if (!candidates.length) {
+    appendSourcePageResult_(jobId, {
+      query: sourceUrl,
+      resultType: 'source_page_empty',
+      title: item.label || sourceUrl,
+      url: sourceUrl,
+      snippet: '施設候補を抽出できませんでした。',
+      rank: 1,
+      reviewStatus: 'unconfirmed',
+      raw: {
+        source_url: sourceUrl,
+        reason: 'no_candidates',
+      },
+    });
+    return summary;
+  }
+
+  candidates.slice(0, limit).forEach(function (candidate, index) {
+    try {
+      const result = processSourcePageCandidate_(candidate, item, payload, jobId, index);
+      if (result.created) summary.created += 1;
+    } catch (error) {
+      appendSyncError_('processSourcePageCandidate', error, {
+        target_sheet: 'search_jobs',
+        target_id: jobId || '',
+        item: item,
+        candidate: candidate,
+      });
+      appendSourcePageResult_(jobId, {
+        query: sourceUrl,
+        resultType: 'source_page_error',
+        title: candidate.facility_name || candidate.text || sourceUrl,
+        url: candidate.official_url || candidate.detail_url || candidate.url || sourceUrl,
+        snippet: error.message || String(error),
+        rank: index + 1,
+        reviewStatus: 'dismissed',
+        raw: {
+          source_url: sourceUrl,
+          candidate: candidate,
+          error: error.message || String(error),
+        },
+      });
+    }
+  });
+
+  return summary;
+}
+
+function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
+  const sourceUrl = normalizeUrl_(item.source_url || item.url || '');
+  const sourceDomain = normalizeDomain_(sourceUrl);
+  const genre = String(item.genre || '').trim();
+  const facilityName = String(candidate.facility_name || candidate.text || '').trim() ||
+    deriveSearchResultCompanyName_(candidate.official_url || candidate.detail_url || sourceUrl);
+  let officialUrl = candidate.official_url || '';
+  let discoveryMode = officialUrl ? 'direct_official_link' : 'unresolved';
+  let serperResult = null;
+
+  if (!officialUrl && candidate.detail_url) {
+    try {
+      const detailPage = fetchProspectingHtml_(candidate.detail_url);
+      officialUrl = extractFirstOfficialLinkFromHtml_(detailPage.html, candidate.detail_url, sourceDomain);
+      if (officialUrl) discoveryMode = 'detail_page_official_link';
+    } catch (error) {
+      candidate.detail_error = error.message || String(error);
+    }
+  }
+
+  if (!officialUrl && payload.use_serper_fallback !== false && getSerperApiKey_()) {
+    assertSerperLimitAvailable_();
+    const query = [facilityName, genre, '公式サイト'].filter(Boolean).join(' ');
+    const response = callSerperSearch_(query, {
+      num: 5,
+      purpose: 'source_page_official_site_fallback',
+      source: 'source_page',
+      jobId: jobId || '',
+    });
+    const selected = selectLeadSearchResult_(response.organic, 'lead_official_site');
+    serperResult = {
+      query: query,
+      selected: selected,
+      resultCount: response.organic.length,
+    };
+    if (selected.url) {
+      officialUrl = selected.url;
+      discoveryMode = 'serper_fallback';
+    }
+  }
+
+  if (!officialUrl) {
+    appendSourcePageResult_(jobId, {
+      query: sourceUrl,
+      resultType: 'source_page_unresolved',
+      title: facilityName,
+      url: candidate.detail_url || candidate.url || sourceUrl,
+      snippet: payload.use_serper_fallback === false ? '公式URL未検出。Serper補完はOFFです。' : '公式URLを特定できませんでした。',
+      rank: index + 1,
+      reviewStatus: 'unconfirmed',
+      raw: {
+        source_url: sourceUrl,
+        candidate: candidate,
+        serper: serperResult,
+      },
+    });
+    return { created: false };
+  }
+
+  const contact = extractContactFromOfficialPage_(officialUrl);
+  let lead = null;
+  let reviewStatus = 'added';
+  let errorMessage = '';
+  try {
+    lead = createLead({
+      source: 'source_page',
+      source_id: sourcePageLeadSourceId_(jobId, index, facilityName, officialUrl),
+      external_id: sourceUrl,
+      genre: genre,
+      company_name: facilityName,
+      facility_name: facilityName,
+      email: contact.email || '',
+      website_url: officialUrl,
+      form_url: contact.formUrl || '',
+      status: '未対応',
+      notes: 'サイト収集型で追加',
+      source_payload_json: safeJsonStringify_({
+        collection_type: 'source_page',
+        source_url: sourceUrl,
+        detail_url: candidate.detail_url || '',
+        discovery_mode: discoveryMode,
+        serper: serperResult,
+        contact_error: contact.errorMessage || '',
+      }),
+    });
+  } catch (error) {
+    errorMessage = error.message || String(error);
+    reviewStatus = /^Duplicate lead exists/.test(errorMessage) ? 'duplicate' : 'dismissed';
+  }
+
+  appendSourcePageResult_(jobId, {
+    query: sourceUrl,
+    resultType: discoveryMode === 'serper_fallback' ? 'source_page_serper' : 'source_page_direct',
+    title: facilityName,
+    url: officialUrl,
+    snippet: errorMessage || [
+      discoveryMode === 'serper_fallback' ? 'Serperで公式URLを補完' : '公式URLから直接取得',
+      contact.email ? 'メールあり' : 'メール未検出',
+      contact.formUrl ? 'フォームあり' : 'フォーム未検出',
+    ].join(' / '),
+    rank: index + 1,
+    leadId: lead ? lead.id : '',
+    reviewStatus: reviewStatus,
+    raw: {
+      source_url: sourceUrl,
+      candidate: candidate,
+      official_url: officialUrl,
+      contact: contact,
+      serper: serperResult,
+      error: errorMessage,
+    },
+  });
+
+  return { created: Boolean(lead) };
+}
+
+function appendSourcePageResult_(jobId, result) {
+  return appendSheetRecord_('search_results', {
+    job_id: jobId || '',
+    lead_id: result.leadId || '',
+    query: result.query || '',
+    result_type: result.resultType || 'source_page',
+    title: result.title || '',
+    url: result.url || '',
+    snippet: result.snippet || '',
+    rank: result.rank || '',
+    raw_json: safeJsonStringify_(result.raw || {}),
+    review_status: result.reviewStatus || 'unconfirmed',
+    review_action: result.reviewAction || '',
+    reviewed_at: result.reviewStatus === 'added' || result.reviewStatus === 'duplicate' ? nowIso_() : '',
+  });
+}
+
+function fetchProspectingHtml_(url) {
+  const targetUrl = normalizeUrl_(url);
+  const response = UrlFetchApp.fetch(targetUrl, {
+    method: 'get',
+    followRedirects: true,
+    muteHttpExceptions: true,
+    headers: {
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'User-Agent': 'Mozilla/5.0 AppsScript AutoSalesListBot',
+    },
+  });
+  const code = response.getResponseCode();
+  const text = response.getContentText('UTF-8') || '';
+  if (code < 200 || code >= 400) {
+    throw new Error('Source page fetch failed: HTTP ' + code + ' ' + targetUrl);
+  }
+  return {
+    url: targetUrl,
+    html: text.slice(0, 600000),
+  };
+}
+
+function extractSourcePageCandidates_(html, baseUrl, limit) {
+  const sourceDomain = normalizeDomain_(baseUrl);
+  const links = extractHtmlLinks_(html, baseUrl);
+  const seen = {};
+  const candidates = [];
+  links.forEach(function (link) {
+    if (!link.url || !/^https?:\/\//i.test(link.url)) return;
+    const domain = normalizeDomain_(link.url);
+    if (!domain) return;
+    const external = sourceDomain && !isDomainOrSubdomain_(domain, sourceDomain);
+    const official = external && isLikelyOfficialCandidateUrl_(link.url, sourceDomain);
+    const text = cleanSourcePageText_(link.text || '');
+    if (!official && !isSourcePageCandidateText_(text)) return;
+    const facilityName = official && isGenericSourcePageText_(text)
+      ? deriveSearchResultCompanyName_(link.url)
+      : (text || deriveSearchResultCompanyName_(link.url));
+    const key = [
+      official ? 'official' : 'detail',
+      official ? domain : link.url,
+      normalizeCompanyName_(facilityName),
+    ].join('|');
+    if (seen[key]) return;
+    seen[key] = true;
+    candidates.push({
+      facility_name: facilityName,
+      text: text,
+      url: link.url,
+      detail_url: official ? '' : link.url,
+      official_url: official ? link.url : '',
+    });
+  });
+  return candidates.slice(0, Math.min(Math.max(Number(limit) || 5, 1), 30));
+}
+
+function extractFirstOfficialLinkFromHtml_(html, baseUrl, sourceDomain) {
+  const links = extractHtmlLinks_(html, baseUrl);
+  const preferred = links.find(function (link) {
+    return link.url && isLikelyOfficialCandidateUrl_(link.url, sourceDomain) &&
+      /公式|ホームページ|hp|website|site|web/i.test(String(link.text || '') + ' ' + String(link.url || ''));
+  });
+  if (preferred) return preferred.url;
+  const first = links.find(function (link) {
+    return link.url && isLikelyOfficialCandidateUrl_(link.url, sourceDomain);
+  });
+  return first ? first.url : '';
+}
+
+function extractContactFromOfficialPage_(officialUrl) {
+  const result = {
+    email: '',
+    formUrl: '',
+    checkedUrl: normalizeUrl_(officialUrl),
+    errorMessage: '',
+  };
+  try {
+    const page = fetchProspectingHtml_(officialUrl);
+    const decoded = decodeHtmlEntitiesBasic_(page.html);
+    const links = extractHtmlLinks_(decoded, officialUrl);
+    const mailLink = links.find(function (link) { return link.email; });
+    result.email = extractEmailFromSearchResult_(decoded) || (mailLink ? mailLink.email : '');
+    const contactPattern = /(contact|inquiry|otoiawase|toiawase|お問い合わせ|問い合わせ|お問合せ|フォーム|mail)/i;
+    const contactLink = links.find(function (link) {
+      const text = String(link.text || '') + ' ' + String(link.url || '');
+      return link.url && contactPattern.test(text);
+    });
+    if (contactLink) {
+      result.formUrl = contactLink.url;
+      if (!result.email) {
+        try {
+          const contactPage = fetchProspectingHtml_(contactLink.url);
+          result.email = extractEmailFromSearchResult_(decodeHtmlEntitiesBasic_(contactPage.html));
+        } catch (error) {
+          result.errorMessage = error.message || String(error);
+        }
+      }
+    }
+  } catch (error) {
+    result.errorMessage = error.message || String(error);
+  }
+  return result;
+}
+
+function extractHtmlLinks_(html, baseUrl) {
+  const links = [];
+  const anchorPattern = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = anchorPattern.exec(String(html || ''))) !== null && links.length < 500) {
+    const attrs = match[1] || '';
+    const hrefMatch = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    if (!hrefMatch) continue;
+    const rawHref = String(hrefMatch[1] || hrefMatch[2] || hrefMatch[3] || '').trim();
+    const text = cleanSourcePageText_(match[2] || '');
+    if (/^mailto:/i.test(rawHref)) {
+      links.push({
+        rawHref: rawHref,
+        text: text,
+        url: '',
+        email: extractEmailFromSearchResult_(rawHref.replace(/^mailto:/i, '')),
+      });
+      continue;
+    }
+    const url = resolveSourcePageUrl_(rawHref, baseUrl);
+    if (!url) continue;
+    links.push({
+      rawHref: rawHref,
+      text: text,
+      url: url,
+      email: '',
+    });
+  }
+  return links;
+}
+
+function resolveSourcePageUrl_(href, baseUrl) {
+  const raw = String(href || '').trim();
+  if (!raw || /^#|^javascript:|^tel:|^fax:/i.test(raw)) return '';
+  try {
+    if (/^\/\//.test(raw)) {
+      const protocol = String(baseUrl || '').match(/^https?:/i);
+      return ((protocol && protocol[0]) || 'https:') + raw;
+    }
+    return new URL(raw, normalizeUrl_(baseUrl)).href.split('#')[0];
+  } catch (error) {
+    return '';
+  }
+}
+
+function isLikelyOfficialCandidateUrl_(url, sourceDomain) {
+  const domain = normalizeDomain_(url);
+  if (!domain) return false;
+  if (sourceDomain && isDomainOrSubdomain_(domain, sourceDomain)) return false;
+  if (/\.(pdf|jpg|jpeg|png|gif|webp|svg|zip|docx?|xlsx?)(?:$|\?)/i.test(String(url || ''))) return false;
+  const excludedHosts = [
+    'facebook.com',
+    'instagram.com',
+    'x.com',
+    'twitter.com',
+    'linkedin.com',
+    'youtube.com',
+    'google.com',
+    'maps.google.com',
+    'map.yahoo.co.jp',
+    'yahoo.co.jp',
+    'jalan.net',
+    'rakuten.co.jp',
+    'booking.com',
+    'agoda.com',
+    'tripadvisor.jp',
+    'tripadvisor.com',
+    'ikyu.com',
+    'navitime.co.jp',
+    'hotpepper.jp',
+    'gnavi.co.jp',
+    'retty.me',
+    'ozmall.co.jp',
+    'asoview.com',
+    'reserva.be',
+    'airreserve.net',
+  ];
+  return !excludedHosts.some(function (host) {
+    return isDomainOrSubdomain_(domain, host);
+  });
+}
+
+function isSourcePageCandidateText_(text) {
+  const normalized = cleanSourcePageText_(text);
+  if (!normalized || normalized.length < 2 || normalized.length > 120) return false;
+  return !isGenericSourcePageText_(normalized);
+}
+
+function isGenericSourcePageText_(text) {
+  return /^(詳細|詳しく見る|もっと見る|公式サイト|公式HP|ホームページ|予約|空室確認|プラン|アクセス|地図|一覧|施設一覧|TOP|HOME|MORE|VIEW|OPEN)$/i.test(String(text || '').trim());
+}
+
+function cleanSourcePageText_(value) {
+  return decodeHtmlEntitiesBasic_(stripHtmlTags_(value))
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s\-–—|｜:：]+|[\s\-–—|｜:：]+$/g, '')
+    .trim();
+}
+
+function stripHtmlTags_(value) {
+  return String(value || '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ');
+}
+
+function decodeHtmlEntitiesBasic_(value) {
+  return String(value || '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x([0-9a-f]+);/gi, function (_match, hex) {
+      return String.fromCharCode(parseInt(hex, 16));
+    })
+    .replace(/&#(\d+);/g, function (_match, number) {
+      return String.fromCharCode(parseInt(number, 10));
+    });
+}
+
+function sourcePageLeadSourceId_(jobId, index, facilityName, officialUrl) {
+  return [
+    'source_page',
+    jobId || 'manual',
+    String(index + 1),
+    normalizeDomain_(officialUrl),
+    normalizeCompanyName_(facilityName).slice(0, 40),
+  ].filter(Boolean).join(':').slice(0, 180);
 }
 
 function buildLeadSearchQuery_(lead, jobType) {

@@ -79,10 +79,30 @@ const job = context.normalizeSearchJobInput_({
 });
 assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job lead item failed');
 
+const prospectingJob = context.normalizeSearchJobInput_({
+  job_type: 'prospecting',
+  queries: ['グランピング 埼玉県 公式サイト', '温泉旅館 群馬県 お問い合わせ'],
+  genre: '宿泊施設',
+  job_limit: 10,
+  resultsPerQuery: 8,
+});
+assert(prospectingJob.items.length === 2, 'prospecting multi-query job failed');
+assert(prospectingJob.results_per_query === 8, 'prospecting results per query failed');
+
+const sourcePageJob = context.normalizeSearchJobInput_({
+  job_type: 'source_page',
+  sourceUrls: ['example.com/list'],
+  genre: '宿泊施設',
+  label: 'まとめサイト',
+  useSerperFallback: false,
+});
+assert(sourcePageJob.items.length === 1 && sourcePageJob.items[0].source_url === 'https://example.com/list', 'source page job item failed');
+assert(sourcePageJob.use_serper_fallback === false, 'source page fallback flag failed');
+
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260709_apps_script_full_workflow_v133_review_startup'), 'v133 app version missing');
+assert(code.includes('20260709_apps_script_full_workflow_v134_two_collection_modes'), 'v134 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
@@ -280,15 +300,20 @@ assert(html.includes('collection-advanced-actions'), 'simplified collection adva
 assert(html.includes('collection-focus-panel'), 'collection focus card missing');
 assert(html.includes('collection-focus-meta'), 'collection focus status chips missing');
 assert(html.includes('collectionPrimaryAction'), 'collection primary action helper missing');
-assert(html.includes('ほかの収集方法・詳細'), 'collection secondary methods accordion label missing');
+assert(html.includes('補助機能・詳細設定'), 'collection support accordion label missing');
 assert(!html.includes('<div class="collection-stepper"'), 'collection stepper should not be visible in initial command center');
 assert(!html.includes('<div class="collection-status-bar"'), 'collection status card bar should not be visible in initial command center');
 assert(!html.includes('<aside class="collection-result-summary"'), 'collection result summary should be moved out of the initial command center');
 assert(html.includes('collectionSupportDetails'), 'collection detail logs accordion missing');
 assert(html.includes('openCollectionSupport'), 'collection detail logs opener missing');
 assert(html.includes('updateCollectionAreaPreview'), 'collection area preview live updater missing');
-assert(html.includes('今日やること'), 'collection focus task label missing');
-assert(html.includes('地域から営業先を探す'), 'collection primary action label missing');
+assert(html.includes('収集ルート'), 'collection focus route label missing');
+assert(html.includes('キーワード型'), 'keyword collection route missing');
+assert(html.includes('サイト収集型'), 'source-page collection route missing');
+assert(html.includes('collectionKeywordTerms'), 'keyword collection textarea missing');
+assert(html.includes('buildKeywordCollectionQueries'), 'keyword collection query builder missing');
+assert(html.includes('sourcePageUrls'), 'source-page URL textarea missing');
+assert(html.includes('sourcePageUseSerperFallback'), 'source-page Serper fallback toggle missing');
 assert(html.includes('.collection-overview-card svg'), 'collection overview icon size guard missing');
 assert(html.includes('prospecting-activity-panel compact'), 'legacy collection activity panel should be compact');
 assert(html.includes('prospecting-activity-detail-toggle'), 'legacy collection recent results should be collapsible');
@@ -296,6 +321,8 @@ assert(html.includes('prospecting-activity-empty-note'), 'legacy collection empt
 assert(html.includes('.prospecting-activity-empty-note svg'), 'legacy collection empty note icon should be size constrained');
 assert(html.includes("legacyUiIcon('mapPinned')") || html.includes('mapPinned'), 'legacy genre-area collection icon missing');
 assert(html.includes("legacyUiIcon('globe2')") || html.includes('globe2'), 'legacy source-page collection icon missing');
+assert(code.includes("['serper', 'search_job', 'prospecting', 'source_page']"), 'source-page leads should be included in review filter');
+assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('processSourcePageSearchItem_'), 'source-page search processor missing');
 assert(html.indexOf('id="collectionCommandCenter"') < html.indexOf('id="searchActivityPanel"'), 'step collection manager should precede detailed activity');
 assert(html.indexOf('id="collectionCommandCenter"') < html.indexOf('id="searchOverview"'), 'legacy collection tool should appear before support overview cards');
 assert(html.includes("item.icon || 'rocket'"), 'legacy readiness default rocket icon missing');

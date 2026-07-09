@@ -6473,6 +6473,10 @@
         gap: 10px;
       }
 
+      .collection-two-route-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .collection-overview-card {
         display: grid;
         gap: 8px;
@@ -6483,10 +6487,27 @@
         background: #fff;
       }
 
+      .collection-route-card {
+        align-content: start;
+        gap: 12px;
+        min-height: 210px;
+        padding: 16px;
+      }
+
       .collection-overview-card svg {
         width: 22px;
         height: 22px;
         color: #2563eb;
+      }
+
+      .collection-route-label {
+        width: fit-content;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 900;
       }
 
       .collection-overview-card strong {
@@ -6504,6 +6525,70 @@
       .collection-overview-card button {
         justify-self: start;
         margin-top: 2px;
+      }
+
+      .collection-route-steps,
+      .collection-route-flow {
+        display: grid;
+        gap: 8px;
+      }
+
+      .collection-route-steps span,
+      .collection-route-flow span {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        min-height: 34px;
+        padding: 8px 10px;
+        border: 1px solid #dbe4ee;
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .collection-route-steps span::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #2563eb;
+      }
+
+      .collection-route-flow span {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .collection-route-flow em {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-style: normal;
+        font-weight: 900;
+      }
+
+      .collection-route-flow strong,
+      .collection-route-flow small {
+        grid-column: 2;
+      }
+
+      .collection-route-flow strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .collection-route-flow small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
       }
 
       .collection-panel-grid,
@@ -15391,6 +15476,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           added: '追加済み',
           confirmed: '確認済み',
           dismissed: '非表示',
+          duplicate: '重複',
           excluded: '除外',
           unconfirmed: '未確認',
         }[status || 'unconfirmed'] || '未確認';
@@ -15398,7 +15484,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function jobResultReviewTone(status) {
         if (status === 'added' || status === 'confirmed') return 'good';
-        if (status === 'excluded' || status === 'dismissed') return 'warn';
+        if (status === 'excluded' || status === 'dismissed' || status === 'duplicate') return 'warn';
         return 'info';
       }
 
@@ -15432,7 +15518,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const enabledRuleCount = autoCollectionPriorityGenres(autoSettings).length;
         const enabledSourceCount = (sourceSettings.sites || []).filter((site) => site.enabled !== false && site.url).length;
         const activeTab = state.activeCollectionTab || 'overview';
-        const methodsOpen = activeTab !== 'overview' ? ' open' : '';
+        const methodsOpen = ['automation', 'file', 'area'].includes(activeTab) ? ' open' : '';
         const reviewTargets = Number(dashboard.reviewTargets || 0);
         const addedCount = Number(dashboard.prospectingAddedCount || dashboard.serperToday || 0);
         const duplicateCount = Number(dashboard.prospectingDuplicateCount || 0);
@@ -15442,7 +15528,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div class="collection-simple-head-copy">
               <span>営業リスト収集</span>
               <strong>収集管理</strong>
-              <p>まず必要な操作だけ表示します。ほかの収集方法やログは必要な時だけ開けます。</p>
+              <p>収集方法は2つだけです。キーワードを組み合わせるか、まとめサイトURLから施設を拾います。</p>
               <small>Serper ${searchReady ? (state.serper.key_mask || '設定済み') : '未設定'} / ジャンル ${formatNumber((state.genres || []).length)}件</small>
             </div>
             <div class="collection-simple-links">
@@ -15456,7 +15542,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <div class="collection-focus-copy">
                 ${legacyUiIcon(activeTab === 'overview' ? 'listChecks' : collectionActionIcon(activeTab))}
                 <div>
-                  <span>今日やること</span>
+                  <span>収集ルート</span>
                   <strong>${escapeHtml(collectionManagementTitle(activeTab, searchReady))}</strong>
                   <small>${escapeHtml(collectionManagementDescription(activeTab, searchReady, enabledRuleCount, enabledSourceCount))}</small>
                   <div class="collection-focus-meta">
@@ -15475,24 +15561,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <details class="collection-advanced-actions"${methodsOpen}>
             <summary>
               <div>
-                <span>ほかの収集方法・詳細</span>
-                <small>自動収集、一覧ページ、キーワード検索、CSVは必要な時だけ開きます。</small>
+                <span>補助機能・詳細設定</span>
+                <small>自動収集、CSV取り込み、ログ確認、Serperキーは必要な時だけ開きます。</small>
               </div>
               ${legacyUiIcon('chevronRight')}
             </summary>
             <div class="collection-advanced-body">
-              ${collectionAction('地域から営業先を探す', 'ジャンル・エリア・件数だけ指定', 'area', 'おすすめ', true)}
-              ${collectionAction('自動収集を設定する', '定期収集の条件を管理', 'automation', '運用', true)}
-              ${collectionAction('一覧ページから探す', 'まとめサイトURLを起点に収集', 'sourcePage', '補助', true)}
-              ${collectionSecondaryAction('キーワード検索', '会社名や問い合わせ語句で探す', 'keyword')}
+              ${collectionSecondaryAction('自動収集設定', '定期実行の条件を管理', 'automation')}
               ${collectionSecondaryAction('CSV取り込み', '手元の一覧をまとめて追加', 'file')}
+              ${collectionSupportAction('収集ログ', '前回結果とジョブ進捗を確認', 'results', 'listChecks')}
+              ${collectionSupportAction('Serperキー', '検索APIキーと残量を確認', 'serper', 'keyRound')}
             </div>
           </details>
-          ${activeTab !== 'overview' ? `
-            <div id="collectionFormPanel" class="collection-tab-panel" role="tabpanel">
-              ${renderCollectionTabPanel(activeTab, searchReady, dashboard)}
-            </div>
-          ` : ''}
+          <div id="collectionFormPanel" class="collection-tab-panel" role="tabpanel">
+            ${renderCollectionTabPanel(activeTab, searchReady, dashboard)}
+          </div>
         `;
       }
 
@@ -15500,20 +15583,20 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!searchReady) return 'Serperキーを設定すると検索収集を始められます';
         if (tab === 'area') return '地域から営業先を探す';
         if (tab === 'automation') return '自動収集を設定する';
-        if (tab === 'sourcePage') return '一覧ページから営業先を探す';
-        if (tab === 'keyword') return 'キーワードで営業先を探す';
+        if (tab === 'sourcePage') return 'サイト収集型で営業先を増やす';
+        if (tab === 'keyword') return 'キーワード型で営業先を増やす';
         if (tab === 'file') return 'CSVで営業先を追加する';
-        return 'まずは収集方法を選ぶ';
+        return '2つの収集方法から選ぶ';
       }
 
       function collectionManagementDescription(tab, searchReady, enabledRuleCount, enabledSourceCount) {
-        if (!searchReady) return '詳細設定を開いてSerperキーを保存してください。保存後、この画面から収集を開始できます。';
+        if (!searchReady) return 'キーワード型と、公式URLが見つからないサイト収集型ではSerperキーを使います。キー未設定でも公式URLからの直接抽出は実行できます。';
         if (tab === 'area') return 'おすすめの入口です。ジャンル、エリア、件数だけ決めて小さく実行します。';
         if (tab === 'automation') return `現在の優先ジャンルは${formatNumber(enabledRuleCount)}件です。ONにする前に対象エリアと検索語数を確認します。`;
-        if (tab === 'sourcePage') return `監視サイトは${formatNumber(enabledSourceCount)}件有効です。施設一覧やまとめ記事URLを起点にできます。`;
-        if (tab === 'keyword') return '通常の条件に当てはまらない会社名、施設名、問い合わせ語句で追加検索します。';
+        if (tab === 'sourcePage') return `監視サイトは${formatNumber(enabledSourceCount)}件有効です。まとめサイトから施設名とURLを抽出し、必要な時だけSerperで公式URLを補完します。`;
+        if (tab === 'keyword') return 'キーワード、エリア、補助語を掛け合わせて検索語を作り、Serperで候補を増やします。';
         if (tab === 'file') return 'CSV貼り付けで既存リストを追加します。重複保護は初期状態で有効です。';
-        return '迷ったら「地域から営業先を探す」を選んでください。詳細機能は下に閉じています。';
+        return '迷ったらキーワード型から小さく始めてください。まとめサイトがある場合はサイト収集型が早いです。';
       }
 
       function collectionActionIcon(mode) {
@@ -15532,7 +15615,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           return `<button type="button" class="primary" onclick="openCollectionSupport('serper')">${legacyUiIcon('keyRound')}Serperキー設定</button>`;
         }
         if (!tab || tab === 'overview') {
-          return `<button type="button" class="primary" onclick="setCollectionTab('area')">${legacyUiIcon('search')}地域から探す</button>`;
+          return `<button type="button" class="primary" onclick="setCollectionTab('keyword')">${legacyUiIcon('search')}キーワード型を開く</button>`;
         }
         return `<button type="button" class="primary" onclick="document.getElementById('collectionFormPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">${legacyUiIcon('search')}条件を確認</button>`;
       }
@@ -15543,6 +15626,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function collectionSecondaryAction(label, description, mode) {
         return `<button type="button" class="collection-secondary-action ${state.activeCollectionTab === mode ? 'active' : ''}" aria-pressed="${state.activeCollectionTab === mode ? 'true' : 'false'}" onclick="setCollectionTab('${escapeJsString(mode)}')">${legacyUiIcon(collectionActionIcon(mode))}<span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></span>${legacyUiIcon('chevronRight')}</button>`;
+      }
+
+      function collectionSupportAction(label, description, targetName, iconName) {
+        return `<button type="button" class="collection-secondary-action" onclick="openCollectionSupport('${escapeJsString(targetName)}')">${legacyUiIcon(iconName)}<span><strong>${escapeHtml(label)}</strong><small>${escapeHtml(description)}</small></span>${legacyUiIcon('chevronRight')}</button>`;
       }
 
       function setCollectionTab(tab) {
@@ -15593,29 +15680,35 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <section class="collection-overview-panel">
             <div class="collection-overview-head">
               <div>
-                <h3>Step 2: 収集方法を選びます</h3>
-                <p>まずはおすすめの「地域から営業先を探す」から始めてください。自動運用や一覧ページ収集は必要になった時だけ開きます。</p>
+                <h3>収集方法を選ぶ</h3>
+                <p>見る場所を2つに絞りました。検索語を作るか、まとめサイトURLを起点にします。</p>
               </div>
               <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? '収集準備OK' : 'Serper未設定'}</span>
             </div>
-            <div class="collection-overview-grid">
-              <div class="collection-overview-card">
-                ${legacyUiIcon('mapPinned')}
-                <strong>地域から営業先を探す</strong>
-                <small>ジャンルと地域を選ぶだけの基本ルートです。</small>
-                <button type="button" class="mini-button" onclick="setCollectionTab('area')" ${searchReady ? '' : 'disabled'}>開く</button>
+            <div class="collection-overview-grid collection-two-route-grid">
+              <div class="collection-overview-card collection-route-card">
+                ${legacyUiIcon('search')}
+                <span class="collection-route-label">Pattern 1</span>
+                <strong>キーワード型</strong>
+                <small>キーワード、エリア、補助語をまとめて登録し、組み合わせ検索で候補を増やします。</small>
+                <div class="collection-route-steps">
+                  <span>キーワード登録</span>
+                  <span>エリアと組み合わせ</span>
+                  <span>Serper検索</span>
+                </div>
+                <button type="button" class="mini-button primary" onclick="setCollectionTab('keyword')" ${searchReady ? '' : 'disabled'}>キーワード型を開く</button>
               </div>
-              <div class="collection-overview-card">
-                ${legacyUiIcon('settings')}
-                <strong>自動収集を設定する</strong>
-                <small>${settings.enabled ? '自動収集はONです。条件を確認できます。' : '自動収集はOFFです。条件確認後にONへ切り替えます。'}</small>
-                <button type="button" class="mini-button" onclick="setCollectionTab('automation')">開く</button>
-              </div>
-              <div class="collection-overview-card">
+              <div class="collection-overview-card collection-route-card">
                 ${legacyUiIcon('globe2')}
-                <strong>一覧ページから探す</strong>
-                <small>${enabledSourceCount ? `${formatNumber(enabledSourceCount)}件の監視サイトを利用できます。` : 'まとめ記事URLや施設一覧ページを起点にできます。'}</small>
-                <button type="button" class="mini-button" onclick="setCollectionTab('sourcePage')" ${searchReady ? '' : 'disabled'}>開く</button>
+                <span class="collection-route-label">Pattern 2</span>
+                <strong>サイト収集型</strong>
+                <small>${enabledSourceCount ? `${formatNumber(enabledSourceCount)}件の監視サイトを利用できます。` : 'まとめサイトURLから施設名とURLを抽出します。'}</small>
+                <div class="collection-route-steps">
+                  <span>まとめサイトURL</span>
+                  <span>公式URLを判定</span>
+                  <span>メール・フォーム取得</span>
+                </div>
+                <button type="button" class="mini-button primary" onclick="setCollectionTab('sourcePage')">サイト収集型を開く</button>
               </div>
             </div>
           </section>
@@ -15697,29 +15790,35 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderCollectionKeywordPanel(searchReady) {
+        const keywordDefaults = 'グランピング\n温泉旅館\n貸別荘';
+        const areaDefaults = '埼玉県\n群馬県\n山梨県';
+        const modifierDefaults = '公式サイト\nお問い合わせ\nメール';
+        const preview = buildKeywordCollectionQueries(keywordDefaults, areaDefaults, modifierDefaults).slice(0, 8);
         return `
           <section class="prospecting-batch-panel">
             <div class="section-title-row">
               <div>
-                <h3>ジャンル選択＋キーワード組み合わせ検索収集</h3>
-                <p class="muted">任意の検索語で候補を探し、除外ドメインと既存ドメイン重複を確認しながら検索結果レビューへ残します。</p>
+                <h3>キーワード型収集</h3>
+                <p class="muted">キーワード、エリア、補助語を掛け合わせて検索語を作ります。まずは数件だけ実行して、確認待ちに追加します。</p>
               </div>
-              <span class="pill info">結果カテゴリで確認</span>
+              <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? 'Serper検索' : 'Serper未設定'}</span>
             </div>
             <form class="collection-panel-grid" onsubmit="submitCollectionKeywordSearch(event)">
               <div class="grid">
-                <label>キーワード<input id="collectionKeywordQuery" required placeholder="例: 介護施設 東京 公式サイト"></label>
+                <label style="grid-column:1/-1">キーワード<textarea id="collectionKeywordTerms" rows="4" required oninput="updateCollectionKeywordPreview()" placeholder="例: グランピング&#10;温泉旅館">${escapeHtml(keywordDefaults)}</textarea></label>
+                <label style="grid-column:1/-1">エリア<textarea id="collectionKeywordAreas" rows="3" oninput="updateCollectionKeywordPreview()" placeholder="例: 埼玉県&#10;群馬県">${escapeHtml(areaDefaults)}</textarea></label>
+                <label style="grid-column:1/-1">補助語<textarea id="collectionKeywordModifiers" rows="3" oninput="updateCollectionKeywordPreview()" placeholder="例: 公式サイト&#10;お問い合わせ">${escapeHtml(modifierDefaults)}</textarea></label>
                 <label>追加時のジャンル<select id="collectionKeywordGenre">${collectionGenreOptions(firstGenreName())}</select></label>
-                <label>最大処理件数<input id="collectionKeywordMaxItems" type="number" min="1" max="20" value="5"></label>
-                <button type="submit" class="primary collection-run-button" ${searchReady ? '' : 'disabled'}>キーワード検索を実行</button>
+                <label>今回の検索語数<input id="collectionKeywordMaxQueries" type="number" min="1" max="20" value="5" oninput="updateCollectionKeywordPreview()"></label>
+                <label>1検索あたり候補<input id="collectionKeywordResultsPerQuery" type="number" min="1" max="10" value="8"></label>
+                <button type="submit" class="primary collection-run-button" ${searchReady ? '' : 'disabled'}>キーワード型で収集</button>
               </div>
               <aside class="collection-panel-card">
-                <h3>除外・重複の見方</h3>
-                <div class="collection-preview-list">
-                  <span><strong>除外</strong><em>excluded_domains</em></span>
-                  <span><strong>重複</strong><em>会社名 / ドメイン / メール</em></span>
-                  <span><strong>確認</strong><em>結果一覧でカテゴリ別レビュー</em></span>
+                <h3>検索語プレビュー</h3>
+                <div id="collectionKeywordPreview" class="collection-preview-list">
+                  ${preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('')}
                 </div>
+                <p class="muted">同じ組み合わせは自動で省きます。結果は検索結果レビューと確認待ちで確認できます。</p>
                 <button type="button" onclick="showTab('exclusions')">除外ドメインを確認</button>
               </aside>
             </form>
@@ -15763,24 +15862,31 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <section class="source-page-prospecting-panel">
             <div class="section-title-row">
               <div>
-                <h3>Step 3: 一覧ページから探す</h3>
-                <p class="muted">施設一覧ページやまとめ記事URLを起点にします。URLとジャンルを入れて、小規模検索で公式サイト候補を補完します。</p>
+                <h3>サイト収集型</h3>
+                <p class="muted">まとめサイトURLから施設名とURLを抽出します。公式URLが見つかった場合はSerperを使わず、メールとフォームを直接探します。</p>
               </div>
-              <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? '検索補完ON' : 'Serper未設定'}</span>
+              <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? 'Serper補完ON' : '直取得のみ'}</span>
             </div>
             <form class="source-page-grid" onsubmit="submitSourcePageSearch(event)">
               <div class="grid">
-                <label style="grid-column:1/-1">まとめサイトURL<input id="sourcePageUrl" type="url" required placeholder="${HTTPS_PROTOCOL_PREFIX}www.resort-glamping.com/accommodation_category/kanto/"></label>
+                <label style="grid-column:1/-1">まとめサイトURL<textarea id="sourcePageUrls" rows="3" required placeholder="${HTTPS_PROTOCOL_PREFIX}www.resort-glamping.com/accommodation_category/kanto/"></textarea></label>
                 <label>追加ジャンル<select id="sourcePageGenre">${collectionGenreOptions(firstGenreName())}</select></label>
-                <label>最大処理件数<input id="sourcePageMaxItems" type="number" min="1" max="20" value="5"></label>
+                <label>今回の抽出件数<input id="sourcePageMaxItems" type="number" min="1" max="20" value="5"></label>
                 <label style="grid-column:1/-1">監視ラベル<input id="sourcePageLabel" placeholder="関東グランピング一覧"></label>
+                <label class="check-row" style="grid-column:1/-1"><input id="sourcePageUseSerperFallback" type="checkbox" ${searchReady ? 'checked' : ''}><span>公式URLが見つからない施設だけSerperで補完する</span></label>
                 <div class="toolbar">
-                  <button type="submit" class="primary" ${searchReady ? '' : 'disabled'}>URL起点で収集</button>
+                  <button type="submit" class="primary">サイト収集を開始</button>
                   <button type="button" onclick="saveSourcePageCollectionSettings()">監視サイトとして保存</button>
                 </div>
               </div>
               <aside class="collection-panel-card">
-                <h3>保存済み一覧ページ</h3>
+                <h3>処理の流れ</h3>
+                <div class="collection-route-flow">
+                  <span><em>1</em><strong>まとめサイトを読む</strong><small>施設名、詳細URL、外部リンクを抽出</small></span>
+                  <span><em>2</em><strong>公式URLがある</strong><small>Serperなしでメール・フォーム取得</small></span>
+                  <span><em>3</em><strong>公式URLがない</strong><small>Serperで公式ページだけ補完</small></span>
+                </div>
+                <h3>保存済みURL</h3>
                 <div class="source-page-monitor-list">
                   ${sites.length ? sites.slice(0, 6).map((site) => `<span><strong>${escapeHtml(site.label || compactUrl(site.url))}</strong><em>${escapeHtml(site.genre || site.genreName || '-')}</em></span>`).join('') : '<span><strong>まだ保存されていません</strong><em>URLを保存してください</em></span>'}
                 </div>
@@ -15853,6 +15959,27 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return queries.slice(0, 20);
       }
 
+      function buildKeywordCollectionQueries(keywordsText, areasText, modifiersText) {
+        const keywords = parseCollectionLines(keywordsText);
+        const areas = parseCollectionLines(areasText);
+        const modifiers = parseCollectionLines(modifiersText);
+        const areaList = areas.length ? areas : [''];
+        const modifierList = modifiers.length ? modifiers : ['公式サイト'];
+        const seen = new Set();
+        const queries = [];
+        keywords.forEach((keyword) => {
+          areaList.forEach((area) => {
+            modifierList.forEach((modifier) => {
+              const query = [keyword, area, modifier].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+              if (!query || seen.has(query)) return;
+              seen.add(query);
+              queries.push(query);
+            });
+          });
+        });
+        return queries.slice(0, 100);
+      }
+
       function updateCollectionAreaPreview() {
         const target = document.getElementById('collectionAreaPreview');
         if (!target) return;
@@ -15863,6 +15990,20 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         target.innerHTML = preview.length
           ? preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('')
           : '<span><strong>ジャンルとエリアを入力してください</strong></span>';
+      }
+
+      function updateCollectionKeywordPreview() {
+        const target = document.getElementById('collectionKeywordPreview');
+        if (!target) return;
+        const keywords = document.getElementById('collectionKeywordTerms')?.value || '';
+        const areas = document.getElementById('collectionKeywordAreas')?.value || '';
+        const modifiers = document.getElementById('collectionKeywordModifiers')?.value || '';
+        const maxQueries = Math.min(Math.max(Number(document.getElementById('collectionKeywordMaxQueries')?.value) || 5, 1), 20);
+        const queries = buildKeywordCollectionQueries(keywords, areas, modifiers);
+        const preview = queries.slice(0, maxQueries);
+        target.innerHTML = preview.length
+          ? preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('')
+          : '<span><strong>キーワードを入力してください</strong></span>';
       }
 
       async function saveAutoCollectionSettings(event) {
@@ -15917,14 +16058,26 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function submitCollectionKeywordSearch(event) {
         event.preventDefault();
-        const query = document.getElementById('collectionKeywordQuery').value;
+        const queries = buildKeywordCollectionQueries(
+          document.getElementById('collectionKeywordTerms').value,
+          document.getElementById('collectionKeywordAreas').value,
+          document.getElementById('collectionKeywordModifiers').value,
+        );
+        const maxQueries = Math.min(Math.max(Number(document.getElementById('collectionKeywordMaxQueries').value) || 5, 1), 20);
+        const selectedQueries = queries.slice(0, maxQueries);
+        if (!selectedQueries.length) {
+          message('キーワード型の検索語を作成できませんでした', 'error');
+          return;
+        }
         const genre = document.getElementById('collectionKeywordGenre').value;
         await runCollectionSearchJob({
           job_type: 'prospecting',
           genre,
-          query,
-          maxItems: Number(document.getElementById('collectionKeywordMaxItems').value || 5),
-        }, 'キーワード検索');
+          queries: selectedQueries,
+          jobLimit: selectedQueries.length,
+          maxItems: selectedQueries.length,
+          resultsPerQuery: Math.min(Math.max(Number(document.getElementById('collectionKeywordResultsPerQuery').value) || 8, 1), 10),
+        }, 'キーワード型収集');
       }
 
       async function importCollectionCsv(event) {
@@ -15941,19 +16094,27 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function submitSourcePageSearch(event) {
         event.preventDefault();
-        const url = document.getElementById('sourcePageUrl').value;
+        const urls = parseCollectionLines(document.getElementById('sourcePageUrls').value);
+        if (!urls.length) {
+          message('まとめサイトURLを入力してください', 'error');
+          return;
+        }
         const genre = document.getElementById('sourcePageGenre').value;
-        const label = document.getElementById('sourcePageLabel').value || compactUrl(url);
+        const label = document.getElementById('sourcePageLabel').value || compactUrl(urls[0]);
         await runCollectionSearchJob({
-          job_type: 'prospecting',
+          job_type: 'source_page',
           genre,
-          query: [genre, label, '公式サイト'].filter(Boolean).join(' '),
+          label,
+          sourceUrls: urls,
+          sourceUrl: urls[0],
           maxItems: Number(document.getElementById('sourcePageMaxItems').value || 5),
-        }, 'まとめサイトURL収集');
+          resultsPerQuery: Number(document.getElementById('sourcePageMaxItems').value || 5),
+          useSerperFallback: document.getElementById('sourcePageUseSerperFallback').checked,
+        }, 'サイト収集型');
       }
 
       async function saveSourcePageCollectionSettings() {
-        const url = document.getElementById('sourcePageUrl').value;
+        const url = parseCollectionLines(document.getElementById('sourcePageUrls').value)[0] || '';
         if (!url) {
           message('まとめサイトURLを入力してください', 'error');
           return;
@@ -20073,7 +20234,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function leadRowClass(lead) {
         if (['失注'].includes(lead.status) || ['失注'].includes(lead.deal_status)) return 'row-muted';
-        if (lead.status === '未対応' && ['serper', 'search_job', 'prospecting'].includes(String(lead.source || ''))) return 'row-review';
+        if (lead.status === '未対応' && ['serper', 'search_job', 'prospecting', 'source_page'].includes(String(lead.source || ''))) return 'row-review';
         if (['送信NG', '対応不要'].includes(lead.status)) return 'row-send-ng';
         if (['返信あり'].includes(lead.status)) return 'row-reply';
         if (['商談予定', '商談済み', '受注'].includes(lead.status) || ['受注'].includes(lead.deal_status)) return 'row-deal';
@@ -20081,7 +20242,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function isReviewPendingLead(lead) {
-        return lead && lead.status === '未対応' && ['serper', 'search_job', 'prospecting'].includes(String(lead.source || ''));
+        return lead && lead.status === '未対応' && ['serper', 'search_job', 'prospecting', 'source_page'].includes(String(lead.source || ''));
       }
 
       function canEmailLead(lead) {

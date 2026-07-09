@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260709_apps_script_full_workflow_v133_review_startup';
+const APP_VERSION = '20260709_apps_script_full_workflow_v134_two_collection_modes';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -717,7 +717,7 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   if (value === 'no_contact') return !isValidEmailAddress_(lead.email) && !lead.form_url;
   if (value === 'won') return dealStatus === '受注' || status === '受注';
   if (value === 'lost') return dealStatus === '失注' || status === '失注';
-  if (value === 'review') return status === '未対応' && ['serper', 'search_job', 'prospecting'].indexOf(String(lead.source || '')) !== -1;
+  if (value === 'review') return status === '未対応' && ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(lead.source || '')) !== -1;
   return true;
 }
 
