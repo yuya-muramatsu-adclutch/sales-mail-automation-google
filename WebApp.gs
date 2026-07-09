@@ -70,6 +70,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'deleteNgMaster') return deleteNgMaster(data.id);
   if (action === 'listExcludedDomains') return listExcludedDomains(data);
   if (action === 'saveExcludedDomain') return saveExcludedDomain(data);
+  if (action === 'importExcludedDomains') return importExcludedDomains(data);
   if (action === 'deleteExcludedDomain') return deleteExcludedDomain(data.id);
   if (action === 'listGenres') return listGenres(data);
   if (action === 'saveGenre') return saveGenre(data);

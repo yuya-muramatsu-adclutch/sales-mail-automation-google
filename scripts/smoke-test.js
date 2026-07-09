@@ -130,17 +130,21 @@ assert(napCampJob.items[0].total_candidates === 3, 'nap-camp candidate count fai
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
+const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
+const masters = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260710_apps_script_full_workflow_v135_nap_camp_crawl'), 'v135 app version missing');
+assert(code.includes('20260710_apps_script_full_workflow_v136_excluded_domain_import'), 'v136 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
+assert(webApp.includes("action === 'importExcludedDomains'"), 'excluded domain bulk import dispatch missing');
+assert(masters.includes('function importExcludedDomains'), 'excluded domain bulk import API missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
 assert(!html.includes('https://'), 'Index.html should not contain raw https:// literals that Apps Script can split in userCodeAppPanel');
 assert(html.includes('<span>WEBサイト</span>'), 'website mini link should display WEBサイト label');
 assert(!html.includes('<span>WEB</span><small>${escapeHtml(compactUrl(lead.website_url))}</small>'), 'website mini link should not display the compact domain');
 assert(html.includes('id="leadLoadPanel"'), 'lead manual load panel missing');
 assert(html.includes('flex-wrap: wrap'), 'lead load panel should wrap progress without squeezing text');
-assert(html.includes('getStartupDashboardStats_') || fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8').includes('getStartupDashboardStats_'), 'startup should use cached/lightweight dashboard stats');
+assert(html.includes('getStartupDashboardStats_') || webApp.includes('getStartupDashboardStats_'), 'startup should use cached/lightweight dashboard stats');
 assert(html.includes('schedulePostStartupRefresh'), 'startup should schedule deferred dashboard refresh');
 assert(html.includes('ensureTabDataLoaded'), 'tabs should lazy-load their own data');
 assert(!html.includes('await Promise.all([leadLoadTask, loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()])'), 'startup should not block on every secondary list');
@@ -438,7 +442,7 @@ assert(html.includes('grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)
 assert(html.includes('content-visibility: auto;'), 'legacy job result card virtualization hint missing');
 assert(code.includes("'review_status'"), 'search result review status schema missing');
 assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('addSearchResultToLead'), 'search result add API missing');
-assert(fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8').includes('reviewSearchResults'), 'search result review API dispatch missing');
+assert(webApp.includes('reviewSearchResults'), 'search result review API dispatch missing');
 assert(html.includes('gmailReplyCheckPanel'), 'legacy Gmail reply check panel missing');
 assert(html.includes('adminGmailReplyCheckPanel'), 'legacy admin Gmail reply check panel missing');
 assert(html.includes('calendarAutoCreateSettingsPanel'), 'legacy calendar auto-create settings panel missing');
@@ -690,12 +694,12 @@ assert(emailSource.includes('getPriorSuccessfulEmailBlockReason_'), 'prior succe
 assert(emailSource.includes('buildMailSendSafetyContext_'), 'send history safety context missing');
 assert(emailSource.includes('sentEmails[email] = true'), 'same email successful history guard missing');
 assert(emailSource.includes("String(history.send_type || '').indexOf('テスト') === -1"), 'test sends should not block production send history guard');
-assert(fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8').includes('mailSendSafety: buildMailSendSafetyContext_()'), 'master context should include mail send safety history');
+assert(masters.includes('mailSendSafety: buildMailSendSafetyContext_()'), 'master context should include mail send safety history');
 assert(html.includes('const seenEmails = new Set();'), 'email batch should dedupe same recipient in the client preview');
 assert(html.includes("Number(lead.send_count || 0) > 0 || String(lead.status || '').includes('送信済み')"), 'client email eligibility should block previously sent leads');
 assert(html.includes('会社名') && html.includes('差し込みメニュー'), 'legacy template tag menu labels missing');
 assert(emailSource.includes("'会社名'"), 'server Japanese template variables missing');
-assert(fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8').includes("templateType !== 'form' && !subject"), 'form template subject optional server rule missing');
+assert(masters.includes("templateType !== 'form' && !subject"), 'form template subject optional server rule missing');
 [
   'custom_field_definitions',
   'list_view_settings',
@@ -738,7 +742,6 @@ for (const [index, script] of scripts.entries()) {
   console.log(`Index.html script ${index + 1} OK`);
 }
 
-const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const initialDataBlock = webApp.slice(webApp.indexOf('function getInitialData'), webApp.indexOf('function getStartupDashboardStats_'));
 assert(!initialDataBlock.includes('setup()'), 'getInitialData should not run setup on every startup');
 assert(initialDataBlock.includes('getStartupSerperInfo_()'), 'getInitialData should use lightweight Serper startup info');
@@ -757,6 +760,7 @@ assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflec
   'setMailSendingControl',
   'saveNgMaster',
   'saveExcludedDomain',
+  'importExcludedDomains',
   'listGenres',
   'saveGenre',
   'deleteGenre',
@@ -787,6 +791,6 @@ assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflec
 ].forEach((action) => {
   assert(webApp.includes(`action === '${action}'`), `doPost action missing: ${action}`);
 });
-assert(fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8').includes('function setEmailTemplateProduction'), 'template production API missing');
+assert(masters.includes('function setEmailTemplateProduction'), 'template production API missing');
 
 console.log('smoke-test OK');

@@ -7,6 +7,7 @@ const SOURCE_REPO = process.env.SOURCE_REPO || '/Users/muramatsuyuuya/Documents/
 const SOURCE_ENV = process.env.SOURCE_ENV || path.join(SOURCE_REPO, '.env.local');
 const WEB_APP_URL = process.env.WEB_APP_URL || 'https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec';
 const CLASP_RC = process.env.CLASP_RC || path.join(process.env.HOME || '', '.clasprc.json');
+const WRITE_CHUNK_SIZE = Number(process.env.WRITE_CHUNK_SIZE || 250);
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -236,23 +237,25 @@ async function main() {
   if (options.dryRun) return;
 
   let completed = 0;
-  for (const row of planned) {
-    await webAppPost(token, 'saveExcludedDomain', {
-      id: row.id,
-      domain: row.domain,
-      reason: row.reason,
-      active: row.active,
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+  for (let start = 0; start < sourceRows.length; start += WRITE_CHUNK_SIZE) {
+    const chunk = sourceRows.slice(start, start + WRITE_CHUNK_SIZE);
+    const result = await webAppPost(token, 'importExcludedDomains', {
+      records: chunk,
     });
-    completed += 1;
-    if (completed % 25 === 0 || completed === planned.length) {
-      console.log(`imported ${completed}/${planned.length}`);
-    }
+    completed += chunk.length;
+    inserted += Number(result.inserted || 0);
+    updated += Number(result.updated || 0);
+    skipped += Number(result.skipped || 0);
+    console.log(`imported ${completed}/${sourceRows.length}`);
   }
   const after = await webAppPost(token, 'listExcludedDomains', {
     limit: 1000,
     includeInactive: true,
   });
-  console.log(JSON.stringify({ ok: true, imported: completed, targetRows: (after.items || []).length }, null, 2));
+  console.log(JSON.stringify({ ok: true, imported: completed, inserted, updated, skipped, targetRows: (after.items || []).length }, null, 2));
 }
 
 main().catch((error) => {

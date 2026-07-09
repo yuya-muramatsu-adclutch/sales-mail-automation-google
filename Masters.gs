@@ -161,6 +161,86 @@ function saveExcludedDomain(input) {
   });
 }
 
+function importExcludedDomains(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const records = Array.isArray(source.records) ? source.records
+    : Array.isArray(source.items) ? source.items
+      : Array.isArray(source.domains) ? source.domains
+        : [];
+  if (!records.length) {
+    return { ok: true, inserted: 0, updated: 0, skipped: 0, total: 0 };
+  }
+
+  return withScriptLock_('importExcludedDomains', function () {
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'excluded_domains');
+    const headers = getHeaders_(sheet);
+    const now = nowIso_();
+    const existing = readSheetRecords_(sheet);
+    const existingByDomain = {};
+    existing.forEach(function (record) {
+      const domain = normalizeDomain_(record.domain || '');
+      if (domain) existingByDomain[domain] = record;
+    });
+
+    const incomingByDomain = {};
+    let skipped = 0;
+    records.forEach(function (record) {
+      try {
+        const normalized = normalizeExcludedDomainInput_(record);
+        incomingByDomain[normalized.domain] = normalized;
+      } catch (error) {
+        skipped += 1;
+      }
+    });
+
+    const inserts = [];
+    let updated = 0;
+    Object.keys(incomingByDomain).sort().forEach(function (domain) {
+      const normalized = incomingByDomain[domain];
+      const current = existingByDomain[domain];
+      if (current && current.id) {
+        updateSheetRecord_('excluded_domains', current.id, {
+          domain: normalized.domain,
+          reason: normalized.reason,
+          active: normalized.active,
+        });
+        updated += 1;
+        return;
+      }
+      inserts.push({
+        id: Utilities.getUuid(),
+        domain: normalized.domain,
+        reason: normalized.reason,
+        active: normalized.active,
+        created_at: now,
+        updated_at: now,
+      });
+    });
+
+    if (inserts.length) {
+      const values = inserts.map(function (record) {
+        return headers.map(function (header) {
+          return valueOrBlank_(record[header]);
+        });
+      });
+      sheet.getRange(sheet.getLastRow() + 1, 1, values.length, headers.length).setValues(values);
+    }
+
+    if (inserts.length || updated) {
+      clearRuntimeCaches_('excluded_domains');
+    }
+
+    return {
+      ok: true,
+      inserted: inserts.length,
+      updated: updated,
+      skipped: skipped,
+      total: records.length,
+    };
+  });
+}
+
 function deleteExcludedDomain(id) {
   return withScriptLock_('deleteExcludedDomain', function () {
     return updateSheetRecord_('excluded_domains', requireId_(id), { active: false });

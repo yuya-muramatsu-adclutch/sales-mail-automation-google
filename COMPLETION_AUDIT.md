@@ -1,13 +1,13 @@
 # 完成監査メモ
 
-最終更新: 2026-07-09
+最終更新: 2026-07-10
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @134 / code v134: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @136 / code v136: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260709_apps_script_full_workflow_v134_two_collection_modes`
+- Code version: `20260710_apps_script_full_workflow_v136_excluded_domain_import`
 
 ## 計画書との対応
 
@@ -576,6 +576,17 @@
 - 既存Web app URLを `clasp deploy -V 134 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 134へ再デプロイ済み。
 - `clasp deployments` で既存Web app URLが `@134 - apps-script-full-workflow-v134-two-collection-modes-on-existing-url` を指すことを確認。
 - サイト収集型はGAS制限に合わせて軽量探索に限定。JavaScript描画後にしか出ない施設一覧やPDFは抽出できない場合があり、その場合はSerper補完または手動確認が必要。
+
+## 2026-07-10 v136 旧アプリ除外ドメイン移行
+
+- `node scripts/smoke-test.js` 成功。`importExcludedDomains` のWeb app dispatchとMasters APIを確認。
+- `.gs` 主要ファイルと移行スクリプトのNode構文チェック成功。
+- `clasp push` 成功。
+- `clasp version "apps-script-full-workflow-v136-excluded-domain-import"` でVersion 136を作成済み。
+- 既存Web app URLを `clasp deploy -V 136 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 136へ再デプロイ済み。
+- `getAppInfo` で `20260710_apps_script_full_workflow_v136_excluded_domain_import` が返ることを確認。
+- 旧アプリの `excluded_domains` 598件をGAS版 `excluded_domains` へ移行済み。内訳は追加544件、既存54件更新、スキップ0件。
+- 移行後ドライランで `targetExistingRows: 598`、追加予定0件を確認。以降の再実行は重複追加せず既存更新になる。
 
 ## 運用時に確認する外部依存
 
