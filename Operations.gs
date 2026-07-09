@@ -282,8 +282,14 @@ function advanceQueuedJobs(options) {
 
   return {
     jobs: jobs.map(function (job) {
+      let payload = {};
+      try {
+        payload = JSON.parse(job.query_json || '{}');
+      } catch (error) {
+        payload = {};
+      }
       return advanceSearchJob(job.id, {
-        maxItems: input.maxItems || 5,
+        maxItems: payload.crawl_all ? 1 : (input.maxItems || 5),
       });
     }),
   };

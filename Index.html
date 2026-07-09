@@ -6654,6 +6654,36 @@
         gap: 8px;
       }
 
+      .source-page-preset-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        grid-column: 1 / -1;
+      }
+
+      .source-page-progress-note {
+        display: grid;
+        gap: 6px;
+        padding: 10px 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.55;
+      }
+
+      .field-hint {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
       .collection-preview-list span,
       .source-page-monitor-list span {
         display: flex;
@@ -15869,10 +15899,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             </div>
             <form class="source-page-grid" onsubmit="submitSourcePageSearch(event)">
               <div class="grid">
-                <label style="grid-column:1/-1">まとめサイトURL<textarea id="sourcePageUrls" rows="3" required placeholder="${HTTPS_PROTOCOL_PREFIX}www.resort-glamping.com/accommodation_category/kanto/"></textarea></label>
+                <div class="source-page-preset-row">
+                  <button type="button" class="mini-button primary" onclick="setNapCampSourcePreset()">なっぷ全件をセット</button>
+                  <span class="pill info">登録済み施設は自動除外</span>
+                </div>
+                <label style="grid-column:1/-1">まとめサイトURL<textarea id="sourcePageUrls" rows="3" required placeholder="${HTTPS_PROTOCOL_PREFIX}www.nap-camp.com/list"></textarea></label>
                 <label>追加ジャンル<select id="sourcePageGenre">${collectionGenreOptions(firstGenreName())}</select></label>
-                <label>今回の抽出件数<input id="sourcePageMaxItems" type="number" min="1" max="20" value="5"></label>
+                <label>1回の処理件数<input id="sourcePageMaxItems" type="number" min="1" max="20" value="10"><small class="field-hint">全件収集時はこの件数ずつ分割して進みます</small></label>
                 <label style="grid-column:1/-1">監視ラベル<input id="sourcePageLabel" placeholder="関東グランピング一覧"></label>
+                <label class="check-row" style="grid-column:1/-1"><input id="sourcePageCrawlAll" type="checkbox"><span>サイト内の施設を全件候補として分割収集する</span></label>
                 <label class="check-row" style="grid-column:1/-1"><input id="sourcePageUseSerperFallback" type="checkbox" ${searchReady ? 'checked' : ''}><span>公式URLが見つからない施設だけSerperで補完する</span></label>
                 <div class="toolbar">
                   <button type="submit" class="primary">サイト収集を開始</button>
@@ -15882,9 +15917,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <aside class="collection-panel-card">
                 <h3>処理の流れ</h3>
                 <div class="collection-route-flow">
-                  <span><em>1</em><strong>まとめサイトを読む</strong><small>施設名、詳細URL、外部リンクを抽出</small></span>
-                  <span><em>2</em><strong>公式URLがある</strong><small>Serperなしでメール・フォーム取得</small></span>
-                  <span><em>3</em><strong>公式URLがない</strong><small>Serperで公式ページだけ補完</small></span>
+                  <span><em>1</em><strong>施設候補を読む</strong><small>なっぷはサイトマップから全件候補を分割取得</small></span>
+                  <span><em>2</em><strong>登録済みを除外</strong><small>施設ID、詳細URL、施設名、公式ドメインで照合</small></span>
+                  <span><em>3</em><strong>連絡先を補完</strong><small>公式URLがない時だけSerperを使い、残りは候補として保存</small></span>
+                </div>
+                <div class="source-page-progress-note">
+                  <strong>全件収集はバックグラウンドで進みます</strong>
+                  <span>初回は1チャンクだけ処理し、残りはバックグラウンド進捗と10分ごとの自動実行で続きます。</span>
                 </div>
                 <h3>保存済みURL</h3>
                 <div class="source-page-monitor-list">
@@ -15937,6 +15976,26 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function parseCollectionLines(value) {
         return String(value || '').split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+      }
+
+      function setNapCampSourcePreset() {
+        const urlInput = document.getElementById('sourcePageUrls');
+        const labelInput = document.getElementById('sourcePageLabel');
+        const maxInput = document.getElementById('sourcePageMaxItems');
+        const crawlAllInput = document.getElementById('sourcePageCrawlAll');
+        const fallbackInput = document.getElementById('sourcePageUseSerperFallback');
+        const genreInput = document.getElementById('sourcePageGenre');
+        if (urlInput) urlInput.value = HTTPS_PROTOCOL_PREFIX + 'www.nap-camp.com/list';
+        if (labelInput) labelInput.value = 'なっぷ全国キャンプ場';
+        if (maxInput) maxInput.value = '20';
+        if (crawlAllInput) crawlAllInput.checked = true;
+        if (fallbackInput) fallbackInput.checked = true;
+        if (genreInput) {
+          const hasCamp = Array.from(genreInput.options || []).some((option) => option.value === 'キャンプ場');
+          if (!hasCamp) genreInput.add(new Option('キャンプ場', 'キャンプ場'));
+          genreInput.value = 'キャンプ場';
+        }
+        message('なっぷ全件収集の条件をセットしました', 'ok');
       }
 
       function buildCollectionQueryPreview(genre, regionsText, suffixesText) {
@@ -16101,14 +16160,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
         const genre = document.getElementById('sourcePageGenre').value;
         const label = document.getElementById('sourcePageLabel').value || compactUrl(urls[0]);
+        const perRun = Math.min(Math.max(Number(document.getElementById('sourcePageMaxItems').value || 10), 1), 20);
+        const crawlAll = Boolean(document.getElementById('sourcePageCrawlAll')?.checked);
+        const isNapCamp = urls.some((url) => /nap-camp\.com/i.test(url));
         await runCollectionSearchJob({
           job_type: 'source_page',
           genre,
           label,
           sourceUrls: urls,
           sourceUrl: urls[0],
-          maxItems: Number(document.getElementById('sourcePageMaxItems').value || 5),
-          resultsPerQuery: Number(document.getElementById('sourcePageMaxItems').value || 5),
+          maxItems: crawlAll ? 1 : perRun,
+          resultsPerQuery: perRun,
+          jobLimit: crawlAll ? 1000 : urls.length,
+          crawlAll,
+          sitePreset: crawlAll && isNapCamp ? 'nap_camp' : '',
+          createUnresolvedLeads: crawlAll,
           useSerperFallback: document.getElementById('sourcePageUseSerperFallback').checked,
         }, 'サイト収集型');
       }
@@ -16126,6 +16192,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           genre,
           id: `site-${Date.now()}`,
           label: document.getElementById('sourcePageLabel').value || compactUrl(url),
+          crawlAll: Boolean(document.getElementById('sourcePageCrawlAll')?.checked),
+          sitePreset: /nap-camp\.com/i.test(url) ? 'nap_camp' : '',
           updatedAt: new Date().toISOString(),
           url,
         };
@@ -16142,7 +16210,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function runCollectionSearchJob(payload, label) {
         const result = await api('runSmallSearchJob', payload);
-        message(`${label}: ${formatNumber(result.processed || 0)}件処理しました`, result.errors && result.errors.length ? 'error' : 'ok');
+        const addedText = Number(result.updatedLeads || 0) ? ` / 追加 ${formatNumber(result.updatedLeads)}件` : '';
+        const remainingText = Number(result.remaining || 0) ? ` / 残り ${formatNumber(result.remaining)}チャンク` : '';
+        const suffix = result.completed ? '' : '。残りはバックグラウンド進捗で継続します';
+        message(`${label}: ${formatNumber(result.processed || 0)}チャンク処理${addedText}${remainingText}${suffix}`, result.errors && result.errors.length ? 'error' : 'ok');
         await refreshAll();
         await reloadCollectionSupportIfOpen();
       }
@@ -16906,7 +16977,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           statCard('GAS分割実行', '6分以内', '少量ずつ処理', 'amber'),
         ].join('');
         renderLegacyBackgroundOverview('backgroundOverviewPanel');
-        const headers = ['作成', '種類', '状態', '進捗', '次の処理', 'エラー'];
+        const headers = ['作成', '種類', '状態', '進捗', '次の処理', 'エラー', '操作'];
         document.getElementById('backgroundJobCountPill').textContent = `${formatNumber(jobs.length)}件`;
         document.getElementById('backgroundJobTable').innerHTML = table(headers, limitedTableRows(headers, jobs, 'backgroundJobs', 'renderBackgroundJobsScreen', (job) => row([
           ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
@@ -16915,7 +16986,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['進捗', `${formatNumber(job.processed_count || job.processed || 0)} / ${formatNumber(job.total_count || job.total || 0)}`],
           ['次の処理', escapeHtml(dateTimeLabel(job.next_run_at || job.updated_at) || '-')],
           ['エラー', escapeHtml(job.error_message || job.last_error || '-')],
+          ['操作', ['queued', 'running'].includes(String(job.status || '')) ? `<button type="button" class="table-link-button" onclick="advanceBackgroundSearchJob('${escapeJsString(job.id)}')">次を処理</button>` : '<span class="muted">-</span>'],
         ])));
+      }
+
+      async function advanceBackgroundSearchJob(jobId) {
+        if (!jobId) return;
+        const result = await api('advanceSearchJob', { jobId, maxItems: 1 });
+        const remainingText = Number(result.remaining || 0) ? ` / 残り ${formatNumber(result.remaining)}チャンク` : '';
+        message(`ジョブを進めました: ${formatNumber(result.processed || 0)}チャンク${remainingText}`, result.errors && result.errors.length ? 'error' : 'ok');
+        await loadOpsData({ render: false });
+        renderBackgroundJobsScreen();
+        if (state.dataLoaded.search) await loadSearchResults();
       }
 
       function renderBackgroundActivityScreen() {

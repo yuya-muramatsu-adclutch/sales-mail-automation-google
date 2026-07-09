@@ -99,10 +99,39 @@ const sourcePageJob = context.normalizeSearchJobInput_({
 assert(sourcePageJob.items.length === 1 && sourcePageJob.items[0].source_url === 'https://example.com/list', 'source page job item failed');
 assert(sourcePageJob.use_serper_fallback === false, 'source page fallback flag failed');
 
+context.UrlFetchApp = {
+  fetch() {
+    return {
+      getResponseCode: () => 200,
+      getContentText: () => [
+        '<urlset>',
+        '<url><loc>https://www.nap-camp.com/hokkaido/12139/</loc></url>',
+        '<url><loc>https://www.nap-camp.com/hokkaido/12139/images</loc></url>',
+        '<url><loc>https://www.nap-camp.com/tochigi/15952/</loc></url>',
+        '<url><loc>https://www.nap-camp.com/chiba/14286/</loc></url>',
+        '</urlset>',
+      ].join(''),
+    };
+  },
+};
+const napCampJob = context.normalizeSearchJobInput_({
+  job_type: 'source_page',
+  sourceUrls: ['https://www.nap-camp.com/list'],
+  genre: 'キャンプ場',
+  label: 'なっぷ全国キャンプ場',
+  crawlAll: true,
+  sitePreset: 'nap_camp',
+  resultsPerQuery: 2,
+});
+assert(napCampJob.crawl_all === true && napCampJob.site_preset === 'nap_camp', 'nap-camp crawl flags failed');
+assert(napCampJob.items.length === 2, 'nap-camp sitemap should be chunked');
+assert(napCampJob.items[0].offset === 0 && napCampJob.items[1].offset === 2, 'nap-camp chunk offsets failed');
+assert(napCampJob.items[0].total_candidates === 3, 'nap-camp candidate count failed');
+
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260709_apps_script_full_workflow_v134_two_collection_modes'), 'v134 app version missing');
+assert(code.includes('20260710_apps_script_full_workflow_v135_nap_camp_crawl'), 'v135 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');

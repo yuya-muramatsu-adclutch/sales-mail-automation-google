@@ -1,4 +1,6 @@
 const SERPER_SEARCH_ENDPOINT = 'https://google.serper.dev/search';
+const NAP_CAMP_LIST_URL = 'https://www.nap-camp.com/list';
+const NAP_CAMP_SITEMAP_URL = 'https://www.nap-camp.com/sitemap-dynamic-campsite.xml';
 const SERPER_CREDIT_ENDPOINTS = Object.freeze([
   'https://google.serper.dev/account',
   'https://google.serper.dev/credits',
@@ -328,6 +330,9 @@ function advanceSearchJob(jobId, options) {
   const summary = {
     id: job.id,
     processed: 0,
+    processedCount: startIndex,
+    total: items.length,
+    remaining: Math.max(items.length - startIndex, 0),
     updatedLeads: 0,
     errors: [],
     completed: false,
@@ -379,6 +384,9 @@ function advanceSearchJob(jobId, options) {
   const latestJob = findSheetRecordById_('search_jobs', job.id);
   const processedCount = Number(latestJob.processed_count || 0);
   const completed = processedCount >= items.length || processedCount >= Number(payload.job_limit || items.length);
+  summary.processedCount = processedCount;
+  summary.total = items.length;
+  summary.remaining = Math.max(items.length - processedCount, 0);
   if (completed) {
     updateSheetRecord_('search_jobs', job.id, {
       status: summary.errors.length > 0 ? 'failed' : 'completed',
@@ -403,20 +411,39 @@ function normalizeSearchJobInput_(input) {
   }
 
   const dailyLimit = Math.min(Number(source.daily_limit || source.dailyLimit || getSettingValue_('serper_daily_search_limit', 100)), getSettingValue_('serper_daily_search_limit', 100));
-  const jobLimit = Math.min(Number(source.job_limit || source.jobLimit || 20), 100);
-  const items = buildSearchJobItems_(source, jobType).slice(0, jobLimit);
+  const builtItems = buildSearchJobItems_(source, jobType);
+  const crawlAll = jobType === 'source_page' && isSourcePageCrawlAllInput_(source);
+  const maxJobLimit = crawlAll ? 1000 : 100;
+  const defaultJobLimit = crawlAll ? builtItems.length : 20;
+  const jobLimit = Math.min(Number(source.job_limit || source.jobLimit || defaultJobLimit) || defaultJobLimit, maxJobLimit, builtItems.length);
+  const items = builtItems.slice(0, jobLimit);
 
   if (items.length === 0) {
     throw new Error('Search job has no items.');
   }
+
+  const sourceUrls = jobType === 'source_page'
+    ? parseSearchJobLines_(source.sourceUrls || source.source_urls || source.sourceUrl || source.source_url || source.url)
+    : [];
+  const firstSourceUrl = sourceUrls.length ? normalizeUrl_(sourceUrls[0]) : '';
+  const sitePreset = jobType === 'source_page'
+    ? String(source.site_preset || source.sitePreset || detectSourcePagePreset_(firstSourceUrl) || '').trim()
+    : '';
+  const resultLimitMax = crawlAll ? 20 : 20;
 
   return {
     job_type: jobType,
     daily_limit: dailyLimit,
     job_limit: jobLimit,
     items: items,
-    results_per_query: Math.min(Math.max(Number(source.results_per_query || source.resultsPerQuery || 10) || 10, 1), 20),
+    results_per_query: Math.min(Math.max(Number(source.results_per_query || source.resultsPerQuery || (crawlAll ? 20 : 10)) || (crawlAll ? 20 : 10), 1), resultLimitMax),
     use_serper_fallback: source.use_serper_fallback === false || source.useSerperFallback === false ? false : true,
+    create_unresolved_leads: source.create_unresolved_leads === true || source.createUnresolvedLeads === true || sitePreset === 'nap_camp',
+    crawl_all: crawlAll,
+    site_preset: sitePreset,
+    source_url: firstSourceUrl,
+    genre: String(source.genre || '').trim(),
+    label: String(source.label || source.name || '').trim(),
     created_at: nowIso_(),
   };
 }
@@ -447,11 +474,32 @@ function buildSearchJobItems_(source, jobType) {
     const label = String(source.label || source.name || '').trim();
     const urls = parseSearchJobLines_(source.sourceUrls || source.source_urls || source.sourceUrl || source.source_url || source.url);
     if (!urls.length) throw new Error('Source page URL is required.');
-    return urls.map(function (url) {
-      return {
-        source_url: normalizeUrl_(url),
+    const crawlAll = isSourcePageCrawlAllInput_(source);
+    const allItems = [];
+    urls.forEach(function (url) {
+      const normalizedUrl = normalizeUrl_(url);
+      const sitePreset = String(source.site_preset || source.sitePreset || detectSourcePagePreset_(normalizedUrl) || '').trim();
+      if (crawlAll && sitePreset === 'nap_camp') {
+        Array.prototype.push.apply(allItems, buildNapCampSourcePageItems_(normalizedUrl, source));
+        return;
+      }
+      allItems.push({
+        source_url: normalizedUrl,
         genre: genre,
         label: label,
+        site_preset: sitePreset,
+      });
+    });
+    return allItems.map(function (item) {
+      return {
+        source_url: item.source_url,
+        genre: item.genre || genre,
+        label: item.label || label,
+        site_preset: item.site_preset || '',
+        crawl_all: Boolean(item.crawl_all),
+        offset: item.offset || 0,
+        max_items: item.max_items || '',
+        total_candidates: item.total_candidates || '',
       };
     });
   }
@@ -467,6 +515,35 @@ function buildSearchJobItems_(source, jobType) {
   }).map(function (lead) {
     return { lead_id: lead.id };
   });
+}
+
+function isSourcePageCrawlAllInput_(source) {
+  const input = source && typeof source === 'object' ? source : {};
+  return input.crawl_all === true || input.crawlAll === true || input.collect_all === true || input.collectAll === true;
+}
+
+function detectSourcePagePreset_(url) {
+  const domain = normalizeDomain_(url);
+  if (isDomainOrSubdomain_(domain, 'nap-camp.com')) return 'nap_camp';
+  return '';
+}
+
+function buildNapCampSourcePageItems_(url, source) {
+  const candidates = fetchNapCampCampsiteUrlEntries_();
+  const chunkSize = Math.min(Math.max(Number(source.results_per_query || source.resultsPerQuery || 20) || 20, 1), 20);
+  const sourceUrl = normalizeUrl_(url || NAP_CAMP_LIST_URL);
+  const items = [];
+  for (let offset = 0; offset < candidates.length; offset += chunkSize) {
+    items.push({
+      source_url: sourceUrl,
+      site_preset: 'nap_camp',
+      crawl_all: true,
+      offset: offset,
+      max_items: chunkSize,
+      total_candidates: candidates.length,
+    });
+  }
+  return items;
 }
 
 function parseSearchJobLines_(value) {
@@ -544,7 +621,188 @@ function processProspectingSearchItem_(item, payload, jobId) {
   });
 }
 
+function processNapCampSourcePageItem_(item, payload, jobId) {
+  const sourceUrl = normalizeUrl_(item.source_url || payload.source_url || NAP_CAMP_LIST_URL);
+  const allCandidates = fetchNapCampCampsiteUrlEntries_();
+  const offset = Math.max(Number(item.offset) || 0, 0);
+  const limit = Math.min(Math.max(Number(item.max_items || payload.results_per_query || 20) || 20, 1), 20);
+  const candidates = allCandidates.slice(offset, offset + limit);
+  const summary = {
+    created: 0,
+    skipped: 0,
+    candidates: candidates.length,
+    offset: offset,
+    totalCandidates: allCandidates.length,
+  };
+
+  if (!candidates.length) {
+    appendSourcePageResult_(jobId, {
+      query: sourceUrl,
+      resultType: 'source_page_empty',
+      title: item.label || payload.label || 'なっぷ全件収集',
+      url: sourceUrl,
+      snippet: 'このチャンクには処理対象の施設がありません。',
+      rank: offset + 1,
+      reviewStatus: 'unconfirmed',
+      raw: {
+        source_url: sourceUrl,
+        site_preset: 'nap_camp',
+        offset: offset,
+        total_candidates: allCandidates.length,
+      },
+    });
+    return summary;
+  }
+
+  candidates.forEach(function (entry, index) {
+    const rank = offset + index + 1;
+    try {
+      const candidate = buildNapCampSourcePageCandidate_(entry, sourceUrl);
+      const result = processSourcePageCandidate_(candidate, item, payload, jobId, rank - 1);
+      if (result.created) summary.created += 1;
+      if (result.skipped) summary.skipped += 1;
+    } catch (error) {
+      summary.skipped += 1;
+      appendSyncError_('processNapCampSourcePageItem', error, {
+        target_sheet: 'search_jobs',
+        target_id: jobId || '',
+        item: item,
+        entry: entry,
+      });
+      appendSourcePageResult_(jobId, {
+        query: sourceUrl,
+        resultType: 'source_page_error',
+        title: entry.detail_url || sourceUrl,
+        url: entry.detail_url || sourceUrl,
+        snippet: error.message || String(error),
+        rank: rank,
+        reviewStatus: 'dismissed',
+        raw: {
+          source_url: sourceUrl,
+          site_preset: 'nap_camp',
+          entry: entry,
+          error: error.message || String(error),
+        },
+      });
+    }
+  });
+
+  return summary;
+}
+
+function fetchNapCampCampsiteUrlEntries_() {
+  const response = UrlFetchApp.fetch(NAP_CAMP_SITEMAP_URL, {
+    method: 'get',
+    followRedirects: true,
+    muteHttpExceptions: true,
+    headers: {
+      Accept: 'application/xml,text/xml,*/*;q=0.8',
+      'User-Agent': 'Mozilla/5.0 AppsScript AutoSalesListBot',
+    },
+  });
+  const code = response.getResponseCode();
+  const text = response.getContentText('UTF-8') || '';
+  if (code < 200 || code >= 400) {
+    throw new Error('Nap-camp sitemap fetch failed: HTTP ' + code);
+  }
+
+  const entries = [];
+  const seen = {};
+  const pattern = /<loc>(https:\/\/www\.nap-camp\.com\/([a-z_]+)\/(\d+)\/)<\/loc>/gi;
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    const detailUrl = String(match[1] || '').replace(/\/+$/, '');
+    const prefecture = String(match[2] || '').trim();
+    const campsiteId = String(match[3] || '').trim();
+    const sourceId = ['nap_camp', prefecture, campsiteId].join(':');
+    if (!detailUrl || seen[sourceId]) continue;
+    seen[sourceId] = true;
+    entries.push({
+      detail_url: detailUrl,
+      prefecture: prefecture,
+      campsite_id: campsiteId,
+      source_id: sourceId,
+    });
+  }
+
+  if (!entries.length) {
+    throw new Error('Nap-camp sitemap has no campsite detail URLs.');
+  }
+  return entries;
+}
+
+function buildNapCampSourcePageCandidate_(entry, sourceUrl) {
+  const detailUrl = normalizeSourcePageComparableUrl_(entry.detail_url);
+  let html = '';
+  let facilityName = '';
+  let address = '';
+  let description = '';
+  let detailError = '';
+
+  try {
+    const page = fetchProspectingHtml_(detailUrl);
+    html = page.html || '';
+    facilityName = extractNapCampFacilityName_(html);
+    address = extractNapCampAddress_(html);
+    description = extractMetaContentFromHtml_(html, 'description');
+  } catch (error) {
+    detailError = error.message || String(error);
+  }
+
+  const name = facilityName || ('なっぷ施設 ' + String(entry.campsite_id || '').trim());
+  return {
+    facility_name: name,
+    text: name,
+    url: detailUrl,
+    detail_url: detailUrl,
+    official_url: '',
+    address: address,
+    description: description,
+    prefecture: entry.prefecture || '',
+    campsite_id: entry.campsite_id || '',
+    source_id: entry.source_id || '',
+    source_preset: 'nap_camp',
+    source_url: sourceUrl,
+    skip_detail_official: true,
+    create_without_official: true,
+    detail_error: detailError,
+    serper_query: [name, address, 'キャンプ場 公式サイト'].filter(Boolean).join(' '),
+  };
+}
+
+function extractNapCampFacilityName_(html) {
+  const detailMatch = String(html || '').match(/キャンプ場詳細<\/div><div[^>]*>([\s\S]*?)<\/div>/i);
+  if (detailMatch && detailMatch[1]) {
+    const fromDetail = cleanSourcePageText_(detailMatch[1]);
+    if (fromDetail) return fromDetail;
+  }
+
+  const title = extractMetaContentFromHtml_(html, 'og:title') ||
+    (String(html || '').match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '';
+  return cleanSourcePageText_(title)
+    .replace(/の口コミ・予約.*$/g, '')
+    .replace(/｜\s*なっぷ.*$/g, '')
+    .replace(/\s+-\s+なっぷ.*$/g, '')
+    .trim();
+}
+
+function extractNapCampAddress_(html) {
+  const match = String(html || '').match(/住所<\/div><div[^>]*><span[^>]*>([\s\S]*?)(?:<button|<\/span>)/i);
+  return match && match[1] ? cleanSourcePageText_(match[1]) : '';
+}
+
+function extractMetaContentFromHtml_(html, name) {
+  const escapedName = String(name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp("<meta\\s+[^>]*(?:property|name)=[\"']" + escapedName + "[\"'][^>]*content=[\"']([^\"']*)[\"']", 'i');
+  const match = String(html || '').match(pattern);
+  return match && match[1] ? decodeHtmlEntitiesBasic_(match[1]) : '';
+}
+
 function processSourcePageSearchItem_(item, payload, jobId) {
+  if (String(item.site_preset || payload.site_preset || '') === 'nap_camp') {
+    return processNapCampSourcePageItem_(item, payload, jobId);
+  }
+
   const sourceUrl = normalizeUrl_(item.source_url || item.url || '');
   const limit = Math.min(Math.max(Number(payload.results_per_query || item.max_items || 5) || 5, 1), 20);
   const page = fetchProspectingHtml_(sourceUrl);
@@ -603,16 +861,39 @@ function processSourcePageSearchItem_(item, payload, jobId) {
 }
 
 function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
-  const sourceUrl = normalizeUrl_(item.source_url || item.url || '');
+  const sourceUrl = normalizeUrl_(item.source_url || item.url || payload.source_url || candidate.source_url || '');
   const sourceDomain = normalizeDomain_(sourceUrl);
-  const genre = String(item.genre || '').trim();
+  const sitePreset = String(candidate.source_preset || item.site_preset || payload.site_preset || '').trim();
+  const genre = String(item.genre || payload.genre || '').trim();
   const facilityName = String(candidate.facility_name || candidate.text || '').trim() ||
     deriveSearchResultCompanyName_(candidate.official_url || candidate.detail_url || sourceUrl);
   let officialUrl = candidate.official_url || '';
   let discoveryMode = officialUrl ? 'direct_official_link' : 'unresolved';
   let serperResult = null;
+  const sourceId = candidate.source_id || sourcePageLeadSourceId_(jobId, index, facilityName, officialUrl || candidate.detail_url || sourceUrl);
+  const existingBeforeSearch = findExistingSourcePageLead_(candidate, facilityName, officialUrl);
+  if (existingBeforeSearch) {
+    appendSourcePageResult_(jobId, {
+      query: sourceUrl,
+      resultType: 'source_page_duplicate',
+      title: facilityName,
+      url: candidate.detail_url || candidate.url || officialUrl || sourceUrl,
+      snippet: '既存営業リストに登録済みのためスキップしました。',
+      rank: index + 1,
+      leadId: existingBeforeSearch.id || '',
+      reviewStatus: 'duplicate',
+      raw: {
+        source_url: sourceUrl,
+        site_preset: sitePreset,
+        source_id: sourceId,
+        candidate: candidate,
+        duplicate_lead_id: existingBeforeSearch.id || '',
+      },
+    });
+    return { created: false, skipped: true, duplicate: true };
+  }
 
-  if (!officialUrl && candidate.detail_url) {
+  if (!officialUrl && candidate.detail_url && !candidate.skip_detail_official) {
     try {
       const detailPage = fetchProspectingHtml_(candidate.detail_url);
       officialUrl = extractFirstOfficialLinkFromHtml_(detailPage.html, candidate.detail_url, sourceDomain);
@@ -623,27 +904,63 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
   }
 
   if (!officialUrl && payload.use_serper_fallback !== false && getSerperApiKey_()) {
-    assertSerperLimitAvailable_();
-    const query = [facilityName, genre, '公式サイト'].filter(Boolean).join(' ');
-    const response = callSerperSearch_(query, {
-      num: 5,
-      purpose: 'source_page_official_site_fallback',
-      source: 'source_page',
-      jobId: jobId || '',
-    });
-    const selected = selectLeadSearchResult_(response.organic, 'lead_official_site');
-    serperResult = {
-      query: query,
-      selected: selected,
-      resultCount: response.organic.length,
-    };
-    if (selected.url) {
-      officialUrl = selected.url;
-      discoveryMode = 'serper_fallback';
+    try {
+      assertSerperLimitAvailable_();
+      const query = candidate.serper_query || [facilityName, candidate.address || '', genre, '公式サイト'].filter(Boolean).join(' ');
+      const response = callSerperSearch_(query, {
+        num: 5,
+        purpose: 'source_page_official_site_fallback',
+        source: 'source_page',
+        jobId: jobId || '',
+      });
+      const selected = selectLeadSearchResult_(response.organic, 'lead_official_site');
+      serperResult = {
+        query: query,
+        selected: selected,
+        resultCount: response.organic.length,
+      };
+      if (selected.url && !isDomainOrSubdomain_(normalizeDomain_(selected.url), sourceDomain)) {
+        officialUrl = selected.url;
+        discoveryMode = 'serper_fallback';
+      }
+    } catch (error) {
+      serperResult = {
+        query: candidate.serper_query || [facilityName, candidate.address || '', genre, '公式サイト'].filter(Boolean).join(' '),
+        selected: null,
+        resultCount: 0,
+        error: error.message || String(error),
+      };
     }
   }
 
-  if (!officialUrl) {
+  if (officialUrl) {
+    const existingAfterSearch = findExistingSourcePageLead_(candidate, facilityName, officialUrl);
+    if (existingAfterSearch) {
+      appendSourcePageResult_(jobId, {
+        query: sourceUrl,
+        resultType: 'source_page_duplicate',
+        title: facilityName,
+        url: officialUrl,
+        snippet: '公式URLが既存営業リストと一致したためスキップしました。',
+        rank: index + 1,
+        leadId: existingAfterSearch.id || '',
+        reviewStatus: 'duplicate',
+        raw: {
+          source_url: sourceUrl,
+          site_preset: sitePreset,
+          source_id: sourceId,
+          candidate: candidate,
+          official_url: officialUrl,
+          serper: serperResult,
+          duplicate_lead_id: existingAfterSearch.id || '',
+        },
+      });
+      return { created: false, skipped: true, duplicate: true };
+    }
+  }
+
+  const createUnresolvedLead = payload.create_unresolved_leads === true || candidate.create_without_official === true;
+  if (!officialUrl && !createUnresolvedLead) {
     appendSourcePageResult_(jobId, {
       query: sourceUrl,
       resultType: 'source_page_unresolved',
@@ -654,6 +971,8 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
       reviewStatus: 'unconfirmed',
       raw: {
         source_url: sourceUrl,
+        site_preset: sitePreset,
+        source_id: sourceId,
         candidate: candidate,
         serper: serperResult,
       },
@@ -661,27 +980,36 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
     return { created: false };
   }
 
-  const contact = extractContactFromOfficialPage_(officialUrl);
+  const contact = officialUrl ? extractContactFromOfficialPage_(officialUrl) : {
+    email: '',
+    formUrl: '',
+    checkedUrl: '',
+    errorMessage: '',
+  };
   let lead = null;
   let reviewStatus = 'added';
   let errorMessage = '';
   try {
     lead = createLead({
       source: 'source_page',
-      source_id: sourcePageLeadSourceId_(jobId, index, facilityName, officialUrl),
-      external_id: sourceUrl,
+      source_id: sourceId,
+      external_id: candidate.detail_url || candidate.url || sourceUrl,
       genre: genre,
       company_name: facilityName,
       facility_name: facilityName,
       email: contact.email || '',
       website_url: officialUrl,
       form_url: contact.formUrl || '',
+      address: candidate.address || '',
       status: '未対応',
-      notes: 'サイト収集型で追加',
+      notes: officialUrl ? 'サイト収集型で追加' : 'サイト収集型で追加（公式URL未確認）',
       source_payload_json: safeJsonStringify_({
         collection_type: 'source_page',
+        site_preset: sitePreset,
         source_url: sourceUrl,
+        source_id: sourceId,
         detail_url: candidate.detail_url || '',
+        address: candidate.address || '',
         discovery_mode: discoveryMode,
         serper: serperResult,
         contact_error: contact.errorMessage || '',
@@ -694,11 +1022,11 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
 
   appendSourcePageResult_(jobId, {
     query: sourceUrl,
-    resultType: discoveryMode === 'serper_fallback' ? 'source_page_serper' : 'source_page_direct',
+    resultType: officialUrl ? (discoveryMode === 'serper_fallback' ? 'source_page_serper' : 'source_page_direct') : 'source_page_unresolved_added',
     title: facilityName,
-    url: officialUrl,
+    url: officialUrl || candidate.detail_url || candidate.url || sourceUrl,
     snippet: errorMessage || [
-      discoveryMode === 'serper_fallback' ? 'Serperで公式URLを補完' : '公式URLから直接取得',
+      officialUrl ? (discoveryMode === 'serper_fallback' ? 'Serperで公式URLを補完' : '公式URLから直接取得') : '公式URL未確認の施設候補として追加',
       contact.email ? 'メールあり' : 'メール未検出',
       contact.formUrl ? 'フォームあり' : 'フォーム未検出',
     ].join(' / '),
@@ -707,6 +1035,8 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
     reviewStatus: reviewStatus,
     raw: {
       source_url: sourceUrl,
+      site_preset: sitePreset,
+      source_id: sourceId,
       candidate: candidate,
       official_url: officialUrl,
       contact: contact,
@@ -716,6 +1046,53 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
   });
 
   return { created: Boolean(lead) };
+}
+
+function findExistingSourcePageLead_(candidate, facilityName, officialUrl) {
+  const sourceId = String(candidate.source_id || '').trim();
+  const candidateName = normalizeCompanyName_(facilityName || candidate.facility_name || candidate.text || '');
+  const detailUrl = normalizeSourcePageComparableUrl_(candidate.detail_url || candidate.url || '');
+  const officialDomain = normalizeDomain_(officialUrl || candidate.official_url || '');
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const sheet = ensureSheet_(spreadsheet, 'leads');
+  const leads = readSheetRecords_(sheet);
+
+  return leads.find(function (lead) {
+    if (isArchivedLead_(lead)) return false;
+
+    const existingSource = String(lead.source || '').trim();
+    const existingSourceId = String(lead.source_id || '').trim();
+    if (sourceId && existingSource === 'source_page' && existingSourceId === sourceId) {
+      return true;
+    }
+
+    const existingExternalUrl = normalizeSourcePageComparableUrl_(lead.external_id || '');
+    if (detailUrl && existingExternalUrl && existingExternalUrl === detailUrl) {
+      return true;
+    }
+
+    const existingWebsiteUrl = normalizeSourcePageComparableUrl_(lead.website_url || '');
+    if (detailUrl && existingWebsiteUrl && existingWebsiteUrl === detailUrl) {
+      return true;
+    }
+
+    const existingDomain = normalizeDomain_(lead.website_domain || lead.website_url || lead.form_url || lead.email_domain || '');
+    if (officialDomain && existingDomain && existingDomain === officialDomain) {
+      return true;
+    }
+
+    const existingName = normalizeCompanyName_(lead.normalized_company_name || lead.company_name || lead.facility_name || '');
+    return candidateName && candidateName.length >= 4 && existingName && existingName === candidateName;
+  }) || null;
+}
+
+function normalizeSourcePageComparableUrl_(url) {
+  const normalized = normalizeUrl_(url);
+  if (!normalized) return '';
+  return normalized
+    .replace(/[?#].*$/, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
 }
 
 function appendSourcePageResult_(jobId, result) {
@@ -981,7 +1358,7 @@ function buildLeadSearchQuery_(lead, jobType) {
 
 function selectLeadSearchResult_(results, jobType) {
   const organic = Array.isArray(results) ? results : [];
-  const excludedHosts = ['facebook.com', 'instagram.com', 'x.com', 'twitter.com', 'linkedin.com', 'youtube.com', 'map.yahoo.co.jp', 'google.com'];
+  const excludedHosts = ['facebook.com', 'instagram.com', 'x.com', 'twitter.com', 'linkedin.com', 'youtube.com', 'map.yahoo.co.jp', 'google.com', 'nap-camp.com'];
   const contactPattern = /(contact|inquiry|お問い合わせ|問い合わせ|お問合せ|toiawase|otoiawase)/i;
   const candidates = organic.filter(function (result) {
     const domain = normalizeDomain_(result.link || '');
