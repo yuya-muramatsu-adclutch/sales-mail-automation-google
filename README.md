@@ -65,6 +65,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `LeadPagination` / `url-mini-link` / `button.primary` に寄せたページング、URL小リンク、一次ボタン色
 - 旧Next/Supabase版の `JobResultsReviewTable` に寄せた検索結果レビューの5列カテゴリ、カードグリッド、一括確認、追加読み込み導線
 - 全ページ共通の見出し・説明・余白・文字階層、低頻度メニューの折りたたみ、正常ステータスの非表示、主要操作＋その他メニュー、文脈別の空状態を備えた運用UI
+- 確認待ち受信トレイ、キーボード移動、操作取り消し、今日の作業、共通タスクセンター、収集プリセット/概算、保存ビュー、設定検索、送信安全サマリー
 
 ## ファイル
 
@@ -95,7 +96,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @165 / code v165: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @168 / code v168: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。

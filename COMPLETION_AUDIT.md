@@ -1,13 +1,25 @@
 # 完成監査メモ
 
-最終更新: 2026-07-12
+最終更新: 2026-07-13
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @165 / code v165: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @168 / code v168: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v165_design_system_usability`
+- Code version: `20260713_apps_script_full_workflow_v168_mobile_width_fix`
+
+## v168 運用フロー改善
+
+- 確認待ちを左リスト/右詳細の受信トレイ型へ変更。上下移動、承認、送信NGのキーボード操作と、承認後の自動移動を追加。
+- 確認済み、対応不要、送信NG、一括ステータス更新に9秒間の取り消し操作を追加。
+- 確認待ち画面へ `今日の作業` を追加し、確認数、送信可能数、エラー数と次の操作を1箇所へ集約。
+- 上部へ共通タスクセンターを追加し、実行中ジョブ、失敗、確認待ち、送信前チェック、直近収集結果を遅延読み込みで表示。
+- キーワード収集に保存プリセット、Serper検索数、最大候補、時間目安を追加。サイト収集にも対象数、1回処理数、Serper利用条件の概算を追加。
+- 営業リストへ現在の検索、状態、ジャンル、並び順を保存・再適用できる保存ビューを追加。
+- 送信プレビュー上部へ、今回送信、テンプレート、本日残り、確認待ち、送信NG、送信済み、返信/商談、重複メールの安全サマリーを追加。
+- 管理画面へ設定検索を追加し、送信時間、Gmail、DB、マスター、ログなどの該当セクションだけを表示。
+- ローディングをアクティブ画面単位に限定し、共通進捗表示と空パネルのスケルトン状態を追加。
 
 ## v165 共通デザイン・操作性改善
 
