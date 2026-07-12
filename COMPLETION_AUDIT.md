@@ -810,10 +810,12 @@
 - 補正後は成功履歴の営業先別合計1,103件、営業先側`send_count`合計1,103件、不一致0件。
 - ダッシュボード更新時に成功履歴と営業先送信回数を照合し、不一致が1件でも発生した場合は全画面の異常通知へ表示する再発検知を追加。
 - Version 161を既存Web app URLへデプロイ。実画面でVersion 161、確認待ちからの起動、送信集計不一致の異常通知なしを確認。
+- キャンプ本番テンプレート`メール文【20260531】`を使い、固定テスト宛先`yuya1998nu@gmail.com`・固定宛名`村松侑哉`へテストメールを1通送信。`send_histories`に`テスト送信`・`成功`・営業先ID空欄で記録され、Gmail送信済み（message ID `19f5564abdc1c8ee`）でも宛先、件名、キャンプ向け本文を確認した。
+- テスト後も`mail_sending_control.enabled=false`、`gmail_reply_check.enabled=false`、`calendar_auto_create.enabled=false`を維持。営業先の送信回数・ステータスを更新せず、自動送信は停止したまま。
 
 ## 運用時に確認する外部依存
 
-- Serper実検索は、実APIキーを保存後に `testSerperApiKey()` と小規模ジョブで確認する。
-- 実メール送信は、送信先・テンプレート・Gmail上限を確認してから1件で確認する。
+- Serper実検索は、なっぷ収集ジョブで日次100件の実行と上限到達後の再開予約まで確認済み。
+- Gmailの実送信は固定テスト宛先へのテストメール1通で確認済み。本番営業先への送信は安全のため未実施。
 - 実カレンダー登録は、テスト商談日時で1件作成して確認する。
 - `clasp run` / `clasp logs` はGCP project / Apps Script Execution API設定に依存するため、現状の運用確認はWeb appとApps Script editorを正とする。
