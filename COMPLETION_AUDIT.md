@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @144 / code v144: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @145 / code v145: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v144_send_ng_enforcement`
+- Code version: `20260712_apps_script_full_workflow_v145_cloud_job_continuation`
 
 ## 計画書との対応
 
@@ -672,6 +672,16 @@
 - `force=true` を渡した送信NG営業先で `MailApp.sendEmail` が0回のまま例外停止する回帰テストを追加。実メール送信は未実施。
 - `node scripts/smoke-test.js`、全 `.gs` 構文チェック、`git diff --check` 成功。Version 144を既存Web app URLへ再デプロイ。
 - ChromeでVersion 144、送信NGマスター0件、除外ドメイン299件、ブラウザ警告・エラーログ0件を確認。送信事故防止のため実メール送信は未実施。
+
+## 2026-07-12 v145 PCスリープ中のクラウド継続
+
+- 収集ジョブはApps Scriptの時間主導トリガーで10分ごとに再開し、PCやブラウザを閉じてもGoogle側で処理する構成を確認。
+- 新しい収集ジョブの登録時に `advanceQueuedJobs` トリガーを確認し、削除されていれば自動再作成する自己修復を追加。
+- 定期トリガー作成処理を排他制御し、複数操作が重なっても同じトリガーを重複作成しないよう修正。
+- 検索ジョブ履歴が増えた場合も古い待機ジョブを見失わないよう、クラウド監視対象を直近100件から1,000件へ拡張。
+- Gmail返信確認は設定がONの場合のみ6時間ごとにクラウド実行。自動メール送信は別機能であり、安全のため今回有効化していない。
+- トリガー0件から既定2件を作成し、再実行しても2件のまま重複しないモックテストを追加。`node scripts/smoke-test.js`、全 `.gs` 構文チェック、`git diff --check` 成功。
+- Version 145を既存Web app URLへ再デプロイ。`clasp run installDefaultTriggers` はExecution APIの実行権限不足で利用不可のため、実トリガー件数はWeb app管理画面を正とする。
 
 ## 運用時に確認する外部依存
 

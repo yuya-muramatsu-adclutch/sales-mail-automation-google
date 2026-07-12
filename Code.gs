@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260712_apps_script_full_workflow_v144_send_ng_enforcement';
+const APP_VERSION = '20260712_apps_script_full_workflow_v145_cloud_job_continuation';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',

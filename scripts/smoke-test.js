@@ -237,6 +237,43 @@ assert(consumerGasUsage.alerts.some((item) => item.key === 'urlFetch'), 'URL Fet
 const disabledAutomaticReplySweep = context.checkRepliesForLeads();
 assert(disabledAutomaticReplySweep.disabled === true && disabledAutomaticReplySweep.checked === 0, 'disabled automatic reply check should exit without Gmail access');
 
+const originalTriggerWithLock = context.withScriptLock_;
+const originalScriptApp = context.ScriptApp;
+const mockProjectTriggers = [];
+const mockTriggerSchedules = [];
+context.withScriptLock_ = (_name, callback) => callback();
+context.ScriptApp = {
+  getProjectTriggers() {
+    return mockProjectTriggers.slice();
+  },
+  newTrigger(handler) {
+    const schedule = { handler, interval: '', value: 0 };
+    const builder = {
+      timeBased() { return builder; },
+      everyMinutes(value) { schedule.interval = 'minutes'; schedule.value = value; return builder; },
+      everyHours(value) { schedule.interval = 'hours'; schedule.value = value; return builder; },
+      create() {
+        mockTriggerSchedules.push(Object.assign({}, schedule));
+        const trigger = {
+          getHandlerFunction() { return handler; },
+          getEventType() { return 'CLOCK'; },
+        };
+        mockProjectTriggers.push(trigger);
+        return trigger;
+      },
+    };
+    return builder;
+  },
+};
+const firstTriggerInstall = context.installDefaultTriggers();
+assert(firstTriggerInstall.triggers.length === 2, 'default cloud triggers should be created');
+assert(mockTriggerSchedules.some((item) => item.handler === 'advanceQueuedJobs' && item.interval === 'minutes' && item.value === 10), 'background jobs should run every 10 minutes');
+assert(mockTriggerSchedules.some((item) => item.handler === 'checkRepliesForLeads' && item.interval === 'hours' && item.value === 6), 'reply checks should run every 6 hours');
+const secondTriggerInstall = context.installDefaultTriggers();
+assert(secondTriggerInstall.triggers.length === 2 && mockProjectTriggers.length === 2, 'trigger installation should not create duplicates');
+context.withScriptLock_ = originalTriggerWithLock;
+context.ScriptApp = originalScriptApp;
+
 const runWindow = context.buildSearchJobRunWindow_(300000, 1000);
 assert(runWindow.deadlineMs === 271000, 'search job run window should reserve 30 seconds');
 assert(context.isSearchJobRuntimeExhausted_(runWindow.deadlineMs, runWindow.deadlineMs), 'runtime deadline should stop processing');
@@ -356,8 +393,10 @@ const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const masters = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
+const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
+const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v144_send_ng_enforcement'), 'v144 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v145_cloud_job_continuation'), 'v145 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -370,6 +409,8 @@ assert(webApp.includes('function buildConsumerGasUsageStatus_'), 'consumer GAS u
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(emailSource.includes('function getEmailSendTargetBlockReason_'), 'server-side email block reason helper missing');
 assert(!emailSource.includes('input.force !== true'), 'email safety checks must not be bypassable with force');
+assert(operationsSource.includes("listSheetRecords('search_jobs', { limit: 1000"), 'cloud job scan should include older queued jobs');
+assert(serperSource.includes('ensureBackgroundJobTrigger_();'), 'new search jobs should ensure the cloud continuation trigger');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(webApp.includes("action === 'importEmailTemplates'"), 'email template bulk import dispatch missing');
 assert(webApp.includes("action === 'importSendHistories'"), 'send history bulk import dispatch missing');

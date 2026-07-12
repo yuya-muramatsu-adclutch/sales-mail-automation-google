@@ -299,6 +299,7 @@ function deriveSearchResultCompanyName_(value) {
 
 function startSerperSearchJob(input) {
   return withScriptLock_('startSerperSearchJob', function () {
+    ensureBackgroundJobTrigger_();
     const payload = normalizeSearchJobInput_(input);
     return appendSheetRecord_('search_jobs', {
       job_type: payload.job_type,

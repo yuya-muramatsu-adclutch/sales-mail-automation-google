@@ -391,7 +391,7 @@ function advanceQueuedJobs(options) {
   const maxJobs = Math.min(Math.max(Number(input.maxJobs) || 3, 1), 10);
   const totalRuntimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000, 10000), 330000);
   const runWindow = buildSearchJobRunWindow_(totalRuntimeBudgetMs, Date.now());
-  const jobs = listSheetRecords('search_jobs', { limit: 100, includeInactive: true }).items.filter(function (job) {
+  const jobs = listSheetRecords('search_jobs', { limit: 1000, includeInactive: true }).items.filter(function (job) {
     return job.status === 'queued' || job.status === 'running';
   }).sort(function (left, right) {
     return String(left.updated_at || left.created_at || '').localeCompare(String(right.updated_at || right.created_at || ''));
@@ -437,7 +437,7 @@ function advanceQueuedJobs(options) {
   };
 }
 
-function installDefaultTriggers() {
+function ensureBackgroundJobTrigger_() {
   const existing = ScriptApp.getProjectTriggers();
   const handlers = existing.map(function (trigger) {
     return trigger.getHandlerFunction();
@@ -445,20 +445,40 @@ function installDefaultTriggers() {
 
   if (handlers.indexOf('advanceQueuedJobs') === -1) {
     ScriptApp.newTrigger('advanceQueuedJobs').timeBased().everyMinutes(10).create();
-  }
-  if (handlers.indexOf('checkRepliesForLeads') === -1) {
-    ScriptApp.newTrigger('checkRepliesForLeads').timeBased().everyHours(6).create();
+    return { handler: 'advanceQueuedJobs', created: true };
   }
 
-  return {
-    ok: true,
-    triggers: ScriptApp.getProjectTriggers().map(function (trigger) {
-      return {
-        handler: trigger.getHandlerFunction(),
-        type: String(trigger.getEventType()),
-      };
-    }),
-  };
+  return { handler: 'advanceQueuedJobs', created: false };
+}
+
+function ensureReplyCheckTrigger_() {
+  const existing = ScriptApp.getProjectTriggers();
+  const handlers = existing.map(function (trigger) {
+    return trigger.getHandlerFunction();
+  });
+
+  if (handlers.indexOf('checkRepliesForLeads') === -1) {
+    ScriptApp.newTrigger('checkRepliesForLeads').timeBased().everyHours(6).create();
+    return { handler: 'checkRepliesForLeads', created: true };
+  }
+
+  return { handler: 'checkRepliesForLeads', created: false };
+}
+
+function installDefaultTriggers() {
+  return withScriptLock_('installDefaultTriggers', function () {
+    const ensured = [ensureBackgroundJobTrigger_(), ensureReplyCheckTrigger_()];
+    return {
+      ok: true,
+      ensured: ensured,
+      triggers: ScriptApp.getProjectTriggers().map(function (trigger) {
+        return {
+          handler: trigger.getHandlerFunction(),
+          type: String(trigger.getEventType()),
+        };
+      }),
+    };
+  });
 }
 
 function createSpreadsheetBackup() {
