@@ -294,6 +294,21 @@ function countSuccessfulProductionSends_(histories, datePrefix) {
   }).length;
 }
 
+function countLeadSendTrackingMismatches_(leads, histories) {
+  const successCounts = {};
+  (Array.isArray(histories) ? histories : []).forEach(function (history) {
+    if (!isSuccessfulProductionSendHistory_(history)) return;
+    const leadId = String(history.lead_id || '').trim();
+    if (leadId) successCounts[leadId] = (successCounts[leadId] || 0) + 1;
+  });
+  return (Array.isArray(leads) ? leads : []).filter(function (lead) {
+    const leadId = String(lead.id || '').trim();
+    const expected = successCounts[leadId] || 0;
+    if (!expected) return false;
+    return Number(lead.send_count || 0) !== expected;
+  }).length;
+}
+
 function countSuccessfulProductionSendsOnDate_(datePrefix) {
   return countSuccessfulProductionSends_(
     readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')),

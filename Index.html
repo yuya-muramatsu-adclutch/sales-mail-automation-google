@@ -11003,6 +11003,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             detail: `30分以上「送信中」の履歴が${formatNumber(staleReservations)}件あります。Gmail送信済みを確認するまで再送しないでください。`,
           });
         }
+        const sendTrackingMismatches = Number(data.sendTrackingMismatchCount || 0);
+        if (sendTrackingMismatches > 0) {
+          issues.push({
+            icon: 'shieldAlert',
+            label: '送信集計',
+            value: `${formatNumber(sendTrackingMismatches)}件`,
+            tone: 'bad',
+            headline: '送信履歴と営業先の集計が一致しません',
+            detail: `成功履歴と送信回数が一致しない営業先が${formatNumber(sendTrackingMismatches)}件あります。再送前に管理者確認が必要です。`,
+          });
+        }
         if (!mailControlEnabled) {
           issues.push({
             icon: 'shieldCheck',

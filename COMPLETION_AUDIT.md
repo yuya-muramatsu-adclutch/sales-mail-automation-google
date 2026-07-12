@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @160 / code v160: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @161 / code v161: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v160_pending_send_visibility`
+- Code version: `20260712_apps_script_full_workflow_v161_send_tracking_consistency`
 
 ## 計画書との対応
 
@@ -802,6 +802,14 @@
 - `送信中`を失敗件数から分離し、送信履歴の「送信結果確認中」フィルター、履歴行、送信プレビュー、管理運用の表示を統一。
 - 30分以上残る本番送信予約だけを全画面の異常通知へ表示し、Gmail送信済みを確認するまで再送しないよう案内する。二重送信回避を優先し、自動解除・自動再送は行わない。
 - Version 160を既存Web app URLへデプロイ。実画面の送信履歴で「結果確認中」集計と「送信結果確認中」フィルターを確認し、現在0件であることを確認。
+
+## 2026-07-12 v161 送信回数と成功履歴の整合化
+
+- 営業先5,531件の`send_count`と成功した本番送信履歴をUUIDで全件照合し、旧トークン失効の失敗試行まで回数へ含めていた50件を特定。すべて`2→1`の同一パターン。
+- 対象UUIDと現在値を再読込後、`send_count`セルだけを50件補正。フォーム送信日時、営業ステータス、返信・商談状態は変更していない。
+- 補正後は成功履歴の営業先別合計1,103件、営業先側`send_count`合計1,103件、不一致0件。
+- ダッシュボード更新時に成功履歴と営業先送信回数を照合し、不一致が1件でも発生した場合は全画面の異常通知へ表示する再発検知を追加。
+- Version 161を既存Web app URLへデプロイ。実画面でVersion 161、確認待ちからの起動、送信集計不一致の異常通知なしを確認。
 
 ## 運用時に確認する外部依存
 

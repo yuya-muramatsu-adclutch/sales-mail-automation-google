@@ -285,6 +285,7 @@ function getDashboardStats(options) {
   const month = today.slice(0, 7);
   const sendHistories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
   const pendingSendReservations = buildPendingSendReservationStatus_(sendHistories);
+  const sendTrackingMismatchCount = countLeadSendTrackingMismatches_(leads, sendHistories);
   const sentToday = countSuccessfulProductionSends_(sendHistories, today);
   const sentMonth = countSuccessfulProductionSends_(sendHistories, month);
   const serperToday = getSerperUsageCount_({ day: today });
@@ -307,6 +308,7 @@ function getDashboardStats(options) {
     pendingSendReservations: pendingSendReservations.count,
     stalePendingSendReservations: pendingSendReservations.staleCount,
     oldestPendingSendReservationAt: pendingSendReservations.oldestAt,
+    sendTrackingMismatchCount: sendTrackingMismatchCount,
     appMailLimit: dailyMailLimit,
     triggerCount: triggerCount,
     urlFetchRecordedToday: serperToday,
@@ -493,6 +495,7 @@ function buildStartupDashboardPlaceholder_() {
     pendingSendReservations: 0,
     stalePendingSendReservations: 0,
     oldestPendingSendReservationAt: '',
+    sendTrackingMismatchCount: 0,
     serperToday: 0,
     serperMonth: 0,
     productionTemplates: 0,

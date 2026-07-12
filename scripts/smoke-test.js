@@ -111,6 +111,14 @@ const pendingReservationStatus = context.buildPendingSendReservationStatus_([
   { id: 'success', lead_id: 'lead-3', send_type: '初回メール', send_result: '成功', sent_at: '2026-07-12T11:00:00.000Z' },
 ], new Date('2026-07-12T12:00:00.000Z').getTime());
 assert(pendingReservationStatus.count === 2 && pendingReservationStatus.staleCount === 1, 'pending send reservations should distinguish recent and stale records');
+assert(context.countLeadSendTrackingMismatches_([
+  { id: 'lead-count-ok', send_count: 1 },
+  { id: 'lead-count-bad', send_count: 2 },
+  { id: 'lead-form-only', send_count: 0 },
+], [
+  { lead_id: 'lead-count-ok', send_type: '初回メール', send_result: '成功' },
+  { lead_id: 'lead-count-bad', send_type: '初回メール', send_result: '成功' },
+]) === 1, 'send tracking mismatch detector failed');
 
 const template = context.normalizeEmailTemplateInput_({
   name: '初回',
@@ -858,7 +866,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v160_pending_send_visibility'), 'v160 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v161_send_tracking_consistency'), 'v161 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
