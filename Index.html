@@ -13812,7 +13812,23 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!template.last_test_sent_at) return '先にテスト送信してください';
         if (template.template_type === 'followup_2m') return '2ヶ月後メールは使用しません';
         if (template.template_type !== 'form' && !template.genre) return 'ジャンルを設定してください';
+        const mismatchReason = templateGenreContentMismatchReason(template);
+        if (mismatchReason) return mismatchReason;
         return '';
+      }
+
+      function templateGenreContentMismatchReason(template) {
+        const genre = String((template && template.genre) || '').trim();
+        if (!genre) return '';
+        const content = [template.subject, template.body].filter(Boolean).join('\n');
+        const targets = [
+          [/温泉(?:宿|旅館)向け/, /温泉|旅館/, '温泉宿'],
+          [/キャンプ(?:施設|場)?向け/, /キャンプ/, 'キャンプ施設'],
+          [/グランピング(?:施設)?向け/, /グランピング/, 'グランピング施設'],
+          [/介護施設向け/, /介護/, '介護施設'],
+        ];
+        const mismatch = targets.find(([phrasePattern, genrePattern]) => phrasePattern.test(content) && !genrePattern.test(genre));
+        return mismatch ? `本文は「${mismatch[2]}向け」ですがジャンルは「${genre}」です` : '';
       }
 
       function selectedTemplateTestLead() {

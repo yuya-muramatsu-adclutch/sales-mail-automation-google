@@ -65,6 +65,24 @@ assert(lead.website_domain === 'example.com', 'website domain failed');
 assert(lead.deal_status === '商談予定', 'deal status side effect failed');
 assert(lead.reply_checked === true, 'reply side effect failed');
 
+const hardDeleteLead = { id: 'lead-hard-delete-test', calendar_event_id: 'calendar-event-test' };
+const hardDeleteReferences = context.listLeadHardDeleteReferences_(hardDeleteLead, {
+  send_histories: [{ lead_id: 'lead-hard-delete-test' }, { lead_id: 'other-lead' }],
+  reply_logs: [],
+  search_results: [{ lead_id: 'lead-hard-delete-test' }],
+});
+assert(hardDeleteReferences.length === 3, 'hard delete should detect send history, search result, and Calendar references');
+assertThrows(() => context.assertLeadHardDeleteAllowed_(hardDeleteLead, {
+  send_histories: [{ lead_id: 'lead-hard-delete-test' }],
+  reply_logs: [],
+  search_results: [],
+}), 'hard delete should be blocked when related data exists');
+assert(context.assertLeadHardDeleteAllowed_({ id: 'lead-hard-delete-clean', calendar_event_id: '' }, {
+  send_histories: [],
+  reply_logs: [],
+  search_results: [],
+}) === true, 'hard delete should remain available for an unreferenced lead');
+
 const template = context.normalizeEmailTemplateInput_({
   name: '初回',
   template_type: 'initial',
@@ -75,6 +93,35 @@ const template = context.normalizeEmailTemplateInput_({
 const rendered = context.renderTemplateForLead_(template, lead);
 assert(rendered.subject === '株式会社Example ご担当者様', 'template subject rendering failed');
 assert(rendered.body.includes('ご担当者'), 'template body rendering failed');
+assert(context.getTemplateGenreContentMismatchReason_({
+  genre: 'キャンプ',
+  subject: 'お問い合わせ',
+  body: '温泉宿向けのWEB広告運用をご提案します。',
+}).includes('ジャンルは「キャンプ」'), 'template audience mismatch should be detected');
+assert(context.getTemplateGenreContentMismatchReason_({
+  genre: 'キャンプ',
+  subject: 'お問い合わせ',
+  body: 'キャンプ施設向けのWEB広告運用をご提案します。',
+}) === '', 'matching template audience should be allowed');
+assertThrows(() => context.validateEmailSendTemplate_({
+  active: true,
+  is_production: true,
+  template_type: 'initial',
+  genre: 'キャンプ',
+  subject: 'お問い合わせ',
+  body: '温泉宿向けのWEB広告運用をご提案します。',
+}, { genre: 'キャンプ' }, {}), 'template audience mismatch should block delivery');
+const originalTemplateSaveLock = context.withScriptLock_;
+context.withScriptLock_ = (_name, callback) => callback();
+assertThrows(() => context.saveEmailTemplate({
+  name: '直接本番ON',
+  template_type: 'initial',
+  genre: 'キャンプ',
+  subject: '件名',
+  body: '本文',
+  is_production: true,
+}), 'normal template save should not enable production directly');
+context.withScriptLock_ = originalTemplateSaveLock;
 
 const sendLead = Object.assign({}, lead, {
   id: 'lead-send-1',
@@ -782,7 +829,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v157_collection_quota_wait_clarity'), 'v157 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v158_data_integrity_template_safety'), 'v158 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');

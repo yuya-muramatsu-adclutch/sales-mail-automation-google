@@ -313,6 +313,8 @@ function validateEmailSendTemplate_(template, lead, options) {
   if (!normalizeBooleanLike_(template.is_production)) {
     throw new Error('本番ONのテンプレートだけメール送信できます。');
   }
+  const mismatchReason = getTemplateGenreContentMismatchReason_(template);
+  if (mismatchReason) throw new Error(mismatchReason);
 
   const templateGenre = String(template.genre || '').trim();
   const leadGenre = String(lead.genre || '').trim();
@@ -321,6 +323,26 @@ function validateEmailSendTemplate_(template, lead, options) {
   if (templateGenre !== leadGenre) {
     throw new Error('テンプレートと営業先のジャンルが一致していません。');
   }
+}
+
+function getTemplateGenreContentMismatchReason_(template) {
+  const genre = String(template && template.genre || '').trim();
+  if (!genre) return '';
+  const content = [template.subject, template.body].filter(Boolean).join('\n');
+  const explicitTargets = [
+    { pattern: /温泉(?:宿|旅館)向け/g, genrePattern: /温泉|旅館/, label: '温泉宿' },
+    { pattern: /キャンプ(?:施設|場)?向け/g, genrePattern: /キャンプ/, label: 'キャンプ施設' },
+    { pattern: /グランピング(?:施設)?向け/g, genrePattern: /グランピング/, label: 'グランピング施設' },
+    { pattern: /介護施設向け/g, genrePattern: /介護/, label: '介護施設' },
+  ];
+  for (let index = 0; index < explicitTargets.length; index += 1) {
+    const target = explicitTargets[index];
+    target.pattern.lastIndex = 0;
+    if (target.pattern.test(content) && !target.genrePattern.test(genre)) {
+      return 'テンプレート本文は「' + target.label + '向け」ですが、ジャンルは「' + genre + '」です。内容を修正して再度テスト送信してください。';
+    }
+  }
+  return '';
 }
 
 function sendTestEmail(templateId, toEmail, sampleLeadInput) {

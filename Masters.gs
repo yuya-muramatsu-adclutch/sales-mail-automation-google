@@ -4,6 +4,9 @@ function listEmailTemplates(options) {
 
 function saveEmailTemplate(input) {
   return withScriptLock_('saveEmailTemplate', function () {
+    if (input && normalizeBooleanLike_(input.is_production || input.isProduction || false)) {
+      throw createExpectedOperationError_('通常保存から本番ONにはできません。保存後にテスト送信し、本番ON操作を行ってください。', 'TEMPLATE_PRODUCTION_REQUIRES_REVIEW');
+    }
     const normalized = normalizeEmailTemplateInput_(input);
 
     if (normalized.id) {
@@ -132,6 +135,8 @@ function setEmailTemplateProduction(id, input) {
       if (!template.last_test_sent_at) throw new Error('本番ONにする前にテスト送信してください。');
       if (template.template_type === 'followup_2m') throw new Error('2ヶ月後メールは現在の自動送信では使用しません。');
       if (template.template_type !== 'form' && !template.genre) throw new Error('本番ONにする前にジャンルを設定してください。');
+      const mismatchReason = getTemplateGenreContentMismatchReason_(template);
+      if (mismatchReason) throw new Error(mismatchReason);
 
       listSheetRecords('email_templates', { limit: 1000, includeInactive: true }).items
         .filter(function (item) {

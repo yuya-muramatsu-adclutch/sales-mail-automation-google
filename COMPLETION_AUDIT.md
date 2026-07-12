@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @157 / code v157: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @158 / code v158: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v157_collection_quota_wait_clarity`
+- Code version: `20260712_apps_script_full_workflow_v158_data_integrity_template_safety`
 
 ## 計画書との対応
 
@@ -774,6 +774,17 @@
 - 上限待機時刻・施設位置の抽出、トリガー重複削除のモック回帰テストを追加。
 - 本番確認で、バックグラウンド上段だけが上限待機を「進捗更新が遅い」と判定していたためv157で修正。上限待機中は異常件数へ含めず、「上限リセット待ち」と実再開日時を表示する。
 - Version 157を既存Web app URLへデプロイ。実画面で収集ツールに「2026/07/13 00:05以降・100施設目から自動再開」、進捗画面に「上限リセット待ち」、注意0件、エラー0件、`99 / 5,872施設`を確認。
+
+## 2026-07-12 v158 UUID参照保全とテンプレート誤送信防止
+
+- 未認証の外部環境からWeb app URLへ`getAppInfo`をPOSTし、Google側の404で拒否されることを確認。外部APIはApps Scriptの認証境界内にある。
+- 本番シートの主要10テーブルを監査し、営業先5,531件、送信履歴1,168件を含めUUID空欄・重複0件。送信履歴、返信ログ、検索結果から営業先への孤立参照0件。
+- 成功した本番送信1,105件は宛先メール1,105件で重複0件。
+- 送信履歴・返信ログ・検索結果・Calendarイベントが紐づく営業先は物理削除を拒否し、通常のUUID付きアーカイブだけ許可する保護を追加。
+- 本番ONのキャンプテンプレート本文に「温泉宿向け」と残っていた内容不一致を「キャンプ施設向け」へ修正。本文更新後に本番ON、テスト日時、有効状態、版、作成日時を行全体で再照合した。
+- 本番テンプレート4件は有効・テスト済み・ジャンル/種別重複なし・本文ジャンル矛盾なし。今後は明示的な対象業種とジャンルが矛盾する場合、本番ON時と送信直前の両方で拒否する。
+- 通常のテンプレート保存から直接本番ONにする経路を禁止し、保存、テスト送信、本番ONの順序をサーバー側で強制する。実メール送信は未実施、自動送信は停止中。
+- Version 158を既存Web app URLへデプロイ。実画面のテンプレート編集欄で、キャンプ本番テンプレートがONのまま「キャンプ施設向け」へ修正され、「温泉宿向け」が残っていないことを確認。
 
 ## 運用時に確認する外部依存
 

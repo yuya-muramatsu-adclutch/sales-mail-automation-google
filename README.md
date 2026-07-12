@@ -94,7 +94,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @157 / code v157: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @158 / code v158: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -340,7 +340,7 @@ const updated = updateLead(lead.id, {
 const archived = deleteLead(lead.id);
 ```
 
-`deleteLead(id)` はデフォルトでソフト削除です。物理削除が必要な場合のみ `deleteLead(id, { hardDelete: true })` を使います。
+`deleteLead(id)` はデフォルトでソフト削除です。`deleteLead(id, { hardDelete: true })` は送信履歴・返信ログ・検索結果・Calendarイベントがない営業先だけに限定され、関連データがある場合はUUID参照を守るため拒否されます。
 
 ## 重要な実装方針
 

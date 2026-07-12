@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260712_apps_script_full_workflow_v157_collection_quota_wait_clarity';
+const APP_VERSION = '20260712_apps_script_full_workflow_v158_data_integrity_template_safety';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -811,6 +811,7 @@ function deleteLead(id, options) {
     }
 
     if (options && options.hardDelete === true) {
+      assertLeadHardDeleteAllowed_(found.record);
       sheet.deleteRow(found.rowNumber);
       return {
         ok: true,
@@ -833,6 +834,50 @@ function deleteLead(id, options) {
     writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
     return nextRecord;
   });
+}
+
+function assertLeadHardDeleteAllowed_(lead, relatedRowsBySheet) {
+  const references = listLeadHardDeleteReferences_(lead, relatedRowsBySheet);
+  if (!references.length) return true;
+  const detail = references.map(function (reference) {
+    return reference.label + (reference.count > 1 ? ' ' + reference.count + '件' : '');
+  }).join('、');
+  throw createExpectedOperationError_(
+    '関連データ（' + detail + '）があるため物理削除できません。通常の削除でアーカイブしてください。',
+    'LEAD_HARD_DELETE_BLOCKED'
+  );
+}
+
+function listLeadHardDeleteReferences_(lead, relatedRowsBySheet) {
+  const leadId = requireId_(lead && lead.id);
+  const rowsBySheet = relatedRowsBySheet && typeof relatedRowsBySheet === 'object'
+    ? relatedRowsBySheet
+    : {
+        send_histories: readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')),
+        reply_logs: readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'reply_logs')),
+        search_results: readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'search_results')),
+      };
+  const definitions = [
+    { sheet: 'send_histories', label: '送信履歴' },
+    { sheet: 'reply_logs', label: '返信ログ' },
+    { sheet: 'search_results', label: '検索結果' },
+  ];
+  const references = definitions.map(function (definition) {
+    const count = (Array.isArray(rowsBySheet[definition.sheet]) ? rowsBySheet[definition.sheet] : []).filter(function (record) {
+      return String(record.lead_id || '').trim() === leadId;
+    }).length;
+    return {
+      sheet: definition.sheet,
+      label: definition.label,
+      count: count,
+    };
+  }).filter(function (reference) {
+    return reference.count > 0;
+  });
+  if (String(lead.calendar_event_id || '').trim()) {
+    references.push({ sheet: 'calendar', label: 'Calendarイベント', count: 1 });
+  }
+  return references;
 }
 
 function markLeadFormSent(leadId, options) {
