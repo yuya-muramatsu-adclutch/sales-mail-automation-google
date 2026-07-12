@@ -16421,11 +16421,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           resultsPerQuery: Math.min(Math.max(Number(document.getElementById('autoCollectionResultsPerQuery').value) || 10, 1), 20),
           updatedAt: new Date().toISOString(),
         };
-        const saved = await api('setSettingValue', 'auto_prospecting', value, 'json', 'Legacy auto prospecting settings ported to GAS.');
+        const saved = await saveSettingWithFeedback('auto_prospecting', value, 'json', 'Legacy auto prospecting settings ported to GAS.', '自動収集設定を保存しました', { refresh: false });
+        if (!saved) return;
         state.settings = (state.settings || []).filter((setting) => setting.key !== 'auto_prospecting');
         state.settings.push(saved);
         renderCollectionCommandCenter(state.serper || {});
-        message('自動収集設定を保存しました', 'ok');
       }
 
       async function runAutoCollectionNow() {
@@ -16547,11 +16547,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           sites: [nextSite].concat((settings.sites || []).filter((site) => site.url !== url)).slice(0, 30),
           updatedAt: new Date().toISOString(),
         });
-        const saved = await api('setSettingValue', 'source_page_prospecting', value, 'json', 'Legacy source page prospecting settings ported to GAS.');
+        const saved = await saveSettingWithFeedback('source_page_prospecting', value, 'json', 'Legacy source page prospecting settings ported to GAS.', 'まとめサイトURLを監視サイトとして保存しました', { refresh: false });
+        if (!saved) return;
         state.settings = (state.settings || []).filter((setting) => setting.key !== 'source_page_prospecting');
         state.settings.push(saved);
         renderCollectionCommandCenter(state.serper || {});
-        message('まとめサイトURLを監視サイトとして保存しました', 'ok');
       }
 
       async function runCollectionSearchJob(payload, label) {
@@ -19488,9 +19488,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           end: document.getElementById('adminSendWindowEnd').value || '08:00',
           timezone: document.getElementById('adminSendWindowTimezone').value || 'Asia/Tokyo',
         };
-        await api('setSettingValue', 'email_send_window', value, 'json', 'Default send window ported from the existing app.');
-        message('自動送信時間を保存しました', 'ok');
-        await refreshAll();
+        await saveSettingWithFeedback('email_send_window', value, 'json', 'Default send window ported from the existing app.', '自動送信時間を保存しました');
       }
 
       async function saveReplyCheckSetting() {
@@ -19498,9 +19496,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           enabled: document.getElementById('adminReplyCheckEnabled').checked,
           maxThreads: Math.min(Math.max(Number(document.getElementById('adminReplyCheckMaxThreads').value) || 200, 1), 500),
         };
-        await api('setSettingValue', 'gmail_reply_check', value, 'json', 'Reply check setting ported from the existing app.');
-        message('Gmail返信自動チェック設定を保存しました', 'ok');
-        await refreshAll();
+        await saveSettingWithFeedback('gmail_reply_check', value, 'json', 'Reply check setting ported from the existing app.', 'Gmail返信自動チェック設定を保存しました');
       }
 
       async function saveEmailDiscoverySetting() {
@@ -19510,16 +19506,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           skipRecentDays: Math.max(Number(document.getElementById('adminEmailDiscoverySkipDays').value) || 0, 0),
           updatedAt: new Date().toISOString(),
         };
-        await api('setSettingValue', 'email_discovery', value, 'json', 'Email discovery setting ported from the existing app.');
-        message('メール自動取得設定を保存しました', 'ok');
-        await refreshAll();
+        await saveSettingWithFeedback('email_discovery', value, 'json', 'Email discovery setting ported from the existing app.', 'メール自動取得設定を保存しました');
       }
 
       async function saveBatchRuntimeSetting() {
         const value = Math.min(Math.max(Number(document.getElementById('adminBatchRuntimeBudget').value) || 300000, 10000), 330000);
-        await api('setSettingValue', 'batch_runtime_budget_ms', value, 'number', 'Maximum runtime budget per batch. Apps Script hard limit is 6 minutes.');
-        message('バックグラウンドの最大処理時間を保存しました', 'ok');
-        await refreshAll();
+        await saveSettingWithFeedback('batch_runtime_budget_ms', value, 'number', 'Maximum runtime budget per batch. Apps Script hard limit is 6 minutes.', 'バックグラウンドの最大処理時間を保存しました');
       }
 
       function renderCalendarAutoCreateSettingsPanel() {
@@ -19544,9 +19536,20 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const value = {
           enabled: document.getElementById('adminCalendarAutoCreateEnabled').checked,
         };
-        await api('setSettingValue', 'calendar_auto_create', value, 'json', 'Calendar auto-create setting ported from the existing app.');
-        message('Calendar自動登録設定を保存しました', 'ok');
-        await refreshAll();
+        await saveSettingWithFeedback('calendar_auto_create', value, 'json', 'Calendar auto-create setting ported from the existing app.', 'Calendar自動登録設定を保存しました');
+      }
+
+      async function saveSettingWithFeedback(key, value, valueType, description, successMessage, options) {
+        const config = options || {};
+        try {
+          const saved = await api('setSettingValue', key, value, valueType, description);
+          message(successMessage || '設定を保存しました', 'ok');
+          if (config.refresh !== false) await refreshAll();
+          return saved;
+        } catch (error) {
+          message(`設定を保存できませんでした: ${error.message || error}`, 'error');
+          return null;
+        }
       }
 
       function renderGenreManagerPanel() {

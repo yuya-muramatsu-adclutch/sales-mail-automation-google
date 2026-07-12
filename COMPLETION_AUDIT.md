@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @158 / code v158: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @159 / code v159: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v158_data_integrity_template_safety`
+- Code version: `20260712_apps_script_full_workflow_v159_setting_validation`
 
 ## 計画書との対応
 
@@ -785,6 +785,15 @@
 - 本番テンプレート4件は有効・テスト済み・ジャンル/種別重複なし・本文ジャンル矛盾なし。今後は明示的な対象業種とジャンルが矛盾する場合、本番ON時と送信直前の両方で拒否する。
 - 通常のテンプレート保存から直接本番ONにする経路を禁止し、保存、テスト送信、本番ONの順序をサーバー側で強制する。実メール送信は未実施、自動送信は停止中。
 - Version 158を既存Web app URLへデプロイ。実画面のテンプレート編集欄で、キャンプ本番テンプレートがONのまま「キャンプ施設向け」へ修正され、「温泉宿向け」が残っていないことを確認。
+
+## 2026-07-12 v159 運用設定のサーバー検証
+
+- 汎用`setSettingValue`が任意キー、上限外の数値、不正な時刻・JSON型を保存できたため、既知の運用設定だけを許可するサーバー検証を追加。
+- 一般Googleアカウント向けにGmail日次上限1〜80件、1回送信1〜20件を強制。Serper日次1〜100件、月次1〜1,000件、1営業先1〜3件、GAS処理予算10〜330秒も範囲外を拒否する。
+- 自動送信時間は`HH:mm`、開始<終了、タイムゾーン`Asia/Tokyo`または`UTC`を必須化。返信チェック1〜500件、メール取得スキップ0〜365日、収集設定の検索件数・URL・サイト数も正規化する。
+- JSON設定はオブジェクト型とGoogle Sheets 1セル上限より小さい45,000文字以内を強制し、50,000文字超過による再停止を防止。
+- 設定保存が拒否された場合、管理画面と収集画面に理由を表示する共通処理を追加。実データの設定11件は現行の安全範囲内であることを確認。
+- Version 159を既存Web app URLへデプロイ。実画面で送信時間を不正な`08:00-07:00`として保存し、`start must be earlier than end`で拒否されることを確認。シートの実設定は`07:00-08:00 / Asia/Tokyo`のまま変更されていない。
 
 ## 運用時に確認する外部依存
 

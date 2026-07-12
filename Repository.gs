@@ -140,31 +140,181 @@ function getSettingValue_(key, defaultValue) {
 
 function setSettingValue(key, value, valueType, description) {
   return withScriptLock_('setSettingValue', function () {
+    const normalized = normalizeSettingForSave_(key, value, valueType);
     const spreadsheet = getOrCreateSpreadsheet_();
     const sheet = ensureSheet_(spreadsheet, 'settings');
     const records = readSheetRecords_(sheet);
     const found = records.find(function (record) {
-      return record.key === key;
+      return record.key === normalized.key;
     });
-    const normalizedValueType = valueType || (typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'boolean' : typeof value === 'object' ? 'json' : 'string');
-    const normalizedValue = normalizedValueType === 'json' ? safeJsonStringify_(value || {}) : String(value);
+    const normalizedDescription = String(description || (found && found.description) || '').trim().slice(0, 500);
 
     if (found) {
       return updateSheetRecord_('settings', found.id, {
-        key: key,
-        value: normalizedValue,
-        value_type: normalizedValueType,
-        description: description || found.description || '',
+        key: normalized.key,
+        value: normalized.value,
+        value_type: normalized.valueType,
+        description: normalizedDescription,
       });
     }
 
     return appendSheetRecord_('settings', {
-      key: key,
-      value: normalizedValue,
-      value_type: normalizedValueType,
-      description: description || '',
+      key: normalized.key,
+      value: normalized.value,
+      value_type: normalized.valueType,
+      description: normalizedDescription,
     });
   });
+}
+
+function normalizeSettingForSave_(key, value, valueType) {
+  const settingKey = String(key || '').trim();
+  const numberRules = {
+    gmail_daily_send_limit: { min: 1, max: 80 },
+    email_batch_send_limit: { min: 1, max: 20 },
+    serper_daily_search_limit: { min: 1, max: 100 },
+    serper_monthly_search_limit: { min: 1, max: 1000 },
+    serper_per_lead_search_limit: { min: 1, max: 3 },
+    batch_runtime_budget_ms: { min: 10000, max: 330000 },
+  };
+  const jsonKeys = [
+    'email_send_window',
+    'mail_sending_control',
+    'gmail_reply_check',
+    'calendar_auto_create',
+    'auto_prospecting',
+    'source_page_prospecting',
+    'email_discovery',
+  ];
+  if (numberRules[settingKey]) {
+    const numberValue = Number(value);
+    const rule = numberRules[settingKey];
+    if (!Number.isFinite(numberValue) || numberValue < rule.min || numberValue > rule.max) {
+      throw new Error(settingKey + ' must be between ' + rule.min + ' and ' + rule.max + '.');
+    }
+    return { key: settingKey, value: String(Math.floor(numberValue)), valueType: 'number' };
+  }
+  if (jsonKeys.indexOf(settingKey) === -1) {
+    throw new Error('Unsupported setting key: ' + settingKey);
+  }
+  if (valueType && String(valueType) !== 'json') {
+    throw new Error(settingKey + ' must use json value_type.');
+  }
+  const source = parseSettingObject_(value, settingKey);
+  const normalizedObject = normalizeJsonSettingObject_(settingKey, source);
+  const normalizedJson = safeJsonStringify_(normalizedObject);
+  if (normalizedJson.length > 45000) {
+    throw new Error(settingKey + ' exceeds the safe Google Sheets cell size.');
+  }
+  return { key: settingKey, value: normalizedJson, valueType: 'json' };
+}
+
+function parseSettingObject_(value, key) {
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value || '{}');
+    } catch (error) {
+      throw new Error(key + ' must be valid JSON.');
+    }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(key + ' must be a JSON object.');
+  }
+  return parsed;
+}
+
+function normalizeJsonSettingObject_(key, source) {
+  if (key === 'email_send_window') {
+    const start = requireSettingTime_(source.start || '07:00', 'email_send_window.start');
+    const end = requireSettingTime_(source.end || '08:00', 'email_send_window.end');
+    if (start >= end) throw new Error('email_send_window start must be earlier than end.');
+    const timezone = String(source.timezone || 'Asia/Tokyo');
+    if (['Asia/Tokyo', 'UTC'].indexOf(timezone) === -1) throw new Error('Unsupported email_send_window timezone.');
+    return { enabled: normalizeStrictSettingBoolean_(source.enabled, true), start: start, end: end, timezone: timezone };
+  }
+  if (key === 'mail_sending_control') {
+    return {
+      enabled: normalizeStrictSettingBoolean_(source.enabled, false),
+      reason: String(source.reason || '').trim().slice(0, 500),
+      updatedAt: source.updatedAt || source.updated_at || null,
+    };
+  }
+  if (key === 'gmail_reply_check') {
+    const maxThreads = Number(source.maxThreads || source.max_threads || 200);
+    if (!Number.isFinite(maxThreads) || maxThreads < 1 || maxThreads > 500) throw new Error('gmail_reply_check.maxThreads must be between 1 and 500.');
+    return { enabled: normalizeStrictSettingBoolean_(source.enabled, false), maxThreads: Math.floor(maxThreads) };
+  }
+  if (key === 'calendar_auto_create') {
+    return { enabled: normalizeStrictSettingBoolean_(source.enabled, false) };
+  }
+  if (key === 'email_discovery') {
+    const skipRecentDays = Number(source.skipRecentDays || source.skip_recent_days || 30);
+    if (!Number.isFinite(skipRecentDays) || skipRecentDays < 0 || skipRecentDays > 365) throw new Error('email_discovery.skipRecentDays must be between 0 and 365.');
+    return {
+      enabled: normalizeStrictSettingBoolean_(source.enabled, false),
+      scheduleLabel: requireSettingTime_(source.scheduleLabel || source.schedule_label || '03:00', 'email_discovery.scheduleLabel'),
+      skipRecentDays: Math.floor(skipRecentDays),
+      updatedAt: source.updatedAt || source.updated_at || nowIso_(),
+    };
+  }
+  if (key === 'auto_prospecting') {
+    const maxQueries = Number(source.maxQueriesPerRun || source.max_queries_per_run || 5);
+    const resultsPerQuery = Number(source.resultsPerQuery || source.results_per_query || 10);
+    if (!Number.isFinite(maxQueries) || maxQueries < 1 || maxQueries > 20) throw new Error('auto_prospecting.maxQueriesPerRun must be between 1 and 20.');
+    if (!Number.isFinite(resultsPerQuery) || resultsPerQuery < 1 || resultsPerQuery > 20) throw new Error('auto_prospecting.resultsPerQuery must be between 1 and 20.');
+    return {
+      enabled: normalizeStrictSettingBoolean_(source.enabled, false),
+      maxQueriesPerRun: Math.floor(maxQueries),
+      priorityGenres: normalizeSettingStringList_(source.priorityGenres || source.priority_genres, 100),
+      regions: normalizeSettingStringList_(source.regions, 100),
+      resultsPerQuery: Math.floor(resultsPerQuery),
+      updatedAt: source.updatedAt || source.updated_at || nowIso_(),
+    };
+  }
+  if (key === 'source_page_prospecting') {
+    const sites = Array.isArray(source.sites) ? source.sites.slice(0, 30) : [];
+    return {
+      sites: sites.map(function (site, index) {
+        if (!site || typeof site !== 'object') throw new Error('source_page_prospecting.sites[' + index + '] is invalid.');
+        const url = normalizeUrl_(site.url || '');
+        if (!url || !/^https?:\/\//i.test(url)) throw new Error('source_page_prospecting.sites[' + index + '].url is invalid.');
+        return {
+          label: String(site.label || '').trim().slice(0, 120),
+          id: String(site.id || Utilities.getUuid()).trim().slice(0, 120),
+          url: url,
+          crawlAll: normalizeStrictSettingBoolean_(site.crawlAll !== undefined ? site.crawlAll : site.crawl_all, false),
+          genre: String(site.genre || '').trim().slice(0, 120),
+          sitePreset: String(site.sitePreset || site.site_preset || '').trim().slice(0, 120),
+          enabled: normalizeStrictSettingBoolean_(site.enabled, true),
+          updatedAt: site.updatedAt || site.updated_at || nowIso_(),
+        };
+      }),
+      updatedAt: source.updatedAt || source.updated_at || nowIso_(),
+    };
+  }
+  return source;
+}
+
+function normalizeStrictSettingBoolean_(value, defaultValue) {
+  if (value === undefined || value === null || value === '') return Boolean(defaultValue);
+  if (value === true || value === false) return value;
+  const text = String(value).trim().toLowerCase();
+  if (['true', '1', 'yes', 'on', 'はい'].indexOf(text) !== -1) return true;
+  if (['false', '0', 'no', 'off', 'いいえ'].indexOf(text) !== -1) return false;
+  throw new Error('Invalid boolean setting value: ' + value);
+}
+
+function requireSettingTime_(value, label) {
+  const text = String(value || '').trim();
+  if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(text)) throw new Error(label + ' must be HH:mm.');
+  return text;
+}
+
+function normalizeSettingStringList_(value, limit) {
+  return Array.from(new Set((Array.isArray(value) ? value : []).map(function (item) {
+    return String(item || '').trim().slice(0, 120);
+  }).filter(Boolean))).slice(0, limit);
 }
 
 function listCustomFieldDefinitions(options) {

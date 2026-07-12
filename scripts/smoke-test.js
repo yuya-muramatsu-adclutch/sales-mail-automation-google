@@ -83,6 +83,29 @@ assert(context.assertLeadHardDeleteAllowed_({ id: 'lead-hard-delete-clean', cale
   search_results: [],
 }) === true, 'hard delete should remain available for an unreferenced lead');
 
+assert(context.normalizeSettingForSave_('gmail_daily_send_limit', 80, 'number').value === '80', 'consumer Gmail daily limit normalization failed');
+assert(context.normalizeSettingForSave_('email_batch_send_limit', 20, 'number').value === '20', 'mail batch limit normalization failed');
+assertThrows(() => context.normalizeSettingForSave_('gmail_daily_send_limit', 81, 'number'), 'consumer Gmail daily limit should reject unsafe values');
+assertThrows(() => context.normalizeSettingForSave_('email_batch_send_limit', 21, 'number'), 'mail batch limit should reject unsafe values');
+assertThrows(() => context.normalizeSettingForSave_('unknown_setting', 'x', 'string'), 'unknown settings should be rejected');
+const normalizedSendWindow = JSON.parse(context.normalizeSettingForSave_('email_send_window', {
+  enabled: true,
+  start: '07:00',
+  end: '08:00',
+  timezone: 'Asia/Tokyo',
+}, 'json').value);
+assert(normalizedSendWindow.start === '07:00' && normalizedSendWindow.end === '08:00', 'send window normalization failed');
+assertThrows(() => context.normalizeSettingForSave_('email_send_window', {
+  enabled: true,
+  start: '08:00',
+  end: '07:00',
+  timezone: 'Asia/Tokyo',
+}, 'json'), 'reversed send window should be rejected');
+const normalizedSourcePageSetting = JSON.parse(context.normalizeSettingForSave_('source_page_prospecting', {
+  sites: [{ id: 'site-1', label: 'なっぷ', url: 'https://www.nap-camp.com/', crawlAll: true, genre: 'キャンプ', enabled: true }],
+}, 'json').value);
+assert(normalizedSourcePageSetting.sites.length === 1 && normalizedSourcePageSetting.sites[0].url.includes('nap-camp.com'), 'source page settings normalization failed');
+
 const template = context.normalizeEmailTemplateInput_({
   name: '初回',
   template_type: 'initial',
@@ -829,7 +852,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v158_data_integrity_template_safety'), 'v158 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v159_setting_validation'), 'v159 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -1125,6 +1148,7 @@ assert(html.includes('background-center-button'), 'legacy background center butt
 assert(html.includes('background-guide-panel'), 'legacy background progress guide panel missing');
 assert(html.includes('上限リセット待ち'), 'quota-waiting background health label missing');
 assert(html.includes('prospectingResumeAfter'), 'collection resume schedule UI missing');
+assert(html.includes('saveSettingWithFeedback'), 'setting save error feedback helper missing');
 assert(html.includes('data-ui-icon="listChecks"'), 'legacy background progress list checks icon missing');
 assert(html.includes('data-ui-icon="arrowLeft"'), 'legacy background progress back icon missing');
 assert(html.includes('prospectingProgressDashboard'), 'legacy ProspectingProgressDashboard host missing');
