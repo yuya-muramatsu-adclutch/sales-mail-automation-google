@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @143 / code v143: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @144 / code v144: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v143_resumable_job_runtime_hardening`
+- Code version: `20260712_apps_script_full_workflow_v144_send_ng_enforcement`
 
 ## 計画書との対応
 
@@ -662,6 +662,16 @@
 - `node scripts/smoke-test.js`、主要 `.gs` 構文チェック、`git diff --check` 成功。
 - Version 142で定期トリガー作成導線を確認後、最終修正版をVersion 143として既存Web app URLへ再デプロイ。
 - ChromeでVersion 143、時間主導トリガー2件、最大処理時間300秒、ブラウザ警告・エラーログ0件を確認。現在の実ジョブは0件のため、Serper実検索や営業リスト変更を伴う試験は未実施。
+
+## 2026-07-12 v144 送信NGの強制適用
+
+- 送信NGフラグ、送信NGステータス、送信NGマスター、除外ドメインの判定が実送信直前に通ることを監査。
+- Web APIの `options.force=true` で送信対象判定を迂回できたため、実送信前の安全判定を常時必須に修正。
+- 送信可否判定を理由付きの単一関数へ統合し、画面操作以外のAPI呼び出しでも同じ判定を適用。
+- 送信NGマスターは会社名完全一致、メール完全一致、WEBサイト/メールの各ドメインとサブドメインを照合。WEBサイトドメインがあってもメールドメインのNG指定を見落とさないよう修正。
+- `force=true` を渡した送信NG営業先で `MailApp.sendEmail` が0回のまま例外停止する回帰テストを追加。実メール送信は未実施。
+- `node scripts/smoke-test.js`、全 `.gs` 構文チェック、`git diff --check` 成功。Version 144を既存Web app URLへ再デプロイ。
+- ChromeでVersion 144、送信NGマスター0件、除外ドメイン299件、ブラウザ警告・エラーログ0件を確認。送信事故防止のため実メール送信は未実施。
 
 ## 運用時に確認する外部依存
 

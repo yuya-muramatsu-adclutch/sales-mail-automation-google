@@ -118,6 +118,51 @@ const ng = context.normalizeNgMasterInput_({
 });
 assert(ng.domain === 'example.com', 'NG email domain failed');
 
+const sendSafetyContext = {
+  ngMasters: [],
+  excludedDomains: [],
+  mailSendSafety: { sentLeadIds: {}, sentEmails: {} },
+};
+const eligibleLead = Object.assign({}, sendLead, { send_ng: false, reply_checked: false });
+assert(context.isEmailSendTarget_(eligibleLead, sendSafetyContext), 'eligible lead should remain sendable');
+assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { send_ng: true }), sendSafetyContext), 'send_ng lead must be blocked');
+assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { status: '送信NG' }), sendSafetyContext), 'send NG status must be blocked');
+assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { company_name: '株式会社送信停止' }), Object.assign({}, sendSafetyContext, {
+  ngMasters: [{ company_name: '株式会社送信停止', reason: '会社指定' }],
+})), 'NG master company must be blocked');
+assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { email: 'blocked@example.net' }), Object.assign({}, sendSafetyContext, {
+  ngMasters: [{ email: 'blocked@example.net', reason: 'メール指定' }],
+})), 'NG master email must be blocked');
+assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { email: 'sales@sub.example.org' }), Object.assign({}, sendSafetyContext, {
+  ngMasters: [{ domain: 'example.org', reason: 'ドメイン指定' }],
+})), 'NG master domain and subdomain must be blocked');
+assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, {
+  email: 'sales@blocked-domain.example',
+  website_url: 'https://different.example/',
+  website_domain: 'different.example',
+}), Object.assign({}, sendSafetyContext, {
+  ngMasters: [{ domain: 'blocked-domain.example', reason: 'メールドメイン指定' }],
+})), 'NG email domain must be checked even when website domain exists');
+
+const originalSendSafetyWithLock = context.withScriptLock_;
+const originalSendSafetyGetLead = context.getLeadById;
+const originalSendSafetyFindTemplate = context.findSheetRecordById_;
+const originalSendSafetyBuildContext = context.buildMasterBlockContext_;
+const originalSendSafetyMailApp = context.MailApp;
+let forcedNgSendCalls = 0;
+context.withScriptLock_ = (_name, callback) => callback();
+context.getLeadById = () => Object.assign({}, eligibleLead, { send_ng: true });
+context.findSheetRecordById_ = () => productionTemplate;
+context.buildMasterBlockContext_ = () => sendSafetyContext;
+context.MailApp = { sendEmail() { forcedNgSendCalls += 1; } };
+assertThrows(() => context.sendLeadEmail('lead-send-1', 'tpl-prod', { force: true }), 'force must not bypass send NG');
+assert(forcedNgSendCalls === 0, 'MailApp must not run for send NG even when force is requested');
+context.withScriptLock_ = originalSendSafetyWithLock;
+context.getLeadById = originalSendSafetyGetLead;
+context.findSheetRecordById_ = originalSendSafetyFindTemplate;
+context.buildMasterBlockContext_ = originalSendSafetyBuildContext;
+context.MailApp = originalSendSafetyMailApp;
+
 const job = context.normalizeSearchJobInput_({
   job_type: 'lead_official_site',
   leadId: 'lead-1',
@@ -312,7 +357,7 @@ const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const masters = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v143_resumable_job_runtime_hardening'), 'v143 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v144_send_ng_enforcement'), 'v144 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -323,6 +368,8 @@ assert(html.includes('1回の最大処理時間'), 'maximum runtime label missin
 assert(!html.includes('1回の実行予算'), 'ambiguous runtime budget label should not be shown');
 assert(webApp.includes('function buildConsumerGasUsageStatus_'), 'consumer GAS usage status builder missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
+assert(emailSource.includes('function getEmailSendTargetBlockReason_'), 'server-side email block reason helper missing');
+assert(!emailSource.includes('input.force !== true'), 'email safety checks must not be bypassable with force');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(webApp.includes("action === 'importEmailTemplates'"), 'email template bulk import dispatch missing');
 assert(webApp.includes("action === 'importSendHistories'"), 'send history bulk import dispatch missing');

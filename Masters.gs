@@ -542,7 +542,7 @@ function isLeadBlockedByMastersInContext_(lead, context) {
   const ngMasters = context && Array.isArray(context.ngMasters) ? context.ngMasters : [];
   const excludedDomains = context && Array.isArray(context.excludedDomains) ? context.excludedDomains : [];
   const domainBlocked = excludedDomains.find(function (record) {
-    return isDomainOrSubdomain_(websiteDomain || emailDomain, record.domain);
+    return isDomainOrSubdomain_(websiteDomain, record.domain) || isDomainOrSubdomain_(emailDomain, record.domain);
   });
 
   if (domainBlocked) {
@@ -558,7 +558,10 @@ function isLeadBlockedByMastersInContext_(lead, context) {
     const recordCompany = normalizeCompanyName_(record.company_name);
     return Boolean(
       (email && recordEmail && email === recordEmail) ||
-      ((websiteDomain || emailDomain) && recordDomain && isDomainOrSubdomain_(websiteDomain || emailDomain, recordDomain)) ||
+      (recordDomain && (
+        isDomainOrSubdomain_(websiteDomain, recordDomain) ||
+        isDomainOrSubdomain_(emailDomain, recordDomain)
+      )) ||
       (companyName && recordCompany && companyName === recordCompany)
     );
   });

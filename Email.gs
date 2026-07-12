@@ -1,16 +1,25 @@
 const TEMPLATE_TEST_FIXED_EMAIL_ = 'yuya1998nu@gmail.com';
 const TEMPLATE_TEST_FIXED_NAME_ = '村松侑哉';
 
-function isEmailSendTarget_(lead, masterContext) {
-  if (!lead || isArchivedLead_(lead)) return false;
-  if (!isValidEmailAddress_(lead.email)) return false;
-  if (normalizeBooleanLike_(lead.send_ng)) return false;
-  if (normalizeBooleanLike_(lead.reply_checked)) return false;
-  if (getPriorSuccessfulEmailBlockReason_(lead, masterContext)) return false;
-  if (String(lead.deal_status || '未設定') !== '未設定') return false;
-  if (SEND_EXCLUDED_STATUSES.indexOf(String(lead.status || '')) !== -1) return false;
+function getEmailSendTargetBlockReason_(lead, masterContext) {
+  if (!lead || isArchivedLead_(lead)) return '営業対象外のため送信できません。';
+  if (!isValidEmailAddress_(lead.email)) return '有効なメールアドレスがないため送信できません。';
+  if (normalizeBooleanLike_(lead.send_ng) || String(lead.status || '') === '送信NG') {
+    return '送信NGに指定されているため送信できません。';
+  }
+  if (normalizeBooleanLike_(lead.reply_checked)) return '返信確認済みのため送信できません。';
+  const priorSendReason = getPriorSuccessfulEmailBlockReason_(lead, masterContext);
+  if (priorSendReason) return priorSendReason;
+  if (String(lead.deal_status || '未設定') !== '未設定') return '商談状態が設定済みのため送信できません。';
+  if (SEND_EXCLUDED_STATUSES.indexOf(String(lead.status || '')) !== -1) {
+    return '現在のステータスでは送信できません。';
+  }
   const blocked = masterContext ? isLeadBlockedByMastersInContext_(lead, masterContext) : isLeadBlockedByMasters_(lead);
-  return !blocked.blocked;
+  return blocked.blocked ? blocked.reason : '';
+}
+
+function isEmailSendTarget_(lead, masterContext) {
+  return !getEmailSendTargetBlockReason_(lead, masterContext);
 }
 
 function isFormSendTarget_(lead, masterContext) {
@@ -43,14 +52,8 @@ function sendLeadEmail(leadId, templateId, options) {
     }
     validateEmailSendTemplate_(template, lead, input);
     const masterContext = buildMasterBlockContext_();
-    const priorSendReason = getPriorSuccessfulEmailBlockReason_(lead, masterContext);
-    if (priorSendReason) {
-      throw new Error(priorSendReason);
-    }
-    if (!isEmailSendTarget_(lead, masterContext) && input.force !== true) {
-      const blocked = isLeadBlockedByMasters_(lead);
-      throw new Error(blocked.blocked ? blocked.reason : 'Lead is not eligible for email sending.');
-    }
+    const sendBlockReason = getEmailSendTargetBlockReason_(lead, masterContext);
+    if (sendBlockReason) throw new Error(sendBlockReason);
     assertEmailSendLimitAvailable_();
     const rendered = renderTemplateForLead_(template, lead, {
       sender_name: input.sender_name || input.senderName || '',
