@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @149 / code v149: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @152 / code v152: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v149_collection_shared_domain_fix`
+- Code version: `20260712_apps_script_full_workflow_v152_collection_mail_safety`
 
 ## 計画書との対応
 
@@ -709,6 +709,27 @@
 - 最終追加時のメール一致、source ID一致、施設名とドメインの複合一致は維持し、同一施設の二重登録防止を継続。
 - 誤判定された区間へカーソルを戻して実環境の時間主導トリガーで再処理し、`21 -> 41 / 5,872施設`を約3分24秒で処理、営業リスト14件追加、新規エラー0件、queued復帰を確認。
 - 大岸シーサイド、豊浦海浜公園、礼文華海浜公園、豊浦町森林公園、有珠海水浴場など、共有ドメインの別施設が個別リードとして追加されることを確認。
+
+## 2026-07-12 v150 メール送信予約とサーバーバッチ化
+
+- 本番メール送信後、履歴や営業先の更新前に処理が中断すると、再実行で同じ宛先へ再送し得る隙間を確認。
+- MailApp呼び出し前に`send_histories`へ`送信中`予約を保存し、履歴確定や営業先更新に失敗しても予約・成功履歴・営業先状態のいずれかで再送を止める方式へ変更。
+- 同じバッチ内の別営業先が同一メールアドレスを持つ場合も、先行する送信予約をメモリ上の安全コンテキストへ反映して2通目を遮断。
+- 一括送信をブラウザから1件ずつ呼ぶ方式から`sendLeadEmailBatch`のサーバー処理へ変更し、開始後はPCスリープや画面遷移に依存せず処理を継続。
+- 本番送信はサーバー側でも自動送信ONを必須化し、一括送信は送信時間帯も必須化。送信NG、除外ドメイン、NGマスター、返信済み、商談中、送信済み判定は引き続き送信直前に再確認。
+- 正常な重複スキップを`sync_logs`のシステムエラーとして記録しないExpected Error分類を追加。
+- Serper日次・月次上限到達時に公式URL未確認のままカーソルを進めていた問題を修正。対象施設の位置と再開時刻を`cursor_json`へ保存し、日次は翌日00:05、月次は翌月1日00:05以降に同じ施設から再開。
+- 上限待機中の10分トリガーは外部検索や営業リスト全件読込をせず即終了し、GAS実行時間とSerper枠を消費しない。
+
+## 2026-07-12 v151-v152 収集再開と送信対象の最終安全化
+
+- Serperの1件上限は日次で復活しないため、ジョブ全体を翌日まで待機させず、該当施設だけをスキップして次へ進むよう修正。日次・月次上限だけが同じ施設位置から自動再開する。
+- 画像ファイル名、JavaScript式、計測用ホストをメールと誤認しないサーバー/画面共通検証を追加。検索結果に複数メールがある場合は`info`/`contact`/`inquiry`/`sales`/`support`系を優先する。
+- 実データ5,504行を監査し、抽出ノイズ8件のUUIDと現在値を再照合後、`email`/`email_domain`のみをクリア。再監査で無効メール0件を確認。
+- 修正済みの過去障害8件と正常な重複スキップ1件は監査記録を残して解消済み化し、現行の異常ログ0件を確認。
+- 送信計画と右側の送信制限表示の`1回上限`をGmail残り枠ではなく、設定値`email_batch_send_limit`（現在20件）から表示・計画するよう統一。
+- Version 152デプロイ後も、本番のなっぷ収集ジョブが`offset 74 -> 87 / 5,872`、試行7 -> 8回、最終更新2026-07-12 15:30:40までPC操作なしで自動継続していることを確認。`status=queued`、`last_error`空、現行異常ログ0件。
+- Chromeの実URLでVersion 152、確認待ちからの起動、送信予定/制限の1回20件表示、抽出ノイズ4種非表示、本番メール停止、テスト宛先`yuya1998nu@gmail.com`/宛名`村松侑哉`固定を確認。実メール送信は未実施。
 
 ## 運用時に確認する外部依存
 

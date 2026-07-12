@@ -7,8 +7,9 @@ const gsFiles = fs.readdirSync(root).filter((file) => file.endsWith('.gs')).sort
 const context = {
   console,
   Utilities: {
-    formatDate(date) {
-      return new Date(date).toISOString();
+    formatDate(date, _timezone, pattern) {
+      const iso = new Date(date).toISOString();
+      return pattern === 'yyyy-MM-dd' ? iso.slice(0, 10) : iso;
     },
   },
   Session: {
@@ -78,7 +79,7 @@ assert(rendered.body.includes('ご担当者'), 'template body rendering failed')
 const sendLead = Object.assign({}, lead, {
   id: 'lead-send-1',
   genre: 'グランピング',
-  email: 'send@example.com',
+  email: 'send@sales-test.jp',
   status: '未対応',
   deal_status: '未設定',
   send_count: 0,
@@ -121,21 +122,40 @@ assert(ng.domain === 'example.com', 'NG email domain failed');
 const sendSafetyContext = {
   ngMasters: [],
   excludedDomains: [],
-  mailSendSafety: { sentLeadIds: {}, sentEmails: {} },
+  mailSendSafety: { sentLeadIds: {}, sentEmails: {}, reservedLeadIds: {}, reservedEmails: {} },
 };
 const eligibleLead = Object.assign({}, sendLead, { send_ng: false, reply_checked: false });
 assert(context.isEmailSendTarget_(eligibleLead, sendSafetyContext), 'eligible lead should remain sendable');
+assert(context.isValidEmailAddress_('info@nupuka.jp'), 'normal business email should be valid');
+assert(context.isValidEmailAddress_('rsv@489pro-x.com'), 'business email with a hyphenated domain should be valid');
+assert(context.isValidEmailAddress_('u@business.jp'), 'one-letter local parts should remain valid');
+[
+  '1203-featured-75x75@1.5x.jpg',
+  'button-only@2x.png',
+  'e=.01@window.innerwidth',
+  'u@i.msgs.jp',
+  'info@example.com',
+].forEach((email) => {
+  assert(!context.isValidEmailAddress_(email), `scraped non-business email must be rejected: ${email}`);
+});
+assert(
+  context.extractEmailFromSearchResult_('privacy@real-site.jp / info@real-site.jp') === 'info@real-site.jp',
+  'contact email should be preferred over privacy email',
+);
 assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { send_ng: true }), sendSafetyContext), 'send_ng lead must be blocked');
 assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { status: '送信NG' }), sendSafetyContext), 'send NG status must be blocked');
 assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { company_name: '株式会社送信停止' }), Object.assign({}, sendSafetyContext, {
   ngMasters: [{ company_name: '株式会社送信停止', reason: '会社指定' }],
 })), 'NG master company must be blocked');
-assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { email: 'blocked@example.net' }), Object.assign({}, sendSafetyContext, {
-  ngMasters: [{ email: 'blocked@example.net', reason: 'メール指定' }],
+assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { email: 'blocked@ng-test.jp' }), Object.assign({}, sendSafetyContext, {
+  ngMasters: [{ email: 'blocked@ng-test.jp', reason: 'メール指定' }],
 })), 'NG master email must be blocked');
 assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { email: 'sales@sub.example.org' }), Object.assign({}, sendSafetyContext, {
   ngMasters: [{ domain: 'example.org', reason: 'ドメイン指定' }],
 })), 'NG master domain and subdomain must be blocked');
+assert(!context.isEmailSendTarget_(eligibleLead, Object.assign({}, sendSafetyContext, {
+  mailSendSafety: { sentLeadIds: {}, sentEmails: {}, reservedLeadIds: { 'lead-send-1': true }, reservedEmails: {} },
+})), 'pending production send reservation must block retry');
 assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, {
   email: 'sales@blocked-domain.example',
   website_url: 'https://different.example/',
@@ -149,19 +169,72 @@ const originalSendSafetyGetLead = context.getLeadById;
 const originalSendSafetyFindTemplate = context.findSheetRecordById_;
 const originalSendSafetyBuildContext = context.buildMasterBlockContext_;
 const originalSendSafetyMailApp = context.MailApp;
+const originalSendSafetyMailControl = context.getMailSendingControl_;
+const originalSendSafetyWindow = context.buildSendWindowStatus_;
+const originalSendSafetyLimit = context.assertEmailSendLimitAvailable_;
+const originalSendSafetyAppend = context.appendSheetRecord_;
+const originalSendSafetyUpdateRecord = context.updateSheetRecord_;
+const originalSendSafetyUpdateLead = context.updateLeadAfterSend_;
 let forcedNgSendCalls = 0;
 context.withScriptLock_ = (_name, callback) => callback();
 context.getLeadById = () => Object.assign({}, eligibleLead, { send_ng: true });
 context.findSheetRecordById_ = () => productionTemplate;
 context.buildMasterBlockContext_ = () => sendSafetyContext;
+context.getMailSendingControl_ = () => ({ enabled: true, reason: '' });
+context.buildSendWindowStatus_ = () => ({ enabled: true, allowed: true, label: '07:00-08:00' });
 context.MailApp = { sendEmail() { forcedNgSendCalls += 1; } };
 assertThrows(() => context.sendLeadEmail('lead-send-1', 'tpl-prod', { force: true }), 'force must not bypass send NG');
 assert(forcedNgSendCalls === 0, 'MailApp must not run for send NG even when force is requested');
+context.getLeadById = () => Object.assign({}, eligibleLead, { send_ng: false });
+context.getMailSendingControl_ = () => ({ enabled: false, reason: '停止中' });
+assertThrows(() => context.sendLeadEmail('lead-send-1', 'tpl-prod', {}), 'server must block production sends while mail control is disabled');
+assert(forcedNgSendCalls === 0, 'MailApp must not run while mail control is disabled');
+context.getMailSendingControl_ = () => ({ enabled: true, reason: '' });
+context.buildSendWindowStatus_ = () => ({ enabled: true, allowed: false, label: '07:00-08:00' });
+assertThrows(() => context.sendLeadEmailBatch(['lead-send-1'], 'tpl-prod', {}), 'server batch must block outside the configured send window');
+assert(forcedNgSendCalls === 0, 'MailApp must not run outside the batch send window');
+context.buildSendWindowStatus_ = () => ({ enabled: true, allowed: true, label: '07:00-08:00' });
+
+const reservationEvents = [];
+let reservationSequence = 0;
+let reservedMailCalls = 0;
+context.getLeadById = (id) => Object.assign({}, eligibleLead, { id, email: 'same-recipient@sales-test.jp', send_ng: false });
+context.buildMasterBlockContext_ = () => ({
+  ngMasters: [],
+  excludedDomains: [],
+  mailSendSafety: { sentLeadIds: {}, sentEmails: {}, reservedLeadIds: {}, reservedEmails: {} },
+});
+context.assertEmailSendLimitAvailable_ = () => {};
+context.appendSheetRecord_ = (_sheetName, record) => {
+  reservationEvents.push(record.send_result);
+  reservationSequence += 1;
+  return Object.assign({ id: `reservation-${reservationSequence}` }, record);
+};
+context.updateSheetRecord_ = (_sheetName, id, patch) => Object.assign({ id }, patch);
+context.updateLeadAfterSend_ = () => {};
+context.MailApp = {
+  sendEmail() {
+    reservationEvents.push('MailApp');
+    reservedMailCalls += 1;
+  },
+};
+const reservedBatch = context.sendLeadEmailBatch(['lead-send-1', 'lead-send-2'], 'tpl-prod', { send_type: '初回メール' });
+assert(reservationEvents[0] === '送信中' && reservationEvents[1] === 'MailApp', 'production send reservation must be stored before MailApp');
+assert(reservedBatch.success === 1 && reservedBatch.failed === 1 && reservedBatch.blocked === 1, 'server batch should block a second lead with the same reserved email');
+assert(reservedMailCalls === 1, 'same recipient must be sent at most once in a server batch');
+assert(context.isProductionSendReservationHistory_({ send_result: '送信中', send_type: '初回メール' }), 'production send reservation history detection failed');
+assert(!context.isProductionSendReservationHistory_({ send_result: '送信中', send_type: 'テスト送信' }), 'test send reservation must not block production delivery');
 context.withScriptLock_ = originalSendSafetyWithLock;
 context.getLeadById = originalSendSafetyGetLead;
 context.findSheetRecordById_ = originalSendSafetyFindTemplate;
 context.buildMasterBlockContext_ = originalSendSafetyBuildContext;
 context.MailApp = originalSendSafetyMailApp;
+context.getMailSendingControl_ = originalSendSafetyMailControl;
+context.buildSendWindowStatus_ = originalSendSafetyWindow;
+context.assertEmailSendLimitAvailable_ = originalSendSafetyLimit;
+context.appendSheetRecord_ = originalSendSafetyAppend;
+context.updateSheetRecord_ = originalSendSafetyUpdateRecord;
+context.updateLeadAfterSend_ = originalSendSafetyUpdateLead;
 
 const job = context.normalizeSearchJobInput_({
   job_type: 'lead_official_site',
@@ -320,6 +393,31 @@ const runWindow = context.buildSearchJobRunWindow_(300000, 1000);
 assert(runWindow.deadlineMs === 271000, 'search job run window should reserve 30 seconds');
 assert(context.isSearchJobRuntimeExhausted_(runWindow.deadlineMs, runWindow.deadlineMs), 'runtime deadline should stop processing');
 assert(context.parseSearchJobCursor_('{"itemIndex":2,"offset":7}').offset === 7, 'search job cursor should restore item offset');
+assert(context.parseSearchJobCursor_('{"itemIndex":2,"offset":7,"resumeAfter":"2026-07-13T00:05:00+09:00"}').resumeAfter === '2026-07-13T00:05:00+09:00', 'search job cursor should restore quota resume time');
+
+const originalQuotaUsageCount = context.getSerperUsageCount_;
+context.getSerperUsageCount_ = (range) => range && range.day ? 100 : 0;
+let dailyQuotaError = null;
+try {
+  context.assertSerperLimitAvailable_();
+} catch (error) {
+  dailyQuotaError = error;
+}
+assert(dailyQuotaError && dailyQuotaError.code === 'SERPER_DAILY_LIMIT' && dailyQuotaError.expected === true, 'daily Serper limit should be an expected quota pause');
+assert(context.serperQuotaResumeAfter_(dailyQuotaError, new Date('2026-07-12T03:00:00Z')) === '2026-07-13T00:05:00+09:00', 'daily Serper quota should resume after the next local reset');
+context.getSerperUsageCount_ = (range) => range && range.month ? 1000 : 0;
+let monthlyQuotaError = null;
+try {
+  context.assertSerperLimitAvailable_();
+} catch (error) {
+  monthlyQuotaError = error;
+}
+assert(monthlyQuotaError && monthlyQuotaError.code === 'SERPER_MONTHLY_LIMIT', 'monthly Serper limit should be classified');
+assert(context.serperQuotaResumeAfter_(monthlyQuotaError, new Date('2026-07-12T03:00:00Z')) === '2026-08-01T00:05:00+09:00', 'monthly Serper quota should resume after the next monthly reset');
+const perLeadQuotaError = context.createExpectedOperationError_('lead limit', 'SERPER_LEAD_LIMIT');
+assert(!context.isSerperQuotaError_(perLeadQuotaError), 'per-lead limit must not pause the whole job until tomorrow');
+assert(context.isSerperLeadLimitError_(perLeadQuotaError), 'per-lead limit should be classified as a permanent item skip');
+context.getSerperUsageCount_ = originalQuotaUsageCount;
 
 const originalClaimSearchJobRun = context.claimSearchJobRun_;
 const originalUpdateClaimedSearchJob = context.updateClaimedSearchJob_;
@@ -383,6 +481,29 @@ const storedCursor = JSON.parse(mockSearchJob.cursor_json || '{}');
 assert(cursorJobRun.pausedForRuntime === true && cursorJobRun.processedCount === 0, 'partial source page item should pause without advancing the outer item');
 assert(storedCursor.itemIndex === 0 && storedCursor.offset === 2, 'partial source page item should persist its inner cursor');
 
+mockSearchJob.lock_token = 'lock-source-test';
+mockSearchJob.status = 'running';
+mockSearchJob.cursor_json = '';
+context.processSourcePageSearchItem_ = () => ({
+  created: 0,
+  processedCandidates: 2,
+  processedAll: false,
+  nextOffset: 2,
+  pausedForQuota: true,
+  resumeAfter: '2099-01-01T00:05:00+09:00',
+});
+const quotaPausedJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
+const quotaCursor = JSON.parse(mockSearchJob.cursor_json || '{}');
+assert(quotaPausedJobRun.pausedForQuota === true && quotaPausedJobRun.pausedForRuntime === false, 'quota pause must be distinct from runtime pause');
+assert(quotaCursor.offset === 2 && quotaCursor.resumeAfter === '2099-01-01T00:05:00+09:00', 'quota pause should preserve the facility cursor and resume time');
+
+let pausedProcessorCalls = 0;
+mockSearchJob.lock_token = 'lock-source-test';
+mockSearchJob.status = 'running';
+context.processSourcePageSearchItem_ = () => { pausedProcessorCalls += 1; return { processedAll: true }; };
+const waitingQuotaJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
+assert(waitingQuotaJobRun.pausedForQuota === true && pausedProcessorCalls === 0, 'quota-waiting job should exit before rebuilding or processing candidates');
+
 context.claimSearchJobRun_ = originalClaimSearchJobRun;
 context.updateClaimedSearchJob_ = originalUpdateClaimedSearchJob;
 context.processProspectingSearchItem_ = originalProcessProspectingSearchItem;
@@ -399,7 +520,7 @@ const originalReleaseGmailReplyCheckRun = context.releaseGmailReplyCheckRun_;
 const replyCursorStore = {};
 const replyLeads = Array.from({ length: 5 }, (_value, index) => ({
   id: `reply-lead-${index + 1}`,
-  email: `reply${index + 1}@example.com`,
+  email: `reply${index + 1}@reply-test.jp`,
   reply_checked: false,
 }));
 context.PropertiesService = {
@@ -441,7 +562,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v149_collection_shared_domain_fix'), 'v149 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v152_collection_mail_safety'), 'v152 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -1029,9 +1150,17 @@ assert(emailSource.includes("const TEMPLATE_TEST_FIXED_NAME_ = '村松侑哉'"),
 assert(emailSource.includes("error_message: errorMessage"), 'test send failure reason history missing');
 assert(emailSource.includes("return withScriptLock_('sendLeadEmail'"), 'sendLeadEmail should keep send/check/update in one script lock');
 assert(!emailSource.includes('sendLeadEmail:afterSend'), 'sendLeadEmail should not split post-send update into a second lock');
+assert(emailSource.includes("send_result: PRODUCTION_SEND_RESERVED_RESULT_"), 'production history reservation must be written before delivery');
+assert(emailSource.indexOf("send_result: PRODUCTION_SEND_RESERVED_RESULT_") < emailSource.indexOf('MailApp.sendEmail({'), 'production reservation must precede MailApp delivery');
+assert(emailSource.includes('function sendLeadEmailBatch('), 'server-side email batch function missing');
+assert(emailSource.includes('assertProductionMailDeliveryAllowed_(true);'), 'server-side batch must enforce send control and send window');
+assert(html.includes("api('sendLeadEmailBatch'"), 'client batch should use one server-side batch request');
+assert(html.includes("['1回上限', `${formatNumber(batchLimit)}件`]"), 'send plan should show the configured batch limit');
+assert(html.includes('1回${formatNumber(batchLimit)}件まで'), 'send limit pill should use the configured batch limit');
 assert(emailSource.includes('getPriorSuccessfulEmailBlockReason_'), 'prior successful send guard missing');
 assert(emailSource.includes('buildMailSendSafetyContext_'), 'send history safety context missing');
 assert(emailSource.includes('sentEmails[email] = true'), 'same email successful history guard missing');
+assert(emailSource.includes('reservedEmails[email] = true'), 'pending send reservation email guard missing');
 assert(emailSource.includes("String(history.send_type || '').indexOf('テスト') === -1"), 'test sends should not block production send history guard');
 assert(emailSource.includes('function validateEmailSendTemplate_'), 'server-side send template validation missing');
 assert(emailSource.includes('フォーム用テンプレートはメール送信できません。'), 'server should block form templates for MailApp sends');
@@ -1044,6 +1173,7 @@ assert(webApp.includes('countSuccessfulProductionSends_(sendHistories, month)'),
 assert(code.includes('isSuccessfulProductionSendHistory_(history)'), 'latest successful send lookup should exclude test histories');
 assert(masters.includes('mailSendSafety: buildMailSendSafetyContext_()'), 'master context should include mail send safety history');
 assert(html.includes('const seenEmails = new Set();'), 'email batch should dedupe same recipient in the client preview');
+assert(code.includes("createExpectedOperationError_('Duplicate lead exists:"), 'expected duplicate should not be logged as a system error');
 assert(html.includes("Number(lead.send_count || 0) > 0 || String(lead.status || '').includes('送信済み')"), 'client email eligibility should block previously sent leads');
 assert(html.includes('会社名') && html.includes('差し込みメニュー'), 'legacy template tag menu labels missing');
 assert(emailSource.includes("'会社名'"), 'server Japanese template variables missing');

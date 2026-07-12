@@ -11625,7 +11625,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div class="mail-sending-copy">
               <span class="mail-sending-label">メール送信機能</span>
               <strong>${enabled ? '稼働中' : '停止中'}</strong>
-              <p>${enabled ? '自動送信が有効です。手動の1件送信は送信時間外でも実行できます。' : '停止中は自動送信だけ止まります。手動の1件送信は内容確認後に実行できます。'}</p>
+              <p>${enabled ? '本番メール送信が有効です。手動の1件送信は送信時間外でも実行できます。' : '停止中は本番メールを送信しません。固定宛先へのテスト送信のみ利用できます。'}</p>
               <div class="mail-sending-meta">
                 ${enabled ? '' : `<span><b>停止理由</b>${escapeHtml(reason)}</span>`}
                 <span><b>最終更新</b>${escapeHtml(updatedLabel || '未更新')}</span>
@@ -11665,7 +11665,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function toggleMailSendingControl(enabled) {
-        if (enabled && !confirm('メール送信機能を稼働中にします。自動送信時間内になると送信される可能性があります。再開しますか？')) return;
+        if (enabled && !confirm('本番メール送信を稼働中にします。送信内容と対象リストを確認しましたか？')) return;
         const result = await api('setMailSendingControl', {
           enabled: Boolean(enabled),
           reason: enabled ? null : 'テンプレートや営業リストの準備中のため停止',
@@ -17251,6 +17251,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           const result = await api('advanceSearchJob', jobId, { maxItems: 1 });
           if (result.busy) {
             message('このジョブは別の処理で実行中です。完了後に自動で続きから再開します。', 'ok');
+          } else if (result.pausedForQuota) {
+            message(`Serper利用上限のため一時待機しました。${result.resumeAfter ? `${dateTimeLabel(result.resumeAfter)}以降に` : '上限リセット後に'}同じ施設から自動再開します。`, 'ok');
           } else if (result.pausedForRuntime) {
             message(`最大処理時間の前に途中位置を保存しました。処理済み ${formatNumber(result.processedCandidates || 0)}件、続きは次回再開します。`, 'ok');
           } else {
@@ -17354,7 +17356,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderSendingScreen() {
         const dashboard = state.dashboard || {};
         const leads = state.emailLeads || [];
-        const planned = leads.slice(0, Math.min(10, dashboard.todayRemaining || 0));
+        const batchLimit = Number(getClientSetting('email_batch_send_limit', dashboard.emailBatchSendLimit || 20)) || 20;
+        const planned = leads.slice(0, Math.min(batchLimit, dashboard.todayRemaining || 0));
         const canSend = dashboard.mailSendingEnabled !== false && (dashboard.todayRemaining || 0) > 0 && leads.length > 0;
         document.getElementById('sendingPlanPill').outerHTML = `<span class="pill ${canSend ? 'good' : 'warn'}" id="sendingPlanPill">${canSend ? '送信可能' : '要確認'}</span>`;
         document.getElementById('sendingPlanGrid').innerHTML = [
@@ -17362,7 +17365,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['今回予定', `${formatNumber(planned.length)}件`],
           ['本日送信済み', `${formatNumber(dashboard.sentToday || 0)}件`],
           ['本日残り', `${formatNumber(dashboard.todayRemaining || 0)}件`],
-          ['1回上限', `${formatNumber(Math.min(100, dashboard.todayRemaining || 0))}件`],
+          ['1回上限', `${formatNumber(batchLimit)}件`],
         ].map(([label, value]) => `<span><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></span>`).join('');
         const blocked = [
           ['案件確認待ち', dashboard.reviewTargets || 0, "showTab('reviewLeads')"],
@@ -17381,7 +17384,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('sendingLimitPills').innerHTML = [
           `<span class="pill ${dashboard.mailSendingEnabled === false ? 'bad' : 'good'}">メール送信 ${dashboard.mailSendingEnabled === false ? '停止中' : '稼働中'}</span>`,
           `<span class="pill warn">1日${formatNumber(dashboard.dailyMailLimit || 100)}件まで</span>`,
-          `<span class="pill warn">1回${formatNumber(Math.min(100, dashboard.dailyMailLimit || 100))}件まで</span>`,
+          `<span class="pill warn">1回${formatNumber(batchLimit)}件まで</span>`,
           '<span class="pill good">プレーンテキストのみ</span>',
           `<span class="pill ${dashboard.todayRemaining > 0 ? 'good' : 'bad'}">本日残り ${formatNumber(dashboard.todayRemaining || 0)}件</span>`,
         ].join('');
@@ -17722,7 +17725,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!isProductionTemplate(template)) return 'テンプレートが本番OFFです';
         if (!template.genre) return 'テンプレートにジャンルが設定されていません';
         if (integrations.gmail === false) return 'Gmailが未設定です';
-        if (dashboard.mailSendingEnabled === false) return '自動送信停止中です';
+        if (dashboard.mailSendingEnabled === false) return '本番メール送信が停止中です';
         if ((dashboard.todayRemaining || 0) <= 0) return '本日の送信上限に達しています';
         if (!lead) return '営業先がありません';
         if (!lead.genre) return '営業先のジャンルが設定されていません';
@@ -17879,14 +17882,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderEmailPreviewPanel();
         let success = 0;
         let failed = 0;
-        for (const lead of sendTargets) {
-          try {
-            const result = await api('sendLeadEmail', lead.id, template.id, { send_type: '初回メール', sender_name: '営業担当' });
-            if (result.ok) success += 1;
-            else failed += 1;
-          } catch (error) {
-            failed += 1;
-          }
+        try {
+          const result = await api('sendLeadEmailBatch', sendTargets.map((lead) => lead.id), template.id, { send_type: '初回メール', sender_name: '営業担当' });
+          success = Number(result.success || 0);
+          failed = Number(result.failed || 0);
+        } catch (error) {
+          failed = sendTargets.length;
         }
         state.emailBatchSending = false;
         state.emailBatchConfirmOpen = false;
@@ -20698,11 +20699,31 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function canEmailLead(lead) {
-        if (!lead || !lead.email || !String(lead.email).includes('@')) return false;
+        if (!lead || !isValidBusinessEmailClient(lead.email)) return false;
         if (normalizeBooleanLike(lead.send_ng) || lead.status === '送信NG' || lead.status === '対応不要') return false;
         if (normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり') return false;
         if (lead.last_sent_at || Number(lead.send_count || 0) > 0 || String(lead.status || '').includes('送信済み')) return false;
         if (lead.deal_status && lead.deal_status !== '未設定') return false;
+        return true;
+      }
+
+      function isValidBusinessEmailClient(email) {
+        const value = String(email || '').trim().toLowerCase();
+        if (!value || value.length > 254 || value.includes('=')) return false;
+        const parts = value.split('@');
+        if (parts.length !== 2) return false;
+        const [local, domain] = parts;
+        if (local.length < 1 || local.length > 64 || local.startsWith('.') || local.endsWith('.') || local.includes('..')) return false;
+        if (!/^[a-z0-9.!#$%&'*+/^_`{|}~-]+$/i.test(local)) return false;
+        if (/^(?:no-?reply|do-?not-?reply|mailer-daemon|postmaster)$/i.test(local)) return false;
+        const labels = domain.split('.');
+        if (labels.length < 2 || labels.some((label) => !label || label.length > 63 || label.startsWith('-') || label.endsWith('-'))) return false;
+        const topLevelDomain = labels[labels.length - 1];
+        if (!/^[a-z]{2,24}$/i.test(topLevelDomain)) return false;
+        if (/^(?:jpg|jpeg|png|gif|webp|svg|ico|css|js|json|map|woff2?|ttf|eot|pdf)$/i.test(topLevelDomain)) return false;
+        if (/(?:^|\.)(?:window|document|innerwidth|localhost|invalid)(?:\.|$)/i.test(domain)) return false;
+        if (/^i\.msgs\.jp$/i.test(domain)) return false;
+        if (/^example\.(?:com|org|net)$/i.test(domain)) return false;
         return true;
       }
 

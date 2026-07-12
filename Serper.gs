@@ -281,8 +281,23 @@ function isFormSearchResult_(result, overrides) {
 }
 
 function extractEmailFromSearchResult_(text) {
-  const match = String(text || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  return match ? match[0].toLowerCase() : '';
+  const matches = String(text || '').match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,24}/ig) || [];
+  const candidates = Array.from(new Set(matches.map(function (value) {
+    return String(value || '').replace(/[),;:'"<>\]]+$/g, '').toLowerCase();
+  }).filter(isValidEmailAddress_)));
+  candidates.sort(function (left, right) {
+    return emailCandidateScore_(right) - emailCandidateScore_(left) || matches.indexOf(left) - matches.indexOf(right);
+  });
+  return candidates[0] || '';
+}
+
+function emailCandidateScore_(email) {
+  const local = String(email || '').split('@')[0].toLowerCase();
+  let score = 0;
+  if (/^(?:info|contact|inquiry|otoiawase|toiawase|sales|support|office|customer|service)(?:[._+-]|$)/i.test(local)) score += 50;
+  if (/(?:contact|inquiry|support|office|sales)/i.test(local)) score += 20;
+  if (/(?:privacy|recruit|career|webmaster|system|admin)/i.test(local)) score -= 30;
+  return score;
 }
 
 function deriveSearchResultCompanyName_(value) {
@@ -383,7 +398,6 @@ function advanceSearchJob(jobId, options) {
   const startIndex = Math.min(Math.max(Number(job.processed_count || 0), 0), targetCount);
   const endIndex = Math.min(startIndex + maxItems, targetCount);
   const cursor = parseSearchJobCursor_(job.cursor_json);
-  const sourcePageLeadIndex = payload.job_type === 'source_page' ? buildSourcePageLeadIndex_() : null;
   let progressRecord = job;
   const summary = {
     id: job.id,
@@ -399,8 +413,23 @@ function advanceSearchJob(jobId, options) {
     skipped: false,
     resumable: true,
     pausedForRuntime: false,
+    pausedForQuota: false,
+    resumeAfter: cursor.resumeAfter || '',
     attemptCount: Number(job.attempt_count || 0),
   };
+
+  if (cursor.resumeAfter && new Date(cursor.resumeAfter).getTime() > Date.now()) {
+    updateClaimedSearchJob_(job.id, lockToken, {
+      status: 'queued',
+      finished_at: '',
+      last_error: '',
+    }, true);
+    summary.pausedForQuota = true;
+    summary.elapsedMs = Date.now() - runWindow.startedAtMs;
+    return summary;
+  }
+
+  const sourcePageLeadIndex = payload.job_type === 'source_page' ? buildSourcePageLeadIndex_() : null;
 
   for (let index = startIndex; index < endIndex; index += 1) {
     if (isSearchJobRuntimeExhausted_(runWindow.deadlineMs)) {
@@ -422,10 +451,14 @@ function advanceSearchJob(jobId, options) {
         summary.updatedLeads += Number(result.created || 0);
         summary.processedCandidates += Number(result.processedCandidates || 0);
         if (result.processedAll === false) {
-          summary.pausedForRuntime = true;
+          summary.pausedForQuota = result.pausedForQuota === true;
+          summary.pausedForRuntime = !summary.pausedForQuota;
+          summary.resumeAfter = result.resumeAfter || '';
+          const nextCursor = { itemIndex: index, offset: Number(result.nextOffset || 0) };
+          if (summary.pausedForQuota && summary.resumeAfter) nextCursor.resumeAfter = summary.resumeAfter;
           const partialUpdate = updateClaimedSearchJob_(job.id, lockToken, {
             status: 'running',
-            cursor_json: safeJsonStringify_({ itemIndex: index, offset: Number(result.nextOffset || 0) }),
+            cursor_json: safeJsonStringify_(nextCursor),
             last_heartbeat_at: nowIso_(),
           }, false);
           if (partialUpdate.owned) progressRecord = partialUpdate.record;
@@ -446,6 +479,30 @@ function advanceSearchJob(jobId, options) {
       }
       progressRecord = progressUpdate.record;
     } catch (error) {
+      if (isSerperQuotaError_(error)) {
+        const resumeAfter = serperQuotaResumeAfter_(error);
+        summary.pausedForQuota = true;
+        summary.resumeAfter = resumeAfter;
+        const quotaUpdate = updateClaimedSearchJob_(job.id, lockToken, {
+          status: 'running',
+          cursor_json: safeJsonStringify_({ itemIndex: index, offset: cursor.itemIndex === index ? cursor.offset : 0, resumeAfter: resumeAfter }),
+          last_error: '',
+          last_heartbeat_at: nowIso_(),
+        }, false);
+        if (quotaUpdate.owned) progressRecord = quotaUpdate.record;
+        break;
+      }
+      if (isSerperLeadLimitError_(error)) {
+        const skippedUpdate = updateClaimedSearchJob_(job.id, lockToken, {
+          processed_count: index + 1,
+          cursor_json: '',
+          last_error: '',
+          last_heartbeat_at: nowIso_(),
+        }, false);
+        if (!skippedUpdate.owned) break;
+        progressRecord = skippedUpdate.record;
+        continue;
+      }
       summary.errors.push({
         index: index,
         message: error.message,
@@ -518,9 +575,10 @@ function parseSearchJobCursor_(value) {
     return {
       itemIndex: Math.max(Number(parsed.itemIndex) || 0, 0),
       offset: Math.max(Number(parsed.offset) || 0, 0),
+      resumeAfter: String(parsed.resumeAfter || parsed.resume_after || '').trim(),
     };
   } catch (error) {
-    return { itemIndex: 0, offset: 0 };
+    return { itemIndex: 0, offset: 0, resumeAfter: '' };
   }
 }
 
@@ -823,6 +881,8 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
     processedCandidates: 0,
     processedAll: cursorOffset >= chunkLength,
     nextOffset: cursorOffset,
+    pausedForQuota: false,
+    resumeAfter: '',
   };
 
   if (!candidates.length) {
@@ -856,10 +916,19 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
     try {
       const candidate = buildNapCampSourcePageCandidate_(entry, sourceUrl);
       const result = processSourcePageCandidate_(candidate, item, payload, jobId, rank - 1, runtimeContext);
-      if (result.deferred) break;
+      if (result.deferred) {
+        summary.pausedForQuota = result.pausedForQuota === true;
+        summary.resumeAfter = result.resumeAfter || '';
+        break;
+      }
       if (result.created) summary.created += 1;
       if (result.skipped) summary.skipped += 1;
     } catch (error) {
+      if (isSerperQuotaError_(error)) {
+        summary.pausedForQuota = true;
+        summary.resumeAfter = serperQuotaResumeAfter_(error);
+        break;
+      }
       summary.skipped += 1;
       appendSyncError_('processNapCampSourcePageItem', error, {
         target_sheet: 'search_jobs',
@@ -1018,6 +1087,8 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
     processedCandidates: 0,
     processedAll: cursorOffset >= candidates.length,
     nextOffset: cursorOffset,
+    pausedForQuota: false,
+    resumeAfter: '',
   };
 
   if (!candidates.length) {
@@ -1046,9 +1117,18 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
     const candidate = limitedCandidates[index];
     try {
       const result = processSourcePageCandidate_(candidate, item, payload, jobId, index, runtimeContext);
-      if (result.deferred) break;
+      if (result.deferred) {
+        summary.pausedForQuota = result.pausedForQuota === true;
+        summary.resumeAfter = result.resumeAfter || '';
+        break;
+      }
       if (result.created) summary.created += 1;
     } catch (error) {
+      if (isSerperQuotaError_(error)) {
+        summary.pausedForQuota = true;
+        summary.resumeAfter = serperQuotaResumeAfter_(error);
+        break;
+      }
       appendSyncError_('processSourcePageCandidate', error, {
         target_sheet: 'search_jobs',
         target_id: jobId || '',
@@ -1145,6 +1225,15 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
         discoveryMode = 'serper_fallback';
       }
     } catch (error) {
+      if (isSerperQuotaError_(error)) {
+        return {
+          created: false,
+          deferred: true,
+          pausedForQuota: true,
+          resumeAfter: serperQuotaResumeAfter_(error),
+          quotaMessage: error.message || String(error),
+        };
+      }
       serperResult = {
         query: candidate.serper_query || [facilityName, candidate.address || '', genre, '公式サイト'].filter(Boolean).join(' '),
         selected: null,
@@ -1241,7 +1330,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
     addLeadToSourcePageIndex_(leadIndex, lead);
   } catch (error) {
     errorMessage = error.message || String(error);
-    reviewStatus = /^Duplicate lead exists/.test(errorMessage) ? 'duplicate' : 'dismissed';
+    reviewStatus = error.code === 'DUPLICATE_LEAD' || /^Duplicate lead exists/.test(errorMessage) ? 'duplicate' : 'dismissed';
   }
 
   appendSourcePageResult_(jobId, {
@@ -1904,17 +1993,42 @@ function assertSerperLimitAvailable_(leadId) {
   const monthCount = getSerperUsageCount_({ month: month });
 
   if (todayCount >= dailyLimit) {
-    throw new Error('Daily Serper limit reached: ' + dailyLimit);
+    throw createExpectedOperationError_('Daily Serper limit reached: ' + dailyLimit, 'SERPER_DAILY_LIMIT');
   }
   if (monthCount >= monthlyLimit) {
-    throw new Error('Monthly Serper limit reached: ' + monthlyLimit);
+    throw createExpectedOperationError_('Monthly Serper limit reached: ' + monthlyLimit, 'SERPER_MONTHLY_LIMIT');
   }
   if (leadId) {
     const leadCount = getSerperUsageCount_({ leadId: leadId });
     if (leadCount >= perLeadLimit) {
-      throw new Error('Per-lead Serper limit reached for lead: ' + leadId);
+      throw createExpectedOperationError_('Per-lead Serper limit reached for lead: ' + leadId, 'SERPER_LEAD_LIMIT');
     }
   }
+}
+
+function isSerperQuotaError_(error) {
+  return Boolean(error && ['SERPER_DAILY_LIMIT', 'SERPER_MONTHLY_LIMIT'].indexOf(String(error.code || '')) !== -1);
+}
+
+function isSerperLeadLimitError_(error) {
+  return Boolean(error && String(error.code || '') === 'SERPER_LEAD_LIMIT');
+}
+
+function serperQuotaResumeAfter_(error, nowDate) {
+  const timezone = Session.getScriptTimeZone() || 'Asia/Tokyo';
+  const now = nowDate instanceof Date ? nowDate : new Date();
+  const localDate = Utilities.formatDate(now, timezone, 'yyyy-MM-dd');
+  const parts = localDate.split('-').map(Number);
+  let year = parts[0];
+  let month = parts[1];
+  let day = parts[2] + 1;
+  if (error && String(error.code || '') === 'SERPER_MONTHLY_LIMIT') {
+    month += 1;
+    day = 1;
+  }
+  const next = new Date(Date.UTC(year, month - 1, day));
+  const dateText = Utilities.formatDate(next, 'UTC', 'yyyy-MM-dd');
+  return dateText + 'T00:05:00+09:00';
 }
 
 function getSerperUsageCount_(range) {

@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260712_apps_script_full_workflow_v149_collection_shared_domain_fix';
+const APP_VERSION = '20260712_apps_script_full_workflow_v152_collection_mail_safety';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -1521,7 +1521,7 @@ function assertNoDuplicateLead_(sheet, lead) {
   });
 
   if (duplicate) {
-    throw new Error('Duplicate lead exists: ' + duplicate.id);
+    throw createExpectedOperationError_('Duplicate lead exists: ' + duplicate.id, 'DUPLICATE_LEAD');
   }
 }
 
@@ -1724,7 +1724,9 @@ function withScriptLock_(operation, callback) {
     lock.waitLock(30000);
     return callback();
   } catch (error) {
-    logError_(operation, error, {});
+    if (!isExpectedOperationError_(error)) {
+      logError_(operation, error, {});
+    }
     throw error;
   } finally {
     try {
@@ -1733,6 +1735,17 @@ function withScriptLock_(operation, callback) {
       console.warn('Lock release skipped: ' + releaseError.message);
     }
   }
+}
+
+function createExpectedOperationError_(message, code) {
+  const error = new Error(String(message || 'Operation was blocked.'));
+  error.code = String(code || 'EXPECTED_OPERATION_BLOCK');
+  error.expected = true;
+  return error;
+}
+
+function isExpectedOperationError_(error) {
+  return Boolean(error && error.expected === true);
 }
 
 function logError_(operation, error, context) {
