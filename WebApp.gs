@@ -282,12 +282,9 @@ function getDashboardStats(options) {
   const syncLogs = listSheetRecords('sync_logs', { limit: 1000, includeInactive: true }).items;
   const today = todayText_();
   const month = today.slice(0, 7);
-  const sentToday = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).filter(function (record) {
-    return String(record.sent_at || record.created_at || '').slice(0, 10) === today && record.send_result === '成功';
-  }).length;
-  const sentMonth = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).filter(function (record) {
-    return String(record.sent_at || record.created_at || '').slice(0, 7) === month && record.send_result === '成功';
-  }).length;
+  const sendHistories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  const sentToday = countSuccessfulProductionSends_(sendHistories, today);
+  const sentMonth = countSuccessfulProductionSends_(sendHistories, month);
   const serperToday = getSerperUsageCount_({ day: today });
   const serperMonth = getSerperUsageCount_({ month: month });
   const masterContext = buildMasterBlockContext_();

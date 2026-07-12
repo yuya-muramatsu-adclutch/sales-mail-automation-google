@@ -13832,16 +13832,32 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderLeadSendTemplateOptions() {
         const select = document.getElementById('leadSendTemplate');
         if (!select) return;
-        const options = ['<option value="">本番テンプレートを自動選択</option>'].concat(state.templates.map((template) => {
+        const leadId = document.getElementById('leadId')?.value || '';
+        const lead = leadId ? findLeadByIdClient(leadId) : null;
+        const templates = (state.templates || []).filter((template) => isLeadSendTemplateOption(template, lead));
+        const options = ['<option value="">本番テンプレートを自動選択</option>'].concat(templates.map((template) => {
           const label = [
             template.name,
-            template.genre || '共通',
-            template.template_type || '',
-            template.is_production === true || template.is_production === 'true' ? '本番' : '下書き',
+            template.genre,
+            templateTypeLabel(template.template_type),
+            '本番ON',
           ].filter(Boolean).join(' / ');
           return `<option value="${escapeHtml(template.id)}">${escapeHtml(label)}</option>`;
         }));
+        if (!templates.length) {
+          options.push('<option value="" disabled>選択可能な本番テンプレートなし</option>');
+        }
         select.innerHTML = options.join('');
+      }
+
+      function isLeadSendTemplateOption(template, lead) {
+        if (!template || template.template_type !== 'initial') return false;
+        if (!isProductionTemplate(template)) return false;
+        const templateGenre = String(template.genre || '').trim();
+        if (!templateGenre) return false;
+        const leadGenre = String((lead && lead.genre) || '').trim();
+        if (lead && templateGenre !== leadGenre) return false;
+        return true;
       }
 
       async function sendSelectedLeadEmail(event) {
@@ -14414,7 +14430,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function findFormTemplateForLead(lead) {
         const active = state.templates.filter((template) => template.template_type === 'form' && (template.is_production === true || template.is_production === 'true'));
-        return active.find((template) => template.genre && lead.genre && template.genre === lead.genre) || active.find((template) => !template.genre) || active[0] || null;
+        const leadGenre = String((lead && lead.genre) || '').trim();
+        return active.find((template) => template.genre && leadGenre && template.genre === leadGenre) || active.find((template) => !template.genre) || null;
       }
 
       function renderClientTemplate(body, lead) {
@@ -17202,8 +17219,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function getTemplateMatchedEmailLeads(template) {
         const leads = state.emailLeads || [];
         if (!template || !template.genre) return leads;
-        const matched = leads.filter((lead) => lead.genre === template.genre);
-        return matched.length ? matched : leads;
+        return leads.filter((lead) => lead.genre === template.genre);
       }
 
       function getEmailPreviewBatchTargets(template) {
@@ -17213,12 +17229,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return (state.emailLeads || [])
           .filter((lead) => {
             if (!canEmailLead(lead)) return false;
+            if (templateGenre && String(lead.genre || '').trim() !== templateGenre) return false;
             const email = String(lead.email || '').trim().toLowerCase();
             if (email && seenEmails.has(email)) return false;
             if (email) seenEmails.add(email);
             return true;
-          })
-          .filter((lead) => !templateGenre || String(lead.genre || '').trim() === templateGenre);
+          });
       }
 
       function getEmailPreviewBatchLimit(dashboard) {
@@ -17428,7 +17444,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (dashboard.mailSendingEnabled === false) return '自動送信停止中です';
         if ((dashboard.todayRemaining || 0) <= 0) return '本日の送信上限に達しています';
         if (!lead) return '営業先がありません';
-        if (template.genre && lead.genre && template.genre !== lead.genre) return 'テンプレートと営業先のジャンルが一致していません';
+        if (!lead.genre) return '営業先のジャンルが設定されていません';
+        if (template.genre !== lead.genre) return 'テンプレートと営業先のジャンルが一致していません';
         if (!lead.email) return 'メールアドレスがありません';
         if (normalizeBooleanLike(lead.send_ng) || lead.status === '送信NG') return '送信NGです';
         if (normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり') return '返信ありのため対象外です';

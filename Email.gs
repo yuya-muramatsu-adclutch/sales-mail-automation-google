@@ -37,10 +37,11 @@ function sendLeadEmail(leadId, templateId, options) {
   const input = options && typeof options === 'object' ? options : {};
   return withScriptLock_('sendLeadEmail', function () {
     const lead = getLeadById(leadId);
-    const template = templateId ? findSheetRecordById_('email_templates', templateId) : findProductionTemplateForLead_(lead, input.template_type || 'initial');
+    const template = templateId ? findSheetRecordById_('email_templates', templateId) : findProductionTemplateForLead_(lead, input.template_type || input.templateType || 'initial');
     if (!template) {
       throw new Error('Email template not found.');
     }
+    validateEmailSendTemplate_(template, lead, input);
     const masterContext = buildMasterBlockContext_();
     const priorSendReason = getPriorSuccessfulEmailBlockReason_(lead, masterContext);
     if (priorSendReason) {
@@ -128,8 +129,23 @@ function buildMailSendSafetyContext_() {
 
 function isSuccessfulProductionSendHistory_(history) {
   return history &&
-    history.send_result === '成功' &&
+    String(history.send_result || '') === '成功' &&
     String(history.send_type || '').indexOf('テスト') === -1;
+}
+
+function countSuccessfulProductionSends_(histories, datePrefix) {
+  const prefix = String(datePrefix || '');
+  return (histories || []).filter(function (history) {
+    return isSuccessfulProductionSendHistory_(history) &&
+      (!prefix || String(history.sent_at || history.created_at || '').slice(0, prefix.length) === prefix);
+  }).length;
+}
+
+function countSuccessfulProductionSendsOnDate_(datePrefix) {
+  return countSuccessfulProductionSends_(
+    readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')),
+    datePrefix
+  );
 }
 
 function normalizeEmailForSendSafety_(email) {
@@ -148,6 +164,34 @@ function getPriorSuccessfulEmailBlockReason_(lead, context) {
   if (leadId && safety.sentLeadIds && safety.sentLeadIds[leadId]) return 'Lead already has a successful send history.';
   if (email && safety.sentEmails && safety.sentEmails[email]) return 'Email address already has a successful send history.';
   return '';
+}
+
+function validateEmailSendTemplate_(template, lead, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  if (!lead) throw new Error('Lead is not eligible for email sending.');
+  if (!template) throw new Error('Email template not found.');
+  if (Object.prototype.hasOwnProperty.call(template, 'active') && normalizeBooleanLike_(template.active) === false) {
+    throw new Error('Inactive template cannot be used for email sending.');
+  }
+
+  const templateType = String(template.template_type || '').trim();
+  const sendType = String(input.send_type || input.sendType || '初回メール').trim();
+  if (templateType === 'form') throw new Error('フォーム用テンプレートはメール送信できません。');
+  if (templateType === 'followup_2m' || sendType === '2ヶ月後メール') {
+    throw new Error('2ヶ月後メールは現在の自動送信では使用しません。');
+  }
+  if (templateType !== 'initial') throw new Error('メール送信できるテンプレート種別ではありません。');
+  if (!normalizeBooleanLike_(template.is_production)) {
+    throw new Error('本番ONのテンプレートだけメール送信できます。');
+  }
+
+  const templateGenre = String(template.genre || '').trim();
+  const leadGenre = String(lead.genre || '').trim();
+  if (!templateGenre) throw new Error('テンプレートにジャンルが設定されていません。');
+  if (!leadGenre) throw new Error('営業先のジャンルが設定されていません。');
+  if (templateGenre !== leadGenre) {
+    throw new Error('テンプレートと営業先のジャンルが一致していません。');
+  }
 }
 
 function sendTestEmail(templateId, toEmail, sampleLeadInput) {
@@ -364,13 +408,49 @@ function updateLeadAfterSend_(leadId, patch) {
 
 function findProductionTemplateForLead_(lead, templateType) {
   const templates = listEmailTemplates({ limit: 1000 }).items;
+  const leadGenre = String(lead && lead.genre || '').trim();
+  if (!leadGenre) return null;
   const active = templates.filter(function (template) {
     return template.template_type === templateType && normalizeBooleanLike_(template.is_production);
   });
-  const genreMatch = active.find(function (template) {
-    return template.genre && lead.genre && template.genre === lead.genre;
-  });
-  return genreMatch || active.find(function (template) { return !template.genre; }) || active[0] || null;
+  return active.find(function (template) {
+    return String(template.genre || '').trim() === leadGenre;
+  }) || null;
+}
+
+function countSuccessfulProductionSendsToday_() {
+  return countSuccessfulProductionSendsOnDate_(todayText_());
+}
+
+function getRemainingAppMailLimit_() {
+  const dailyLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
+  return Math.max(0, dailyLimit - countSuccessfulProductionSendsToday_());
+}
+
+function assertEmailSendLimitAvailable_() {
+  const dailyLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
+  const sentToday = countSuccessfulProductionSendsToday_();
+  const remainingQuota = MailApp.getRemainingDailyQuota ? MailApp.getRemainingDailyQuota() : dailyLimit;
+
+  if (sentToday >= dailyLimit) {
+    throw new Error('Daily app mail limit reached: ' + dailyLimit);
+  }
+  if (remainingQuota <= 0) {
+    throw new Error('MailApp remaining daily quota is 0.');
+  }
+}
+
+function isValidEmailAddress_(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+}
+
+function escapeHtml_(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function renderTemplateForLead_(template, lead, extraVariables) {
@@ -432,33 +512,4 @@ function replaceTemplateVariables_(text, variables) {
     const normalizedKey = String(key || '').trim();
     return variables[normalizedKey] === undefined ? '' : String(variables[normalizedKey]);
   });
-}
-
-function assertEmailSendLimitAvailable_() {
-  const today = todayText_();
-  const dailyLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
-  const sentToday = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).filter(function (record) {
-    return String(record.sent_at || record.created_at || '').slice(0, 10) === today && record.send_result === '成功';
-  }).length;
-  const remainingQuota = MailApp.getRemainingDailyQuota ? MailApp.getRemainingDailyQuota() : dailyLimit;
-
-  if (sentToday >= dailyLimit) {
-    throw new Error('Daily app mail limit reached: ' + dailyLimit);
-  }
-  if (remainingQuota <= 0) {
-    throw new Error('MailApp remaining daily quota is 0.');
-  }
-}
-
-function isValidEmailAddress_(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
-}
-
-function escapeHtml_(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }

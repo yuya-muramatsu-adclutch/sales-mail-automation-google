@@ -31,6 +31,16 @@ function assert(condition, message) {
   }
 }
 
+function assertThrows(fn, message) {
+  let threw = false;
+  try {
+    fn();
+  } catch (error) {
+    threw = true;
+  }
+  assert(threw, message);
+}
+
 const lead = context.normalizeLeadInput_({
   company_name: '株式会社Example',
   websiteUrl: 'example.com/contact',
@@ -64,6 +74,43 @@ const template = context.normalizeEmailTemplateInput_({
 const rendered = context.renderTemplateForLead_(template, lead);
 assert(rendered.subject === '株式会社Example ご担当者様', 'template subject rendering failed');
 assert(rendered.body.includes('ご担当者'), 'template body rendering failed');
+
+const sendLead = Object.assign({}, lead, {
+  id: 'lead-send-1',
+  genre: 'グランピング',
+  email: 'send@example.com',
+  status: '未対応',
+  deal_status: '未設定',
+  send_count: 0,
+  last_sent_at: '',
+});
+const productionTemplate = {
+  id: 'tpl-prod',
+  active: true,
+  template_type: 'initial',
+  genre: 'グランピング',
+  is_production: true,
+  subject: '{{屋号}} ご担当者様',
+  body: '{{屋号}}',
+};
+const draftTemplate = Object.assign({}, productionTemplate, { id: 'tpl-draft', is_production: false });
+const formTemplate = Object.assign({}, productionTemplate, { id: 'tpl-form', template_type: 'form' });
+const mismatchTemplate = Object.assign({}, productionTemplate, { id: 'tpl-mismatch', genre: '温泉旅館' });
+context.validateEmailSendTemplate_(productionTemplate, sendLead, { send_type: '初回メール' });
+assertThrows(() => context.validateEmailSendTemplate_(draftTemplate, sendLead, {}), 'draft template should be blocked');
+assertThrows(() => context.validateEmailSendTemplate_(formTemplate, sendLead, {}), 'form template should be blocked for MailApp sends');
+assertThrows(() => context.validateEmailSendTemplate_(mismatchTemplate, sendLead, {}), 'genre-mismatched template should be blocked');
+assert(context.countSuccessfulProductionSends_([
+  { send_result: '成功', send_type: '初回メール', sent_at: '2026-07-12T00:00:00Z' },
+  { send_result: '成功', send_type: 'テスト送信', sent_at: '2026-07-12T01:00:00Z' },
+  { send_result: '失敗', send_type: '初回メール', sent_at: '2026-07-12T02:00:00Z' },
+], '2026-07-12') === 1, 'production send counter should exclude test and failed sends');
+const originalListEmailTemplates = context.listEmailTemplates;
+context.listEmailTemplates = () => ({ items: [mismatchTemplate, productionTemplate] });
+assert(context.findProductionTemplateForLead_(sendLead, 'initial').id === 'tpl-prod', 'production template lookup should prefer exact genre');
+context.listEmailTemplates = () => ({ items: [mismatchTemplate] });
+assert(context.findProductionTemplateForLead_(sendLead, 'initial') === null, 'production template lookup should not fall back to mismatched genre');
+context.listEmailTemplates = originalListEmailTemplates;
 
 const ng = context.normalizeNgMasterInput_({
   email: 'block@example.com',
@@ -134,7 +181,7 @@ const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const masters = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v138_fixed_template_test_send'), 'v138 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v139_mail_send_safety_audit'), 'v139 app version missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(webApp.includes("action === 'importEmailTemplates'"), 'email template bulk import dispatch missing');
@@ -185,6 +232,9 @@ assert(html.includes('loadAllLeadsManually'), 'manual full lead load action miss
 assert(html.includes('leadLoadProgressBar'), 'lead load progress UI missing');
 assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
 assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
+assert(html.includes('isLeadSendTemplateOption'), 'lead detail send template filtering missing');
+assert(html.includes("template.template_type !== 'initial'"), 'lead send template options should exclude non-initial templates');
+assert(html.includes('本番テンプレートを自動選択'), 'lead send template auto-selection option missing');
 assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
 assert(html.includes('createSelectedLeadCalendarEvent'), 'calendar event handler missing');
 assert(html.includes('id="leadPager"'), 'lead pager UI missing');
@@ -703,6 +753,15 @@ assert(emailSource.includes('getPriorSuccessfulEmailBlockReason_'), 'prior succe
 assert(emailSource.includes('buildMailSendSafetyContext_'), 'send history safety context missing');
 assert(emailSource.includes('sentEmails[email] = true'), 'same email successful history guard missing');
 assert(emailSource.includes("String(history.send_type || '').indexOf('テスト') === -1"), 'test sends should not block production send history guard');
+assert(emailSource.includes('function validateEmailSendTemplate_'), 'server-side send template validation missing');
+assert(emailSource.includes('フォーム用テンプレートはメール送信できません。'), 'server should block form templates for MailApp sends');
+assert(emailSource.includes('本番ONのテンプレートだけメール送信できます。'), 'server should block draft templates for MailApp sends');
+assert(emailSource.includes('テンプレートと営業先のジャンルが一致していません。'), 'server should block genre-mismatched templates');
+assert(!emailSource.includes('|| active[0] || null'), 'production template lookup must not fall back to mismatched first template');
+assert(emailSource.includes('function countSuccessfulProductionSends_'), 'production send counter helper missing');
+assert(webApp.includes('countSuccessfulProductionSends_(sendHistories, today)'), 'dashboard sentToday should exclude test sends');
+assert(webApp.includes('countSuccessfulProductionSends_(sendHistories, month)'), 'dashboard sentMonth should exclude test sends');
+assert(code.includes('isSuccessfulProductionSendHistory_(history)'), 'latest successful send lookup should exclude test histories');
 assert(masters.includes('mailSendSafety: buildMailSendSafetyContext_()'), 'master context should include mail send safety history');
 assert(html.includes('const seenEmails = new Set();'), 'email batch should dedupe same recipient in the client preview');
 assert(html.includes("Number(lead.send_count || 0) > 0 || String(lead.status || '').includes('送信済み')"), 'client email eligibility should block previously sent leads');

@@ -1,13 +1,13 @@
 # 完成監査メモ
 
-最終更新: 2026-07-10
+最終更新: 2026-07-12
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @138 / code v138: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @139 / code v139: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v138_fixed_template_test_send`
+- Code version: `20260712_apps_script_full_workflow_v139_mail_send_safety_audit`
 
 ## 計画書との対応
 
@@ -612,6 +612,22 @@
 - 既存Web app URLを `clasp deploy -V 138 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 138へ再デプロイ済み。
 - `getAppInfo` で `20260712_apps_script_full_workflow_v138_fixed_template_test_send` が返ることを確認。
 - テンプレートテスト送信モーダルは固定宛先表示に変更し、会社名・屋号・担当者名をテスト時のみ `村松侑哉` に固定。本文プレビューは広い2カラムとスクロール枠へ調整。
+
+## 2026-07-12 v139 メール送信安全監査
+
+- `sendLeadEmail` 直前にサーバー側テンプレート検証を追加。下書き、フォーム用、2ヶ月後メール、ジャンル未設定、営業先ジャンル未設定、ジャンル不一致テンプレートはUIを迂回しても送信不可。
+- 本番テンプレート自動選択で、ジャンル不一致時に先頭テンプレートへフォールバックしないよう変更。
+- 送信履歴の成功判定を本番送信に限定し、テスト送信は同一メールアドレスの再送防止・本日送信数・今月送信数・アプリ日次上限から除外。Gmailの実クォータは引き続き `MailApp.getRemainingDailyQuota()` で確認。
+- 営業リスト詳細のテンプレート候補を、本番ON・初回メール・ジャンル一致のみに整理。フォーム営業テンプレートも違うジャンルの先頭テンプレートへ落ちないよう修正。
+- `node scripts/smoke-test.js` 成功。下書き/フォーム用/ジャンル不一致のブロック、テスト送信除外カウント、テンプレート自動選択のジャンル一致を実行テストで確認。
+- `.gs` 主要ファイルのNode構文チェック成功。
+- `git diff --check` 成功。
+- `clasp push -f` 成功。
+- `clasp version "apps-script-full-workflow-v139-mail-send-safety-audit"` でVersion 139を作成済み。
+- 既存Web app URLを `clasp deploy -V 139 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 139へ再デプロイ済み。
+- `clasp deployments` で既存Web app URLが `@139 - apps-script-full-workflow-v139-mail-send-safety-audit-on-existing-url` を指すことを確認。
+- `clasp run getDashboardStats` は実行権限で失敗。実データの最新集計確認はWeb appまたはApps Script editorで行う。
+- Chromeで既存Web app URLをリロードし、画面上の `20260712_apps_script_full_workflow_v139_mail_send_safety_audit` 表示、確認待ちリスト `1,134件`、初期表示 `100件` を確認。メール送信実行は未実施。
 
 ## 運用時に確認する外部依存
 
