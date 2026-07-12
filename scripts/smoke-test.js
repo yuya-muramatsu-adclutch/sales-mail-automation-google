@@ -239,6 +239,29 @@ assert(largeNapCampJob.items.length === 1 && largeNapCampJob.total_candidates ==
 assert(JSON.stringify(largeNapCampJob).length < 50000, 'search job payload must stay below the Google Sheets cell limit');
 context.fetchNapCampCampsiteUrlEntries_ = originalFetchNapCampEntries;
 
+const sourcePageLeadIndex = context.buildSourcePageLeadIndexFromRecords_([
+  {
+    id: 'existing-source-id',
+    source: 'source_page',
+    source_id: 'nap_camp:test:1',
+    external_id: 'https://www.nap-camp.com/test/1',
+    company_name: '既存キャンプ場',
+    website_url: 'https://existing-camp.example/',
+    website_domain: 'existing-camp.example',
+  },
+]);
+assert(context.findExistingSourcePageLead_({ source_id: 'nap_camp:test:1' }, '別名称', '', sourcePageLeadIndex).id === 'existing-source-id', 'source ID duplicate index failed');
+assert(context.findExistingSourcePageLead_({ detail_url: 'https://www.nap-camp.com/test/1' }, '別名称', '', sourcePageLeadIndex).id === 'existing-source-id', 'source detail URL duplicate index failed');
+assert(context.findExistingSourcePageLead_({}, '別施設', 'https://existing-camp.example/another-facility', sourcePageLeadIndex) === null, 'shared official domain must not hide a different facility');
+context.addLeadToSourcePageIndex_(sourcePageLeadIndex, {
+  id: 'added-in-run',
+  source: 'source_page',
+  source_id: 'nap_camp:test:2',
+  company_name: '実行中追加キャンプ場',
+  facility_name: '実行中追加キャンプ場',
+});
+assert(context.findExistingSourcePageLead_({ source_id: 'nap_camp:test:2' }, '実行中追加キャンプ場', '', sourcePageLeadIndex).id === 'added-in-run', 'same-run duplicate index update failed');
+
 const consumerGasUsage = context.buildConsumerGasUsageStatus_({
   mailQuotaRemaining: 25,
   sentToday: 75,
@@ -303,6 +326,7 @@ const originalUpdateClaimedSearchJob = context.updateClaimedSearchJob_;
 const originalProcessProspectingSearchItem = context.processProspectingSearchItem_;
 const originalProcessSourcePageSearchItem = context.processSourcePageSearchItem_;
 const originalAppendSyncError = context.appendSyncError_;
+const originalBuildSourcePageLeadIndex = context.buildSourcePageLeadIndex_;
 let mockSearchJob = {
   id: 'job-runtime-test',
   status: 'running',
@@ -325,6 +349,7 @@ context.updateClaimedSearchJob_ = (_jobId, _lockToken, patch, release) => {
 };
 context.processProspectingSearchItem_ = () => {};
 context.appendSyncError_ = () => {};
+context.buildSourcePageLeadIndex_ = () => context.buildSourcePageLeadIndexFromRecords_([]);
 const firstJobRun = context.advanceSearchJob('job-runtime-test', { maxItems: 2, runtimeBudgetMs: 10000 });
 assert(firstJobRun.processedCount === 2 && firstJobRun.resumable === true, 'first search job run should persist progress and remain resumable');
 assert(mockSearchJob.status === 'queued' && mockSearchJob.processed_count === 2, 'partial search job should return to queued state');
@@ -363,6 +388,7 @@ context.updateClaimedSearchJob_ = originalUpdateClaimedSearchJob;
 context.processProspectingSearchItem_ = originalProcessProspectingSearchItem;
 context.processSourcePageSearchItem_ = originalProcessSourcePageSearchItem;
 context.appendSyncError_ = originalAppendSyncError;
+context.buildSourcePageLeadIndex_ = originalBuildSourcePageLeadIndex;
 
 const originalPropertiesService = context.PropertiesService;
 const originalGmailApp = context.GmailApp;
@@ -415,7 +441,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v147_collection_resume_fix'), 'v147 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v149_collection_shared_domain_fix'), 'v149 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -430,6 +456,10 @@ assert(emailSource.includes('function getEmailSendTargetBlockReason_'), 'server-
 assert(!emailSource.includes('input.force !== true'), 'email safety checks must not be bypassable with force');
 assert(operationsSource.includes("listSheetRecords('search_jobs', { limit: 1000"), 'cloud job scan should include older queued jobs');
 assert(serperSource.includes('ensureBackgroundJobTrigger_();'), 'new search jobs should ensure the cloud continuation trigger');
+assert(serperSource.includes('function buildSourcePageLeadIndexFromRecords_'), 'source-page duplicate index builder missing');
+assert(serperSource.includes('addLeadToSourcePageIndex_(leadIndex, lead);'), 'same-run source-page index update missing');
+assert(!serperSource.includes('officialDomain && index.domains'), 'source-page collection must not deduplicate different facilities by domain alone');
+assert(code.includes("clearRuntimeCaches_('leads');\n    return lead;"), 'lead creation should return the written UUID record without a full reread');
 assert(html.includes('function searchJobDisplayProgress(job, parsedPayload)'), 'facility-level collection progress helper missing');
 assert(html.includes("payload.total_candidates"), 'facility total should be used for collection progress');
 assert(html.includes("api('advanceSearchJob', jobId, { maxItems: 1 })"), 'manual search job resume should pass the server arguments separately');

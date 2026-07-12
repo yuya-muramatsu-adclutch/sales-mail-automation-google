@@ -383,6 +383,7 @@ function advanceSearchJob(jobId, options) {
   const startIndex = Math.min(Math.max(Number(job.processed_count || 0), 0), targetCount);
   const endIndex = Math.min(startIndex + maxItems, targetCount);
   const cursor = parseSearchJobCursor_(job.cursor_json);
+  const sourcePageLeadIndex = payload.job_type === 'source_page' ? buildSourcePageLeadIndex_() : null;
   let progressRecord = job;
   const summary = {
     id: job.id,
@@ -416,6 +417,7 @@ function advanceSearchJob(jobId, options) {
         const result = processSourcePageSearchItem_(item, payload, job.id, {
           deadlineMs: runWindow.deadlineMs,
           cursorOffset: cursor.itemIndex === index ? cursor.offset : 0,
+          leadIndex: sourcePageLeadIndex,
         });
         summary.updatedLeads += Number(result.created || 0);
         summary.processedCandidates += Number(result.processedCandidates || 0);
@@ -1087,7 +1089,8 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
   let discoveryMode = officialUrl ? 'direct_official_link' : 'unresolved';
   let serperResult = null;
   const sourceId = candidate.source_id || sourcePageLeadSourceId_(jobId, index, facilityName, officialUrl || candidate.detail_url || sourceUrl);
-  const existingBeforeSearch = findExistingSourcePageLead_(candidate, facilityName, officialUrl);
+  const leadIndex = runtimeContext && runtimeContext.leadIndex;
+  const existingBeforeSearch = findExistingSourcePageLead_(candidate, facilityName, officialUrl, leadIndex);
   if (existingBeforeSearch) {
     appendSourcePageResult_(jobId, {
       query: sourceUrl,
@@ -1152,7 +1155,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
   }
 
   if (officialUrl) {
-    const existingAfterSearch = findExistingSourcePageLead_(candidate, facilityName, officialUrl);
+    const existingAfterSearch = findExistingSourcePageLead_(candidate, facilityName, officialUrl, leadIndex);
     if (existingAfterSearch) {
       appendSourcePageResult_(jobId, {
         query: sourceUrl,
@@ -1235,6 +1238,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
         contact_error: contact.errorMessage || '',
       }),
     });
+    addLeadToSourcePageIndex_(leadIndex, lead);
   } catch (error) {
     errorMessage = error.message || String(error);
     reviewStatus = /^Duplicate lead exists/.test(errorMessage) ? 'duplicate' : 'dismissed';
@@ -1268,42 +1272,49 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
   return { created: Boolean(lead) };
 }
 
-function findExistingSourcePageLead_(candidate, facilityName, officialUrl) {
+function buildSourcePageLeadIndex_() {
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const sheet = ensureSheet_(spreadsheet, 'leads');
+  return buildSourcePageLeadIndexFromRecords_(readSheetRecords_(sheet));
+}
+
+function buildSourcePageLeadIndexFromRecords_(leads) {
+  const index = {
+    sourceIds: {},
+    externalUrls: {},
+    websiteUrls: {},
+    names: {},
+  };
+  (leads || []).forEach(function (lead) {
+    addLeadToSourcePageIndex_(index, lead);
+  });
+  return index;
+}
+
+function addLeadToSourcePageIndex_(index, lead) {
+  if (!index || !lead || isArchivedLead_(lead)) return index;
+  const source = String(lead.source || '').trim();
+  const sourceId = String(lead.source_id || '').trim();
+  const externalUrl = normalizeSourcePageComparableUrl_(lead.external_id || '');
+  const websiteUrl = normalizeSourcePageComparableUrl_(lead.website_url || '');
+  const name = normalizeCompanyName_(lead.normalized_company_name || lead.company_name || lead.facility_name || '');
+  if (source === 'source_page' && sourceId && !index.sourceIds[sourceId]) index.sourceIds[sourceId] = lead;
+  if (externalUrl && !index.externalUrls[externalUrl]) index.externalUrls[externalUrl] = lead;
+  if (websiteUrl && !index.websiteUrls[websiteUrl]) index.websiteUrls[websiteUrl] = lead;
+  if (name && name.length >= 4 && !index.names[name]) index.names[name] = lead;
+  return index;
+}
+
+function findExistingSourcePageLead_(candidate, facilityName, officialUrl, leadIndex) {
   const sourceId = String(candidate.source_id || '').trim();
   const candidateName = normalizeCompanyName_(facilityName || candidate.facility_name || candidate.text || '');
   const detailUrl = normalizeSourcePageComparableUrl_(candidate.detail_url || candidate.url || '');
-  const officialDomain = normalizeDomain_(officialUrl || candidate.official_url || '');
-  const spreadsheet = getOrCreateSpreadsheet_();
-  const sheet = ensureSheet_(spreadsheet, 'leads');
-  const leads = readSheetRecords_(sheet);
-
-  return leads.find(function (lead) {
-    if (isArchivedLead_(lead)) return false;
-
-    const existingSource = String(lead.source || '').trim();
-    const existingSourceId = String(lead.source_id || '').trim();
-    if (sourceId && existingSource === 'source_page' && existingSourceId === sourceId) {
-      return true;
-    }
-
-    const existingExternalUrl = normalizeSourcePageComparableUrl_(lead.external_id || '');
-    if (detailUrl && existingExternalUrl && existingExternalUrl === detailUrl) {
-      return true;
-    }
-
-    const existingWebsiteUrl = normalizeSourcePageComparableUrl_(lead.website_url || '');
-    if (detailUrl && existingWebsiteUrl && existingWebsiteUrl === detailUrl) {
-      return true;
-    }
-
-    const existingDomain = normalizeDomain_(lead.website_domain || lead.website_url || lead.form_url || lead.email_domain || '');
-    if (officialDomain && existingDomain && existingDomain === officialDomain) {
-      return true;
-    }
-
-    const existingName = normalizeCompanyName_(lead.normalized_company_name || lead.company_name || lead.facility_name || '');
-    return candidateName && candidateName.length >= 4 && existingName && existingName === candidateName;
-  }) || null;
+  const index = leadIndex || buildSourcePageLeadIndex_();
+  return (sourceId && index.sourceIds[sourceId]) ||
+    (detailUrl && index.externalUrls[detailUrl]) ||
+    (detailUrl && index.websiteUrls[detailUrl]) ||
+    (candidateName && candidateName.length >= 4 && index.names[candidateName]) ||
+    null;
 }
 
 function normalizeSourcePageComparableUrl_(url) {

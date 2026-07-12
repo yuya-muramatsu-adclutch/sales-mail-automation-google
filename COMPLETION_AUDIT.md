@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @147 / code v147: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @149 / code v149: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v147_collection_resume_fix`
+- Code version: `20260712_apps_script_full_workflow_v149_collection_shared_domain_fix`
 
 ## 計画書との対応
 
@@ -693,6 +693,22 @@
 - 停止ジョブ `699786a9-09ac-46e5-80bd-e154a1d2447f` の `query_json` を510文字へ圧縮し、実行状態を復旧。Version 147を既存Web app URLへ再デプロイ。
 - 実データで12施設の処理、Serper成功ログ12件、営業先追加、`cursor_json={"itemIndex":0,"offset":12}`、処理後のqueued復帰を確認。次回は13件目から自動再開する。
 - `node scripts/smoke-test.js`、全 `.gs` 構文チェック、`git diff --check` 成功。5,872候補の生成JSONが50,000文字未満になる回帰テストを追加。
+
+## 2026-07-12 v148 自動収集の重複判定高速化
+
+- 実行監査で、1施設ごとに5,000件超の営業リストを最大4回読み直していたため、収集処理が12施設で約3分かかることを確認。
+- 収集実行開始時に営業リスト全件から重複判定インデックスを1回作成し、source ID、まとめサイトURL、公式URL、ドメイン、正規化施設名をメモリ照合する方式へ変更。
+- 同じ実行内で追加した営業先も即座にインデックスへ反映。最終追加時のサーバー側全件重複チェックは維持し、同時実行時の安全性を保つ。
+- `createLead` は追加直後に全件再読込せず、書き込んだUUID付きレコードを返すよう変更。
+- 実環境の手動継続で `21 -> 31 / 5,872施設`、新規追加4件、重複6件、Serper成功9件、新規エラー0件を確認。
+
+## 2026-07-12 v149 共有ドメインの別施設取りこぼし修正
+
+- v148実行結果の監査で、自治体・観光協会など同じドメイン配下の別施設がドメイン単独一致で重複扱いになることを確認。
+- まとめサイト収集の事前重複判定をsource ID、まとめサイト詳細URL、正規化施設名へ限定し、共有ドメインだけでは除外しないよう変更。
+- 最終追加時のメール一致、source ID一致、施設名とドメインの複合一致は維持し、同一施設の二重登録防止を継続。
+- 誤判定された区間へカーソルを戻して実環境の時間主導トリガーで再処理し、`21 -> 41 / 5,872施設`を約3分24秒で処理、営業リスト14件追加、新規エラー0件、queued復帰を確認。
+- 大岸シーサイド、豊浦海浜公園、礼文華海浜公園、豊浦町森林公園、有珠海水浴場など、共有ドメインの別施設が個別リードとして追加されることを確認。
 
 ## 運用時に確認する外部依存
 
