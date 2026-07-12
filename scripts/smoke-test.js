@@ -189,6 +189,122 @@ assert(consumerGasUsage.limits.triggerRuntimeMinutesPerDay === 90, 'consumer tri
 assert(consumerGasUsage.email.used === 75 && consumerGasUsage.email.remaining === 25, 'consumer mail usage calculation failed');
 assert(consumerGasUsage.alerts.some((item) => item.key === 'triggers'), 'trigger quota warning should be reported');
 assert(consumerGasUsage.alerts.some((item) => item.key === 'urlFetch'), 'URL Fetch quota warning should be reported');
+const disabledAutomaticReplySweep = context.checkRepliesForLeads();
+assert(disabledAutomaticReplySweep.disabled === true && disabledAutomaticReplySweep.checked === 0, 'disabled automatic reply check should exit without Gmail access');
+
+const runWindow = context.buildSearchJobRunWindow_(300000, 1000);
+assert(runWindow.deadlineMs === 271000, 'search job run window should reserve 30 seconds');
+assert(context.isSearchJobRuntimeExhausted_(runWindow.deadlineMs, runWindow.deadlineMs), 'runtime deadline should stop processing');
+assert(context.parseSearchJobCursor_('{"itemIndex":2,"offset":7}').offset === 7, 'search job cursor should restore item offset');
+
+const originalClaimSearchJobRun = context.claimSearchJobRun_;
+const originalUpdateClaimedSearchJob = context.updateClaimedSearchJob_;
+const originalProcessProspectingSearchItem = context.processProspectingSearchItem_;
+const originalProcessSourcePageSearchItem = context.processSourcePageSearchItem_;
+const originalAppendSyncError = context.appendSyncError_;
+let mockSearchJob = {
+  id: 'job-runtime-test',
+  status: 'running',
+  lock_token: 'lock-runtime-test',
+  processed_count: 0,
+  total_count: 3,
+  attempt_count: 1,
+  cursor_json: '',
+  query_json: JSON.stringify({
+    job_type: 'prospecting',
+    job_limit: 3,
+    items: [{ query: 'one' }, { query: 'two' }, { query: 'three' }],
+  }),
+};
+context.claimSearchJobRun_ = () => ({ claimed: true, busy: false, job: Object.assign({}, mockSearchJob), lockToken: 'lock-runtime-test' });
+context.updateClaimedSearchJob_ = (_jobId, _lockToken, patch, release) => {
+  mockSearchJob = Object.assign({}, mockSearchJob, patch);
+  if (release) mockSearchJob.lock_token = '';
+  return { owned: true, record: Object.assign({}, mockSearchJob) };
+};
+context.processProspectingSearchItem_ = () => {};
+context.appendSyncError_ = () => {};
+const firstJobRun = context.advanceSearchJob('job-runtime-test', { maxItems: 2, runtimeBudgetMs: 10000 });
+assert(firstJobRun.processedCount === 2 && firstJobRun.resumable === true, 'first search job run should persist progress and remain resumable');
+assert(mockSearchJob.status === 'queued' && mockSearchJob.processed_count === 2, 'partial search job should return to queued state');
+mockSearchJob.lock_token = 'lock-runtime-test';
+mockSearchJob.status = 'running';
+const secondJobRun = context.advanceSearchJob('job-runtime-test', { maxItems: 2, runtimeBudgetMs: 10000 });
+assert(secondJobRun.completed === true && secondJobRun.processedCount === 3, 'second search job run should resume and complete');
+
+context.claimSearchJobRun_ = () => ({ claimed: false, busy: true, reason: 'already_running', job: Object.assign({}, mockSearchJob, { status: 'running' }) });
+const busyJobRun = context.advanceSearchJob('job-runtime-test', { maxItems: 1, runtimeBudgetMs: 10000 });
+assert(busyJobRun.busy === true && busyJobRun.skipped === true && busyJobRun.processed === 0, 'active search job claim should prevent duplicate processing');
+
+mockSearchJob = {
+  id: 'job-source-cursor-test',
+  status: 'running',
+  lock_token: 'lock-source-test',
+  processed_count: 0,
+  total_count: 1,
+  attempt_count: 1,
+  cursor_json: '',
+  query_json: JSON.stringify({
+    job_type: 'source_page',
+    job_limit: 1,
+    items: [{ source_url: 'example.com/list' }],
+  }),
+};
+context.claimSearchJobRun_ = () => ({ claimed: true, busy: false, job: Object.assign({}, mockSearchJob), lockToken: 'lock-source-test' });
+context.processSourcePageSearchItem_ = () => ({ created: 1, processedCandidates: 2, processedAll: false, nextOffset: 2 });
+const cursorJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
+const storedCursor = JSON.parse(mockSearchJob.cursor_json || '{}');
+assert(cursorJobRun.pausedForRuntime === true && cursorJobRun.processedCount === 0, 'partial source page item should pause without advancing the outer item');
+assert(storedCursor.itemIndex === 0 && storedCursor.offset === 2, 'partial source page item should persist its inner cursor');
+
+context.claimSearchJobRun_ = originalClaimSearchJobRun;
+context.updateClaimedSearchJob_ = originalUpdateClaimedSearchJob;
+context.processProspectingSearchItem_ = originalProcessProspectingSearchItem;
+context.processSourcePageSearchItem_ = originalProcessSourcePageSearchItem;
+context.appendSyncError_ = originalAppendSyncError;
+
+const originalPropertiesService = context.PropertiesService;
+const originalGmailApp = context.GmailApp;
+const originalListLeads = context.listLeads;
+const originalWithScriptLock = context.withScriptLock_;
+const originalClaimGmailReplyCheckRun = context.claimGmailReplyCheckRun_;
+const originalReleaseGmailReplyCheckRun = context.releaseGmailReplyCheckRun_;
+const replyCursorStore = {};
+const replyLeads = Array.from({ length: 5 }, (_value, index) => ({
+  id: `reply-lead-${index + 1}`,
+  email: `reply${index + 1}@example.com`,
+  reply_checked: false,
+}));
+context.PropertiesService = {
+  getScriptProperties() {
+    return {
+      getProperty(key) { return replyCursorStore[key] || ''; },
+      setProperty(key, value) { replyCursorStore[key] = String(value); },
+      deleteProperty(key) { delete replyCursorStore[key]; },
+    };
+  },
+};
+context.GmailApp = { search() { return []; } };
+context.listLeads = (options) => ({
+  total: replyLeads.length,
+  items: replyLeads.slice(Number(options.offset || 0), Number(options.offset || 0) + Number(options.limit || 100)),
+});
+context.withScriptLock_ = (_operation, callback) => callback();
+context.claimGmailReplyCheckRun_ = () => ({ claimed: true, busy: false, lockToken: 'reply-check-test-lock' });
+context.releaseGmailReplyCheckRun_ = () => true;
+const firstReplySweep = context.checkRepliesForLeads({ maxThreads: 2, limit: 5, runtimeBudgetMs: 10000 });
+assert(firstReplySweep.attemptedChecks === 2 && firstReplySweep.nextCursorOffset === 2, 'reply check should cap attempts and persist the next cursor');
+const secondReplySweep = context.checkRepliesForLeads({ maxThreads: 2, limit: 5, runtimeBudgetMs: 10000 });
+assert(secondReplySweep.cursorOffset === 2 && secondReplySweep.nextCursorOffset === 4, 'reply check should resume from the persisted cursor');
+context.claimGmailReplyCheckRun_ = () => ({ claimed: false, busy: true });
+const busyReplySweep = context.checkRepliesForLeads({ maxThreads: 2, limit: 5, runtimeBudgetMs: 10000 });
+assert(busyReplySweep.busy === true && busyReplySweep.checked === 0, 'concurrent reply check should be skipped safely');
+context.PropertiesService = originalPropertiesService;
+context.GmailApp = originalGmailApp;
+context.listLeads = originalListLeads;
+context.withScriptLock_ = originalWithScriptLock;
+context.claimGmailReplyCheckRun_ = originalClaimGmailReplyCheckRun;
+context.releaseGmailReplyCheckRun_ = originalReleaseGmailReplyCheckRun;
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
@@ -196,7 +312,10 @@ const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const masters = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v141_runtime_label_clarity'), 'v141 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v143_resumable_job_runtime_hardening'), 'v143 app version missing');
+assert(code.includes("'cursor_json'"), 'search job cursor column missing');
+assert(code.includes("'lock_token'"), 'search job lock token column missing');
+assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
 assert(html.includes('id="gasUsagePanel"'), 'consumer GAS usage panel missing');
 assert(html.includes('function renderGasUsagePanel()'), 'consumer GAS usage renderer missing');
 assert(html.includes('一般Googleアカウント'), 'consumer account quota label missing');

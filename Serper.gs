@@ -308,7 +308,12 @@ function startSerperSearchJob(input) {
       processed_count: 0,
       daily_limit: payload.daily_limit,
       job_limit: payload.job_limit,
+      cursor_json: '',
       last_error: '',
+      lock_token: '',
+      locked_at: '',
+      last_heartbeat_at: '',
+      attempt_count: 0,
       started_at: '',
       finished_at: '',
     });
@@ -319,33 +324,85 @@ function advanceSearchJob(jobId, options) {
   const input = options && typeof options === 'object' ? options : {};
   const maxItems = Math.min(Math.max(Number(input.maxItems) || 5, 1), 20);
   const runtimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000, 10000), 330000);
-  const startedAtMs = Date.now();
-  const job = findSheetRecordById_('search_jobs', jobId);
-  if (!job) throw new Error('Search job not found: ' + jobId);
-  const payload = JSON.parse(job.query_json || '{}');
-  const items = Array.isArray(payload.items) ? payload.items : [];
-  const startIndex = Number(job.processed_count || 0);
-  const endIndex = Math.min(startIndex + maxItems, items.length, Number(payload.job_limit || items.length));
-  const startedAt = job.started_at || nowIso_();
+  const runWindow = buildSearchJobRunWindow_(runtimeBudgetMs, Date.now());
+  const claim = claimSearchJobRun_(jobId, runtimeBudgetMs);
+  const claimedJob = claim.job || {};
+  if (!claim.claimed) {
+    return {
+      id: claimedJob.id || String(jobId || ''),
+      processed: 0,
+      processedCount: Number(claimedJob.processed_count || 0),
+      total: Number(claimedJob.total_count || 0),
+      remaining: Math.max(Number(claimedJob.total_count || 0) - Number(claimedJob.processed_count || 0), 0),
+      updatedLeads: 0,
+      errors: [],
+      completed: String(claimedJob.status || '') === 'completed',
+      busy: claim.busy === true,
+      skipped: true,
+      resumable: String(claimedJob.status || '') === 'queued' || String(claimedJob.status || '') === 'running',
+      reason: claim.reason || 'not_claimed',
+      elapsedMs: Date.now() - runWindow.startedAtMs,
+    };
+  }
+
+  const job = claim.job;
+  const lockToken = claim.lockToken;
+  let payload = {};
+  let items = [];
+  try {
+    payload = JSON.parse(job.query_json || '{}');
+    items = Array.isArray(payload.items) ? payload.items : [];
+    if (!items.length) throw new Error('Search job payload has no items.');
+  } catch (error) {
+    updateClaimedSearchJob_(job.id, lockToken, {
+      status: 'failed',
+      last_error: error.message || String(error),
+      finished_at: nowIso_(),
+    }, true);
+    appendSyncError_('advanceSearchJobPayload', error, {
+      target_sheet: 'search_jobs',
+      target_id: job.id,
+    });
+    return {
+      id: job.id,
+      processed: 0,
+      processedCount: Number(job.processed_count || 0),
+      total: Number(job.total_count || 0),
+      remaining: Math.max(Number(job.total_count || 0) - Number(job.processed_count || 0), 0),
+      updatedLeads: 0,
+      errors: [{ index: Number(job.processed_count || 0), message: error.message || String(error) }],
+      completed: true,
+      failed: true,
+      resumable: false,
+      elapsedMs: Date.now() - runWindow.startedAtMs,
+    };
+  }
+
+  const targetCount = Math.min(items.length, Number(payload.job_limit || items.length));
+  const startIndex = Math.min(Math.max(Number(job.processed_count || 0), 0), targetCount);
+  const endIndex = Math.min(startIndex + maxItems, targetCount);
+  const cursor = parseSearchJobCursor_(job.cursor_json);
+  let progressRecord = job;
   const summary = {
     id: job.id,
     processed: 0,
     processedCount: startIndex,
-    total: items.length,
-    remaining: Math.max(items.length - startIndex, 0),
+    total: targetCount,
+    remaining: Math.max(targetCount - startIndex, 0),
     updatedLeads: 0,
+    processedCandidates: 0,
     errors: [],
     completed: false,
+    busy: false,
+    skipped: false,
+    resumable: true,
+    pausedForRuntime: false,
+    attemptCount: Number(job.attempt_count || 0),
   };
 
-  updateSheetRecord_('search_jobs', job.id, {
-    status: 'running',
-    started_at: startedAt,
-    last_error: '',
-  });
-
   for (let index = startIndex; index < endIndex; index += 1) {
-    if (Date.now() - startedAtMs > runtimeBudgetMs - 15000) {
+    if (isSearchJobRuntimeExhausted_(runWindow.deadlineMs)) {
+      summary.pausedForRuntime = true;
       break;
     }
 
@@ -355,15 +412,36 @@ function advanceSearchJob(jobId, options) {
         const result = processLeadSearchItem_(item, payload.job_type, job.id);
         if (result.updated) summary.updatedLeads += 1;
       } else if (payload.job_type === 'source_page') {
-        const result = processSourcePageSearchItem_(item, payload, job.id);
+        const result = processSourcePageSearchItem_(item, payload, job.id, {
+          deadlineMs: runWindow.deadlineMs,
+          cursorOffset: cursor.itemIndex === index ? cursor.offset : 0,
+        });
         summary.updatedLeads += Number(result.created || 0);
+        summary.processedCandidates += Number(result.processedCandidates || 0);
+        if (result.processedAll === false) {
+          summary.pausedForRuntime = true;
+          const partialUpdate = updateClaimedSearchJob_(job.id, lockToken, {
+            status: 'running',
+            cursor_json: safeJsonStringify_({ itemIndex: index, offset: Number(result.nextOffset || 0) }),
+            last_heartbeat_at: nowIso_(),
+          }, false);
+          if (partialUpdate.owned) progressRecord = partialUpdate.record;
+          break;
+        }
       } else {
         processProspectingSearchItem_(item, payload, job.id);
       }
       summary.processed += 1;
-      updateSheetRecord_('search_jobs', job.id, {
+      const progressUpdate = updateClaimedSearchJob_(job.id, lockToken, {
         processed_count: index + 1,
-      });
+        cursor_json: '',
+        last_heartbeat_at: nowIso_(),
+      }, false);
+      if (!progressUpdate.owned) {
+        summary.errors.push({ index: index, message: 'Search job ownership was lost.' });
+        break;
+      }
+      progressRecord = progressUpdate.record;
     } catch (error) {
       summary.errors.push({
         index: index,
@@ -374,32 +452,122 @@ function advanceSearchJob(jobId, options) {
         target_id: job.id,
         item: item,
       });
-      updateSheetRecord_('search_jobs', job.id, {
+      const errorUpdate = updateClaimedSearchJob_(job.id, lockToken, {
         processed_count: index + 1,
+        cursor_json: '',
         last_error: error.message,
-      });
+        last_heartbeat_at: nowIso_(),
+      }, false);
+      if (!errorUpdate.owned) break;
+      progressRecord = errorUpdate.record;
     }
   }
 
-  const latestJob = findSheetRecordById_('search_jobs', job.id);
-  const processedCount = Number(latestJob.processed_count || 0);
-  const completed = processedCount >= items.length || processedCount >= Number(payload.job_limit || items.length);
+  const processedCount = Number(progressRecord.processed_count || 0);
+  const completed = processedCount >= targetCount;
   summary.processedCount = processedCount;
-  summary.total = items.length;
-  summary.remaining = Math.max(items.length - processedCount, 0);
+  summary.total = targetCount;
+  summary.remaining = Math.max(targetCount - processedCount, 0);
   if (completed) {
-    updateSheetRecord_('search_jobs', job.id, {
+    updateClaimedSearchJob_(job.id, lockToken, {
       status: summary.errors.length > 0 ? 'failed' : 'completed',
+      cursor_json: '',
       finished_at: nowIso_(),
-    });
+    }, true);
   } else {
-    updateSheetRecord_('search_jobs', job.id, {
+    updateClaimedSearchJob_(job.id, lockToken, {
       status: 'queued',
-    });
+      finished_at: '',
+    }, true);
   }
 
   summary.completed = completed;
+  summary.resumable = !completed;
+  summary.elapsedMs = Date.now() - runWindow.startedAtMs;
   return summary;
+}
+
+function buildSearchJobRunWindow_(runtimeBudgetMs, startedAtMs) {
+  const budgetMs = Math.min(Math.max(Number(runtimeBudgetMs) || 300000, 10000), 330000);
+  const startMs = Number(startedAtMs) || Date.now();
+  const safetyMarginMs = Math.min(30000, Math.max(5000, Math.floor(budgetMs * 0.2)));
+  return {
+    startedAtMs: startMs,
+    budgetMs: budgetMs,
+    safetyMarginMs: safetyMarginMs,
+    deadlineMs: startMs + budgetMs - safetyMarginMs,
+  };
+}
+
+function isSearchJobRuntimeExhausted_(deadlineMs, nowMs) {
+  return (Number(nowMs) || Date.now()) >= Number(deadlineMs || 0);
+}
+
+function hasSearchJobRuntimeAvailable_(context, reserveMs) {
+  const input = context && typeof context === 'object' ? context : {};
+  if (!input.deadlineMs) return true;
+  return Date.now() + Math.max(Number(reserveMs) || 0, 0) < Number(input.deadlineMs);
+}
+
+function parseSearchJobCursor_(value) {
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value || '{}') : (value || {});
+    return {
+      itemIndex: Math.max(Number(parsed.itemIndex) || 0, 0),
+      offset: Math.max(Number(parsed.offset) || 0, 0),
+    };
+  } catch (error) {
+    return { itemIndex: 0, offset: 0 };
+  }
+}
+
+function claimSearchJobRun_(jobId, runtimeBudgetMs) {
+  return withScriptLock_('claimSearchJobRun', function () {
+    const job = findSheetRecordById_('search_jobs', jobId);
+    if (!job) throw new Error('Search job not found: ' + jobId);
+    const status = String(job.status || 'queued');
+    if (status === 'completed' || status === 'failed' || status === 'paused') {
+      return { claimed: false, busy: false, job: job, reason: status };
+    }
+    const lockedAtMs = new Date(job.locked_at || 0).getTime();
+    const leaseMs = Math.max(420000, Number(runtimeBudgetMs || 300000) + 90000);
+    const activeClaim = status === 'running' && job.lock_token && Number.isFinite(lockedAtMs) && Date.now() - lockedAtMs < leaseMs;
+    if (activeClaim) {
+      return { claimed: false, busy: true, job: job, reason: 'already_running' };
+    }
+    const now = nowIso_();
+    const lockToken = Utilities.getUuid();
+    const claimedJob = updateSheetRecord_('search_jobs', job.id, {
+      status: 'running',
+      lock_token: lockToken,
+      locked_at: now,
+      last_heartbeat_at: now,
+      attempt_count: Number(job.attempt_count || 0) + 1,
+      started_at: job.started_at || now,
+      finished_at: '',
+      last_error: '',
+    });
+    return { claimed: true, busy: false, job: claimedJob, lockToken: lockToken, reason: status === 'running' ? 'stale_recovery' : 'claimed' };
+  });
+}
+
+function updateClaimedSearchJob_(jobId, lockToken, patch, release) {
+  return withScriptLock_('updateClaimedSearchJob', function () {
+    const current = findSheetRecordById_('search_jobs', jobId);
+    if (!current || String(current.lock_token || '') !== String(lockToken || '')) {
+      return { owned: false, record: current || null };
+    }
+    const nextPatch = Object.assign({}, patch || {});
+    if (release === true) {
+      nextPatch.lock_token = '';
+      nextPatch.locked_at = '';
+      nextPatch.last_heartbeat_at = nowIso_();
+    }
+    return {
+      owned: true,
+      record: updateSheetRecord_('search_jobs', jobId, nextPatch),
+    };
+  });
 }
 
 function normalizeSearchJobInput_(input) {
@@ -621,44 +789,69 @@ function processProspectingSearchItem_(item, payload, jobId) {
   });
 }
 
-function processNapCampSourcePageItem_(item, payload, jobId) {
+function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
   const sourceUrl = normalizeUrl_(item.source_url || payload.source_url || NAP_CAMP_LIST_URL);
+  const cursorOffset = Math.max(Number(runtimeContext && runtimeContext.cursorOffset) || 0, 0);
+  if (!hasSearchJobRuntimeAvailable_(runtimeContext, 30000)) {
+    return {
+      created: 0,
+      skipped: 0,
+      candidates: 0,
+      offset: Math.max(Number(item.offset) || 0, 0),
+      totalCandidates: Number(item.total_candidates || 0),
+      processedCandidates: 0,
+      processedAll: false,
+      nextOffset: cursorOffset,
+    };
+  }
   const allCandidates = fetchNapCampCampsiteUrlEntries_();
   const offset = Math.max(Number(item.offset) || 0, 0);
   const limit = Math.min(Math.max(Number(item.max_items || payload.results_per_query || 20) || 20, 1), 20);
-  const candidates = allCandidates.slice(offset, offset + limit);
+  const chunkLength = Math.max(Math.min(limit, allCandidates.length - offset), 0);
+  const candidates = allCandidates.slice(offset + cursorOffset, offset + limit);
   const summary = {
     created: 0,
     skipped: 0,
     candidates: candidates.length,
     offset: offset,
     totalCandidates: allCandidates.length,
+    processedCandidates: 0,
+    processedAll: cursorOffset >= chunkLength,
+    nextOffset: cursorOffset,
   };
 
   if (!candidates.length) {
-    appendSourcePageResult_(jobId, {
-      query: sourceUrl,
-      resultType: 'source_page_empty',
-      title: item.label || payload.label || 'なっぷ全件収集',
-      url: sourceUrl,
-      snippet: 'このチャンクには処理対象の施設がありません。',
-      rank: offset + 1,
-      reviewStatus: 'unconfirmed',
-      raw: {
-        source_url: sourceUrl,
-        site_preset: 'nap_camp',
-        offset: offset,
-        total_candidates: allCandidates.length,
-      },
-    });
+    if (chunkLength === 0 && cursorOffset === 0) {
+      appendSourcePageResult_(jobId, {
+        query: sourceUrl,
+        resultType: 'source_page_empty',
+        title: item.label || payload.label || 'なっぷ全件収集',
+        url: sourceUrl,
+        snippet: 'このチャンクには処理対象の施設がありません。',
+        rank: offset + 1,
+        reviewStatus: 'unconfirmed',
+        raw: {
+          source_url: sourceUrl,
+          site_preset: 'nap_camp',
+          offset: offset,
+          total_candidates: allCandidates.length,
+        },
+      });
+    }
+    summary.processedAll = true;
     return summary;
   }
 
-  candidates.forEach(function (entry, index) {
-    const rank = offset + index + 1;
+  for (let index = 0; index < candidates.length; index += 1) {
+    if (!hasSearchJobRuntimeAvailable_(runtimeContext, 30000)) {
+      break;
+    }
+    const entry = candidates[index];
+    const rank = offset + cursorOffset + index + 1;
     try {
       const candidate = buildNapCampSourcePageCandidate_(entry, sourceUrl);
-      const result = processSourcePageCandidate_(candidate, item, payload, jobId, rank - 1);
+      const result = processSourcePageCandidate_(candidate, item, payload, jobId, rank - 1, runtimeContext);
+      if (result.deferred) break;
       if (result.created) summary.created += 1;
       if (result.skipped) summary.skipped += 1;
     } catch (error) {
@@ -685,8 +878,11 @@ function processNapCampSourcePageItem_(item, payload, jobId) {
         },
       });
     }
-  });
+    summary.processedCandidates += 1;
+    summary.nextOffset = cursorOffset + summary.processedCandidates;
+  }
 
+  summary.processedAll = summary.nextOffset >= chunkLength;
   return summary;
 }
 
@@ -798,18 +994,25 @@ function extractMetaContentFromHtml_(html, name) {
   return match && match[1] ? decodeHtmlEntitiesBasic_(match[1]) : '';
 }
 
-function processSourcePageSearchItem_(item, payload, jobId) {
+function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
   if (String(item.site_preset || payload.site_preset || '') === 'nap_camp') {
-    return processNapCampSourcePageItem_(item, payload, jobId);
+    return processNapCampSourcePageItem_(item, payload, jobId, runtimeContext);
   }
 
   const sourceUrl = normalizeUrl_(item.source_url || item.url || '');
   const limit = Math.min(Math.max(Number(payload.results_per_query || item.max_items || 5) || 5, 1), 20);
+  const cursorOffset = Math.max(Number(runtimeContext && runtimeContext.cursorOffset) || 0, 0);
+  if (!hasSearchJobRuntimeAvailable_(runtimeContext, 30000)) {
+    return { created: 0, candidates: 0, processedCandidates: 0, processedAll: false, nextOffset: cursorOffset };
+  }
   const page = fetchProspectingHtml_(sourceUrl);
   const candidates = extractSourcePageCandidates_(page.html, sourceUrl, limit);
   const summary = {
     created: 0,
     candidates: candidates.length,
+    processedCandidates: 0,
+    processedAll: cursorOffset >= candidates.length,
+    nextOffset: cursorOffset,
   };
 
   if (!candidates.length) {
@@ -826,12 +1029,19 @@ function processSourcePageSearchItem_(item, payload, jobId) {
         reason: 'no_candidates',
       },
     });
+    summary.processedAll = true;
     return summary;
   }
 
-  candidates.slice(0, limit).forEach(function (candidate, index) {
+  const limitedCandidates = candidates.slice(0, limit);
+  for (let index = cursorOffset; index < limitedCandidates.length; index += 1) {
+    if (!hasSearchJobRuntimeAvailable_(runtimeContext, 30000)) {
+      break;
+    }
+    const candidate = limitedCandidates[index];
     try {
-      const result = processSourcePageCandidate_(candidate, item, payload, jobId, index);
+      const result = processSourcePageCandidate_(candidate, item, payload, jobId, index, runtimeContext);
+      if (result.deferred) break;
       if (result.created) summary.created += 1;
     } catch (error) {
       appendSyncError_('processSourcePageCandidate', error, {
@@ -855,12 +1065,15 @@ function processSourcePageSearchItem_(item, payload, jobId) {
         },
       });
     }
-  });
+    summary.processedCandidates += 1;
+    summary.nextOffset = index + 1;
+  }
 
+  summary.processedAll = summary.nextOffset >= limitedCandidates.length;
   return summary;
 }
 
-function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
+function processSourcePageCandidate_(candidate, item, payload, jobId, index, runtimeContext) {
   const sourceUrl = normalizeUrl_(item.source_url || item.url || payload.source_url || candidate.source_url || '');
   const sourceDomain = normalizeDomain_(sourceUrl);
   const sitePreset = String(candidate.source_preset || item.site_preset || payload.site_preset || '').trim();
@@ -894,6 +1107,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
   }
 
   if (!officialUrl && candidate.detail_url && !candidate.skip_detail_official) {
+    if (!hasSearchJobRuntimeAvailable_(runtimeContext, 35000)) return { created: false, deferred: true };
     try {
       const detailPage = fetchProspectingHtml_(candidate.detail_url);
       officialUrl = extractFirstOfficialLinkFromHtml_(detailPage.html, candidate.detail_url, sourceDomain);
@@ -904,6 +1118,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
   }
 
   if (!officialUrl && payload.use_serper_fallback !== false && getSerperApiKey_()) {
+    if (!hasSearchJobRuntimeAvailable_(runtimeContext, 45000)) return { created: false, deferred: true };
     try {
       assertSerperLimitAvailable_();
       const query = candidate.serper_query || [facilityName, candidate.address || '', genre, '公式サイト'].filter(Boolean).join(' ');
@@ -980,6 +1195,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
     return { created: false };
   }
 
+  if (officialUrl && !hasSearchJobRuntimeAvailable_(runtimeContext, 30000)) return { created: false, deferred: true };
   const contact = officialUrl ? extractContactFromOfficialPage_(officialUrl) : {
     email: '',
     formUrl: '',
@@ -989,6 +1205,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index) {
   let lead = null;
   let reviewStatus = 'added';
   let errorMessage = '';
+  if (!hasSearchJobRuntimeAvailable_(runtimeContext, 10000)) return { created: false, deferred: true };
   try {
     lead = createLead({
       source: 'source_page',

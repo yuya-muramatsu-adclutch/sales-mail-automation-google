@@ -17235,7 +17235,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
           ['種類', escapeHtml(job.job_type || job.type || '-')],
           ['状態', statusPill(job.status || '-')],
-          ['進捗', `${formatNumber(job.processed_count || job.processed || 0)} / ${formatNumber(job.total_count || job.total || 0)}`],
+          ['進捗', backgroundSearchJobProgressLabel(job)],
           ['次の処理', escapeHtml(dateTimeLabel(job.next_run_at || job.updated_at) || '-')],
           ['エラー', escapeHtml(job.error_message || job.last_error || '-')],
           ['操作', ['queued', 'running'].includes(String(job.status || '')) ? `<button type="button" class="table-link-button" onclick="advanceBackgroundSearchJob('${escapeJsString(job.id)}')">次を処理</button>` : '<span class="muted">-</span>'],
@@ -17245,11 +17245,30 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function advanceBackgroundSearchJob(jobId) {
         if (!jobId) return;
         const result = await api('advanceSearchJob', { jobId, maxItems: 1 });
-        const remainingText = Number(result.remaining || 0) ? ` / 残り ${formatNumber(result.remaining)}チャンク` : '';
-        message(`ジョブを進めました: ${formatNumber(result.processed || 0)}チャンク${remainingText}`, result.errors && result.errors.length ? 'error' : 'ok');
+        if (result.busy) {
+          message('このジョブは別の処理で実行中です。完了後に自動で続きから再開します。', 'ok');
+        } else if (result.pausedForRuntime) {
+          message(`最大処理時間の前に途中位置を保存しました。残り ${formatNumber(result.remaining || 0)}チャンクは次回再開します。`, 'ok');
+        } else {
+          const remainingText = Number(result.remaining || 0) ? ` / 残り ${formatNumber(result.remaining)}チャンク` : '';
+          message(`ジョブを進めました: ${formatNumber(result.processed || 0)}チャンク${remainingText}`, result.errors && result.errors.length ? 'error' : 'ok');
+        }
         await loadOpsData({ render: false });
         renderBackgroundJobsScreen();
         if (state.dataLoaded.search) await loadSearchResults();
+      }
+
+      function backgroundSearchJobProgressLabel(job) {
+        const processed = Number(job.processed_count || job.processed || 0);
+        const total = Number(job.total_count || job.total || 0);
+        let cursor = {};
+        try {
+          cursor = JSON.parse(job.cursor_json || '{}');
+        } catch (error) {
+          cursor = {};
+        }
+        const innerOffset = Math.max(Number(cursor.offset) || 0, 0);
+        return `${formatNumber(processed)} / ${formatNumber(total)}${innerOffset > 0 ? `<small class="muted">チャンク内 ${formatNumber(innerOffset)}件まで保存</small>` : ''}`;
       }
 
       function renderBackgroundActivityScreen() {
@@ -19112,14 +19131,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderReplyCheckResultSummary(result) {
+        if (result.busy) {
+          return `<div class="notice info">${legacyUiIcon('timerReset')}<span>返信確認は別の処理で実行中です。完了後、保存済み位置から次回も継続します。</span></div>`;
+        }
         return `
           <div class="admin-check-summary">
-            <div><span>確認スレッド</span><strong>${formatNumber(result.checked || 0)}</strong></div>
+            <div><span>確認した営業先</span><strong>${formatNumber(result.attemptedChecks || result.checked || 0)}</strong></div>
             <div><span>返信検出</span><strong>${formatNumber(result.detected || result.replies || 0)}</strong></div>
             <div><span>自動返信除外</span><strong>${formatNumber(result.ignoredAutoReplies || 0)}</strong></div>
             <div><span>更新</span><strong>${formatNumber(result.updated || result.replies || 0)}</strong></div>
             <div><span>エラー</span><strong>${formatNumber((result.errors || []).length)}</strong></div>
-            <div><span>残り</span><strong>${formatNumber(result.remaining || 0)}</strong></div>
+            <div><span>次回</span><strong>${result.resumable ? '続きから' : '完了'}</strong><small>${result.stoppedForRuntime ? '最大処理時間前に保存' : `残り ${formatNumber(result.remaining || 0)}件`}</small></div>
           </div>
         `;
       }
@@ -20148,7 +20170,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const meters = [
           { label: 'メール受信者', note: `アプリ上限 ${formatNumber(email.appLimit || 80)}件`, value: email.used || 0, limit: email.limit || 100, valueLabel: `${formatNumber(email.used || 0)} / ${formatNumber(email.limit || 100)}`, limitLabel: `${formatNumber(email.limit || 100)}人/日` },
           { label: '時間主導トリガー', note: '実測', value: triggers.used || 0, limit: triggers.limit || 20, valueLabel: `${formatNumber(triggers.used || 0)} / ${formatNumber(triggers.limit || 20)}`, limitLabel: `${formatNumber(triggers.limit || 20)}件` },
-          { label: '1回の最大処理時間', note: '6分前に分割', value: runtime.budgetSeconds || 300, limit: runtime.limitSeconds || 360, valueLabel: `${formatNumber(runtime.budgetSeconds || 300)}秒`, limitLabel: `${formatNumber(runtime.limitSeconds || 360)}秒` },
+          { label: '1回の最大処理時間', note: '収集・返信を途中保存', value: runtime.budgetSeconds || 300, limit: runtime.limitSeconds || 360, valueLabel: `${formatNumber(runtime.budgetSeconds || 300)}秒`, limitLabel: `${formatNumber(runtime.limitSeconds || 360)}秒` },
           { label: 'URL取得', note: 'アプリ記録分の下限', value: urlFetch.recorded || 0, limit: urlFetch.limit || 20000, valueLabel: `${formatNumber(urlFetch.recorded || 0)}回以上`, limitLabel: `${formatNumber(urlFetch.limit || 20000)}回/日` },
           { label: 'Apps Scriptバージョン', note: 'コード版から判定', value: versions.used || 0, limit: versions.limit || 200, valueLabel: `v${formatNumber(versions.used || 0)}`, limitLabel: `${formatNumber(versions.limit || 200)}版` },
         ];
@@ -20506,7 +20528,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function checkReplies(maxThreads) {
         const result = await api('checkRepliesForLeads', { maxThreads: maxThreads || 100 });
         state.replyCheckResult = result;
-        message(`返信チェック: ${formatNumber(result.updated || result.replies || 0)}件を返信ありに更新しました`, (result.errors || []).length ? 'error' : 'ok');
+        if (result.busy) {
+          message('返信チェックは別の処理で実行中です。次回も保存済み位置から継続します。', 'ok');
+        } else {
+          const suffix = result.stoppedForRuntime ? ' / 最大処理時間前に続きを保存しました' : '';
+          message(`返信チェック: ${formatNumber(result.updated || result.replies || 0)}件を返信ありに更新しました${suffix}`, (result.errors || []).length ? 'error' : 'ok');
+        }
         await refreshAll();
       }
 
@@ -20527,7 +20554,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function advanceJobs() {
         const result = await api('advanceQueuedJobs', { maxJobs: 3, maxItems: 5 });
-        message(`ジョブ処理: ${result.jobs.length}件`, 'ok');
+        const suffix = result.stoppedForRuntime ? ` / 最大処理時間前に保存・残り${formatNumber(result.remainingJobs || 0)}件` : '';
+        message(`ジョブ処理: ${result.jobs.length}件${suffix}`, result.errors && result.errors.length ? 'error' : 'ok');
         await refreshAll();
       }
 

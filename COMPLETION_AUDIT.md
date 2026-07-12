@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @141 / code v141: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @143 / code v143: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v141_runtime_label_clarity`
+- Code version: `20260712_apps_script_full_workflow_v143_resumable_job_runtime_hardening`
 
 ## 計画書との対応
 
@@ -34,7 +34,7 @@
 | Google Calendar登録 | 完了 | `createCalendarEventForLead()` とリード詳細UI実装済み |
 | ダッシュボード | 完了 | 全5,441件対象の集計表示、CacheService、`dashboard_cache` 実装済み |
 | CSVインポート | 完了 | 運用UIと `importLeadsFromCsv()` 実装済み |
-| バッチ再開 | 完了 | `search_jobs` の `processed_count` と `advanceQueuedJobs()` 実装済み |
+| バッチ再開 | 完了 | `processed_count`、`cursor_json`、占有期限、`advanceQueuedJobs()` の共通実行期限でチャンク途中から再開 |
 | Driveバックアップ | 完了 | `createSpreadsheetBackup()` 実装済み |
 | `doPost` API | 完了 | v8でリード、テンプレート、マスター、検索、運用系アクションを公開 |
 | 旧アプリからの営業リスト移行 | 完了 | Supabase `sales_leads` 5,441件を `leads` へ移行済み |
@@ -649,6 +649,19 @@
 - `node scripts/smoke-test.js`、主要 `.gs` 構文チェック、`git diff --check` 成功。
 - `clasp push -f`、Version 141作成、既存Web app URLの `@141` 再デプロイ成功。
 - ChromeでVersion 141、新表記表示、旧表記なし、ブラウザ警告・エラーログ0件を確認。
+
+## 2026-07-12 v143 分割処理・自動再開の安全監査
+
+- 監査で、複数ジョブがそれぞれ最大300秒を持ち合計6分を超え得る問題、同一ジョブの手動/トリガー二重実行余地、サイト収集チャンク内の途中位置未保存、Gmail返信確認の先頭範囲繰り返しを確認。
+- `advanceQueuedJobs()` は複数ジョブ全体で最大処理時間を共有し、古い更新順に処理して未完了ジョブを後ろへ回すよう修正。
+- `search_jobs` に `cursor_json`、`lock_token`、`locked_at`、`last_heartbeat_at`、`attempt_count` を追加。同一ジョブは短時間の占有処理で二重実行を防止し、7分以上経過した占有はGAS強制終了として次回自動復旧。
+- サイト収集は外側のチャンク番号に加えてチャンク内施設位置を保存。最大処理時間前に保存し、次回同じ施設位置から再開。
+- Gmail返信確認は1回の確認営業先数を正しく制限し、PropertiesServiceへ次回開始位置を保存。手動とトリガーの同時実行も占有処理で防止。
+- Gmail返信自動チェックがOFFの場合、6時間トリガーから呼ばれてもGmailへアクセスせず即終了。画面からの手動確認は引き続き利用可能。
+- モックジョブで `2件処理→queued→次回3件目を完了`、実行中ジョブの二重処理スキップ、サイト収集のチャンク内2件目保存、返信確認の `0→2→4` 巡回カーソル、OFF時のGmail未実行を自動テスト。
+- `node scripts/smoke-test.js`、主要 `.gs` 構文チェック、`git diff --check` 成功。
+- Version 142で定期トリガー作成導線を確認後、最終修正版をVersion 143として既存Web app URLへ再デプロイ。
+- ChromeでVersion 143、時間主導トリガー2件、最大処理時間300秒、ブラウザ警告・エラーログ0件を確認。現在の実ジョブは0件のため、Serper実検索や営業リスト変更を伴う試験は未実施。
 
 ## 運用時に確認する外部依存
 

@@ -1,25 +1,83 @@
 function checkRepliesForLeads(options) {
   const input = options && typeof options === 'object' ? options : {};
-  const maxThreads = Math.min(Math.max(Number(input.maxThreads) || Number(getSettingValue_('gmail_reply_check', {}).maxThreads || 100), 1), 500);
+  const replySetting = getSettingValue_('gmail_reply_check', { enabled: false, maxThreads: 100 }) || {};
+  const manualRun = Object.prototype.hasOwnProperty.call(input, 'maxThreads') || input.force === true;
+  if (!manualRun && replySetting.enabled !== true) {
+    return {
+      checked: 0,
+      detected: 0,
+      elapsedMs: 0,
+      errors: [],
+      ignoredAutoReplies: 0,
+      attemptedChecks: 0,
+      remaining: 0,
+      replies: 0,
+      scanned: 0,
+      skipped: 0,
+      stoppedEarly: false,
+      stoppedForRuntime: false,
+      busy: false,
+      disabled: true,
+      resumable: false,
+      items: [],
+    };
+  }
+  const maxChecks = Math.min(Math.max(Number(input.maxThreads) || Number(replySetting.maxThreads || 100), 1), 500);
   const candidateLimit = Math.min(Math.max(Number(input.limit || 200), 1), 1000);
-  const leads = listLeads({ limit: candidateLimit, includeArchived: false }).items.filter(function (lead) {
-    return isValidEmailAddress_(lead.email) && !normalizeBooleanLike_(lead.reply_checked);
-  });
+  const runtimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000, 10000), 330000);
+  const runClaim = claimGmailReplyCheckRun_(runtimeBudgetMs);
+  if (!runClaim.claimed) {
+    return {
+      checked: 0,
+      detected: 0,
+      elapsedMs: 0,
+      errors: [],
+      ignoredAutoReplies: 0,
+      attemptedChecks: 0,
+      remaining: 0,
+      replies: 0,
+      scanned: 0,
+      skipped: 0,
+      stoppedEarly: true,
+      stoppedForRuntime: false,
+      busy: true,
+      resumable: true,
+      items: [],
+    };
+  }
+  try {
+  const runWindow = buildSearchJobRunWindow_(runtimeBudgetMs, Date.now());
+  const properties = PropertiesService.getScriptProperties();
+  let cursorOffset = Math.max(Number(properties.getProperty(PROPERTY_KEYS.GMAIL_REPLY_CHECK_CURSOR)) || 0, 0);
+  let page = listLeads({ limit: candidateLimit, offset: cursorOffset, includeArchived: false, sort: 'created_desc' });
+  if (!page.items.length && cursorOffset > 0 && page.total > 0) {
+    cursorOffset = 0;
+    page = listLeads({ limit: candidateLimit, offset: 0, includeArchived: false, sort: 'created_desc' });
+  }
+  const leads = page.items || [];
   const checked = [];
   const errors = [];
-  const startedAt = Date.now();
-  let remaining = maxThreads;
   let ignoredAutoReplies = 0;
+  let scanned = 0;
+  let attemptedChecks = 0;
+  let stoppedForRuntime = false;
 
-  leads.forEach(function (lead) {
-    if (remaining <= 0) return;
+  for (let index = 0; index < leads.length; index += 1) {
+    if (attemptedChecks >= maxChecks) break;
+    if (isSearchJobRuntimeExhausted_(runWindow.deadlineMs)) {
+      stoppedForRuntime = true;
+      break;
+    }
+    const lead = leads[index];
+    scanned += 1;
+    if (!isValidEmailAddress_(lead.email) || normalizeBooleanLike_(lead.reply_checked)) continue;
+    attemptedChecks += 1;
     try {
       const query = 'from:' + lead.email + ' newer_than:365d';
-      const threads = GmailApp.search(query, 0, Math.min(remaining, 10));
-      remaining -= threads.length;
+      const threads = GmailApp.search(query, 0, 10);
       if (threads.length === 0) {
         checked.push({ leadId: lead.id, replied: false });
-        return;
+        continue;
       }
 
       const thread = threads[0];
@@ -30,7 +88,7 @@ function checkRepliesForLeads(options) {
       if (isAutoReplyMessage_(subject, snippet)) {
         ignoredAutoReplies += 1;
         checked.push({ leadId: lead.id, replied: false, ignoredAutoReply: true, threadId: thread.getId() });
-        return;
+        continue;
       }
 
       appendSheetRecord_('reply_logs', {
@@ -54,21 +112,76 @@ function checkRepliesForLeads(options) {
         threadId: '',
       });
     }
+  }
+
+  const rawNextOffset = cursorOffset + scanned;
+  const wrapped = page.total === 0 || rawNextOffset >= page.total;
+  const nextCursorOffset = wrapped ? 0 : rawNextOffset;
+  withScriptLock_('saveGmailReplyCheckCursor', function () {
+    properties.setProperty(PROPERTY_KEYS.GMAIL_REPLY_CHECK_CURSOR, String(nextCursorOffset));
   });
 
   return {
     checked: checked.length,
     detected: checked.filter(function (item) { return item.replied; }).length,
-    elapsedMs: Date.now() - startedAt,
+    elapsedMs: Date.now() - runWindow.startedAtMs,
     errors: errors,
     ignoredAutoReplies: ignoredAutoReplies,
-    remaining: Math.max(leads.length - checked.length, 0),
+    attemptedChecks: attemptedChecks,
+    remaining: wrapped ? 0 : Math.max(page.total - nextCursorOffset, 0),
     replies: checked.filter(function (item) { return item.replied; }).length,
-    skipped: Math.max(leads.length - checked.length, 0),
-    stoppedEarly: checked.length < leads.length,
+    scanned: scanned,
+    skipped: Math.max(scanned - checked.length, 0),
+    stoppedEarly: stoppedForRuntime || scanned < leads.length || !wrapped,
+    stoppedForRuntime: stoppedForRuntime,
+    cursorOffset: cursorOffset,
+    nextCursorOffset: nextCursorOffset,
+    wrapped: wrapped,
+    resumable: page.total > 0,
     updated: checked.filter(function (item) { return item.replied; }).length,
     items: checked,
   };
+  } finally {
+    releaseGmailReplyCheckRun_(runClaim.lockToken);
+  }
+}
+
+function claimGmailReplyCheckRun_(runtimeBudgetMs) {
+  return withScriptLock_('claimGmailReplyCheckRun', function () {
+    const properties = PropertiesService.getScriptProperties();
+    let current = {};
+    try {
+      current = JSON.parse(properties.getProperty(PROPERTY_KEYS.GMAIL_REPLY_CHECK_LOCK) || '{}');
+    } catch (error) {
+      current = {};
+    }
+    const lockedAtMs = new Date(current.lockedAt || 0).getTime();
+    const leaseMs = Math.max(420000, Number(runtimeBudgetMs || 300000) + 90000);
+    if (current.token && Number.isFinite(lockedAtMs) && Date.now() - lockedAtMs < leaseMs) {
+      return { claimed: false, busy: true, reason: 'already_running' };
+    }
+    const claim = {
+      token: Utilities.getUuid(),
+      lockedAt: nowIso_(),
+    };
+    properties.setProperty(PROPERTY_KEYS.GMAIL_REPLY_CHECK_LOCK, JSON.stringify(claim));
+    return { claimed: true, busy: false, lockToken: claim.token };
+  });
+}
+
+function releaseGmailReplyCheckRun_(lockToken) {
+  return withScriptLock_('releaseGmailReplyCheckRun', function () {
+    const properties = PropertiesService.getScriptProperties();
+    let current = {};
+    try {
+      current = JSON.parse(properties.getProperty(PROPERTY_KEYS.GMAIL_REPLY_CHECK_LOCK) || '{}');
+    } catch (error) {
+      current = {};
+    }
+    if (String(current.token || '') !== String(lockToken || '')) return false;
+    properties.deleteProperty(PROPERTY_KEYS.GMAIL_REPLY_CHECK_LOCK);
+    return true;
+  });
 }
 
 function listReplyFalsePositiveCandidates(options) {
@@ -276,22 +389,51 @@ function normalizeCsvHeader_(header) {
 function advanceQueuedJobs(options) {
   const input = options && typeof options === 'object' ? options : {};
   const maxJobs = Math.min(Math.max(Number(input.maxJobs) || 3, 1), 10);
+  const totalRuntimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000, 10000), 330000);
+  const runWindow = buildSearchJobRunWindow_(totalRuntimeBudgetMs, Date.now());
   const jobs = listSheetRecords('search_jobs', { limit: 100, includeInactive: true }).items.filter(function (job) {
     return job.status === 'queued' || job.status === 'running';
+  }).sort(function (left, right) {
+    return String(left.updated_at || left.created_at || '').localeCompare(String(right.updated_at || right.created_at || ''));
   }).slice(0, maxJobs);
+  const results = [];
+  const errors = [];
+  let stoppedForRuntime = false;
+
+  for (let index = 0; index < jobs.length; index += 1) {
+    if (isSearchJobRuntimeExhausted_(runWindow.deadlineMs)) {
+      stoppedForRuntime = true;
+      break;
+    }
+    const job = jobs[index];
+    let payload = {};
+    try {
+      payload = JSON.parse(job.query_json || '{}');
+      const remainingBudgetMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
+      if (remainingBudgetMs < 10000) {
+        stoppedForRuntime = true;
+        break;
+      }
+      results.push(advanceSearchJob(job.id, {
+        maxItems: payload.crawl_all ? 1 : (input.maxItems || 5),
+        runtimeBudgetMs: Math.min(totalRuntimeBudgetMs, remainingBudgetMs),
+      }));
+    } catch (error) {
+      errors.push({ jobId: job.id, message: error.message || String(error) });
+      appendSyncError_('advanceQueuedJobs', error, {
+        target_sheet: 'search_jobs',
+        target_id: job.id,
+      });
+    }
+  }
 
   return {
-    jobs: jobs.map(function (job) {
-      let payload = {};
-      try {
-        payload = JSON.parse(job.query_json || '{}');
-      } catch (error) {
-        payload = {};
-      }
-      return advanceSearchJob(job.id, {
-        maxItems: payload.crawl_all ? 1 : (input.maxItems || 5),
-      });
-    }),
+    jobs: results,
+    errors: errors,
+    elapsedMs: Date.now() - runWindow.startedAtMs,
+    stoppedForRuntime: stoppedForRuntime,
+    resumable: jobs.length > results.filter(function (result) { return result.completed; }).length,
+    remainingJobs: Math.max(jobs.length - results.length, 0) + results.filter(function (result) { return !result.completed; }).length,
   };
 }
 

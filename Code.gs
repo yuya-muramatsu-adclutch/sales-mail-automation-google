@@ -1,9 +1,11 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260712_apps_script_full_workflow_v141_runtime_label_clarity';
+const APP_VERSION = '20260712_apps_script_full_workflow_v143_resumable_job_runtime_hardening';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
   SERPER_API_KEYS_JSON: 'SERPER_API_KEYS_JSON',
+  GMAIL_REPLY_CHECK_CURSOR: 'GMAIL_REPLY_CHECK_CURSOR',
+  GMAIL_REPLY_CHECK_LOCK: 'GMAIL_REPLY_CHECK_LOCK',
 });
 
 const EXISTING_APP_REFERENCE = Object.freeze({
@@ -169,7 +171,12 @@ const SHEET_DEFINITIONS = Object.freeze({
     'processed_count',
     'daily_limit',
     'job_limit',
+    'cursor_json',
     'last_error',
+    'lock_token',
+    'locked_at',
+    'last_heartbeat_at',
+    'attempt_count',
     'started_at',
     'finished_at',
     'created_at',
