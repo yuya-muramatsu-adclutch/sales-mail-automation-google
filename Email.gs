@@ -1,3 +1,6 @@
+const TEMPLATE_TEST_FIXED_EMAIL_ = 'yuya1998nu@gmail.com';
+const TEMPLATE_TEST_FIXED_NAME_ = '村松侑哉';
+
 function isEmailSendTarget_(lead, masterContext) {
   if (!lead || isArchivedLead_(lead)) return false;
   if (!isValidEmailAddress_(lead.email)) return false;
@@ -150,16 +153,22 @@ function getPriorSuccessfulEmailBlockReason_(lead, context) {
 function sendTestEmail(templateId, toEmail, sampleLeadInput) {
   const template = findSheetRecordById_('email_templates', templateId);
   if (!template) throw new Error('Email template not found.');
-  if (!isValidEmailAddress_(toEmail)) throw new Error('Valid test recipient is required.');
+  const fixedToEmail = TEMPLATE_TEST_FIXED_EMAIL_;
+  if (!isValidEmailAddress_(fixedToEmail)) throw new Error('Valid test recipient is required.');
   const sampleLead = Object.assign({
-    company_name: '株式会社サンプル',
-    facility_name: 'サンプル施設',
+    company_name: TEMPLATE_TEST_FIXED_NAME_,
+    facility_name: TEMPLATE_TEST_FIXED_NAME_,
     genre: '美容',
-    contact_name: 'ご担当者',
-    email: toEmail,
+    contact_name: TEMPLATE_TEST_FIXED_NAME_,
+    email: fixedToEmail,
     website_url: 'https://example.com',
     form_url: 'https://example.com/contact',
-  }, sampleLeadInput || {});
+  }, sampleLeadInput || {}, {
+    company_name: TEMPLATE_TEST_FIXED_NAME_,
+    facility_name: TEMPLATE_TEST_FIXED_NAME_,
+    contact_name: TEMPLATE_TEST_FIXED_NAME_,
+    email: fixedToEmail,
+  });
   const rendered = renderTemplateForLead_(template, sampleLead, {
     sender_name: sampleLead.sender_name || sampleLead.senderName || '営業担当',
     '差出人名': sampleLead.sender_name || sampleLead.senderName || '営業担当',
@@ -174,7 +183,7 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
   try {
     assertEmailSendLimitAvailable_();
     MailApp.sendEmail({
-      to: toEmail,
+      to: fixedToEmail,
       subject: subject,
       htmlBody: rendered.htmlBody,
       body: rendered.body,
@@ -190,7 +199,7 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
       lead_id: sampleLead.id || sampleLead.lead_id || '',
       sent_at: sentAt,
       send_type: 'テスト送信',
-      to_email: toEmail,
+      to_email: fixedToEmail,
       company_name: sampleLead.company_name,
       facility_name: sampleLead.facility_name,
       genre: sampleLead.genre,

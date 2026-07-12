@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @137 / code v137: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @138 / code v138: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260710_apps_script_full_workflow_v137_mail_data_import`
+- Code version: `20260712_apps_script_full_workflow_v138_fixed_template_test_send`
 
 ## 計画書との対応
 
@@ -601,6 +601,17 @@
 - 旧アプリの `send_histories` 1,168件をGAS版へ移行済み。スキップ0件。
 - 移行後ドライランで `send_histories` は追加0件・既存1,168件を確認。履歴は再実行しても重複追加しない。
 - 旧アプリ `app_settings` は1,045キー中、安定運用キー候補11件、秘密値らしきキー2件、一時/ジョブ系キー979件を確認。丸ごと移行は行わず、必要キー単位で確認する方針。
+
+## 2026-07-12 v138 テンプレートテスト送信固定化
+
+- `node scripts/smoke-test.js` 成功。テスト送信固定宛先 `yuya1998nu@gmail.com` と固定宛名 `村松侑哉` のクライアント/サーバー検査を追加。
+- `.gs` 主要ファイルと `scripts/smoke-test.js` のNode構文チェック成功。
+- `git diff --check` 成功。
+- `clasp push` 成功。
+- `clasp version "apps-script-full-workflow-v138-fixed-template-test-send"` でVersion 138を作成済み。
+- 既存Web app URLを `clasp deploy -V 138 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` でVersion 138へ再デプロイ済み。
+- `getAppInfo` で `20260712_apps_script_full_workflow_v138_fixed_template_test_send` が返ることを確認。
+- テンプレートテスト送信モーダルは固定宛先表示に変更し、会社名・屋号・担当者名をテスト時のみ `村松侑哉` に固定。本文プレビューは広い2カラムとスクロール枠へ調整。
 
 ## 運用時に確認する外部依存
 

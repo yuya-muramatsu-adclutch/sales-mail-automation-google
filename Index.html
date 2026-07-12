@@ -4538,12 +4538,18 @@
         gap: 18px;
       }
 
+      .dialog-panel.template-test-dialog {
+        width: min(1040px, calc(100vw - 36px));
+        max-height: calc(100vh - 42px);
+        overflow: auto;
+      }
+
       .template-test-recipient {
-        display: flex;
-        gap: 12px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
         align-items: center;
-        justify-content: space-between;
-        padding: 14px;
+        padding: 16px 18px;
         border: 1px solid #bfdbfe;
         border-radius: 8px;
         background: #eff6ff;
@@ -4559,15 +4565,15 @@
 
       .template-test-layout {
         display: grid;
-        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-        gap: 12px;
-        align-items: stretch;
+        grid-template-columns: minmax(280px, 0.72fr) minmax(420px, 1.28fr);
+        gap: 16px;
+        align-items: start;
       }
 
       .template-test-card {
         display: grid;
         gap: 12px;
-        padding: 14px;
+        padding: 18px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fff;
@@ -4590,19 +4596,20 @@
       }
 
       .template-test-preview pre {
-        min-height: 180px;
-        max-height: 320px;
+        min-height: 320px;
+        max-height: min(52vh, 560px);
         margin: 0;
         overflow: auto;
-        padding: 12px;
+        padding: 16px;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #f8fafc;
         color: #0f172a;
         font-family: inherit;
-        font-size: 13px;
-        line-height: 1.65;
+        font-size: 14px;
+        line-height: 1.75;
         white-space: pre-wrap;
+        overflow-wrap: anywhere;
       }
 
       .inline-success {
@@ -10203,6 +10210,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       const INITIAL_REVIEW_LEAD_LIMIT = 100;
       const FULL_LEAD_DEFAULT_LIMIT = 500;
       const HTTPS_PROTOCOL_PREFIX = 'https:' + String.fromCharCode(47, 47);
+      const TEMPLATE_TEST_FIXED_EMAIL = 'yuya1998nu@gmail.com';
+      const TEMPLATE_TEST_FIXED_NAME = '村松侑哉';
       let routeProgressTimer = null;
       let leadLoadProgressTimer = null;
       let messageClearTimer = null;
@@ -13405,10 +13414,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderTemplateTestDialog(template, dialog) {
-        const selectedLead = selectedTemplateTestLead();
-        const sampleLead = templateTestSampleLead(template, selectedLead);
-        const recipientEmail = dialog.toEmail || sampleLead.email || '';
-        const recipientLabel = selectedLead ? (selectedLead.company_name || selectedLead.facility_name || selectedLead.email || '営業リスト指定') : '固定テスト宛先';
+        const sampleLead = templateTestSampleLead(template);
+        const recipientEmail = TEMPLATE_TEST_FIXED_EMAIL;
+        const recipientLabel = `${TEMPLATE_TEST_FIXED_NAME} / 固定テスト宛先`;
         return `
           <div class="dialog-backdrop" role="dialog" aria-modal="true" onclick="closeTemplateActionDialogOnBackdrop(event)">
             <div class="dialog-panel wide-dialog template-test-dialog" onclick="event.stopPropagation()">
@@ -13416,25 +13424,25 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 <div>
                   <span class="dialog-eyebrow">テスト送信</span>
                   <h2>${escapeHtml(template.name || 'テンプレート')}</h2>
-                  <p class="muted">営業リストでテスト送信用に選んだ宛先、またはサンプル値へ差し込み後の件名と本文を送信します。</p>
+                  <p class="muted">固定のテスト宛先へ、村松侑哉様向けの差し込み内容で件名と本文を送信します。</p>
                 </div>
                 <button type="button" class="table-link-button" onclick="closeTemplateActionDialog()">${legacyUiIcon('x')}閉じる</button>
               </header>
               <div class="template-test-recipient">
                 <div>
                   <span>送信先</span>
-                  <strong><input id="templateTestTo" type="email" value="${escapeHtml(recipientEmail)}" placeholder="test@example.com"></strong>
+                  <strong><input id="templateTestTo" type="email" value="${escapeHtml(recipientEmail)}" readonly></strong>
                   <small>${escapeHtml(recipientLabel)}</small>
                 </div>
-                <span class="status-pill ${recipientEmail ? 'ok' : 'bad'}">${selectedLead ? '営業リスト指定' : recipientEmail ? '固定テスト宛先' : '未設定'}</span>
+                <span class="status-pill ok">固定</span>
               </div>
               <div class="template-test-layout">
                 <section class="template-test-card">
-                  <h3>${selectedLead ? '差し込み元' : '差し込みサンプル'}</h3>
+                  <h3>差し込みサンプル</h3>
                   <div class="form-grid">
-                    <label>会社名<input id="templateTestCompany" value="${escapeHtml(sampleLead.company_name || '')}" oninput="refreshTemplateTestPreview()"></label>
-                    <label>屋号<input id="templateTestFacility" value="${escapeHtml(sampleLead.facility_name || '')}" oninput="refreshTemplateTestPreview()"></label>
-                    <label>担当者名<input id="templateTestContact" value="${escapeHtml(sampleLead.contact_name || '')}" oninput="refreshTemplateTestPreview()"></label>
+                    <label>会社名<input id="templateTestCompany" value="${escapeHtml(sampleLead.company_name || '')}" readonly></label>
+                    <label>屋号<input id="templateTestFacility" value="${escapeHtml(sampleLead.facility_name || '')}" readonly></label>
+                    <label>担当者名<input id="templateTestContact" value="${escapeHtml(sampleLead.contact_name || '')}" readonly></label>
                     <label>ジャンル名<input id="templateTestGenre" value="${escapeHtml(sampleLead.genre || '')}" oninput="refreshTemplateTestPreview()"></label>
                     <label style="grid-column:1/-1">WEBサイトURL<input id="templateTestWebsite" value="${escapeHtml(sampleLead.website_url || '')}" oninput="refreshTemplateTestPreview()"></label>
                   </div>
@@ -13459,25 +13467,25 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         `;
       }
 
-      function templateTestSampleLead(template, selectedLead) {
-        return selectedLead || {
-          company_name: 'サンプル株式会社',
-          facility_name: 'サンプル屋号',
-          contact_name: '佐藤',
+      function templateTestSampleLead(template) {
+        return {
+          company_name: TEMPLATE_TEST_FIXED_NAME,
+          facility_name: TEMPLATE_TEST_FIXED_NAME,
+          contact_name: TEMPLATE_TEST_FIXED_NAME,
           genre: template.genre || 'その他',
-          email: '',
-          website_url: HTTPS_PROTOCOL_PREFIX + 'example.com',
+          email: TEMPLATE_TEST_FIXED_EMAIL,
+          website_url: HTTPS_PROTOCOL_PREFIX + 'adclutch.jp',
         };
       }
 
       function currentTemplateDialogSampleLead(template) {
         return {
-          company_name: document.getElementById('templateTestCompany')?.value || 'サンプル株式会社',
-          facility_name: document.getElementById('templateTestFacility')?.value || 'サンプル屋号',
-          contact_name: document.getElementById('templateTestContact')?.value || '佐藤',
+          company_name: document.getElementById('templateTestCompany')?.value || TEMPLATE_TEST_FIXED_NAME,
+          facility_name: document.getElementById('templateTestFacility')?.value || TEMPLATE_TEST_FIXED_NAME,
+          contact_name: document.getElementById('templateTestContact')?.value || TEMPLATE_TEST_FIXED_NAME,
           genre: document.getElementById('templateTestGenre')?.value || template.genre || 'その他',
-          email: document.getElementById('templateTestTo')?.value || '',
-          website_url: document.getElementById('templateTestWebsite')?.value || HTTPS_PROTOCOL_PREFIX + 'example.com',
+          email: TEMPLATE_TEST_FIXED_EMAIL,
+          website_url: document.getElementById('templateTestWebsite')?.value || HTTPS_PROTOCOL_PREFIX + 'adclutch.jp',
         };
       }
 
@@ -13531,19 +13539,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function selectedTemplateTestLead() {
-        const pools = []
-          .concat(state.emailLeads || [])
-          .concat(state.leads || [])
-          .concat(state.formLeads || []);
-        return pools.find((lead) => lead.id === state.selectedTemplateTestLeadId && lead.email)
-          || pools.find((lead) => lead.email)
-          || null;
+        return null;
       }
 
       async function sendTemplateTestFromRow(id) {
         state.templateActionDialog = { mode: 'test', templateId: id, message: '', messageKind: '' };
-        const lead = selectedTemplateTestLead();
-        state.templateActionDialog.toEmail = lead ? lead.email || '' : '';
+        state.templateActionDialog.toEmail = TEMPLATE_TEST_FIXED_EMAIL;
         renderTemplateActionDialog();
       }
 
@@ -13552,7 +13553,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const id = dialog.templateId;
         const template = (state.templates || []).find((item) => item.id === id);
         if (!template) return;
-        const toEmail = document.getElementById('templateTestTo')?.value || '';
+        const toEmail = TEMPLATE_TEST_FIXED_EMAIL;
         if (!toEmail || !/@/.test(toEmail)) {
           state.templateActionDialog.message = 'テスト送信先メールアドレスを入力してください。';
           state.templateActionDialog.messageKind = 'error';
@@ -17598,34 +17599,29 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderTemplateTestRecipientPanel() {
         const target = document.getElementById('templateTestRecipientPanel');
         if (!target) return;
-        const leads = (state.emailLeads || []).filter((lead) => lead.email).slice(0, 200);
-        if (!state.selectedTemplateTestLeadId && leads.length) state.selectedTemplateTestLeadId = leads[0].id;
-        const selected = leads.find((lead) => lead.id === state.selectedTemplateTestLeadId) || leads[0];
         target.innerHTML = `
           <div class="section-title-row">
             <div>
               <h2>テンプレートテスト送信先</h2>
-              <p class="muted">テスト送信だけで使う宛先です。営業リストのメールあり対象から選択します。</p>
+              <p class="muted">テスト送信は固定宛先にのみ送信します。営業リストの宛先へ誤送信しないための安全設定です。</p>
             </div>
-            <span class="pill ${selected ? 'good' : 'warn'}">${selected ? '営業リスト指定' : '未設定'}</span>
+            <span class="pill good">固定</span>
           </div>
           <div class="template-test-settings-grid">
             <div class="template-test-current">
-              <div><span>現在の送信先</span><strong>${escapeHtml(selected ? selected.email : '未設定')}</strong><small>${escapeHtml(selected ? [selected.facility_name, selected.company_name, selected.genre].filter(Boolean).join(' / ') : 'メールアドレスありの営業先を選択してください')}</small></div>
+              <div><span>現在の送信先</span><strong>${escapeHtml(TEMPLATE_TEST_FIXED_EMAIL)}</strong><small>${escapeHtml(`宛名: ${TEMPLATE_TEST_FIXED_NAME}`)}</small></div>
             </div>
             <div class="stack">
-              <label>テスト送信用の営業先<select id="templateTestRecipientLead" onchange="setTemplateTestRecipient(this.value)">
-                ${leads.map((lead) => `<option value="${escapeHtml(lead.id)}" ${selected && selected.id === lead.id ? 'selected' : ''}>${escapeHtml([lead.facility_name, lead.company_name, lead.email].filter(Boolean).join(' / '))}</option>`).join('')}
-              </select></label>
-              <small class="muted">メールアドレスが登録されている営業先だけ表示しています。</small>
+              <label>宛名<input value="${escapeHtml(TEMPLATE_TEST_FIXED_NAME)}" readonly></label>
+              <small class="muted">テンプレート本文内の会社名・屋号・担当者名は、テスト時だけこの宛名に揃えます。</small>
             </div>
           </div>
-          <button type="button" onclick="message('テスト送信先を画面上で選択しました。実送信は上の送信プレビューから行えます。', 'ok')">保存する</button>
+          <button type="button" disabled>固定済み</button>
         `;
       }
 
       function setTemplateTestRecipient(id) {
-        state.selectedTemplateTestLeadId = id;
+        state.selectedTemplateTestLeadId = '';
         renderTemplateTestRecipientPanel();
       }
 
