@@ -10992,6 +10992,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const serperRemaining = Number(data.serperTodayRemaining);
         const serperRemainingKnown = Number.isFinite(serperRemaining);
         const issues = [];
+        const staleReservations = Number(data.stalePendingSendReservations || 0);
+        if (staleReservations > 0) {
+          issues.push({
+            icon: 'shieldAlert',
+            label: '送信予約',
+            value: `${formatNumber(staleReservations)}件`,
+            tone: 'bad',
+            headline: '送信結果の確認が必要です',
+            detail: `30分以上「送信中」の履歴が${formatNumber(staleReservations)}件あります。Gmail送信済みを確認するまで再送しないでください。`,
+          });
+        }
         if (!mailControlEnabled) {
           issues.push({
             icon: 'shieldCheck',
@@ -17241,7 +17252,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('historyCountPill').textContent = `${formatNumber(histories.length)}件`;
         document.getElementById('historyTable').innerHTML = table(headers, limitedTableRows(headers, histories, 'opsHistory', 'renderHistoryTable', (item) => row([
           ['送信日時', `<span class="history-date-cell"><strong>${escapeHtml(dateTimeLabel(item.sent_at || item.created_at) || '-')}</strong><small>日本時間</small></span>`],
-          ['結果', item.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="history-error"><span class="pill bad">${escapeHtml(item.send_result || '失敗')}</span><small>${escapeHtml(item.error_message || '')}</small></span>`],
+          ['結果', renderHistoryResultCell(item)],
           ['種別', statusPill(item.send_type || '-')],
           ['送信先', `<span class="history-recipient-cell"><strong>${escapeHtml(item.to_email || '-')}</strong><small>${escapeHtml(item.gmail_message_id ? `Gmail: ${item.gmail_message_id}` : 'Gmail IDなし')}</small></span>`],
           ['営業先', `<span class="history-lead-cell"><strong>${escapeHtml(item.facility_name || item.company_name || '-')}</strong><small>${escapeHtml(item.company_name && item.facility_name ? item.company_name : '会社名未取得')}</small></span>`],
@@ -17507,7 +17518,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['日時', escapeHtml(dateTimeLabel(history.sent_at || history.created_at) || '-')],
           ['種別', escapeHtml(history.send_type || '-')],
           ['宛先', escapeHtml(history.to_email || '-')],
-          ['結果', history.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="pill bad">${escapeHtml(history.send_result || '失敗')}</span>`],
+          ['結果', renderHistoryResultCell(history)],
         ])).join(''));
       }
 
@@ -18040,7 +18051,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const histories = state.histories || [];
         const visible = filteredSendHistories();
         const success = histories.filter((history) => history.send_result === '成功').length;
-        const failed = histories.filter((history) => history.send_result && history.send_result !== '成功').length;
+        const pending = histories.filter((history) => history.send_result === '送信中').length;
+        const failed = histories.filter((history) => history.send_result && history.send_result !== '成功' && history.send_result !== '送信中').length;
         const test = histories.filter((history) => String(history.send_type || '').includes('テスト')).length;
         const today = histories.filter((history) => isTodayClientDate(history.sent_at || history.created_at)).length;
         const filtering = state.historyFilter !== 'all' || Boolean(String(state.historyQuery || '').trim());
@@ -18048,6 +18060,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           statCard('履歴総数', `${formatNumber(histories.length)}件`, '最新100件', 'blue'),
           statCard('本番送信', `${formatNumber(histories.length - test)}件`, '初回/フォロー', 'green'),
           statCard('成功', `${formatNumber(success)}件`, 'send_result=成功', 'green'),
+          statCard('結果確認中', `${formatNumber(pending)}件`, '30分超は要確認', pending > 0 ? 'amber' : 'green'),
           statCard('失敗', `${formatNumber(failed)}件`, '要確認', failed > 0 ? 'red' : 'green'),
           statCard('テスト送信', `${formatNumber(test)}件`, '確認用', 'amber'),
         ].join('');
@@ -18059,7 +18072,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('sendHistoryScreenPill').outerHTML = `<span class="pill ${filtering ? 'warn' : 'info'}" id="sendHistoryScreenPill">${filtering ? '絞り込み中' : `${formatNumber(visible.length)}件`}</span>`;
         document.getElementById('sendHistoryScreenTable').innerHTML = table(headers, limitedTableRows(headers, visible, 'sendHistory', 'renderHistoriesScreen', (item) => row([
           ['送信日時', `<span class="history-date-cell"><strong>${escapeHtml(dateTimeLabel(item.sent_at || item.created_at) || '-')}</strong><small>日本時間</small></span>`],
-          ['結果', item.send_result === '成功' ? '<span class="pill good">成功</span>' : `<span class="history-error"><span class="pill bad">${escapeHtml(item.send_result || '失敗')}</span><small>${escapeHtml(item.error_message || '')}</small></span>`],
+          ['結果', renderHistoryResultCell(item)],
           ['種別', renderHistorySendTypePill(item.send_type || '-')],
           ['送信先', `<span class="history-recipient-cell"><strong>${escapeHtml(item.to_email || '-')}</strong><small>${escapeHtml(item.gmail_message_id ? `Gmail: ${item.gmail_message_id}` : 'Gmail IDなし')}</small></span>`],
           ['営業先', `<span class="history-lead-cell"><strong>${escapeHtml(item.facility_name || item.company_name || '-')}</strong><small>${escapeHtml(item.company_name && item.facility_name ? item.company_name : '会社名未取得')}</small></span>`],
@@ -18076,6 +18089,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const options = [
           ['all', 'すべて'],
           ['success', '成功'],
+          ['pending', '送信結果確認中'],
           ['failed', '失敗'],
           ['initial', '初回メール'],
           ['test', 'テスト送信'],
@@ -18119,10 +18133,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function historyMatchesFilter(history, filter) {
         if (filter === 'success') return history.send_result === '成功';
-        if (filter === 'failed') return history.send_result && history.send_result !== '成功';
+        if (filter === 'pending') return history.send_result === '送信中';
+        if (filter === 'failed') return history.send_result && history.send_result !== '成功' && history.send_result !== '送信中';
         if (filter === 'initial') return history.send_type === '初回メール';
         if (filter === 'test') return String(history.send_type || '').includes('テスト');
         return true;
+      }
+
+      function renderHistoryResultCell(history) {
+        if (history.send_result === '成功') return '<span class="pill good">成功</span>';
+        if (history.send_result === '送信中') {
+          return `<span class="history-error"><span class="pill warn">結果確認中</span><small>Gmail送信済みを確認するまで再送禁止</small></span>`;
+        }
+        return `<span class="history-error"><span class="pill bad">${escapeHtml(history.send_result || '失敗')}</span><small>${escapeHtml(history.error_message || '')}</small></span>`;
       }
 
       function historyMatchesQuery(history, query) {

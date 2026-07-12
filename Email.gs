@@ -243,6 +243,32 @@ function isProductionSendReservationHistory_(history) {
     String(history.send_type || '').indexOf('テスト') === -1;
 }
 
+function buildPendingSendReservationStatus_(histories, nowMs) {
+  const currentMs = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+  const pending = (Array.isArray(histories) ? histories : []).filter(isProductionSendReservationHistory_).map(function (history) {
+    const timestamp = String(history.sent_at || history.created_at || '').trim();
+    const timestampMs = new Date(timestamp || 0).getTime();
+    return {
+      id: String(history.id || ''),
+      leadId: String(history.lead_id || ''),
+      toEmail: String(history.to_email || ''),
+      timestamp: timestamp,
+      ageMinutes: Number.isFinite(timestampMs) ? Math.max(0, Math.floor((currentMs - timestampMs) / 60000)) : null,
+    };
+  });
+  const stale = pending.filter(function (item) {
+    return item.ageMinutes === null || item.ageMinutes >= 30;
+  });
+  pending.sort(function (left, right) {
+    return String(left.timestamp || '').localeCompare(String(right.timestamp || ''));
+  });
+  return {
+    count: pending.length,
+    staleCount: stale.length,
+    oldestAt: pending.length ? pending[0].timestamp : '',
+  };
+}
+
 function addProductionSendReservationToSafetyContext_(safety, history) {
   if (!safety || !history) return safety;
   safety.reservedLeadIds = safety.reservedLeadIds || {};

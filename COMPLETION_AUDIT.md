@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @159 / code v159: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @160 / code v160: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v159_setting_validation`
+- Code version: `20260712_apps_script_full_workflow_v160_pending_send_visibility`
 
 ## 計画書との対応
 
@@ -794,6 +794,14 @@
 - JSON設定はオブジェクト型とGoogle Sheets 1セル上限より小さい45,000文字以内を強制し、50,000文字超過による再停止を防止。
 - 設定保存が拒否された場合、管理画面と収集画面に理由を表示する共通処理を追加。実データの設定11件は現行の安全範囲内であることを確認。
 - Version 159を既存Web app URLへデプロイ。実画面で送信時間を不正な`08:00-07:00`として保存し、`start must be earlier than end`で拒否されることを確認。シートの実設定は`07:00-08:00 / Asia/Tokyo`のまま変更されていない。
+
+## 2026-07-12 v160 送信予約の滞留可視化
+
+- 二重送信防止用の`送信中`予約が異常終了で残る場合を監査。本番シートの滞留予約は0件。
+- 旧アプリのトークン失効による失敗履歴50件は、同じ営業先すべてに翌日の成功履歴があり、未復旧・誤送信済み状態は0件。
+- `送信中`を失敗件数から分離し、送信履歴の「送信結果確認中」フィルター、履歴行、送信プレビュー、管理運用の表示を統一。
+- 30分以上残る本番送信予約だけを全画面の異常通知へ表示し、Gmail送信済みを確認するまで再送しないよう案内する。二重送信回避を優先し、自動解除・自動再送は行わない。
+- Version 160を既存Web app URLへデプロイ。実画面の送信履歴で「結果確認中」集計と「送信結果確認中」フィルターを確認し、現在0件であることを確認。
 
 ## 運用時に確認する外部依存
 

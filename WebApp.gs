@@ -284,6 +284,7 @@ function getDashboardStats(options) {
   const today = todayText_();
   const month = today.slice(0, 7);
   const sendHistories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  const pendingSendReservations = buildPendingSendReservationStatus_(sendHistories);
   const sentToday = countSuccessfulProductionSends_(sendHistories, today);
   const sentMonth = countSuccessfulProductionSends_(sendHistories, month);
   const serperToday = getSerperUsageCount_({ day: today });
@@ -303,6 +304,9 @@ function getDashboardStats(options) {
   const gasUsage = buildConsumerGasUsageStatus_({
     mailQuotaRemaining: mailQuota.remaining,
     sentToday: sentToday,
+    pendingSendReservations: pendingSendReservations.count,
+    stalePendingSendReservations: pendingSendReservations.staleCount,
+    oldestPendingSendReservationAt: pendingSendReservations.oldestAt,
     appMailLimit: dailyMailLimit,
     triggerCount: triggerCount,
     urlFetchRecordedToday: serperToday,
@@ -486,6 +490,9 @@ function buildStartupDashboardPlaceholder_() {
     lost: 0,
     reviewTargets: 0,
     sentToday: 0,
+    pendingSendReservations: 0,
+    stalePendingSendReservations: 0,
+    oldestPendingSendReservationAt: '',
     serperToday: 0,
     serperMonth: 0,
     productionTemplates: 0,

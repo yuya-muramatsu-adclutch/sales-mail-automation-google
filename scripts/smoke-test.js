@@ -105,6 +105,12 @@ const normalizedSourcePageSetting = JSON.parse(context.normalizeSettingForSave_(
   sites: [{ id: 'site-1', label: 'なっぷ', url: 'https://www.nap-camp.com/', crawlAll: true, genre: 'キャンプ', enabled: true }],
 }, 'json').value);
 assert(normalizedSourcePageSetting.sites.length === 1 && normalizedSourcePageSetting.sites[0].url.includes('nap-camp.com'), 'source page settings normalization failed');
+const pendingReservationStatus = context.buildPendingSendReservationStatus_([
+  { id: 'pending-recent', lead_id: 'lead-1', send_type: '初回メール', send_result: '送信中', sent_at: '2026-07-12T11:45:00.000Z' },
+  { id: 'pending-stale', lead_id: 'lead-2', send_type: '初回メール', send_result: '送信中', sent_at: '2026-07-12T11:00:00.000Z' },
+  { id: 'success', lead_id: 'lead-3', send_type: '初回メール', send_result: '成功', sent_at: '2026-07-12T11:00:00.000Z' },
+], new Date('2026-07-12T12:00:00.000Z').getTime());
+assert(pendingReservationStatus.count === 2 && pendingReservationStatus.staleCount === 1, 'pending send reservations should distinguish recent and stale records');
 
 const template = context.normalizeEmailTemplateInput_({
   name: '初回',
@@ -852,7 +858,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v159_setting_validation'), 'v159 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v160_pending_send_visibility'), 'v160 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -1149,6 +1155,7 @@ assert(html.includes('background-guide-panel'), 'legacy background progress guid
 assert(html.includes('上限リセット待ち'), 'quota-waiting background health label missing');
 assert(html.includes('prospectingResumeAfter'), 'collection resume schedule UI missing');
 assert(html.includes('saveSettingWithFeedback'), 'setting save error feedback helper missing');
+assert(html.includes('送信結果確認中'), 'pending send reservation history filter missing');
 assert(html.includes('data-ui-icon="listChecks"'), 'legacy background progress list checks icon missing');
 assert(html.includes('data-ui-icon="arrowLeft"'), 'legacy background progress back icon missing');
 assert(html.includes('prospectingProgressDashboard'), 'legacy ProspectingProgressDashboard host missing');
