@@ -739,7 +739,7 @@ function buildConsumerGasUsageStatus_(input) {
     alerts.push({ key: 'urlFetch', tone: 'warn', title: 'URL取得回数が70%を超えました', detail: 'アプリ記録分だけで' + urlFetchRecordedToday + '/20,000回です。' });
   }
   if (batchRuntimeBudgetMs > 330000) {
-    alerts.push({ key: 'runtime', tone: 'warn', title: '1回の実行予算が長すぎます', detail: '6分制限より前に終了できる値へ戻してください。' });
+    alerts.push({ key: 'runtime', tone: 'warn', title: '1回の最大処理時間が長すぎます', detail: '6分制限より前に終了できる値へ戻してください。' });
   }
   if (codeVersion >= 180) {
     alerts.push({ key: 'versions', tone: 'bad', title: 'Apps Scriptバージョン上限が近いです', detail: 'コード版v' + codeVersion + ' / 上限200です。新しいスクリプトへの移行準備が必要です。' });

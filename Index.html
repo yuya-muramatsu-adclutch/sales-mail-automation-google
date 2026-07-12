@@ -19262,7 +19262,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               { icon: 'clock3', label: '自動送信時間', ready: sendWindow.enabled !== false, detail: `${sendWindow.start || '07:00'}-${sendWindow.end || '08:00'}`, status: sendWindow.enabled !== false ? 'ON' : 'OFF', tone: sendWindow.enabled !== false ? 'good' : 'warn' },
               { icon: 'reply', label: '返信自動チェック', ready: Boolean(replyCheck.enabled), detail: replyCheck.enabled ? `最大${formatNumber(replyCheck.maxThreads || 200)}件` : 'OFF', status: replyCheck.enabled ? 'ON' : 'OFF', tone: replyCheck.enabled ? 'good' : 'info' },
               { icon: 'mailSearch', label: 'メール自動取得', ready: Boolean(emailDiscovery.enabled), detail: emailDiscovery.enabled ? (emailDiscovery.scheduleLabel || '03:00') : 'OFF', status: emailDiscovery.enabled ? 'ON' : 'OFF', tone: emailDiscovery.enabled ? 'good' : 'info' },
-              { icon: 'serverCog', label: '分割実行予算', ready: batchBudget > 0, detail: `${formatNumber(Math.round(batchBudget / 1000))}秒`, status: 'GAS', tone: 'info' },
+              { icon: 'serverCog', label: '最大処理時間', ready: batchBudget > 0, detail: `${formatNumber(Math.round(batchBudget / 1000))}秒`, status: 'GAS', tone: 'info' },
             ].map(adminStatusItemMarkup).join('')}
           </div>
           <div class="admin-inner-disclosure-list">
@@ -19306,10 +19306,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <details class="admin-inner-disclosure">
               <summary><span>バックグラウンド実行</span><small>${formatNumber(Math.round(batchBudget / 1000))}秒</small></summary>
               <div class="admin-detail-body">
-                ${automationCardHeader('serverCog', 'バックグラウンド実行', 'Apps Scriptの6分制限に近づく前に中断・再開する実行予算です。', `<span class="pill info">${formatNumber(Math.round(batchBudget / 1000))}秒</span>`)}
+                ${automationCardHeader('serverCog', 'バックグラウンド実行', 'Apps Scriptの6分制限に近づく前に中断・再開する最大処理時間です。', `<span class="pill info">${formatNumber(Math.round(batchBudget / 1000))}秒</span>`)}
                 <label>1回の最大実行時間（ms）<input id="adminBatchRuntimeBudget" type="number" min="10000" max="330000" step="1000" value="${escapeHtml(batchBudget)}"></label>
                 <div class="toolbar">
-                  <button type="button" onclick="saveBatchRuntimeSetting()">${legacyUiIcon('save')}実行予算を保存</button>
+                  <button type="button" onclick="saveBatchRuntimeSetting()">${legacyUiIcon('save')}最大処理時間を保存</button>
                   <button type="button" onclick="installTriggers()">${legacyUiIcon('timerReset')}定期トリガー作成</button>
                 </div>
               </div>
@@ -19355,7 +19355,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function saveBatchRuntimeSetting() {
         const value = Math.min(Math.max(Number(document.getElementById('adminBatchRuntimeBudget').value) || 300000, 10000), 330000);
         await api('setSettingValue', 'batch_runtime_budget_ms', value, 'number', 'Maximum runtime budget per batch. Apps Script hard limit is 6 minutes.');
-        message('バックグラウンド実行予算を保存しました', 'ok');
+        message('バックグラウンドの最大処理時間を保存しました', 'ok');
         await refreshAll();
       }
 
@@ -20148,7 +20148,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const meters = [
           { label: 'メール受信者', note: `アプリ上限 ${formatNumber(email.appLimit || 80)}件`, value: email.used || 0, limit: email.limit || 100, valueLabel: `${formatNumber(email.used || 0)} / ${formatNumber(email.limit || 100)}`, limitLabel: `${formatNumber(email.limit || 100)}人/日` },
           { label: '時間主導トリガー', note: '実測', value: triggers.used || 0, limit: triggers.limit || 20, valueLabel: `${formatNumber(triggers.used || 0)} / ${formatNumber(triggers.limit || 20)}`, limitLabel: `${formatNumber(triggers.limit || 20)}件` },
-          { label: '1回の実行予算', note: '6分前に分割', value: runtime.budgetSeconds || 300, limit: runtime.limitSeconds || 360, valueLabel: `${formatNumber(runtime.budgetSeconds || 300)}秒`, limitLabel: `${formatNumber(runtime.limitSeconds || 360)}秒` },
+          { label: '1回の最大処理時間', note: '6分前に分割', value: runtime.budgetSeconds || 300, limit: runtime.limitSeconds || 360, valueLabel: `${formatNumber(runtime.budgetSeconds || 300)}秒`, limitLabel: `${formatNumber(runtime.limitSeconds || 360)}秒` },
           { label: 'URL取得', note: 'アプリ記録分の下限', value: urlFetch.recorded || 0, limit: urlFetch.limit || 20000, valueLabel: `${formatNumber(urlFetch.recorded || 0)}回以上`, limitLabel: `${formatNumber(urlFetch.limit || 20000)}回/日` },
           { label: 'Apps Scriptバージョン', note: 'コード版から判定', value: versions.used || 0, limit: versions.limit || 200, valueLabel: `v${formatNumber(versions.used || 0)}`, limitLabel: `${formatNumber(versions.limit || 200)}版` },
         ];
