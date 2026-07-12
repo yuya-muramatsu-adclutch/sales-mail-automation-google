@@ -175,13 +175,32 @@ assert(napCampJob.items.length === 2, 'nap-camp sitemap should be chunked');
 assert(napCampJob.items[0].offset === 0 && napCampJob.items[1].offset === 2, 'nap-camp chunk offsets failed');
 assert(napCampJob.items[0].total_candidates === 3, 'nap-camp candidate count failed');
 
+const consumerGasUsage = context.buildConsumerGasUsageStatus_({
+  mailQuotaRemaining: 25,
+  sentToday: 75,
+  appMailLimit: 80,
+  triggerCount: 14,
+  urlFetchRecordedToday: 14000,
+  batchRuntimeBudgetMs: 300000,
+});
+assert(consumerGasUsage.accountType === 'consumer', 'consumer GAS quota profile missing');
+assert(consumerGasUsage.limits.emailRecipientsPerDay === 100, 'consumer mail quota should be 100 recipients');
+assert(consumerGasUsage.limits.triggerRuntimeMinutesPerDay === 90, 'consumer trigger runtime quota should be 90 minutes');
+assert(consumerGasUsage.email.used === 75 && consumerGasUsage.email.remaining === 25, 'consumer mail usage calculation failed');
+assert(consumerGasUsage.alerts.some((item) => item.key === 'triggers'), 'trigger quota warning should be reported');
+assert(consumerGasUsage.alerts.some((item) => item.key === 'urlFetch'), 'URL Fetch quota warning should be reported');
+
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const masters = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v139_mail_send_safety_audit'), 'v139 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v140_consumer_gas_usage_monitor'), 'v140 app version missing');
+assert(html.includes('id="gasUsagePanel"'), 'consumer GAS usage panel missing');
+assert(html.includes('function renderGasUsagePanel()'), 'consumer GAS usage renderer missing');
+assert(html.includes('一般Googleアカウント'), 'consumer account quota label missing');
+assert(webApp.includes('function buildConsumerGasUsageStatus_'), 'consumer GAS usage status builder missing');
 assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(webApp.includes("action === 'importEmailTemplates'"), 'email template bulk import dispatch missing');
@@ -821,7 +840,7 @@ assert(!webApp.includes("status.indexOf('REQUIRED') !== -1"), 'NOT_REQUIRED must
 assert(webApp.includes("'https://www.googleapis.com/auth/script.send_mail'"), 'server Gmail required scopes should include MailApp send scope');
 assert(webApp.includes("'https://mail.google.com/'"), 'server Gmail required scopes should include GmailApp mail scope');
 assert(webApp.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'dashboard should read all lead rows');
-assert(webApp.includes('dashboard_stats_v3'), 'dashboard cache key should reflect v11 operations payload');
+assert(webApp.includes('dashboard_stats_v4'), 'dashboard cache key should include consumer GAS usage payload');
 [
   'saveEmailTemplate',
   'importEmailTemplates',

@@ -299,6 +299,14 @@ function getDashboardStats(options) {
   const todayEmailTargets = mailSendingControl.enabled ? Math.min(listStats.sendable, todayRemaining) : 0;
   const serperInfo = getSerperApiKeyInfo();
   const triggerCount = getProjectTriggerCount_();
+  const gasUsage = buildConsumerGasUsageStatus_({
+    mailQuotaRemaining: mailQuota.remaining,
+    sentToday: sentToday,
+    appMailLimit: dailyMailLimit,
+    triggerCount: triggerCount,
+    urlFetchRecordedToday: serperToday,
+    batchRuntimeBudgetMs: Number(getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000,
+  });
   const activeSearchJobs = searchJobs.filter(function (job) {
     return job.status === 'queued' || job.status === 'running';
   });
@@ -384,6 +392,7 @@ function getDashboardStats(options) {
       triggers: triggerCount > 0,
     },
     triggerCount: triggerCount,
+    gasUsage: gasUsage,
     thisMonth: thisMonth,
     byStatus: byStatus,
     byGenre: byGenre,
@@ -473,6 +482,15 @@ function buildStartupDashboardPlaceholder_() {
       triggers: triggerCount > 0,
     },
     triggerCount: triggerCount,
+    gasUsage: buildConsumerGasUsageStatus_({
+      mailQuotaRemaining: 100,
+      sentToday: 0,
+      appMailLimit: dailyMailLimit,
+      triggerCount: triggerCount,
+      urlFetchRecordedToday: 0,
+      batchRuntimeBudgetMs: 300000,
+      startupPlaceholder: true,
+    }),
     thisMonth: {
       label: month,
       addedLeads: 0,
@@ -561,7 +579,7 @@ function monthText_() {
 function readDashboardStatsCache_(options) {
   const query = options && typeof options === 'object' ? options : {};
   try {
-    const cached = CacheService.getScriptCache().get('dashboard_stats_v3');
+    const cached = CacheService.getScriptCache().get('dashboard_stats_v4');
     if (!cached) {
       return query.allowPersisted === false ? null : readDashboardStatsSheetCache_(query);
     }
@@ -577,7 +595,7 @@ function readDashboardStatsCache_(options) {
 
 function writeDashboardStatsCache_(stats) {
   try {
-    CacheService.getScriptCache().put('dashboard_stats_v3', JSON.stringify(stats), 600);
+    CacheService.getScriptCache().put('dashboard_stats_v4', JSON.stringify(stats), 600);
     upsertDashboardCacheSheet_(stats);
   } catch (error) {
     console.warn('Dashboard cache write skipped: ' + error.message);
@@ -589,7 +607,7 @@ function readDashboardStatsSheetCache_(options) {
     const query = options && typeof options === 'object' ? options : {};
     const records = listSheetRecords('dashboard_cache', { limit: 100, includeInactive: true }).items;
     const cached = records.find(function (record) {
-      return record.cache_key === 'dashboard_stats_v3';
+      return record.cache_key === 'dashboard_stats_v4';
     });
     if (!cached || !cached.value_json) {
       return null;
@@ -613,11 +631,11 @@ function readDashboardStatsSheetCache_(options) {
 function upsertDashboardCacheSheet_(stats) {
   const records = listSheetRecords('dashboard_cache', { limit: 100, includeInactive: true }).items;
   const existing = records.find(function (record) {
-    return record.cache_key === 'dashboard_stats_v3';
+    return record.cache_key === 'dashboard_stats_v4';
   });
   const expiresAt = Utilities.formatDate(new Date(Date.now() + 30 * 60 * 1000), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX");
   const payload = {
-    cache_key: 'dashboard_stats_v3',
+    cache_key: 'dashboard_stats_v4',
     value_json: JSON.stringify(stats),
     expires_at: expiresAt,
   };
@@ -674,4 +692,98 @@ function getProjectTriggerCount_() {
   } catch (error) {
     return 0;
   }
+}
+
+function buildConsumerGasUsageStatus_(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const limits = {
+    emailRecipientsPerDay: 100,
+    triggerRuntimeMinutesPerDay: 90,
+    urlFetchCallsPerDay: 20000,
+    propertiesReadWritePerDay: 50000,
+    runtimeSecondsPerExecution: 360,
+    triggersPerUserPerScript: 20,
+    simultaneousExecutionsPerUser: 30,
+    simultaneousExecutionsPerScript: 1000,
+    propertyValueKb: 9,
+    propertyStoreKb: 500,
+    versionsPerScript: 200,
+  };
+  const actualMailRemaining = Math.max(0, Number(source.mailQuotaRemaining) || 0);
+  const consumerMailRemaining = Math.min(limits.emailRecipientsPerDay, actualMailRemaining);
+  const sentToday = Math.max(0, Number(source.sentToday) || 0);
+  const emailUsed = Math.min(
+    limits.emailRecipientsPerDay,
+    Math.max(sentToday, limits.emailRecipientsPerDay - consumerMailRemaining)
+  );
+  const triggerCount = Math.max(0, Number(source.triggerCount) || 0);
+  const urlFetchRecordedToday = Math.max(0, Number(source.urlFetchRecordedToday) || 0);
+  const batchRuntimeBudgetMs = Math.min(Math.max(Number(source.batchRuntimeBudgetMs) || 300000, 10000), 330000);
+  const versionMatch = String(APP_VERSION || '').match(/_v(\d+)(?:_|$)/);
+  const codeVersion = versionMatch ? Number(versionMatch[1]) : 0;
+  const alerts = [];
+
+  if (emailUsed >= 95) {
+    alerts.push({ key: 'email', tone: 'bad', title: 'メール送信枠が残りわずかです', detail: '一般Googleアカウントの100受信者/日を基準にしています。' });
+  } else if (emailUsed >= 80) {
+    alerts.push({ key: 'email', tone: 'warn', title: 'メール送信枠が80%を超えました', detail: '本日の追加送信前に残数を確認してください。' });
+  }
+  if (triggerCount >= 18) {
+    alerts.push({ key: 'triggers', tone: 'bad', title: 'トリガー登録数が上限に近づいています', detail: triggerCount + '/20件です。不要なトリガーを整理してください。' });
+  } else if (triggerCount >= 14) {
+    alerts.push({ key: 'triggers', tone: 'warn', title: 'トリガー登録数が70%を超えました', detail: triggerCount + '/20件です。' });
+  }
+  if (urlFetchRecordedToday >= 18000) {
+    alerts.push({ key: 'urlFetch', tone: 'bad', title: 'URL取得回数が上限に近づいています', detail: 'アプリ記録分だけで' + urlFetchRecordedToday + '/20,000回です。' });
+  } else if (urlFetchRecordedToday >= 14000) {
+    alerts.push({ key: 'urlFetch', tone: 'warn', title: 'URL取得回数が70%を超えました', detail: 'アプリ記録分だけで' + urlFetchRecordedToday + '/20,000回です。' });
+  }
+  if (batchRuntimeBudgetMs > 330000) {
+    alerts.push({ key: 'runtime', tone: 'warn', title: '1回の実行予算が長すぎます', detail: '6分制限より前に終了できる値へ戻してください。' });
+  }
+  if (codeVersion >= 180) {
+    alerts.push({ key: 'versions', tone: 'bad', title: 'Apps Scriptバージョン上限が近いです', detail: 'コード版v' + codeVersion + ' / 上限200です。新しいスクリプトへの移行準備が必要です。' });
+  } else if (codeVersion >= 140) {
+    alerts.push({ key: 'versions', tone: 'warn', title: 'Apps Scriptバージョンが70%に達しました', detail: 'コード版v' + codeVersion + ' / 上限200です。不要なデプロイを増やさない運用を推奨します。' });
+  }
+
+  return {
+    accountType: 'consumer',
+    accountLabel: '一般Googleアカウント',
+    limits: limits,
+    email: {
+      used: emailUsed,
+      remaining: Math.max(0, limits.emailRecipientsPerDay - emailUsed),
+      actualRemaining: actualMailRemaining,
+      limit: limits.emailRecipientsPerDay,
+      appLimit: Math.max(0, Number(source.appMailLimit) || 0),
+      exact: true,
+    },
+    triggers: {
+      used: triggerCount,
+      remaining: Math.max(0, limits.triggersPerUserPerScript - triggerCount),
+      limit: limits.triggersPerUserPerScript,
+      exact: true,
+    },
+    runtime: {
+      budgetSeconds: Math.round(batchRuntimeBudgetMs / 1000),
+      limitSeconds: limits.runtimeSecondsPerExecution,
+      exact: true,
+    },
+    urlFetch: {
+      recorded: urlFetchRecordedToday,
+      limit: limits.urlFetchCallsPerDay,
+      exact: false,
+    },
+    versions: {
+      used: codeVersion,
+      remaining: Math.max(0, limits.versionsPerScript - codeVersion),
+      limit: limits.versionsPerScript,
+      exact: false,
+    },
+    alerts: alerts,
+    status: alerts.some(function (item) { return item.tone === 'bad'; }) ? 'danger' : alerts.length ? 'warning' : 'ok',
+    startupPlaceholder: source.startupPlaceholder === true,
+    checkedAt: nowIso_(),
+  };
 }

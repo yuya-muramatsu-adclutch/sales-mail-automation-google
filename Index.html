@@ -6876,6 +6876,225 @@
         margin-top: 12px;
       }
 
+      .gas-usage-panel {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+      }
+
+      .gas-usage-summary {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .gas-usage-summary-copy {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .gas-usage-summary-copy h2,
+      .gas-usage-summary-copy p {
+        margin: 0;
+      }
+
+      .gas-usage-summary-copy h2 {
+        font-size: 20px;
+      }
+
+      .gas-usage-summary-copy p {
+        max-width: 760px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.6;
+      }
+
+      .gas-usage-ok-text {
+        flex: 0 0 auto;
+        padding-top: 3px;
+        color: #15803d;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .gas-usage-alert-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .gas-usage-alert {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        padding: 11px 12px;
+        border: 1px solid #fde68a;
+        border-radius: 8px;
+        background: #fffbeb;
+      }
+
+      .gas-usage-alert.bad {
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+
+      .gas-usage-alert > svg {
+        width: 17px;
+        height: 17px;
+        margin-top: 1px;
+        color: #b45309;
+      }
+
+      .gas-usage-alert.bad > svg {
+        color: #dc2626;
+      }
+
+      .gas-usage-alert > div {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .gas-usage-alert strong,
+      .gas-usage-alert small {
+        overflow-wrap: anywhere;
+      }
+
+      .gas-usage-alert strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .gas-usage-alert small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.5;
+      }
+
+      .gas-usage-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .gas-usage-meter {
+        display: grid;
+        gap: 9px;
+        min-width: 0;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .gas-usage-meter-head {
+        display: grid;
+        gap: 8px;
+      }
+
+      .gas-usage-meter-head > div {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .gas-usage-meter-head strong,
+      .gas-usage-meter-head small {
+        overflow-wrap: anywhere;
+      }
+
+      .gas-usage-meter-head strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .gas-usage-meter-head small,
+      .gas-usage-caption {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.4;
+      }
+
+      .gas-usage-meter-head > span {
+        color: var(--text);
+        font-size: 18px;
+        font-weight: 900;
+        line-height: 1.2;
+      }
+
+      .gas-usage-track {
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+
+      .gas-usage-track i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--green);
+      }
+
+      .gas-usage-meter.warn .gas-usage-track i {
+        background: var(--amber);
+      }
+
+      .gas-usage-meter.bad .gas-usage-track i {
+        background: var(--red);
+      }
+
+      .gas-usage-details {
+        margin-top: 0;
+      }
+
+      .gas-limit-list {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .gas-limit-list > div {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+        padding: 11px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .gas-limit-list span,
+      .gas-limit-list small {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
+      .gas-limit-list strong {
+        color: var(--text);
+        font-size: 16px;
+        overflow-wrap: anywhere;
+      }
+
+      .gas-usage-note {
+        margin: 0;
+        padding: 11px 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.6;
+      }
+
       .admin-command-center {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
@@ -8871,6 +9090,14 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
+        .gas-usage-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .gas-limit-list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .background-overview-slots {
           grid-template-columns: 1fr;
         }
@@ -8988,8 +9215,14 @@
         .admin-status-grid,
         .admin-readiness-mini-list,
         .admin-automation-summary,
+        .gas-usage-grid,
+        .gas-limit-list,
         .list-count-bar {
           grid-template-columns: 1fr;
+        }
+
+        .gas-usage-summary {
+          flex-direction: column;
         }
 
         .quick-summary-grid {
@@ -10074,6 +10307,7 @@ PropertiesService
           </header>
           <section id="adminStatusGrid" class="settings-status-grid admin-status-grid"></section>
           <section id="adminReadinessPanel" class="ops-readiness-panel admin-readiness-panel"></section>
+          <section id="gasUsagePanel" class="panel gas-usage-panel"></section>
           <div class="admin-primary-grid">
             <section id="adminReadinessRunnerPanel" class="panel stack admin-primary-panel"></section>
             <section id="adminAutomationSettingsPanel" class="panel stack"></section>
@@ -19874,6 +20108,73 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <div class="admin-readiness-mini-list">
             ${nextItems.map((item) => readinessItemMarkup(item, true)).join('')}
           </div>
+        `;
+        renderGasUsagePanel();
+      }
+
+      function gasUsagePercent(value, limit) {
+        const safeLimit = Math.max(1, Number(limit) || 1);
+        return Math.max(0, Math.min(100, Math.round((Math.max(0, Number(value) || 0) / safeLimit) * 100)));
+      }
+
+      function gasUsageMeterMarkup(item) {
+        const percent = gasUsagePercent(item.value, item.limit);
+        const tone = percent >= 90 ? 'bad' : percent >= 70 ? 'warn' : 'good';
+        return `
+          <div class="gas-usage-meter ${tone}">
+            <div class="gas-usage-meter-head">
+              <div><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.note || '')}</small></div>
+              <span>${escapeHtml(item.valueLabel)}</span>
+            </div>
+            <div class="gas-usage-track" role="progressbar" aria-label="${escapeHtml(item.label)}" aria-valuemin="0" aria-valuemax="${escapeHtml(item.limit)}" aria-valuenow="${escapeHtml(item.value)}"><i style="width:${percent}%"></i></div>
+            <small class="gas-usage-caption">${formatNumber(percent)}% / 上限 ${escapeHtml(item.limitLabel)}</small>
+          </div>
+        `;
+      }
+
+      function renderGasUsagePanel() {
+        const target = document.getElementById('gasUsagePanel');
+        if (!target) return;
+        const dashboard = state.dashboard || {};
+        const usage = dashboard.gasUsage || {};
+        const limits = usage.limits || {};
+        const email = usage.email || { used: dashboard.sentToday || 0, remaining: dashboard.mailQuotaRemaining || 0, limit: 100, appLimit: dashboard.dailyMailLimit || 80 };
+        const triggers = usage.triggers || { used: dashboard.triggerCount || 0, limit: 20 };
+        const runtime = usage.runtime || { budgetSeconds: Math.round(Number(getClientSetting('batch_runtime_budget_ms', 300000)) / 1000), limitSeconds: 360 };
+        const urlFetch = usage.urlFetch || { recorded: dashboard.serperToday || 0, limit: 20000 };
+        const versions = usage.versions || { used: 0, limit: 200 };
+        const alerts = Array.isArray(usage.alerts) ? usage.alerts : [];
+        const alertTone = alerts.some((item) => item.tone === 'bad') ? 'bad' : alerts.length ? 'warn' : 'good';
+        const meters = [
+          { label: 'メール受信者', note: `アプリ上限 ${formatNumber(email.appLimit || 80)}件`, value: email.used || 0, limit: email.limit || 100, valueLabel: `${formatNumber(email.used || 0)} / ${formatNumber(email.limit || 100)}`, limitLabel: `${formatNumber(email.limit || 100)}人/日` },
+          { label: '時間主導トリガー', note: '実測', value: triggers.used || 0, limit: triggers.limit || 20, valueLabel: `${formatNumber(triggers.used || 0)} / ${formatNumber(triggers.limit || 20)}`, limitLabel: `${formatNumber(triggers.limit || 20)}件` },
+          { label: '1回の実行予算', note: '6分前に分割', value: runtime.budgetSeconds || 300, limit: runtime.limitSeconds || 360, valueLabel: `${formatNumber(runtime.budgetSeconds || 300)}秒`, limitLabel: `${formatNumber(runtime.limitSeconds || 360)}秒` },
+          { label: 'URL取得', note: 'アプリ記録分の下限', value: urlFetch.recorded || 0, limit: urlFetch.limit || 20000, valueLabel: `${formatNumber(urlFetch.recorded || 0)}回以上`, limitLabel: `${formatNumber(urlFetch.limit || 20000)}回/日` },
+          { label: 'Apps Scriptバージョン', note: 'コード版から判定', value: versions.used || 0, limit: versions.limit || 200, valueLabel: `v${formatNumber(versions.used || 0)}`, limitLabel: `${formatNumber(versions.limit || 200)}版` },
+        ];
+        target.innerHTML = `
+          <div class="gas-usage-summary">
+            <div class="gas-usage-summary-copy">
+              <span class="dashboard-kicker">GAS usage</span>
+              <h2>GAS利用状況</h2>
+              <p>${escapeHtml(usage.accountLabel || '一般Googleアカウント')}の公式上限を基準に監視しています。通常運用はアプリ内の安全上限を優先します。</p>
+            </div>
+            ${alerts.length ? `<span class="pill ${alertTone}">注意 ${formatNumber(alerts.length)}件</span>` : '<span class="gas-usage-ok-text">現在問題なし</span>'}
+          </div>
+          ${alerts.length ? `<div class="gas-usage-alert-list">${alerts.map((alert) => `<div class="gas-usage-alert ${escapeHtml(alert.tone || 'warn')}">${legacyUiIcon(alert.tone === 'bad' ? 'shieldAlert' : 'triangleAlert')}<div><strong>${escapeHtml(alert.title)}</strong><small>${escapeHtml(alert.detail)}</small></div></div>`).join('')}</div>` : ''}
+          <div class="gas-usage-grid">${meters.map(gasUsageMeterMarkup).join('')}</div>
+          <details class="admin-inner-disclosure gas-usage-details">
+            <summary><span>取得できない制限と固定上限</span><small>Google側でのみ確認できる項目</small></summary>
+            <div class="admin-detail-body">
+              <div class="gas-limit-list">
+                <div><span>トリガー累計実行時間</span><strong>${formatNumber(limits.triggerRuntimeMinutesPerDay || 90)}分/日</strong><small>残り時間はApps Scriptから取得できません</small></div>
+                <div><span>Properties読み書き</span><strong>${formatNumber(limits.propertiesReadWritePerDay || 50000)}回/日</strong><small>残り回数は取得できません</small></div>
+                <div><span>同時実行</span><strong>${formatNumber(limits.simultaneousExecutionsPerUser || 30)}回/ユーザー</strong><small>実行中の瞬間値はApps Script管理画面で確認</small></div>
+                <div><span>Properties保存容量</span><strong>${formatNumber(limits.propertyStoreKb || 500)}KB</strong><small>1値あたり ${formatNumber(limits.propertyValueKb || 9)}KB</small></div>
+              </div>
+              <p class="gas-usage-note">メール残数とトリガー数は実測です。URL取得はSerper利用ログに記録された回数を下限として表示するため、サイト取得や残量確認などを含む実際の回数は表示値より多い場合があります。</p>
+            </div>
+          </details>
         `;
       }
 

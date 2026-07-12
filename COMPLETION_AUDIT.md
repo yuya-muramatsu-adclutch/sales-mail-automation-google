@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @139 / code v139: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @140 / code v140: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v139_mail_send_safety_audit`
+- Code version: `20260712_apps_script_full_workflow_v140_consumer_gas_usage_monitor`
 
 ## 計画書との対応
 
@@ -628,6 +628,18 @@
 - `clasp deployments` で既存Web app URLが `@139 - apps-script-full-workflow-v139-mail-send-safety-audit-on-existing-url` を指すことを確認。
 - `clasp run getDashboardStats` は実行権限で失敗。実データの最新集計確認はWeb appまたはApps Script editorで行う。
 - Chromeで既存Web app URLをリロードし、画面上の `20260712_apps_script_full_workflow_v139_mail_send_safety_audit` 表示、確認待ちリスト `1,134件`、初期表示 `100件` を確認。メール送信実行は未実施。
+
+## 2026-07-12 v140 一般Googleアカウント向けGAS利用状況
+
+- 管理画面に一般Googleアカウントの公式上限を基準とした `GAS利用状況` パネルを追加。
+- メール受信者100人/日、トリガー20件、1回6分、URL Fetch 20,000回/日、Apps Scriptバージョン200版をメーター表示。
+- Gmail残数とトリガー数は実測、URL FetchはSerper利用ログに記録された下限として表示し、Googleから残数を取得できないトリガー累計時間・Properties操作回数は取得不可と明記。
+- 通常時は `現在問題なし` の簡潔表示、70%以上は注意、90%以上は警告。コード版v140は200版上限の70%として注意表示。
+- 既存のアプリ日次メール上限80件と1回300秒の分割実行予算は、安全余裕として維持。
+- ダッシュボードキャッシュを `dashboard_stats_v4` へ更新し、旧キャッシュで利用状況が欠落しないようにした。
+- `node scripts/smoke-test.js`、主要 `.gs` 構文チェック、`git diff --check` 成功。
+- `clasp push -f` 成功。Version 140を作成し、既存Web app URLを `@140` へ再デプロイ済み。
+- ChromeでVersion 140、一般Googleアカウント表示、各メーター、注意表示、詳細アコーディオンの開閉を確認。ブラウザ警告・エラーログ0件。メール送信実行は未実施。
 
 ## 運用時に確認する外部依存
 
