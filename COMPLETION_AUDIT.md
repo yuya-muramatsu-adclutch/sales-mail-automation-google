@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @152 / code v152: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @153 / code v153: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v152_collection_mail_safety`
+- Code version: `20260712_apps_script_full_workflow_v153_review_delivery_gate`
 
 ## 計画書との対応
 
@@ -730,6 +730,18 @@
 - 送信計画と右側の送信制限表示の`1回上限`をGmail残り枠ではなく、設定値`email_batch_send_limit`（現在20件）から表示・計画するよう統一。
 - Version 152デプロイ後も、本番のなっぷ収集ジョブが`offset 74 -> 87 / 5,872`、試行7 -> 8回、最終更新2026-07-12 15:30:40までPC操作なしで自動継続していることを確認。`status=queued`、`last_error`空、現行異常ログ0件。
 - Chromeの実URLでVersion 152、確認待ちからの起動、送信予定/制限の1回20件表示、抽出ノイズ4種非表示、本番メール停止、テスト宛先`yuya1998nu@gmail.com`/宛名`村松侑哉`固定を確認。実メール送信は未実施。
+
+## 2026-07-12 v153 確認待ちと実送信の強制分離
+
+- 収集系source（`serper` / `search_job` / `prospecting` / `source_page`）かつ`status=未対応`の確認待ちが、メール・フォーム送信対象判定で除外されていない問題を確認。
+- 実データ5,523行の監査時点で、確認待ち1,215件のうちメール候補94件、フォーム候補362件が承認前の作業対象と重複していた。
+- 共通判定`isLeadReviewPending_`を追加し、確認済み（GAS版では`status=対応中`）へ変更するまで、メール候補、フォーム候補、フォーム送信済み登録をサーバー側で強制遮断。
+- フォーム画面でも承認前はURL、本文コピー、対応中/対応済み操作を無効化し、対応不要のみ実行可能にした。
+- フォーム送信済み解除時に承認済みの`status=対応中`が`未対応`へ戻る問題を修正。送信前statusを履歴に保存して復元する。
+- `privacy` / `personal-information` / `recruit` / `career` / `saiyo` / `jinji` / `webmaster` / `abuse` / `security`系の役割アドレスを営業送信候補から除外。`pr@...`など通常の広報窓口は維持。
+- Chromeの実URLでVersion 153を確認。確認待ち代表「士幌高原ヌプカの里」と`privacy@okura-nikko.co.jp`はメール候補から消え、メール対象総数は`2,014 -> 1,924件`。
+- フォーム画面で確認待ち行のフォームリンク0件、行内の本文コピー/送信済み無効、右プレビューのコピー/対応中/対応済み無効、対応不要のみ有効を確認。
+- 本番収集ジョブはVersion 153確認時も`offset 98 / 5,872`、試行9回、`status=queued`、`last_error`空、現行異常ログ0件で継続中。実メール・実フォーム送信は未実施。
 
 ## 運用時に確認する外部依存
 

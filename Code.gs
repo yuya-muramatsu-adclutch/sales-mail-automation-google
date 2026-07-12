@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260712_apps_script_full_workflow_v152_collection_mail_safety';
+const APP_VERSION = '20260712_apps_script_full_workflow_v153_review_delivery_gate';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -725,8 +725,14 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   if (value === 'no_contact') return !isValidEmailAddress_(lead.email) && !lead.form_url;
   if (value === 'won') return dealStatus === '受注' || status === '受注';
   if (value === 'lost') return dealStatus === '失注' || status === '失注';
-  if (value === 'review') return status === '未対応' && ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(lead.source || '')) !== -1;
+  if (value === 'review') return isLeadReviewPending_(lead);
   return true;
+}
+
+function isLeadReviewPending_(lead) {
+  return Boolean(lead) &&
+    String(lead.status || '') === '未対応' &&
+    ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(lead.source || '')) !== -1;
 }
 
 function matchesFormStatusFilter_(lead, formStatus) {
@@ -837,6 +843,11 @@ function markLeadFormSent(leadId, options) {
       throw new Error('Lead not found: ' + id);
     }
 
+    const blockReason = getFormSendTargetBlockReason_(found.record, buildMasterBlockContext_());
+    if (blockReason) {
+      throw createExpectedOperationError_(blockReason, 'FORM_TARGET_BLOCKED');
+    }
+
     const now = nowIso_();
     const headers = getHeaders_(sheet);
     const customFields = parseJsonObjectSafe_(found.record.custom_fields_json);
@@ -850,11 +861,13 @@ function markLeadFormSent(leadId, options) {
       type: 'sent',
       body: body,
       template_id: templateId,
+      previous_status: String(found.record.status || '未対応'),
     });
 
     customFields.form_send_count = nextCount;
     customFields.last_form_sent_at = now;
     customFields.last_form_body = body;
+    customFields.last_form_previous_status = String(found.record.status || '未対応');
     if (templateId) customFields.last_form_template_id = templateId;
     customFields.form_send_events = events.slice(0, 50);
 
@@ -889,6 +902,16 @@ function unmarkLeadFormSent(leadId) {
     const events = formSendEventsFromCustomFields_(customFields);
     const nextCount = Math.max(0, Number(customFields.form_send_count || 0) - 1);
     const fallbackSentAt = latestSuccessfulMailSentAt_(id);
+    const previousSentEvent = events.find(function (event) {
+      return event && event.type === 'sent' && event.previous_status;
+    });
+    const reviewFallbackStatus = ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(found.record.source || '')) !== -1
+      ? '対応中'
+      : '未対応';
+    const previousStatus = String(customFields.last_form_previous_status || (previousSentEvent && previousSentEvent.previous_status) || reviewFallbackStatus);
+    const restoreStatus = LEAD_STATUSES.indexOf(previousStatus) !== -1 && SYSTEM_STATUS_OPTIONS.indexOf(previousStatus) === -1
+      ? previousStatus
+      : reviewFallbackStatus;
 
     events.unshift({
       at: now,
@@ -901,9 +924,10 @@ function unmarkLeadFormSent(leadId) {
     delete customFields.last_form_sent_at;
     delete customFields.last_form_body;
     delete customFields.last_form_template_id;
+    delete customFields.last_form_previous_status;
 
     const nextRecord = Object.assign({}, found.record, {
-      status: found.record.status === 'フォーム対応済み' ? '未対応' : (found.record.status || '未対応'),
+      status: found.record.status === 'フォーム対応済み' ? restoreStatus : (found.record.status || restoreStatus),
       form_status: '未対応',
       last_sent_at: fallbackSentAt || '',
       custom_fields_json: safeJsonStringify_(customFields),

@@ -9927,10 +9927,10 @@
                 <p class="muted" id="formPreviewMeta">対象を選択してください</p>
                 <div class="form-template-preview" id="formTemplatePreview">フォーム送信用テンプレートがここに表示されます。</div>
                 <div class="toolbar" style="margin-top:12px">
-                  <button type="button" class="primary" onclick="copySelectedFormMessage()">コピー</button>
-                  <button type="button" onclick="markSelectedFormLead('対応中')">対応中</button>
-                  <button type="button" onclick="markSelectedFormLead('対応済み')">対応済み</button>
-                  <button type="button" class="danger" onclick="markSelectedFormLead('対応不要')">対応不要</button>
+                  <button type="button" class="primary" id="formPreviewCopyButton" onclick="copySelectedFormMessage()">コピー</button>
+                  <button type="button" id="formPreviewWorkingButton" onclick="markSelectedFormLead('対応中')">対応中</button>
+                  <button type="button" id="formPreviewSentButton" onclick="markSelectedFormLead('対応済み')">対応済み</button>
+                  <button type="button" class="danger" id="formPreviewNoActionButton" onclick="markSelectedFormLead('対応不要')">対応不要</button>
                 </div>
               </div>
             </section>
@@ -14482,6 +14482,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderFormOutreachSummary(total);
         const rows = state.formLeads.map((lead) => {
           const sent = isFormLeadSent(lead);
+          const blockedReason = sent ? '' : formLeadBlockReasonClient(lead);
           const updating = state.formUpdatingLeadId === lead.id;
           const displayName = lead.facility_name || lead.company_name || '-';
           const classes = [
@@ -14490,14 +14491,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ].filter(Boolean).join(' ');
           const cells = [
             ['選択', `<button type="button" class="table-link-button" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '作業中' : '選択'}</button>`],
-            ['送信済み', renderFormSentCheck(lead, sent, updating)],
+            ['送信済み', renderFormSentCheck(lead, sent, updating, blockedReason)],
             ['営業先', `<span class="company-cell facility-copy-cell"><button type="button" class="facility-copy-button" onclick="copyFormLeadFacilityName('${escapeJsString(lead.id)}')">${state.copiedFormFacilityId === lead.id ? legacyUiIcon('check') : ''}<span>${escapeHtml(displayName)}</span></button>${lead.company_name && lead.company_name !== displayName ? `<small class="muted">${escapeHtml(lead.company_name)}</small>` : ''}<button type="button" class="mini-text-link mini-button-reset" onclick="selectFormLead('${escapeJsString(lead.id)}')">作業</button></span>`],
             ['ジャンル', escapeHtml(lead.genre || '-')],
             ['フォーム状態', statusPill(lead.form_status || '未対応')],
             ['営業状態', statusPill(lead.status || '未対応')],
             ['フォーム送信', formSendSummaryCell(lead)],
-            ['フォームURL', lead.form_url ? formUrlMiniLink(lead.form_url) : '<span class="muted">未取得</span>'],
-            ['操作', renderFormLeadActionCell(lead, sent, updating)],
+            ['フォームURL', blockedReason ? `<span class="pill warn" title="${escapeHtml(blockedReason)}">確認待ち</span>` : (lead.form_url ? formUrlMiniLink(lead.form_url) : '<span class="muted">未取得</span>')],
+            ['操作', renderFormLeadActionCell(lead, sent, updating, blockedReason)],
           ];
           return `<tr class="${escapeHtml(classes)}">` + cells.map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
         }).join('');
@@ -14531,12 +14532,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         target.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span>`;
       }
 
-      function renderFormSentCheck(lead, sent, updating) {
+      function renderFormSentCheck(lead, sent, updating, blockedReason) {
         const latest = latestFormSentAtClient(lead);
         return `
           <span class="form-send-state-cell">
             <label class="table-checkbox form-sent-check">
-              <input type="checkbox" onchange="toggleFormLeadSent('${escapeJsString(lead.id)}', this.checked)" ${sent ? 'checked' : ''} ${updating ? 'disabled' : ''}>
+              <input type="checkbox" onchange="toggleFormLeadSent('${escapeJsString(lead.id)}', this.checked)" ${sent ? 'checked' : ''} ${updating || (!sent && blockedReason) ? 'disabled' : ''}>
               <span>${sent ? '送信済み' : '未送信'}</span>
             </label>
             ${latest ? `<small class="muted">${escapeHtml(dateTimeLabel(latest))}</small>` : ''}
@@ -14544,14 +14545,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         `;
       }
 
-      function renderFormLeadActionCell(lead, sent, updating) {
+      function renderFormLeadActionCell(lead, sent, updating, blockedReason) {
         const id = escapeJsString(lead.id);
         return `
           <span class="table-action-row">
-            <button type="button" class="table-link-button" onclick="selectFormLead('${id}'); copySelectedFormMessage()" ${updating ? 'disabled' : ''}>${legacyUiIcon('clipboard')}本文コピー</button>
+            <button type="button" class="table-link-button" onclick="selectFormLead('${id}'); copySelectedFormMessage()" ${updating || blockedReason ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon('clipboard')}本文コピー</button>
             ${sent
               ? `<button type="button" class="table-link-button" onclick="unmarkFormLeadSent('${id}')" ${updating ? 'disabled' : ''}>解除</button>`
-              : `<button type="button" class="table-link-button" onclick="markFormLeadSent('${id}')" ${updating || !lead.form_url ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}送信済み</button>`}
+              : `<button type="button" class="table-link-button" onclick="markFormLeadSent('${id}')" ${updating || !lead.form_url || blockedReason ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon('checkCircle')}送信済み</button>`}
           </span>
         `;
       }
@@ -14585,12 +14586,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderFormOutreachSummary(total) {
-        const active = state.formLeads.filter((lead) => !['対応済み', '対応不要'].includes(String(lead.form_status || '未対応'))).length;
+        const active = state.formLeads.filter(canFormLeadClient).length;
         const sent = state.formLeads.filter((lead) => lead.form_status === '対応済み').length;
         const noAction = state.formLeads.filter((lead) => lead.form_status === '対応不要').length;
         const hasForm = state.formLeads.filter((lead) => Boolean(lead.form_url)).length;
-        const ready = state.formLeads.filter((lead) => lead.form_url && findFormTemplateForLead(lead) && !['対応済み', '対応不要'].includes(String(lead.form_status || '未対応'))).length;
-        const missingTemplate = state.formLeads.filter((lead) => lead.form_url && !findFormTemplateForLead(lead)).length;
+        const ready = state.formLeads.filter((lead) => canFormLeadClient(lead) && findFormTemplateForLead(lead)).length;
+        const missingTemplate = state.formLeads.filter((lead) => canFormLeadClient(lead) && !findFormTemplateForLead(lead)).length;
         document.getElementById('formOutreachSummary').innerHTML = [
           formSummaryCard('表示中', state.formLeads.length, `${formatNumber(total)}件中`, 'primary'),
           formSummaryCard('作業中', active, '未対応/対応中', 'primary'),
@@ -14613,16 +14614,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           document.getElementById('formTemplatePreview').textContent = 'フォーム送信用テンプレートがここに表示されます。';
           document.getElementById('formTemplatePill').textContent = '未選択';
           document.getElementById('formWorkPanel').innerHTML = '<div class="form-work-main"><strong>作業対象を選択してください</strong><small class="muted">左のフォーム対象から1件選びます。</small></div>';
+          updateFormPreviewActionState(null, 'フォーム対象を選択してください');
           return;
         }
         const template = findFormTemplateForLead(lead);
         const sent = isFormLeadSent(lead);
+        const blockedReason = sent ? '' : formLeadBlockReasonClient(lead);
         const updating = state.formUpdatingLeadId === lead.id;
         const formCount = formDisplaySendCount(lead);
         const latestFormAt = latestFormSentAtClient(lead);
         document.getElementById('formPreviewMeta').textContent = `${lead.company_name || ''} / ${lead.genre || '共通'} / ${template ? template.name : 'テンプレート未設定'}`;
         document.getElementById('formTemplatePreview').textContent = template ? renderClientTemplate(template.body || '', lead) : '本番ONのフォーム用テンプレートがありません。テンプレート画面で template_type=form を作成してください。';
         document.getElementById('formTemplatePill').textContent = template ? template.name : 'テンプレート未設定';
+        updateFormPreviewActionState(lead, blockedReason);
         document.getElementById('formWorkPanel').innerHTML = `
           <div class="form-work-main">
             ${statusTonePill('作業中', formStatusToneClient(lead.form_status || '未対応'))}
@@ -14633,14 +14637,26 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           <div class="form-work-actions">
             <button type="button" class="icon-text-button secondary" onclick="copyFormLeadFacilityName('${escapeJsString(lead.id)}')">${state.copiedFormFacilityId === lead.id ? legacyUiIcon('check') : legacyUiIcon('mousePointer')}屋号コピー</button>
-            ${lead.form_url ? formUrlMiniLink(lead.form_url) : '<span class="pill warn">フォーム未取得</span>'}
-            <button type="button" class="icon-text-button" onclick="copySelectedFormMessage()">${legacyUiIcon('clipboard')}本文コピー</button>
+            ${blockedReason ? `<span class="pill warn" title="${escapeHtml(blockedReason)}">確認待ち</span>` : (lead.form_url ? formUrlMiniLink(lead.form_url) : '<span class="pill warn">フォーム未取得</span>')}
+            <button type="button" class="icon-text-button" onclick="copySelectedFormMessage()" ${blockedReason ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon('clipboard')}本文コピー</button>
             ${sent
               ? `<button type="button" class="icon-text-button secondary" onclick="unmarkSelectedFormLeadSent()" ${updating ? 'disabled' : ''}>送信済み解除</button>`
-              : `<button type="button" class="icon-text-button" onclick="markSelectedFormLeadSent()" ${updating || !lead.form_url ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}送信済み</button>`}
+              : `<button type="button" class="icon-text-button" onclick="markSelectedFormLeadSent()" ${updating || !lead.form_url || blockedReason ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon('checkCircle')}送信済み</button>`}
             <button type="button" class="button secondary compact-button" onclick="selectNextFormLead()">${legacyUiIcon('arrowRight')}次へ</button>
           </div>
         `;
+      }
+
+      function updateFormPreviewActionState(lead, blockedReason) {
+        const blocked = !lead || Boolean(blockedReason);
+        ['formPreviewCopyButton', 'formPreviewWorkingButton', 'formPreviewSentButton'].forEach((id) => {
+          const button = document.getElementById(id);
+          if (!button) return;
+          button.disabled = blocked;
+          button.title = blockedReason || '';
+        });
+        const noActionButton = document.getElementById('formPreviewNoActionButton');
+        if (noActionButton) noActionButton.disabled = !lead;
       }
 
       function formUrlMiniLink(url) {
@@ -14728,6 +14744,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function markSelectedFormLead(nextStatus) {
         if (!state.selectedFormLeadId) {
           message('フォーム対象を選択してください', 'error');
+          return;
+        }
+        const selectedLead = state.formLeads.find((lead) => lead.id === state.selectedFormLeadId);
+        const blockReason = selectedLead ? formLeadBlockReasonClient(selectedLead) : 'フォーム対象が見つかりません';
+        if (nextStatus !== '対応不要' && blockReason) {
+          message(blockReason, 'error');
           return;
         }
         if (nextStatus === '対応済み') {
@@ -20700,11 +20722,27 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function canEmailLead(lead) {
         if (!lead || !isValidBusinessEmailClient(lead.email)) return false;
+        if (isReviewPendingLead(lead)) return false;
         if (normalizeBooleanLike(lead.send_ng) || lead.status === '送信NG' || lead.status === '対応不要') return false;
         if (normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり') return false;
         if (lead.last_sent_at || Number(lead.send_count || 0) > 0 || String(lead.status || '').includes('送信済み')) return false;
         if (lead.deal_status && lead.deal_status !== '未設定') return false;
         return true;
+      }
+
+      function formLeadBlockReasonClient(lead) {
+        if (!lead || !lead.form_url) return 'フォームURLがありません';
+        if (isReviewPendingLead(lead)) return '確認待ちです。先に確認済みにしてください';
+        if (isValidBusinessEmailClient(lead.email)) return 'メール送信対象です';
+        if (normalizeBooleanLike(lead.send_ng) || ['送信NG', '対応不要'].includes(String(lead.status || ''))) return '送信NGまたは対応不要です';
+        if (normalizeBooleanLike(lead.reply_checked) || String(lead.status || '') === '返信あり') return '返信確認済みです';
+        if (lead.deal_status && lead.deal_status !== '未設定') return '商談状態が設定済みです';
+        if (['対応済み', '対応不要'].includes(String(lead.form_status || '未対応'))) return 'フォーム対応済みです';
+        return '';
+      }
+
+      function canFormLeadClient(lead) {
+        return !formLeadBlockReasonClient(lead);
       }
 
       function isValidBusinessEmailClient(email) {
@@ -20716,6 +20754,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (local.length < 1 || local.length > 64 || local.startsWith('.') || local.endsWith('.') || local.includes('..')) return false;
         if (!/^[a-z0-9.!#$%&'*+/^_`{|}~-]+$/i.test(local)) return false;
         if (/^(?:no-?reply|do-?not-?reply|mailer-daemon|postmaster)$/i.test(local)) return false;
+        if (/^(?:privacy|personal-?information|kojinjoho|recruit(?:ing)?|careers?|saiyo|jinji|webmaster|abuse|security)(?:[._+-]|$)/i.test(local)) return false;
         const labels = domain.split('.');
         if (labels.length < 2 || labels.some((label) => !label || label.length > 63 || label.startsWith('-') || label.endsWith('-'))) return false;
         const topLevelDomain = labels[labels.length - 1];

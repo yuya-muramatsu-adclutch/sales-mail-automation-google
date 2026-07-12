@@ -129,12 +129,16 @@ assert(context.isEmailSendTarget_(eligibleLead, sendSafetyContext), 'eligible le
 assert(context.isValidEmailAddress_('info@nupuka.jp'), 'normal business email should be valid');
 assert(context.isValidEmailAddress_('rsv@489pro-x.com'), 'business email with a hyphenated domain should be valid');
 assert(context.isValidEmailAddress_('u@business.jp'), 'one-letter local parts should remain valid');
+assert(context.isValidEmailAddress_('pr@hotel.jp'), 'public-relations mailbox should remain valid');
 [
   '1203-featured-75x75@1.5x.jpg',
   'button-only@2x.png',
   'e=.01@window.innerwidth',
   'u@i.msgs.jp',
   'info@example.com',
+  'privacy@hotel.jp',
+  'recruit@hotel.jp',
+  'webmaster@hotel.jp',
 ].forEach((email) => {
   assert(!context.isValidEmailAddress_(email), `scraped non-business email must be rejected: ${email}`);
 });
@@ -142,6 +146,21 @@ assert(
   context.extractEmailFromSearchResult_('privacy@real-site.jp / info@real-site.jp') === 'info@real-site.jp',
   'contact email should be preferred over privacy email',
 );
+const pendingCollectedLead = Object.assign({}, eligibleLead, {
+  source: 'source_page',
+  status: '未対応',
+});
+assert(context.isLeadReviewPending_(pendingCollectedLead), 'newly collected lead should be review-pending');
+assert(!context.isEmailSendTarget_(pendingCollectedLead, sendSafetyContext), 'review-pending lead must not enter email delivery');
+assert(context.isEmailSendTarget_(Object.assign({}, pendingCollectedLead, { status: '対応中' }), sendSafetyContext), 'approved collected lead should become email-eligible');
+const pendingFormLead = Object.assign({}, pendingCollectedLead, {
+  email: '',
+  form_url: 'https://pending-form-test.jp/contact',
+  form_status: '未対応',
+  custom_fields_json: '{}',
+});
+assert(!context.isFormSendTarget_(pendingFormLead, sendSafetyContext), 'review-pending lead must not enter form outreach');
+assert(context.isFormSendTarget_(Object.assign({}, pendingFormLead, { status: '対応中' }), sendSafetyContext), 'approved collected lead should become form-eligible');
 assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { send_ng: true }), sendSafetyContext), 'send_ng lead must be blocked');
 assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { status: '送信NG' }), sendSafetyContext), 'send NG status must be blocked');
 assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { company_name: '株式会社送信停止' }), Object.assign({}, sendSafetyContext, {
@@ -235,6 +254,46 @@ context.assertEmailSendLimitAvailable_ = originalSendSafetyLimit;
 context.appendSheetRecord_ = originalSendSafetyAppend;
 context.updateSheetRecord_ = originalSendSafetyUpdateRecord;
 context.updateLeadAfterSend_ = originalSendSafetyUpdateLead;
+
+const originalFormWithLock = context.withScriptLock_;
+const originalFormSpreadsheet = context.getOrCreateSpreadsheet_;
+const originalFormEnsureSheet = context.ensureSheet_;
+const originalFormFindRow = context.findRowById_;
+const originalFormHeaders = context.getHeaders_;
+const originalFormWriteRow = context.writeRecordToRow_;
+const originalFormGetLead = context.getLeadById;
+const originalFormBuildContext = context.buildMasterBlockContext_;
+const originalFormLatestMail = context.latestSuccessfulMailSentAt_;
+let formRecordUnderTest = Object.assign({}, pendingFormLead, { id: 'lead-form-review-test' });
+let writtenFormRecord = null;
+context.withScriptLock_ = (_name, callback) => callback();
+context.getOrCreateSpreadsheet_ = () => ({});
+context.ensureSheet_ = () => ({});
+context.findRowById_ = () => ({ rowNumber: 2, record: formRecordUnderTest });
+context.getHeaders_ = () => [];
+context.writeRecordToRow_ = (_sheet, _row, _headers, record) => { writtenFormRecord = record; };
+context.getLeadById = () => writtenFormRecord || formRecordUnderTest;
+context.buildMasterBlockContext_ = () => sendSafetyContext;
+context.latestSuccessfulMailSentAt_ = () => '';
+assertThrows(() => context.markLeadFormSent('lead-form-review-test', {}), 'server must reject form completion before lead approval');
+assert(writtenFormRecord === null, 'review-pending form lead must not be updated');
+formRecordUnderTest = Object.assign({}, formRecordUnderTest, { status: '対応中' });
+context.markLeadFormSent('lead-form-review-test', { body: 'test body', template_id: 'tpl-form' });
+assert(writtenFormRecord && writtenFormRecord.status === 'フォーム対応済み', 'approved form lead should be markable as sent');
+assert(JSON.parse(writtenFormRecord.custom_fields_json).last_form_previous_status === '対応中', 'form send should preserve the approved status for undo');
+formRecordUnderTest = writtenFormRecord;
+writtenFormRecord = null;
+context.unmarkLeadFormSent('lead-form-review-test');
+assert(writtenFormRecord && writtenFormRecord.status === '対応中', 'undoing form sent must restore approved status instead of review-pending');
+context.withScriptLock_ = originalFormWithLock;
+context.getOrCreateSpreadsheet_ = originalFormSpreadsheet;
+context.ensureSheet_ = originalFormEnsureSheet;
+context.findRowById_ = originalFormFindRow;
+context.getHeaders_ = originalFormHeaders;
+context.writeRecordToRow_ = originalFormWriteRow;
+context.getLeadById = originalFormGetLead;
+context.buildMasterBlockContext_ = originalFormBuildContext;
+context.latestSuccessfulMailSentAt_ = originalFormLatestMail;
 
 const job = context.normalizeSearchJobInput_({
   job_type: 'lead_official_site',
@@ -562,7 +621,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v152_collection_mail_safety'), 'v152 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v153_review_delivery_gate'), 'v153 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -1155,6 +1214,12 @@ assert(emailSource.indexOf("send_result: PRODUCTION_SEND_RESERVED_RESULT_") < em
 assert(emailSource.includes('function sendLeadEmailBatch('), 'server-side email batch function missing');
 assert(emailSource.includes('assertProductionMailDeliveryAllowed_(true);'), 'server-side batch must enforce send control and send window');
 assert(html.includes("api('sendLeadEmailBatch'"), 'client batch should use one server-side batch request');
+assert(html.includes('if (isReviewPendingLead(lead)) return false;'), 'client email target must exclude review-pending leads');
+assert(html.includes('function formLeadBlockReasonClient('), 'client form target block reason missing');
+assert(html.includes("id=\"formPreviewWorkingButton\""), 'form preview approval bypass control missing');
+assert(emailSource.includes('if (isLeadReviewPending_(lead))'), 'server delivery targets must exclude review-pending leads');
+assert(code.includes("'FORM_TARGET_BLOCKED'"), 'server form completion must reject blocked targets');
+assert(code.includes('last_form_previous_status'), 'form undo should preserve the prior approved status');
 assert(html.includes("['1回上限', `${formatNumber(batchLimit)}件`]"), 'send plan should show the configured batch limit');
 assert(html.includes('1回${formatNumber(batchLimit)}件まで'), 'send limit pill should use the configured batch limit');
 assert(emailSource.includes('getPriorSuccessfulEmailBlockReason_'), 'prior successful send guard missing');

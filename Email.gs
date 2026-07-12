@@ -4,6 +4,7 @@ const PRODUCTION_SEND_RESERVED_RESULT_ = '送信中';
 
 function getEmailSendTargetBlockReason_(lead, masterContext) {
   if (!lead || isArchivedLead_(lead)) return '営業対象外のため送信できません。';
+  if (isLeadReviewPending_(lead)) return '確認待ちのため、確認済みにするまで送信できません。';
   if (!isValidEmailAddress_(lead.email)) return '有効なメールアドレスがないため送信できません。';
   if (normalizeBooleanLike_(lead.send_ng) || String(lead.status || '') === '送信NG') {
     return '送信NGに指定されているため送信できません。';
@@ -24,16 +25,21 @@ function isEmailSendTarget_(lead, masterContext) {
 }
 
 function isFormSendTarget_(lead, masterContext) {
-  if (!lead || isArchivedLead_(lead)) return false;
-  if (!lead.form_url) return false;
-  if (isValidEmailAddress_(lead.email)) return false;
-  if (normalizeBooleanLike_(lead.send_ng)) return false;
-  if (normalizeBooleanLike_(lead.reply_checked)) return false;
-  if (String(lead.deal_status || '未設定') !== '未設定') return false;
-  if (lead.form_status === '対応済み' || lead.form_status === '対応不要') return false;
-  if (SEND_EXCLUDED_STATUSES.indexOf(String(lead.status || '')) !== -1) return false;
+  return !getFormSendTargetBlockReason_(lead, masterContext);
+}
+
+function getFormSendTargetBlockReason_(lead, masterContext) {
+  if (!lead || isArchivedLead_(lead)) return '営業対象外のためフォーム送信できません。';
+  if (isLeadReviewPending_(lead)) return '確認待ちのため、確認済みにするまでフォーム送信できません。';
+  if (!lead.form_url) return 'フォームURLがないため送信できません。';
+  if (isValidEmailAddress_(lead.email)) return 'メール送信対象のためフォーム送信対象外です。';
+  if (normalizeBooleanLike_(lead.send_ng) || String(lead.status || '') === '送信NG') return '送信NGに指定されているため送信できません。';
+  if (normalizeBooleanLike_(lead.reply_checked) || String(lead.status || '') === '返信あり') return '返信確認済みのため送信できません。';
+  if (String(lead.deal_status || '未設定') !== '未設定') return '商談状態が設定済みのため送信できません。';
+  if (lead.form_status === '対応済み' || lead.form_status === '対応不要') return 'フォーム対応済みのため送信できません。';
+  if (SEND_EXCLUDED_STATUSES.indexOf(String(lead.status || '')) !== -1) return '現在のステータスでは送信できません。';
   const blocked = masterContext ? isLeadBlockedByMastersInContext_(lead, masterContext) : isLeadBlockedByMasters_(lead);
-  return !blocked.blocked;
+  return blocked.blocked ? blocked.reason : '';
 }
 
 function isFormOutreachLead_(lead) {
@@ -573,6 +579,7 @@ function isValidEmailAddress_(email) {
   if (local.length < 1 || local.length > 64 || local.charAt(0) === '.' || local.charAt(local.length - 1) === '.' || local.indexOf('..') !== -1) return false;
   if (!/^[a-z0-9.!#$%&'*+/^_`{|}~-]+$/i.test(local)) return false;
   if (/^(?:no-?reply|do-?not-?reply|mailer-daemon|postmaster)$/i.test(local)) return false;
+  if (/^(?:privacy|personal-?information|kojinjoho|recruit(?:ing)?|careers?|saiyo|jinji|webmaster|abuse|security)(?:[._+-]|$)/i.test(local)) return false;
   if (domain.length > 253 || domain.indexOf('..') !== -1 || !/^[a-z0-9.-]+$/i.test(domain)) return false;
   const labels = domain.split('.');
   if (labels.length < 2 || labels.some(function (label) {
