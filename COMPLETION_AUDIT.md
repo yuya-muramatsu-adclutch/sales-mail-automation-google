@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @153 / code v153: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @154 / code v154: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v153_review_delivery_gate`
+- Code version: `20260712_apps_script_full_workflow_v154_reply_detection_safety`
 
 ## 計画書との対応
 
@@ -742,6 +742,18 @@
 - Chromeの実URLでVersion 153を確認。確認待ち代表「士幌高原ヌプカの里」と`privacy@okura-nikko.co.jp`はメール候補から消え、メール対象総数は`2,014 -> 1,924件`。
 - フォーム画面で確認待ち行のフォームリンク0件、行内の本文コピー/送信済み無効、右プレビューのコピー/対応中/対応済み無効、対応不要のみ有効を確認。
 - 本番収集ジョブはVersion 153確認時も`offset 98 / 5,872`、試行9回、`status=queued`、`last_error`空、現行異常ログ0件で継続中。実メール・実フォーム送信は未実施。
+- Serper実使用量が`100/100`へ到達した時点で、ジョブは次施設を消費せず`cursor={"itemIndex":0,"offset":99,"resumeAfter":"2026-07-13T00:05:00+09:00"}`を保存。`status=queued`、試行10回、`last_error`空で、日次上限後の自動再開予約を実環境で確認。
+
+## 2026-07-12 v154 Gmail返信誤判定の防止
+
+- 従来の返信チェックは`from:営業先メール newer_than:365d`の先頭スレッドだけを見ており、営業メール送信前の別件メールでも`返信あり`になる問題を確認。
+- 実データで「南阿蘇温泉郷 別邸 蘇庵」の2026-03-01フォーム自動受付が、2026-06-09の初回メールより前なのに2026-07-06に返信扱いされた誤判定1件を特定。
+- `send_histories`の成功した本番送信を営業先ID別に1回でインデック化し、成功送信履歴のない営業先はGmail検索自体を行わない。
+- Gmail検索を成功送信日以降に絞り、各スレッドの全メッセージに対して、`getDate()`が送信時刻より後、`getFrom()`が営業先メールと一致するメッセージだけを返信候補にする。
+- `getHeader()`で`Auto-Submitted` / `Precedence` / `List-Id` / `X-Autoreply` / `X-Autorespond` / `X-Auto-Response-Suppress` / `X-Failed-Recipients`を確認し、自動応答、メーリングリスト、配信エラーを除外。フォームのお客様控え/受付通知も除外パターンに追加。
+- 誤判定候補は自動返信だけでなく、成功送信前の受信日時でも検出。復元時は最新の成功送信種別に応じて`初回メール送信済み`または`2ヶ月後メール送信済み`へ戻し、`last_gmail_thread_id`もクリアする。
+- Chromeの実URLでVersion 154を確認。Gmail連携画面の既存ログスキャンで誤判定候補1件、復元先`初回メール送信済み`、エラー0件を確認し、復元を実行。
+- 復元後のシートで対象UUID`da8bfb99-8883-4f0c-8240-833c2cefc455`が`初回メール送信済み`、`reply_checked=false`、`last_gmail_thread_id`空、`send_count=1`を確認。再スキャンは候補0件・エラー0件、現行異常ログ0件。Gmail返信検索と実メール送信は未実施。
 
 ## 運用時に確認する外部依存
 

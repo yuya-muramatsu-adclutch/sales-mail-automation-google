@@ -573,9 +573,12 @@ context.buildSourcePageLeadIndex_ = originalBuildSourcePageLeadIndex;
 const originalPropertiesService = context.PropertiesService;
 const originalGmailApp = context.GmailApp;
 const originalListLeads = context.listLeads;
+const originalReplyListSheetRecords = context.listSheetRecords;
 const originalWithScriptLock = context.withScriptLock_;
 const originalClaimGmailReplyCheckRun = context.claimGmailReplyCheckRun_;
 const originalReleaseGmailReplyCheckRun = context.releaseGmailReplyCheckRun_;
+const originalBuildLatestReplySendIndex = context.buildLatestSuccessfulMailSentAtByLeadId_;
+const originalBuildLatestReplyHistoryIndex = context.buildLatestSuccessfulMailHistoryByLeadId_;
 const replyCursorStore = {};
 const replyLeads = Array.from({ length: 5 }, (_value, index) => ({
   id: `reply-lead-${index + 1}`,
@@ -599,6 +602,10 @@ context.listLeads = (options) => ({
 context.withScriptLock_ = (_operation, callback) => callback();
 context.claimGmailReplyCheckRun_ = () => ({ claimed: true, busy: false, lockToken: 'reply-check-test-lock' });
 context.releaseGmailReplyCheckRun_ = () => true;
+context.buildLatestSuccessfulMailSentAtByLeadId_ = () => replyLeads.reduce((acc, lead) => {
+  acc[lead.id] = '2026-06-10T00:00:00+09:00';
+  return acc;
+}, {});
 const firstReplySweep = context.checkRepliesForLeads({ maxThreads: 2, limit: 5, runtimeBudgetMs: 10000 });
 assert(firstReplySweep.attemptedChecks === 2 && firstReplySweep.nextCursorOffset === 2, 'reply check should cap attempts and persist the next cursor');
 const secondReplySweep = context.checkRepliesForLeads({ maxThreads: 2, limit: 5, runtimeBudgetMs: 10000 });
@@ -606,12 +613,67 @@ assert(secondReplySweep.cursorOffset === 2 && secondReplySweep.nextCursorOffset 
 context.claimGmailReplyCheckRun_ = () => ({ claimed: false, busy: true });
 const busyReplySweep = context.checkRepliesForLeads({ maxThreads: 2, limit: 5, runtimeBudgetMs: 10000 });
 assert(busyReplySweep.busy === true && busyReplySweep.checked === 0, 'concurrent reply check should be skipped safely');
+
+const replySentAt = new Date('2026-06-10T00:00:00+09:00');
+const mockReplyMessage = (options) => ({
+  getDate: () => new Date(options.date),
+  getFrom: () => options.from || 'Reply User <reply1@reply-test.jp>',
+  getSubject: () => options.subject || 'Re: お問い合わせ',
+  getPlainBody: () => options.body || '返信本文です',
+  getHeader: (name) => (options.headers && options.headers[name]) || '',
+});
+const preSendMessage = mockReplyMessage({ date: '2026-06-09T12:00:00+09:00' });
+const automatedReceipt = mockReplyMessage({
+  date: '2026-06-10T01:00:00+09:00',
+  subject: 'お問い合わせフォーム（お客様控え）',
+  body: 'この度はお問い合わせいただき、受付いたしました。',
+  headers: { 'Auto-Submitted': 'auto-replied' },
+});
+const wrongSenderMessage = mockReplyMessage({
+  date: '2026-06-10T02:00:00+09:00',
+  from: 'Other User <other@reply-test.jp>',
+});
+const humanReplyMessage = mockReplyMessage({ date: '2026-06-10T03:00:00+09:00' });
+const ignoredReplyResult = context.findHumanReplyAfterSend_([{
+  getId: () => 'thread-auto',
+  getMessages: () => [preSendMessage, automatedReceipt, wrongSenderMessage],
+}], 'reply1@reply-test.jp', replySentAt);
+assert(!ignoredReplyResult.message && ignoredReplyResult.ignoredAutoReplies === 1, 'pre-send, wrong-sender, and automated messages must not count as replies');
+const humanReplyResult = context.findHumanReplyAfterSend_([{
+  getId: () => 'thread-human',
+  getMessages: () => [preSendMessage, automatedReceipt, humanReplyMessage],
+}], 'reply1@reply-test.jp', replySentAt);
+assert(humanReplyResult.message === humanReplyMessage && humanReplyResult.ignoredAutoReplies === 1, 'only a human message from the lead after delivery should count as a reply');
+assert(context.isAutoReplyMessage_('【別邸 蘇庵】お問い合わせフォーム（お客様控え）', 'お問い合わせを受付いたしました。'), 'form receipt should be recognized as an automatic response');
+context.listLeads = () => ({ items: [{
+  id: 'reply-false-positive',
+  status: '返信あり',
+  reply_checked: true,
+  email: 'reply1@reply-test.jp',
+  facility_name: '誤判定テスト',
+}] });
+context.listSheetRecords = () => ({ items: [{
+  lead_id: 'reply-false-positive',
+  subject: '過去のお問い合わせ',
+  snippet: '送信前のメール',
+  received_at: '2026-06-09T00:00:00+09:00',
+  from_email: 'reply1@reply-test.jp',
+}] });
+context.buildLatestSuccessfulMailHistoryByLeadId_ = () => ({
+  'reply-false-positive': { sent_at: '2026-06-10T00:00:00+09:00', send_type: '初回メール' },
+});
+const preSendFalsePositiveResult = context.listReplyFalsePositiveCandidates({ limit: 10 });
+assert(preSendFalsePositiveResult.candidates.length === 1, 'a message received before delivery should be a false-positive candidate');
+assert(preSendFalsePositiveResult.candidates[0].restoreStatus === '初回メール送信済み', 'false-positive restoration should use the latest successful send type');
 context.PropertiesService = originalPropertiesService;
 context.GmailApp = originalGmailApp;
 context.listLeads = originalListLeads;
+context.listSheetRecords = originalReplyListSheetRecords;
 context.withScriptLock_ = originalWithScriptLock;
 context.claimGmailReplyCheckRun_ = originalClaimGmailReplyCheckRun;
 context.releaseGmailReplyCheckRun_ = originalReleaseGmailReplyCheckRun;
+context.buildLatestSuccessfulMailSentAtByLeadId_ = originalBuildLatestReplySendIndex;
+context.buildLatestSuccessfulMailHistoryByLeadId_ = originalBuildLatestReplyHistoryIndex;
 
 const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
@@ -621,7 +683,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v153_review_delivery_gate'), 'v153 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v154_reply_detection_safety'), 'v154 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -966,6 +1028,9 @@ assert(html.includes('adminGmailReplyCheckPanel'), 'legacy admin Gmail reply che
 assert(html.includes('calendarAutoCreateSettingsPanel'), 'legacy calendar auto-create settings panel missing');
 assert(html.includes('scanReplyFalsePositives'), 'legacy reply false-positive scan missing');
 assert(fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8').includes('listReplyFalsePositiveCandidates'), 'reply false-positive API missing');
+assert(operationsSource.includes('findHumanReplyAfterSend_'), 'reply check must inspect messages after successful delivery');
+assert(operationsSource.includes("getHeader('Auto-Submitted')") || operationsSource.includes("gmailMessageHeader_(message, 'Auto-Submitted')"), 'reply check must inspect automatic-response headers');
+assert(operationsSource.includes("' after:' + sentDateQuery"), 'reply search must be bounded by the successful send date');
 assert(html.includes('row-send-ng'), 'lead row status styling missing');
 assert(html.includes('dashboard-hero-grid'), 'legacy-style dashboard hero missing');
 assert(html.includes('dashboard-signal-grid'), 'legacy-style dashboard signals missing');

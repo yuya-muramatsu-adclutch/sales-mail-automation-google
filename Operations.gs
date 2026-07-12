@@ -55,6 +55,7 @@ function checkRepliesForLeads(options) {
     page = listLeads({ limit: candidateLimit, offset: 0, includeArchived: false, sort: 'created_desc' });
   }
   const leads = page.items || [];
+  const latestSentAtByLeadId = buildLatestSuccessfulMailSentAtByLeadId_();
   const checked = [];
   const errors = [];
   let ignoredAutoReplies = 0;
@@ -71,30 +72,40 @@ function checkRepliesForLeads(options) {
     const lead = leads[index];
     scanned += 1;
     if (!isValidEmailAddress_(lead.email) || normalizeBooleanLike_(lead.reply_checked)) continue;
+    const sentAtText = String(latestSentAtByLeadId[String(lead.id || '')] || '');
+    const sentAt = new Date(sentAtText);
+    if (!sentAtText || !Number.isFinite(sentAt.getTime())) continue;
     attemptedChecks += 1;
     try {
-      const query = 'from:' + lead.email + ' newer_than:365d';
+      const timezone = Session.getScriptTimeZone() || 'Asia/Tokyo';
+      const sentDateQuery = Utilities.formatDate(sentAt, timezone, 'yyyy/MM/dd');
+      const query = 'from:' + lead.email + ' after:' + sentDateQuery;
       const threads = GmailApp.search(query, 0, 10);
       if (threads.length === 0) {
         checked.push({ leadId: lead.id, replied: false });
         continue;
       }
 
-      const thread = threads[0];
-      const messages = thread.getMessages();
-      const latest = messages[messages.length - 1];
-      const subject = latest.getSubject();
-      const snippet = latest.getPlainBody().slice(0, 500);
-      if (isAutoReplyMessage_(subject, snippet)) {
-        ignoredAutoReplies += 1;
-        checked.push({ leadId: lead.id, replied: false, ignoredAutoReply: true, threadId: thread.getId() });
+      const detected = findHumanReplyAfterSend_(threads, lead.email, sentAt);
+      ignoredAutoReplies += detected.ignoredAutoReplies;
+      if (!detected.message) {
+        checked.push({
+          leadId: lead.id,
+          replied: false,
+          ignoredAutoReply: detected.ignoredAutoReplies > 0,
+          threadId: detected.latestIgnoredThreadId || '',
+        });
         continue;
       }
+      const thread = detected.thread;
+      const latest = detected.message;
+      const subject = detected.subject;
+      const snippet = detected.snippet;
 
       appendSheetRecord_('reply_logs', {
         lead_id: lead.id,
         thread_id: thread.getId(),
-        from_email: lead.email,
+        from_email: detected.fromEmail || lead.email,
         subject: subject,
         snippet: snippet,
         received_at: Utilities.formatDate(latest.getDate(), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX"),
@@ -189,6 +200,7 @@ function listReplyFalsePositiveCandidates(options) {
   const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 500);
   const startedAt = Date.now();
   const leads = listLeads({ filter: 'reply', limit: limit, includeArchived: false }).items;
+  const latestHistoryByLeadId = buildLatestSuccessfulMailHistoryByLeadId_();
   const logsByLeadId = listSheetRecords('reply_logs', { limit: 1000, includeInactive: true }).items.reduce(function (acc, log) {
     const leadId = String(log.lead_id || '');
     if (!leadId) return acc;
@@ -199,17 +211,25 @@ function listReplyFalsePositiveCandidates(options) {
   const candidates = [];
 
   leads.forEach(function (lead) {
-    const logs = (logsByLeadId[String(lead.id || '')] || []).filter(function (log) {
-      return isAutoReplyMessage_(log.subject, log.snippet);
+    const leadId = String(lead.id || '');
+    const latestHistory = latestHistoryByLeadId[leadId] || null;
+    const sentAtMs = latestHistory ? new Date(latestHistory.sent_at || latestHistory.created_at || 0).getTime() : NaN;
+    const logs = (logsByLeadId[leadId] || []).filter(function (log) {
+      const receivedAtMs = new Date(log.received_at || log.created_at || 0).getTime();
+      const beforeDelivery = Number.isFinite(receivedAtMs) && (!Number.isFinite(sentAtMs) || receivedAtMs <= sentAtMs);
+      return beforeDelivery || isAutoReplyMessage_(log.subject, log.snippet);
     });
     if (!logs.length) return;
+    const latestSendType = String(latestHistory && latestHistory.send_type || '');
     candidates.push({
       leadId: lead.id,
       companyName: lead.company_name || '',
       facilityName: lead.facility_name || '',
       email: lead.email || '',
       ignoredMessages: logs.length,
-      restoreStatus: lead.last_sent_at ? '初回メール送信済み' : '未対応',
+      restoreStatus: latestHistory
+        ? (latestSendType === '2ヶ月後メール' ? '2ヶ月後メール送信済み' : '初回メール送信済み')
+        : '未対応',
       sampleFrom: logs[0].from_email || lead.email || '',
       sampleSubject: logs[0].subject || '',
     });
@@ -232,6 +252,7 @@ function restoreReplyFalsePositiveCandidates(options) {
     updateLead(candidate.leadId, {
       status: candidate.restoreStatus,
       reply_checked: false,
+      last_gmail_thread_id: '',
     });
   });
   result.updated = result.candidates.length;
@@ -240,7 +261,113 @@ function restoreReplyFalsePositiveCandidates(options) {
 
 function isAutoReplyMessage_(subject, body) {
   const text = [subject, body].join(' ').toLowerCase();
-  return /auto[- ]?reply|automatic reply|out of office|delivery status notification|failure notice|undeliver(ed|able)|mailer-daemon|不在|自動返信|配信不能|配信エラー|送信できません|宛先不明/.test(text);
+  if (/auto[- ]?reply|automatic reply|out of office|delivery status notification|delivery failure|failure notice|undeliver(ed|able)|undelivered mail|returned mail|mail delivery subsystem|mailer-daemon|address not found|不在|自動返信|配信不能|配信エラー|送信できません|宛先不明/.test(text)) return true;
+  return /(?:お問い合わせ|お申し込み|メール).*(?:お客様控え|受付いたしました|受付しました|自動送信)|(?:thank you for (?:your )?(?:inquiry|message)|we have received your (?:inquiry|message))/.test(text);
+}
+
+function buildLatestSuccessfulMailSentAtByLeadId_() {
+  const histories = buildLatestSuccessfulMailHistoryByLeadId_();
+  const result = {};
+  Object.keys(histories).forEach(function (leadId) {
+    const history = histories[leadId];
+    result[leadId] = String(history.sent_at || history.created_at || '');
+  });
+  return result;
+}
+
+function buildLatestSuccessfulMailHistoryByLeadId_() {
+  const result = {};
+  readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).forEach(function (history) {
+    if (!isSuccessfulProductionSendHistory_(history)) return;
+    const leadId = String(history.lead_id || '').trim();
+    const sentAt = String(history.sent_at || history.created_at || '').trim();
+    if (!leadId || !sentAt) return;
+    const current = result[leadId];
+    const currentSentAt = current ? String(current.sent_at || current.created_at || '') : '';
+    if (!current || sentAt > currentSentAt) result[leadId] = history;
+  });
+  return result;
+}
+
+function findHumanReplyAfterSend_(threads, leadEmail, sentAt) {
+  const targetEmail = normalizeEmailForSendSafety_(leadEmail);
+  const sentAtMs = sentAt instanceof Date ? sentAt.getTime() : new Date(sentAt).getTime();
+  const candidates = [];
+  let ignoredAutoReplies = 0;
+  let latestIgnoredThreadId = '';
+  let latestIgnoredAt = 0;
+
+  (threads || []).forEach(function (thread) {
+    const threadId = String(thread.getId ? thread.getId() : '');
+    const messages = thread.getMessages ? thread.getMessages() : [];
+    messages.forEach(function (message) {
+      const receivedAt = message.getDate ? message.getDate() : null;
+      const receivedAtMs = receivedAt instanceof Date ? receivedAt.getTime() : new Date(receivedAt || 0).getTime();
+      if (!Number.isFinite(receivedAtMs) || !Number.isFinite(sentAtMs) || receivedAtMs <= sentAtMs) return;
+      const fromHeader = message.getFrom ? message.getFrom() : '';
+      const fromEmails = extractEmailsFromMessageHeader_(fromHeader);
+      if (fromEmails.indexOf(targetEmail) === -1) return;
+      const subject = message.getSubject ? String(message.getSubject() || '') : '';
+      const snippet = message.getPlainBody ? String(message.getPlainBody() || '').slice(0, 500) : '';
+      if (isAutomatedGmailMessage_(message, subject, snippet, fromEmails)) {
+        ignoredAutoReplies += 1;
+        if (receivedAtMs > latestIgnoredAt) {
+          latestIgnoredAt = receivedAtMs;
+          latestIgnoredThreadId = threadId;
+        }
+        return;
+      }
+      candidates.push({
+        thread: thread,
+        message: message,
+        subject: subject,
+        snippet: snippet,
+        fromEmail: fromEmails[0] || targetEmail,
+        receivedAtMs: receivedAtMs,
+      });
+    });
+  });
+
+  candidates.sort(function (left, right) { return right.receivedAtMs - left.receivedAtMs; });
+  const latest = candidates[0] || {};
+  return {
+    thread: latest.thread || null,
+    message: latest.message || null,
+    subject: latest.subject || '',
+    snippet: latest.snippet || '',
+    fromEmail: latest.fromEmail || '',
+    ignoredAutoReplies: ignoredAutoReplies,
+    latestIgnoredThreadId: latestIgnoredThreadId,
+  };
+}
+
+function extractEmailsFromMessageHeader_(value) {
+  const matches = String(value || '').match(/[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,24}/ig) || [];
+  return Array.from(new Set(matches.map(function (email) {
+    return normalizeEmailForSendSafety_(email);
+  }).filter(Boolean)));
+}
+
+function gmailMessageHeader_(message, name) {
+  try {
+    return message && message.getHeader ? String(message.getHeader(name) || '') : '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function isAutomatedGmailMessage_(message, subject, snippet, fromEmails) {
+  if (isAutoReplyMessage_(subject, snippet)) return true;
+  const autoSubmitted = gmailMessageHeader_(message, 'Auto-Submitted').toLowerCase();
+  if (autoSubmitted && autoSubmitted !== 'no') return true;
+  const precedence = gmailMessageHeader_(message, 'Precedence').toLowerCase();
+  if (/^(?:bulk|junk|list|auto[_-]?reply)$/.test(precedence)) return true;
+  if (gmailMessageHeader_(message, 'List-Id')) return true;
+  if (gmailMessageHeader_(message, 'X-Autoreply') || gmailMessageHeader_(message, 'X-Autorespond') || gmailMessageHeader_(message, 'X-Auto-Response-Suppress')) return true;
+  if (gmailMessageHeader_(message, 'X-Failed-Recipients')) return true;
+  return (fromEmails || []).some(function (email) {
+    return /^(?:no-?reply|do-?not-?reply|mailer-daemon|postmaster)@/i.test(String(email || ''));
+  });
 }
 
 function createCalendarEventForLead(leadId, input) {
