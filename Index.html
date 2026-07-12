@@ -47,6 +47,10 @@
         box-sizing: border-box;
       }
 
+      [hidden] {
+        display: none !important;
+      }
+
       body {
         margin: 0;
         background:
@@ -8903,6 +8907,7 @@
       }
 
       .lead-action-cell,
+      .review-action-row,
       .table-action-row,
       .template-action-row,
       .job-result-actions,
@@ -9373,6 +9378,588 @@
           text-overflow: clip;
         }
       }
+
+      /* v163-usability-system: quiet hierarchy, progressive disclosure, and consistent operations UI. */
+      :root {
+        --bg: #f4f6f8;
+        --surface-muted: #f7f9fb;
+        --line: #dfe5ec;
+        --line-strong: #cfd8e3;
+        --text: #17202a;
+        --muted: #657386;
+        --blue: #2563eb;
+        --green: #087f5b;
+        --red: #c0362c;
+        --amber: #9a5b08;
+        --teal: #0f766e;
+        --content-max: 1600px;
+        --sidebar-width: 248px;
+        --card-pad: 22px;
+        --card-gap: 20px;
+        --card-child-pad: 14px;
+        --card-child-gap: 12px;
+        --shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+        --shadow-soft: none;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .sidebar {
+        padding: 18px 12px;
+        border-right-color: rgba(255, 255, 255, 0.08);
+        background: #111827;
+      }
+
+      .brand {
+        min-height: 58px;
+        padding: 6px 10px 16px;
+      }
+
+      .brand-mark {
+        width: 36px;
+        height: 36px;
+        background: #2563eb;
+        box-shadow: none;
+      }
+
+      .tabs {
+        gap: 12px;
+      }
+
+      .nav-group {
+        gap: 3px;
+      }
+
+      .nav-group-label {
+        padding: 8px 10px 5px;
+        color: #8190a6;
+        letter-spacing: 0;
+      }
+
+      .tab.nav-item {
+        min-height: 40px;
+        padding: 9px 10px;
+        border-radius: 7px;
+      }
+
+      .tab.nav-item.active {
+        box-shadow: none;
+      }
+
+      .tab.nav-item.active::before {
+        left: -12px;
+        width: 3px;
+        border-radius: 0 4px 4px 0;
+        background: #60a5fa;
+      }
+
+      .nav-more {
+        min-width: 0;
+      }
+
+      .nav-more > summary,
+      .sidebar-tools > summary {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 40px;
+        padding: 9px 10px;
+        border-radius: 7px;
+        color: #aeb9ca;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 900;
+        list-style: none;
+      }
+
+      .nav-more > summary::-webkit-details-marker,
+      .sidebar-tools > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .nav-more > summary::after,
+      .sidebar-tools > summary::after {
+        content: "+";
+        margin-left: auto;
+        color: #8190a6;
+        font-size: 15px;
+        line-height: 1;
+      }
+
+      .nav-more[open] > summary::after,
+      .sidebar-tools[open] > summary::after {
+        content: "−";
+      }
+
+      .nav-more > summary:hover,
+      .nav-more[open] > summary,
+      .nav-more.has-active > summary {
+        background: rgba(255, 255, 255, 0.07);
+        color: #f8fafc;
+      }
+
+      .nav-more-icon,
+      .nav-more-icon svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .nav-group-secondary {
+        margin-top: 4px;
+        padding-left: 8px;
+        border-left: 1px solid rgba(148, 163, 184, 0.2);
+      }
+
+      .nav-group-secondary .tab.nav-item {
+        min-height: 38px;
+        font-size: 12px;
+      }
+
+      .sidebar-footer {
+        gap: 8px;
+        padding: 18px 4px 0;
+      }
+
+      .sidebar-meta {
+        min-height: 0;
+        padding: 0 6px;
+        color: #8190a6;
+        font-size: 10px;
+        line-height: 1.4;
+      }
+
+      .sidebar-tools {
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+        padding-top: 4px;
+      }
+
+      .sidebar-tools > summary {
+        min-height: 34px;
+        padding: 6px 8px;
+        font-size: 11px;
+      }
+
+      .sidebar-tools > button {
+        width: 100%;
+        min-height: 34px;
+        margin-top: 6px;
+        border-color: rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: #cbd5e1;
+        font-size: 11px;
+      }
+
+      .main {
+        padding: 28px clamp(24px, 2.5vw, 40px) 56px;
+        gap: 20px;
+      }
+
+      .main-toolbar {
+        position: sticky;
+        z-index: 40;
+        top: 8px;
+        margin: 0;
+        border-color: rgba(207, 216, 227, 0.92);
+        background: rgba(255, 255, 255, 0.94);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+        backdrop-filter: blur(12px);
+      }
+
+      .main-toolbar-actions button {
+        border-color: transparent;
+        background: transparent;
+      }
+
+      .main-toolbar-actions button.active,
+      .main-toolbar-actions button[aria-current="page"] {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+        box-shadow: none;
+      }
+
+      .section.active {
+        gap: 24px;
+      }
+
+      .section-header {
+        min-height: 88px;
+        padding: 4px 0 20px;
+        border-bottom-color: #d8e0e8;
+      }
+
+      .section-header > div:first-child {
+        gap: 3px;
+      }
+
+      .section-header h1 {
+        margin: 0;
+        color: #111827;
+        font-size: 28px;
+        font-weight: 900;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      .section-header .eyebrow {
+        color: #64748b;
+        font-size: 11px;
+        text-transform: none;
+      }
+
+      .section-description {
+        max-width: 720px;
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.55;
+      }
+
+      .panel,
+      .dashboard-focus-section,
+      .dashboard-summary-panel,
+      .dashboard-api-panel,
+      .dashboard-send-queue,
+      .prospecting-activity-panel,
+      .collection-command-center,
+      .ops-readiness-panel,
+      .mail-sending-control,
+      .prospecting-status-card {
+        border-color: var(--line);
+        border-radius: 8px;
+        box-shadow: none;
+      }
+
+      .panel.stack {
+        padding: 22px;
+        gap: 20px;
+      }
+
+      .panel.stack > .panel-head {
+        margin: -22px -22px 0;
+      }
+
+      .panel-head {
+        min-height: 58px;
+        padding: 16px 20px;
+        align-items: center;
+        border-bottom-color: #e6ebf1;
+      }
+
+      .panel-head h2,
+      .section-title-row h2,
+      .dashboard-section-heading h2 {
+        font-size: 18px;
+        line-height: 1.3;
+      }
+
+      .panel-body {
+        padding: 20px;
+      }
+
+      .grid,
+      .split,
+      .content-grid,
+      .admin-primary-grid,
+      .dashboard-hero-grid,
+      .dashboard-lower-grid {
+        gap: 20px;
+      }
+
+      button,
+      .button,
+      .button-link,
+      .icon-text-button {
+        min-height: 38px;
+        border-radius: 7px;
+      }
+
+      button.primary,
+      .button.primary,
+      .button-link.primary {
+        border-color: #1f2937;
+        background: #1f2937;
+      }
+
+      button.blue,
+      .button.blue,
+      .button-link.blue {
+        border-color: #2563eb;
+        background: #2563eb;
+      }
+
+      .settings-status-item.is-normal > .pill,
+      .readiness-item.is-normal > .pill {
+        display: none;
+      }
+
+      .settings-status-item.is-normal,
+      .readiness-item.is-normal {
+        min-height: 68px;
+        background: #ffffff;
+      }
+
+      .template-safety-card.ok {
+        border-color: var(--line);
+        background: #ffffff;
+      }
+
+      .template-sender-note {
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .settings-status-item.is-alert,
+      .readiness-item.is-alert {
+        border-color: var(--tone-warn-line);
+        background: var(--tone-warn-bg);
+      }
+
+      .status-pill,
+      .pill {
+        min-height: 21px;
+        padding: 2px 7px;
+        border-radius: 999px;
+        font-size: 11px;
+        letter-spacing: 0;
+      }
+
+      .status-pill:empty,
+      .pill:empty {
+        display: none;
+      }
+
+      .table-wrap {
+        border-color: var(--line);
+        border-radius: 7px;
+        box-shadow: none;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border-bottom-color: #e8edf2;
+      }
+
+      th {
+        height: 40px;
+        background: #f7f9fb;
+        color: #5f6f82;
+        font-size: 11px;
+      }
+
+      td {
+        color: #243142;
+      }
+
+      tbody tr:nth-child(even):not(.row-send-ng):not(.row-reply):not(.row-deal):not(.row-review):not(.row-muted) td {
+        background: #fbfcfd;
+      }
+
+      tbody tr:hover td {
+        background: #f3f7fc;
+      }
+
+      .lead-action-cell,
+      .table-action-row,
+      .template-action-row,
+      .job-result-actions,
+      .excluded-domain-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .row-action-menu {
+        display: inline-grid;
+        gap: 5px;
+        min-width: 30px;
+      }
+
+      .row-action-menu > summary {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 28px;
+        border: 1px solid #d6dee8;
+        border-radius: 7px;
+        background: #ffffff;
+        color: #475569;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      .row-action-menu > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .row-action-menu > summary:hover,
+      .row-action-menu[open] > summary {
+        border-color: #b9c5d3;
+        background: #f1f5f9;
+      }
+
+      .row-action-menu > summary svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .row-action-menu-popover {
+        display: grid;
+        min-width: 164px;
+        padding: 5px;
+        border: 1px solid var(--line-strong);
+        border-radius: 7px;
+        background: #ffffff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+      }
+
+      .row-action-menu-popover > button,
+      .row-action-menu-popover > a {
+        justify-content: flex-start;
+        width: 100%;
+        min-height: 32px;
+        max-width: none;
+        padding: 6px 8px;
+        border-color: transparent !important;
+        background: transparent !important;
+        color: #334155 !important;
+        text-align: left;
+      }
+
+      .row-action-menu-popover > .danger,
+      .row-action-menu-popover > .table-danger-button {
+        color: #b91c1c !important;
+      }
+
+      .data-table-empty-cell,
+      .empty-state {
+        padding: 32px 18px;
+      }
+
+      .data-table-empty-cell span,
+      .empty-state {
+        border-color: #d5dee8;
+        background: #f8fafc;
+        color: #64748b;
+      }
+
+      .message {
+        position: sticky;
+        z-index: 65;
+        top: 68px;
+        margin: 0;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.07);
+      }
+
+      .message:empty {
+        display: none;
+      }
+
+      .lead-load-progress-bar,
+      .prospecting-progress-track,
+      .sync-progress-track {
+        height: 7px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e5eaf0;
+      }
+
+      .lead-load-progress-bar > span,
+      .prospecting-progress-track > span,
+      .sync-progress-track > span {
+        border-radius: inherit;
+        background: #2563eb;
+      }
+
+      @media (max-width: 900px) {
+        .nav-more {
+          flex: 0 0 auto;
+        }
+
+        .nav-more > summary {
+          min-height: 38px;
+          white-space: nowrap;
+        }
+
+        .nav-more[open] {
+          display: flex;
+          align-items: flex-start;
+          gap: 6px;
+        }
+
+        .nav-group-secondary {
+          display: flex;
+          margin: 0;
+          padding: 0;
+          border-left: 0;
+        }
+
+        .main {
+          padding: 20px 16px 40px;
+        }
+
+        .main-toolbar {
+          position: static;
+        }
+
+        .section.active {
+          gap: 18px;
+        }
+
+        .section-header {
+          min-height: 0;
+          padding-bottom: 16px;
+        }
+
+        .section-description {
+          max-width: none;
+        }
+
+        .message {
+          top: 8px;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .section-header h1 {
+          font-size: 24px;
+        }
+
+        .panel.stack {
+          padding: 18px;
+        }
+
+        .panel.stack > .panel-head {
+          margin: -18px -18px 0;
+        }
+
+        .panel-head {
+          align-items: flex-start;
+          flex-direction: column;
+          padding: 14px 16px;
+        }
+
+        .panel-head > .toolbar,
+        .panel-head > .row {
+          width: 100%;
+        }
+
+        .row-action-menu-popover {
+          min-width: min(220px, 100%);
+        }
+      }
     </style>
   </head>
   <body>
@@ -9425,48 +10012,53 @@
               <span class="nav-icon">FM</span><span>フォーム送信リスト</span>
             </button>
           </div>
-          <div class="nav-group">
-            <div class="nav-group-label">運用</div>
-            <button type="button" class="tab nav-item" data-tab="dashboard" onclick="showTab('dashboard')">
-              <span class="nav-icon">DB</span><span>ダッシュボード</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="analytics" onclick="showTab('analytics')">
-              <span class="nav-icon">AN</span><span>分析</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="sync" onclick="showTab('sync')">
-              <span class="nav-icon">SY</span><span>同期</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="sendNg" onclick="showTab('sendNg')">
-              <span class="nav-icon">NG</span><span>送信NG</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="exclusions" onclick="showTab('exclusions')">
-              <span class="nav-icon">EX</span><span>除外ドメイン</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="templates" onclick="showTab('templates')">
-              <span class="nav-icon">TP</span><span>テンプレート</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="sending" onclick="showTab('sending')">
-              <span class="nav-icon">PV</span><span>送信プレビュー</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="histories" onclick="showTab('histories')">
-              <span class="nav-icon">HS</span><span>送信履歴</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="deals" onclick="showTab('deals')">
-              <span class="nav-icon">DL</span><span>商談</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="gmail" onclick="showTab('gmail')">
-              <span class="nav-icon">GM</span><span>Gmail連携</span>
-            </button>
-            <button type="button" class="tab nav-item" data-tab="admin" onclick="showTab('admin')">
-              <span class="nav-icon">AD</span><span>管理</span>
-            </button>
-          </div>
+          <details class="nav-more" id="navMore">
+            <summary><span class="nav-more-icon" data-ui-icon="settings"></span><span>管理・その他</span></summary>
+            <div class="nav-group nav-group-secondary">
+              <button type="button" class="tab nav-item" data-tab="dashboard" onclick="showTab('dashboard')">
+                <span class="nav-icon">DB</span><span>ダッシュボード</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="analytics" onclick="showTab('analytics')">
+                <span class="nav-icon">AN</span><span>分析</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="sync" onclick="showTab('sync')">
+                <span class="nav-icon">SY</span><span>同期</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="sendNg" onclick="showTab('sendNg')">
+                <span class="nav-icon">NG</span><span>送信NG</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="exclusions" onclick="showTab('exclusions')">
+                <span class="nav-icon">EX</span><span>除外ドメイン</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="templates" onclick="showTab('templates')">
+                <span class="nav-icon">TP</span><span>テンプレート</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="sending" onclick="showTab('sending')">
+                <span class="nav-icon">PV</span><span>送信プレビュー</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="histories" onclick="showTab('histories')">
+                <span class="nav-icon">HS</span><span>送信履歴</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="deals" onclick="showTab('deals')">
+                <span class="nav-icon">DL</span><span>商談</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="gmail" onclick="showTab('gmail')">
+                <span class="nav-icon">GM</span><span>Gmail連携</span>
+              </button>
+              <button type="button" class="tab nav-item" data-tab="admin" onclick="showTab('admin')">
+                <span class="nav-icon">AD</span><span>管理</span>
+              </button>
+            </div>
+          </details>
         </nav>
 
         <div class="sidebar-footer">
           <div id="appMeta" class="sidebar-meta">読み込み中</div>
-          <button type="button" onclick="refreshAll()">更新</button>
-          <button type="button" class="primary" onclick="runSetup()">setup</button>
+          <button type="button" onclick="refreshAll()">最新情報に更新</button>
+          <details class="sidebar-tools">
+            <summary>システム操作</summary>
+            <button type="button" onclick="runSetup()">初期設定を実行</button>
+          </details>
         </div>
       </aside>
 
@@ -9767,7 +10359,7 @@
               <span>Gmail送信時の差出人名</span>
               <strong id="templateSenderName">営業担当</strong>
             </div>
-            <span class="pill good">初回メール・テスト送信に反映</span>
+            <small class="muted template-sender-note">初回メール・テスト送信に反映</small>
           </section>
 
           <section id="templateSafetyPanel" class="template-safety-panel"></section>
@@ -10206,7 +10798,6 @@
               <p class="eyebrow">Analytics</p>
               <h1>稼働分析</h1>
             </div>
-            <div class="toolbar"><span class="pill info">月別</span><span class="pill info">日別</span><span class="pill info">ジャンル別</span><span class="pill info">メール文別</span><span class="pill info">返信率</span></div>
           </header>
           <section class="panel analytics-summary-panel">
             <div class="analytics-section-title"><div><span>今月の成果サマリー</span><h2 id="analyticsMonthTitle">営業成果</h2></div><span class="pill good">月次</span></div>
@@ -10482,6 +11073,34 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         ops: '管理/運用',
       };
 
+      const PAGE_DESCRIPTIONS = Object.freeze({
+        dashboard: '運用状況と、次に対応する作業をまとめて確認します。',
+        reviewLeads: '収集された営業先を確認し、承認または除外します。',
+        leads: '登録済みの営業先を検索・編集し、送信状況を管理します。',
+        search: 'キーワードまたはサイトから、新しい営業先を収集します。',
+        backgroundJobs: '収集や自動処理の進捗、停止理由、完了結果を確認します。',
+        backgroundActivity: '直近の収集結果と、追加・重複・除外の内訳を確認します。',
+        emailLeads: '安全チェックを通過したメール送信対象を確認します。',
+        forms: 'お問い合わせフォームから連絡する営業先を管理します。',
+        templates: 'メールとフォーム営業で使用する文章を管理します。',
+        sending: '送信対象と差し込み内容を確認してから実行します。',
+        histories: '送信結果と失敗理由を確認します。',
+        deals: '返信後の対応、商談予定、受注・失注を管理します。',
+        analytics: '営業活動の成果と改善ポイントを確認します。',
+        sync: '外部データを重複させずに営業リストへ取り込みます。',
+        sendNg: '今後メールやフォームを送らない営業先を管理します。',
+        exclusions: '収集対象から除外するドメインを管理します。',
+        gmail: 'GmailとCalendarの承認・動作状況を確認します。',
+        admin: '自動運用、安全設定、マスター情報を管理します。',
+        errors: '処理に失敗した原因と、必要な対応を確認します。',
+        ops: 'バックグラウンド処理と運用設定をまとめて確認します。',
+      });
+
+      const SECONDARY_NAV_TABS = Object.freeze([
+        'dashboard', 'analytics', 'sync', 'sendNg', 'exclusions', 'templates',
+        'sending', 'histories', 'deals', 'gmail', 'admin', 'errors', 'ops',
+      ]);
+
       const TOP_SHORTCUT_TABS = ['reviewLeads', 'search', 'leads', 'backgroundJobs', 'forms', 'emailLeads'];
       const RECENT_BACKGROUND_JOB_MS = 10 * 60 * 1000;
       const INITIAL_REVIEW_LEAD_LIMIT = 100;
@@ -10622,6 +11241,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         database: iconSvg('<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>'),
         download: iconSvg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>'),
         external: iconSvg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'),
+        ellipsis: iconSvg('<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>'),
         eye: iconSvg('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
         building2: iconSvg('<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/><path d="M6 12H4a2 2 0 0 0-2 2v8"/><path d="M18 9h2a2 2 0 0 1 2 2v11"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>'),
         globe2: iconSvg('<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
@@ -10708,6 +11328,100 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           target.classList.add('button-icon');
           target.removeAttribute('data-ui-icon');
         });
+      }
+
+      function enhancePageHeaders() {
+        document.querySelectorAll('.section-header').forEach((header) => {
+          const section = header.closest('.section');
+          const copy = section ? PAGE_DESCRIPTIONS[section.id] : '';
+          const headingGroup = header.firstElementChild;
+          if (!copy || !headingGroup || headingGroup.querySelector('.section-description')) return;
+          const description = document.createElement('p');
+          description.className = 'section-description';
+          description.textContent = copy;
+          headingGroup.appendChild(description);
+        });
+      }
+
+      function updateNavigationDisclosure(activeTab) {
+        const disclosure = document.getElementById('navMore');
+        if (!disclosure) return;
+        const hasActiveTab = SECONDARY_NAV_TABS.includes(activeTab);
+        disclosure.classList.toggle('has-active', hasActiveTab);
+        if (hasActiveTab) disclosure.open = true;
+      }
+
+      function appVersionLabel(version) {
+        const match = String(version || '').match(/(?:^|_)v(\d+)(?:_|$)/i);
+        return match ? `Version v${match[1]}` : String(version || 'Version確認中');
+      }
+
+      function organizeTableRowActions(root) {
+        const scope = root || document;
+        const selector = '.lead-action-cell, .review-action-row, .table-action-row, .template-action-row, .job-result-actions, .excluded-domain-actions';
+        scope.querySelectorAll(selector).forEach((container) => {
+          if (container.dataset.actionsOrganized === 'true') return;
+          const controls = Array.from(container.children).filter((item) => item.matches('button, a.table-link-button, a.table-danger-button'));
+          if (controls.length < 3) return;
+          container.dataset.actionsOrganized = 'true';
+          const primary = controls.find((item) => item.classList.contains('primary-action')) || controls[0];
+          primary.classList.add('primary-action');
+          const secondaryControls = controls.filter((item) => item !== primary);
+          const disclosure = document.createElement('details');
+          disclosure.className = 'row-action-menu';
+          const summary = document.createElement('summary');
+          summary.setAttribute('aria-label', 'その他の操作');
+          summary.title = 'その他の操作';
+          summary.innerHTML = legacyUiIcon('ellipsis');
+          const popover = document.createElement('span');
+          popover.className = 'row-action-menu-popover';
+          secondaryControls.forEach((control) => popover.appendChild(control));
+          disclosure.appendChild(summary);
+          disclosure.appendChild(popover);
+          container.appendChild(disclosure);
+          popover.addEventListener('click', () => {
+            window.setTimeout(() => { disclosure.open = false; }, 0);
+          });
+        });
+      }
+
+      function enhanceEmptyTableStates(root) {
+        const scope = root || document;
+        const labels = {
+          reviewLeadTable: '本日の確認待ちはありません',
+          leadTable: '条件に一致する営業先はありません',
+          templateTable: 'テンプレートはまだありません',
+          formLeadTable: 'フォーム送信対象はありません',
+          emailLeadTable: 'メール送信対象はありません',
+          jobTable: '実行中のジョブはありません',
+          sendHistoryScreenTable: '送信履歴はまだありません',
+          errorDetailsTable: '確認が必要なエラーはありません',
+        };
+        scope.querySelectorAll('table').forEach((tableElement) => {
+          const emptyLabel = tableElement.querySelector('.data-table-empty-cell span');
+          if (!emptyLabel || emptyLabel.textContent.trim() !== 'データがありません') return;
+          emptyLabel.textContent = labels[tableElement.id] || '表示できるデータはありません';
+        });
+      }
+
+      function initializeDesignSystem() {
+        enhancePageHeaders();
+        updateNavigationDisclosure(currentTab);
+        organizeTableRowActions(document);
+        enhanceEmptyTableStates(document);
+        const main = document.querySelector('.main');
+        if (!main || typeof MutationObserver === 'undefined') return;
+        let scheduled = false;
+        const observer = new MutationObserver(() => {
+          if (scheduled) return;
+          scheduled = true;
+          window.requestAnimationFrame(() => {
+            scheduled = false;
+            organizeTableRowActions(main);
+            enhanceEmptyTableStates(main);
+          });
+        });
+        observer.observe(main, { childList: true, subtree: true });
       }
 
       const state = {
@@ -10916,7 +11630,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function showTab(name) {
         if (name === 'masters') name = 'sendNg';
         showRouteProgress();
-        if (currentTab !== name) {
+        const changedTab = currentTab !== name;
+        if (changedTab) {
           if (!suppressTabHistory && currentTab) {
             tabHistory.push(currentTab);
             if (tabHistory.length > 12) tabHistory.shift();
@@ -10927,8 +11642,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.querySelectorAll('.section').forEach((section) => section.classList.toggle('active', section.id === name));
         const title = document.getElementById('activeViewTitle');
         if (title) title.textContent = TAB_TITLES[name] || name;
+        document.title = `${TAB_TITLES[name] || name} | 自動営業リスト`;
+        updateNavigationDisclosure(name);
         updateTopShortcutBar(name);
         updateBackgroundCenterButton(name);
+        if (changedTab) window.scrollTo(0, 0);
         ensureTabDataLoaded(name);
       }
 
@@ -11156,7 +11874,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.listViewSettings = initial.listViewSettings || [];
           state.schemaStatus = initial.schemaStatus || null;
           state.adminReadinessResult = null;
-          document.getElementById('appMeta').textContent = `${initial.app.version} / ${initial.app.spreadsheetUrl}`;
+          document.getElementById('appMeta').textContent = appVersionLabel(initial.app.version);
           renderTodayLabel();
           renderAppSafetyStrip(initial.dashboard);
           renderSelects(initial.enums, initial.genres);
@@ -13942,7 +14660,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <span class="dashboard-kicker">Accident prevention</span>
               <h2>テンプレート事故防止チェック</h2>
             </div>
-            <span class="pill ${dangerCount > 0 ? 'bad' : 'good'}">${dangerCount > 0 ? `${formatNumber(dangerCount)}件確認` : '安全'}</span>
+            ${dangerCount > 0 ? `<span class="pill bad">${formatNumber(dangerCount)}件確認</span>` : ''}
           </div>
           <div class="template-safety-grid">
             ${templateSafetyCard('本番ON条件', dangerCount > 0 ? '確認が必要' : 'OK', 'ジャンル固定・重複なし', dangerCount > 0 ? 'bad' : 'ok')}
@@ -14943,6 +15661,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (pill) {
           pill.className = `pill ${info.configured ? 'good' : 'warn'}`;
           pill.textContent = info.configured ? `Serper設定済み ${info.key_mask || ''}` : 'Serper未設定';
+          pill.hidden = Boolean(info.configured);
         }
         renderSerperKeyManager(info || {});
         renderSearchActivityPanel();
@@ -15944,7 +16663,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                   <strong>${escapeHtml(collectionManagementTitle(activeTab, searchReady))}</strong>
                   <small>${escapeHtml(collectionManagementDescription(activeTab, searchReady, enabledRuleCount, enabledSourceCount))}</small>
                   <div class="collection-focus-meta">
-                    <em>Serper ${searchReady ? 'OK' : '未設定'}</em>
+                    ${searchReady ? '' : '<em>Serper 未設定</em>'}
                     <em>確認待ち ${formatNumber(reviewTargets)}件</em>
                     <em>自動収集 ${autoSettings.enabled ? 'ON' : 'OFF'}</em>
                   </div>
@@ -16081,7 +16800,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 <h3>収集方法を選ぶ</h3>
                 <p>見る場所を2つに絞りました。検索語を作るか、まとめサイトURLを起点にします。</p>
               </div>
-              <span class="pill ${searchReady ? 'good' : 'warn'}">${searchReady ? '収集準備OK' : 'Serper未設定'}</span>
+              ${searchReady ? '' : '<span class="pill warn">Serper未設定</span>'}
             </div>
             <div class="collection-overview-grid collection-two-route-grid">
               <div class="collection-overview-card collection-route-card">
@@ -17204,7 +17923,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function adminStatusItemMarkup(item) {
         const tone = item.tone || (item.ready ? 'good' : 'warn');
         return `
-          <div class="settings-status-item with-icon">
+          <div class="settings-status-item with-icon ${item.ready ? 'is-normal' : 'is-alert'}">
             ${legacyUiIcon(item.icon)}
             <div><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.detail)}</small></div>
             <span class="pill ${tone}">${escapeHtml(item.status || (item.ready ? 'OK' : '要確認'))}</span>
@@ -17217,7 +17936,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const tone = item.tone || (item.ready ? 'good' : 'warn');
         const status = item.status || (item.ready ? 'OK' : '要確認');
         return `
-          <div class="readiness-item with-icon${compact ? ' compact' : ''}">
+          <div class="readiness-item with-icon ${item.ready ? 'is-normal' : 'is-alert'}${compact ? ' compact' : ''}">
             ${legacyUiIcon(iconKey)}
             <div><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.detail)}</small></div>
             <span class="pill ${tone}">${escapeHtml(status)}</span>
@@ -19112,11 +19831,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const remaining = Number(dashboard.mailQuotaRemaining || dashboard.todayRemaining || 0);
         const replyCheck = getClientSetting('gmail_reply_check', { enabled: false, maxThreads: 200 }) || {};
         const statusPillsHtml = [
-          `<span class="pill ${gmailReady ? 'good' : 'warn'}">Gmail ${gmailReady ? 'OK' : authKnown ? '要承認' : '要確認'}</span>`,
-          `<span class="pill ${calendarReady ? 'good' : 'warn'}">Calendar ${calendarReady ? 'OK' : '要確認'}</span>`,
-          `<span class="pill info">本日残り ${formatNumber(dashboard.mailQuotaRemaining || dashboard.todayRemaining || 0)}件</span>`,
-          auth.checkedAt ? `<span class="pill info">認可確認 ${escapeHtml(dateTimeLabel(auth.checkedAt) || '-')}</span>` : '',
-          `<span class="pill ${triggerReady ? 'good' : 'warn'}">Trigger ${formatNumber(triggerCount)}件</span>`,
+          gmailReady ? '' : `<span class="pill warn">Gmail ${authKnown ? '要承認' : '要確認'}</span>`,
+          calendarReady ? '' : '<span class="pill warn">Calendar 要確認</span>',
+          triggerReady ? '' : '<span class="pill warn">Trigger 未設定</span>',
         ].filter(Boolean).join('');
         const overviewTarget = document.getElementById('gmailOverviewPanel');
         const overviewItems = [
@@ -21006,6 +21723,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       hydrateLegacyNavigationIcons();
       hydrateLegacyUtilityIcons();
+      initializeDesignSystem();
       refreshAll();
     </script>
   </body>

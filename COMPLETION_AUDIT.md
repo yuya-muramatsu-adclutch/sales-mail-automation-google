@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @162 / code v162: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @165 / code v165: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v162_serper_daily_limit_removed`
+- Code version: `20260712_apps_script_full_workflow_v165_design_system_usability`
+
+## v165 共通デザイン・操作性改善
+
+- よく使う `確認待ち` / `収集` / `営業リスト` / `進捗` / `フォーム` / `メール` を前面に残し、低頻度画面をサイドバーの `管理・その他` に収納。
+- 全ページ上部へページ説明を追加し、タイトル、説明、主要操作の位置と余白を統一。
+- 正常な連携・準備ステータスのPillを隠し、未設定、警告、エラー、件数だけを強調。
+- 3個以上のテーブル行操作を主要操作1個とその他メニューへ自動整理。確認待ち100行、テンプレート5行で適用を確認。
+- カード、テーブル、ボタン、Pill、進捗バー、空状態、モバイル幅の共通スタイルを整理。
+- 本番画面で `Version v165`、確認待ち1,306件、管理画面、収集画面、テンプレート画面、390x844表示を確認。ブラウザ警告・エラーログは0件。
 
 ## 計画書との対応
 
@@ -28,7 +37,7 @@
 | 送信NG/除外ドメイン | 完了 | UIとマスター関数実装済み |
 | Serper APIキー保存 | 完了 | PropertiesService保存、UIから登録可能 |
 | Serper検索ジョブ | 完了 | 小規模ジョブ、検索結果、使用量ログ、ドメインキャッシュ実装済み |
-| 検索上限 | 完了 | 日次/月次/リード別上限を `settings` から確認 |
+| 検索上限 | 完了 | Serper日次上限なし、月次/リード別の安全上限と実残量を確認 |
 | Gmail送信上限 | 完了 | アプリ日次上限とMailApp残数を確認 |
 | 返信チェック | 完了 | `checkRepliesForLeads()` と運用UI実装済み |
 | Google Calendar登録 | 完了 | `createCalendarEventForLead()` とリード詳細UI実装済み |

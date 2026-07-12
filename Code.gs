@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260712_apps_script_full_workflow_v162_serper_daily_limit_removed';
+const APP_VERSION = '20260712_apps_script_full_workflow_v165_design_system_usability';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
