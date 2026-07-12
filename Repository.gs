@@ -172,7 +172,6 @@ function normalizeSettingForSave_(key, value, valueType) {
   const numberRules = {
     gmail_daily_send_limit: { min: 1, max: 80 },
     email_batch_send_limit: { min: 1, max: 20 },
-    serper_daily_search_limit: { min: 1, max: 100 },
     serper_monthly_search_limit: { min: 1, max: 1000 },
     serper_per_lead_search_limit: { min: 1, max: 3 },
     batch_runtime_budget_ms: { min: 10000, max: 330000 },

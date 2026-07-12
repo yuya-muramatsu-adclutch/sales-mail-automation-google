@@ -10989,7 +10989,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const sendWindowAllowed = sendWindow.allowed !== false && sendWindow.enabled !== false;
         const sendingEnabled = mailControlEnabled && mailReady && sendWindowAllowed;
         const serperReady = Boolean(data.serperConfigured);
-        const serperRemaining = Number(data.serperTodayRemaining);
+        const serperRemaining = Number(data.serperMonthRemaining);
         const serperRemainingKnown = Number.isFinite(serperRemaining);
         const issues = [];
         const staleReservations = Number(data.stalePendingSendReservations || 0);
@@ -11640,7 +11640,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['Sheets', integrations.sheets, 'DB'],
           ['Gmail', integrations.gmail, `残り ${formatNumber(dashboard.mailQuotaRemaining)}件`],
           ['Calendar', integrations.calendar, '商談作成'],
-          ['Serper', integrations.serper, dashboard.serperConfigured ? `本日残り ${formatNumber(dashboard.serperTodayRemaining)}件` : '未設定'],
+          ['Serper', integrations.serper, dashboard.serperConfigured ? (dashboard.serperCreditRemaining || `月間残り ${formatNumber(dashboard.serperMonthRemaining)}件`) : '未設定'],
           ['Trigger', integrations.triggers, `${formatNumber(dashboard.triggerCount)}件`],
         ];
         const okCount = apiRows.filter((item) => item[1]).length;
@@ -11662,7 +11662,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const todayTargets = dashboard.mailSendingEnabled === false ? 0 : Math.min(dashboard.sendTargets || 0, dashboard.todayRemaining || 0);
         document.getElementById('dashboardSignals').innerHTML = [
           signalCard('メール送信対象', `${formatNumber(todayTargets)}件`, dashboard.mailSendingEnabled === false ? '自動送信停止中' : `送信可能 ${formatNumber(dashboard.sendTargets)}件`, '送信リストへ', dashboard.mailSendingEnabled === false ? 'red' : 'blue', "showTab('emailLeads')", 'mail'),
-          signalCard('API連携', `${apiOk}/${apiTotal}`, `Serper本日残り ${formatNumber(dashboard.serperTodayRemaining)}件`, '管理へ', apiOk === apiTotal ? 'green' : 'amber', "showTab('admin')", 'api'),
+          signalCard('API連携', `${apiOk}/${apiTotal}`, dashboard.serperCreditRemaining ? `Serper残量 ${dashboard.serperCreditRemaining}` : `Serper月間残り ${formatNumber(dashboard.serperMonthRemaining)}件`, '管理へ', apiOk === apiTotal ? 'green' : 'amber', "showTab('admin')", 'api'),
           signalCard('今月新規リスト', `${formatNumber(month.addedLeads || 0)}件`, `累計 ${formatNumber(dashboard.leadsTotal)}件`, '収集へ', 'green', "showTab('search')", 'search'),
           signalCard('今月返信', `${formatNumber(month.replies || 0)}件`, `返信率 ${formatPercent(month.replyRate || 0)}`, '返信を見る', 'ink', "showTab('leads'); setLeadFilter('reply')", 'reply'),
         ].join('');
@@ -11767,7 +11767,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!target) return;
         target.innerHTML = [
           actionCard('Serper API', dashboard.serperConfigured ? '設定済み' : '未設定', dashboard.serperKeyMask || 'PropertiesService保存', dashboard.serperConfigured ? 'ok' : 'bad', "document.getElementById('serperKey').focus()", 'api'),
-          actionCard('本日検索', `${formatNumber(dashboard.serperToday)} / ${formatNumber(dashboard.serperDailyLimit)}`, `残り ${formatNumber(dashboard.serperTodayRemaining)}件`, dashboard.serperTodayRemaining > 0 ? 'ok' : 'bad', "showTab('search')", 'search'),
+          actionCard('本日検索', `${formatNumber(dashboard.serperToday)}件`, '日次上限なし', 'ok', "showTab('search')", 'search'),
           actionCard('月間検索', `${formatNumber(dashboard.serperMonth)} / ${formatNumber(dashboard.serperMonthlyLimit)}`, `残り ${formatNumber(dashboard.serperMonthRemaining)}件`, dashboard.serperMonthRemaining > 0 ? 'ok' : 'warn', "showTab('search')", 'analytics'),
           actionCard('検索ジョブ', `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件`, `完了 ${formatNumber(dashboard.completedJobs || 0)} / 失敗 ${formatNumber(dashboard.failedJobs || 0)}`, dashboard.failedJobs > 0 ? 'bad' : 'info', "showTab('ops')", 'jobs'),
         ].join('');
@@ -15929,7 +15929,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div class="collection-resume-notice" role="status">
               ${legacyUiIcon('timerReset')}
               <div>
-                <strong>Serperの日次上限に達したため待機中です</strong>
+                <strong>Serperの月間上限に達したため待機中です</strong>
                 <small>${escapeHtml(dateTimeLabel(resumeAfter))}以降に、現在の${formatNumber(Number(dashboard.prospectingResumeOffset || 0) + 1)}施設目から自動再開します。</small>
               </div>
               <button type="button" class="mini-button" onclick="showTab('backgroundJobs')">進捗を見る</button>
@@ -16147,7 +16147,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 ${preview.length ? preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('') : '<span><strong>優先ジャンルを入力してください</strong></span>'}
               </div>
               <div class="settings-status-grid">
-                ${adminStatusItemMarkup({ icon: 'searchCheck', label: '本日残り', ready: (dashboard.serperTodayRemaining || 0) > 0, detail: `${formatNumber(dashboard.serperTodayRemaining || 0)}件`, status: 'Serper' })}
+                ${adminStatusItemMarkup({ icon: 'searchCheck', label: '日次上限', ready: true, detail: '制限なし', status: 'Serper' })}
                 ${adminStatusItemMarkup({ icon: 'serverCog', label: 'GAS制限', ready: true, detail: '6分以内に分割', status: 'jobs', tone: 'info' })}
               </div>
             </aside>
@@ -16646,7 +16646,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const total = progress.total;
         const cursor = parseJsonObjectClient(job.cursor_json);
         const resumeAfter = String(cursor.resumeAfter || cursor.resume_after || '').trim();
-        const quotaWaiting = Boolean(resumeAfter && new Date(resumeAfter).getTime() > Date.now());
+        const quotaCode = String(cursor.quotaCode || cursor.quota_code || '').trim();
+        const quotaWaiting = Boolean(quotaCode === 'SERPER_MONTHLY_LIMIT' && resumeAfter && new Date(resumeAfter).getTime() > Date.now());
         const timeValue = job.updated_at || job.finished_at || job.created_at || job.started_at || '';
         const timeMs = new Date(timeValue).getTime();
         return {
@@ -16662,10 +16663,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           processed,
           total,
           resumeAfter,
+          quotaCode,
           quotaWaiting,
           percent: total ? Math.min(100, Math.round((processed / total) * 100)) : (status === 'completed' ? 100 : 8),
           message: quotaWaiting
-            ? `${dateTimeLabel(resumeAfter)}までSerper上限待機中。保存済み位置から自動再開します。`
+            ? `${dateTimeLabel(resumeAfter)}までSerper月間上限待機中。保存済み位置から自動再開します。`
             : backgroundJobMessage(job, status, processed, total),
           meta: backgroundJobMeta(job),
           foundResults: backgroundJobFoundResults(job),
@@ -17402,7 +17404,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function backgroundSearchJobNextRunLabel(job) {
         const cursor = parseJsonObjectClient(job && job.cursor_json);
         const resumeAfter = String(cursor.resumeAfter || cursor.resume_after || '').trim();
-        if (resumeAfter && new Date(resumeAfter).getTime() > Date.now()) {
+        const quotaCode = String(cursor.quotaCode || cursor.quota_code || '').trim();
+        if (quotaCode === 'SERPER_MONTHLY_LIMIT' && resumeAfter && new Date(resumeAfter).getTime() > Date.now()) {
           return `<strong>${escapeHtml(dateTimeLabel(resumeAfter))}</strong><small class="muted">上限リセット後に自動再開</small>`;
         }
         return escapeHtml(dateTimeLabel((job && (job.next_run_at || job.updated_at)) || '') || '-');
@@ -20573,7 +20576,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             stale: runningMailJobs.some((job) => backgroundUpdatedMinutes(normalizeBackgroundJob(job)) >= 10),
           },
           serperCredit: {
-            detail: dashboard.serperConfigured ? `本日残り ${formatNumber(dashboard.serperTodayRemaining || 0)}件` : '未設定',
+            detail: dashboard.serperConfigured ? (dashboard.serperCreditRemaining || `月間残り ${formatNumber(dashboard.serperMonthRemaining || 0)}件`) : '未設定',
             label: dashboard.serperConfigured ? '利用可能' : '未設定',
             tone: dashboard.serperConfigured ? 'ok' : 'warn',
           },

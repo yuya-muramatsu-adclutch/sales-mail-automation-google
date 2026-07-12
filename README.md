@@ -94,7 +94,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @161 / code v161: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app deployment @162 / code v162: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -106,7 +106,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - DB Spreadsheet ID: `1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY`
 - 作成済みタブ: `leads`, `send_histories`, `email_templates`, `ng_masters`, `excluded_domains`, `genres`, `reasons`, `custom_field_definitions`, `list_view_settings`, `search_jobs`, `search_results`, `search_usage_logs`, `domain_cache`, `reply_logs`, `sync_logs`, `jobs`, `settings`, `dashboard_cache`, `raw_import`
 - `leads` は45列のヘッダー生成済み
-- `settings` はGmail日次送信上限、Serper日次/月次/リード別上限、バッチ実行時間上限を初期投入済み
+- `settings` はGmail日次送信上限、Serper月次/リード別上限、バッチ実行時間上限を初期投入済み。Serperの日次上限は設けない
 - v9 Web app URLは認証付きGETでHTML返却を確認済み
 - v9 Web app `doPost` 経由の `getInitialData` / `listEmailTemplates` / `listNgMasters` / `listExcludedDomains` / `listSheetRecords` スモークテスト成功済み
 - v9 Web app `doPost` 経由の `createLead` / `updateLead` / `listLeads` / `deleteLead` スモークテスト成功済み
@@ -352,8 +352,8 @@ const archived = deleteLead(lead.id);
 - `status` 変更時は既存アプリに合わせて `reply_checked`、`deal_status`、`form_status`、`send_ng` などを連動更新します。
 - `email`、`source + source_id`、`normalized_company_name + website_domain` の重複は初期状態で抑止します。必要な場合のみ `allow_duplicate: true` を指定します。
 - APIキーはシートやHTMLに直接出さず、`saveSerperApiKey(apiKey)` でScript Propertiesに保存します。
-- Gmail送信とSerper検索は `settings` の日次/月次上限を必ず確認します。
-- Serper検索は日次/月次/1リード上限を確認します。
+- Gmail送信は `settings` の日次上限、Serper検索は月次/1リード上限を確認します。
+- Serper検索にアプリ独自の日次上限は設けません。Serper残量、月次上限、1リード上限だけを確認します。
 - 大量処理は `search_jobs` にチャンク位置とチャンク内位置を保存し、`advanceQueuedJobs()` で分割実行します。
 - バッチ処理は複数ジョブ全体で `batch_runtime_budget_ms` を共有し、Apps Scriptの6分制限に近づく前に中断・再開します。
 - 同一収集ジョブとGmail返信確認は短時間の占有情報で二重実行を防ぎ、強制終了時は期限切れ後に自動復旧します。

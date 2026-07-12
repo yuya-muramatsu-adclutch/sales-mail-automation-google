@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260712_apps_script_full_workflow_v161_send_tracking_consistency';
+const APP_VERSION = '20260712_apps_script_full_workflow_v162_serper_daily_limit_removed';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -362,12 +362,6 @@ const DEFAULT_SETTINGS = Object.freeze([
     value: '{"enabled":false}',
     value_type: 'json',
     description: 'Calendar auto-create setting ported from the existing app.',
-  },
-  {
-    key: 'serper_daily_search_limit',
-    value: '100',
-    value_type: 'number',
-    description: 'Daily Serper request cap used by this app.',
   },
   {
     key: 'serper_monthly_search_limit',

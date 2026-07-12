@@ -322,7 +322,7 @@ function startSerperSearchJob(input) {
       query_json: safeJsonStringify_(payload),
       total_count: payload.items.length,
       processed_count: 0,
-      daily_limit: payload.daily_limit,
+      daily_limit: '',
       job_limit: payload.job_limit,
       cursor_json: '',
       last_error: '',
@@ -418,7 +418,7 @@ function advanceSearchJob(jobId, options) {
     attemptCount: Number(job.attempt_count || 0),
   };
 
-  if (cursor.resumeAfter && new Date(cursor.resumeAfter).getTime() > Date.now()) {
+  if (cursor.resumeAfter && cursor.quotaCode === 'SERPER_MONTHLY_LIMIT' && new Date(cursor.resumeAfter).getTime() > Date.now()) {
     updateClaimedSearchJob_(job.id, lockToken, {
       status: 'queued',
       finished_at: '',
@@ -455,7 +455,10 @@ function advanceSearchJob(jobId, options) {
           summary.pausedForRuntime = !summary.pausedForQuota;
           summary.resumeAfter = result.resumeAfter || '';
           const nextCursor = { itemIndex: index, offset: Number(result.nextOffset || 0) };
-          if (summary.pausedForQuota && summary.resumeAfter) nextCursor.resumeAfter = summary.resumeAfter;
+          if (summary.pausedForQuota && summary.resumeAfter) {
+            nextCursor.resumeAfter = summary.resumeAfter;
+            nextCursor.quotaCode = result.quotaCode || 'SERPER_MONTHLY_LIMIT';
+          }
           const partialUpdate = updateClaimedSearchJob_(job.id, lockToken, {
             status: 'running',
             cursor_json: safeJsonStringify_(nextCursor),
@@ -485,7 +488,7 @@ function advanceSearchJob(jobId, options) {
         summary.resumeAfter = resumeAfter;
         const quotaUpdate = updateClaimedSearchJob_(job.id, lockToken, {
           status: 'running',
-          cursor_json: safeJsonStringify_({ itemIndex: index, offset: cursor.itemIndex === index ? cursor.offset : 0, resumeAfter: resumeAfter }),
+          cursor_json: safeJsonStringify_({ itemIndex: index, offset: cursor.itemIndex === index ? cursor.offset : 0, resumeAfter: resumeAfter, quotaCode: String(error.code || '') }),
           last_error: '',
           last_heartbeat_at: nowIso_(),
         }, false);
@@ -576,9 +579,10 @@ function parseSearchJobCursor_(value) {
       itemIndex: Math.max(Number(parsed.itemIndex) || 0, 0),
       offset: Math.max(Number(parsed.offset) || 0, 0),
       resumeAfter: String(parsed.resumeAfter || parsed.resume_after || '').trim(),
+      quotaCode: String(parsed.quotaCode || parsed.quota_code || '').trim(),
     };
   } catch (error) {
-    return { itemIndex: 0, offset: 0, resumeAfter: '' };
+    return { itemIndex: 0, offset: 0, resumeAfter: '', quotaCode: '' };
   }
 }
 
@@ -639,7 +643,6 @@ function normalizeSearchJobInput_(input) {
     throw new Error('Invalid search job type: ' + jobType);
   }
 
-  const dailyLimit = Math.min(Number(source.daily_limit || source.dailyLimit || getSettingValue_('serper_daily_search_limit', 100)), getSettingValue_('serper_daily_search_limit', 100));
   const builtItems = buildSearchJobItems_(source, jobType);
   const crawlAll = jobType === 'source_page' && isSourcePageCrawlAllInput_(source);
   const maxJobLimit = crawlAll ? 1000 : 100;
@@ -665,7 +668,6 @@ function normalizeSearchJobInput_(input) {
 
   return {
     job_type: jobType,
-    daily_limit: dailyLimit,
     job_limit: jobLimit,
     items: items,
     results_per_query: Math.min(Math.max(Number(source.results_per_query || source.resultsPerQuery || (crawlAll ? 20 : 10)) || (crawlAll ? 20 : 10), 1), resultLimitMax),
@@ -883,6 +885,7 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
     nextOffset: cursorOffset,
     pausedForQuota: false,
     resumeAfter: '',
+    quotaCode: '',
   };
 
   if (!candidates.length) {
@@ -919,6 +922,7 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
       if (result.deferred) {
         summary.pausedForQuota = result.pausedForQuota === true;
         summary.resumeAfter = result.resumeAfter || '';
+        summary.quotaCode = result.quotaCode || '';
         break;
       }
       if (result.created) summary.created += 1;
@@ -927,6 +931,7 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
       if (isSerperQuotaError_(error)) {
         summary.pausedForQuota = true;
         summary.resumeAfter = serperQuotaResumeAfter_(error);
+        summary.quotaCode = String(error.code || '');
         break;
       }
       summary.skipped += 1;
@@ -1089,6 +1094,7 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
     nextOffset: cursorOffset,
     pausedForQuota: false,
     resumeAfter: '',
+    quotaCode: '',
   };
 
   if (!candidates.length) {
@@ -1120,6 +1126,7 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
       if (result.deferred) {
         summary.pausedForQuota = result.pausedForQuota === true;
         summary.resumeAfter = result.resumeAfter || '';
+        summary.quotaCode = result.quotaCode || '';
         break;
       }
       if (result.created) summary.created += 1;
@@ -1127,6 +1134,7 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
       if (isSerperQuotaError_(error)) {
         summary.pausedForQuota = true;
         summary.resumeAfter = serperQuotaResumeAfter_(error);
+        summary.quotaCode = String(error.code || '');
         break;
       }
       appendSyncError_('processSourcePageCandidate', error, {
@@ -1231,6 +1239,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
           deferred: true,
           pausedForQuota: true,
           resumeAfter: serperQuotaResumeAfter_(error),
+          quotaCode: String(error.code || ''),
           quotaMessage: error.message || String(error),
         };
       }
@@ -1984,17 +1993,11 @@ function formatSerperCreditNumber_(value) {
 }
 
 function assertSerperLimitAvailable_(leadId) {
-  const today = todayText_();
   const month = monthText_();
-  const dailyLimit = Number(getSettingValue_('serper_daily_search_limit', 100));
   const monthlyLimit = Number(getSettingValue_('serper_monthly_search_limit', 1000));
   const perLeadLimit = Number(getSettingValue_('serper_per_lead_search_limit', 3));
-  const todayCount = getSerperUsageCount_({ day: today });
   const monthCount = getSerperUsageCount_({ month: month });
 
-  if (todayCount >= dailyLimit) {
-    throw createExpectedOperationError_('Daily Serper limit reached: ' + dailyLimit, 'SERPER_DAILY_LIMIT');
-  }
   if (monthCount >= monthlyLimit) {
     throw createExpectedOperationError_('Monthly Serper limit reached: ' + monthlyLimit, 'SERPER_MONTHLY_LIMIT');
   }
@@ -2007,7 +2010,7 @@ function assertSerperLimitAvailable_(leadId) {
 }
 
 function isSerperQuotaError_(error) {
-  return Boolean(error && ['SERPER_DAILY_LIMIT', 'SERPER_MONTHLY_LIMIT'].indexOf(String(error.code || '')) !== -1);
+  return Boolean(error && String(error.code || '') === 'SERPER_MONTHLY_LIMIT');
 }
 
 function isSerperLeadLimitError_(error) {
@@ -2020,12 +2023,8 @@ function serperQuotaResumeAfter_(error, nowDate) {
   const localDate = Utilities.formatDate(now, timezone, 'yyyy-MM-dd');
   const parts = localDate.split('-').map(Number);
   let year = parts[0];
-  let month = parts[1];
-  let day = parts[2] + 1;
-  if (error && String(error.code || '') === 'SERPER_MONTHLY_LIMIT') {
-    month += 1;
-    day = 1;
-  }
+  const month = parts[1] + 1;
+  const day = 1;
   const next = new Date(Date.UTC(year, month - 1, day));
   const dateText = Utilities.formatDate(next, 'UTC', 'yyyy-MM-dd');
   return dateText + 'T00:05:00+09:00';
@@ -2123,8 +2122,8 @@ function buildSerperApiKeyManagerInfo_(message) {
   const month = monthText_();
   const todayUsed = getSerperUsageCount_({ day: today });
   const monthUsed = getSerperUsageCount_({ month: month });
-  const dailyLimit = Number(getSettingValue_('serper_daily_search_limit', 100));
   const monthlyLimit = Number(getSettingValue_('serper_monthly_search_limit', 1000));
+  const actualRemaining = String((selected && selected.last_remaining) || '').trim();
   const sanitized = records.map(sanitizeSerperApiKeyRecord_);
   if (!sanitized.length && legacyKey) {
     sanitized.push({
@@ -2148,7 +2147,7 @@ function buildSerperApiKeyManagerInfo_(message) {
     configured: configured,
     credit: {
       detail: configured
-        ? '本日残り ' + Math.max(0, dailyLimit - todayUsed) + '件 / 月間残り ' + Math.max(0, monthlyLimit - monthUsed) + '件'
+        ? (actualRemaining ? 'Serper残量 ' + actualRemaining + ' / 月間使用 ' + monthUsed + '件' : '日次制限なし / 月間残り ' + Math.max(0, monthlyLimit - monthUsed) + '件')
         : 'Serper APIキーをPropertiesServiceへ保存してください。',
       label: configured ? 'Serper利用可能' : 'Serper未設定',
       ready: configured,
@@ -2157,12 +2156,12 @@ function buildSerperApiKeyManagerInfo_(message) {
     key_mask: configured ? maskSecret_(selected && selected.key ? selected.key : legacyKey) : '',
     keys: sanitized,
     limits: {
-      daily: dailyLimit,
       monthly: monthlyLimit,
+      dailyUnlimited: true,
       todayUsed: todayUsed,
       monthUsed: monthUsed,
-      todayRemaining: Math.max(0, dailyLimit - todayUsed),
       monthRemaining: Math.max(0, monthlyLimit - monthUsed),
+      actualRemaining: actualRemaining,
     },
     message: message || '',
   };

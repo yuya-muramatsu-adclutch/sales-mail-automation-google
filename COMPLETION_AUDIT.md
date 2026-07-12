@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @161 / code v161: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @162 / code v162: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v161_send_tracking_consistency`
+- Code version: `20260712_apps_script_full_workflow_v162_serper_daily_limit_removed`
 
 ## 計画書との対応
 
@@ -813,9 +813,18 @@
 - キャンプ本番テンプレート`メール文【20260531】`を使い、固定テスト宛先`yuya1998nu@gmail.com`・固定宛名`村松侑哉`へテストメールを1通送信。`send_histories`に`テスト送信`・`成功`・営業先ID空欄で記録され、Gmail送信済み（message ID `19f5564abdc1c8ee`）でも宛先、件名、キャンプ向け本文を確認した。
 - テスト後も`mail_sending_control.enabled=false`、`gmail_reply_check.enabled=false`、`calendar_auto_create.enabled=false`を維持。営業先の送信回数・ステータスを更新せず、自動送信は停止したまま。
 
+## 2026-07-12 v162 Serper日次上限の撤廃
+
+- アプリ独自の`serper_daily_search_limit=100`判定を廃止。新規ジョブへ日次上限を保存せず、本日検索件数は利用状況として表示するだけに変更。
+- 既存ジョブに残っていた日次上限待機カーソルは自動的に無効化する。今後、月間上限待機だけ`quotaCode=SERPER_MONTHLY_LIMIT`付きで翌月へ引き継ぐ。
+- ダッシュボード、収集管理、バックグラウンド進捗、管理表示を「本日残り」から「日次上限なし」「Serper残量」「月間残り」へ統一。
+- 本番`settings`から不要な`serper_daily_search_limit`行を削除し、なっぷ収集ジョブの保存位置99は維持したまま翌日待機日時を解除。
+- Version 162を既存Web app URLへデプロイ。実ジョブを1回再開し、`99 -> 111 / 5,872施設`へ進行、新しいSerper検索ログ12件、`last_error`空、処理後`queued`を確認。
+- 月間上限1,000件と1施設あたり上限3件は、月間クレジットの過剰消費と同一施設への過剰検索を防ぐため維持。
+
 ## 運用時に確認する外部依存
 
-- Serper実検索は、なっぷ収集ジョブで日次100件の実行と上限到達後の再開予約まで確認済み。
+- Serper実検索は、なっぷ収集ジョブで日次上限撤廃後も`99 -> 111施設`へ進行することを確認済み。
 - Gmailの実送信は固定テスト宛先へのテストメール1通で確認済み。本番営業先への送信は安全のため未実施。
 - 実カレンダー登録は、テスト商談日時で1件作成して確認する。
 - `clasp run` / `clasp logs` はGCP project / Apps Script Execution API設定に依存するため、現状の運用確認はWeb appとApps Script editorを正とする。

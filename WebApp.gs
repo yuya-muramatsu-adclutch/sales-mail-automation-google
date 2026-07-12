@@ -294,7 +294,6 @@ function getDashboardStats(options) {
   const listStats = buildLeadListStats_(leads, masterContext, '');
   const sendWindow = buildSendWindowStatus_();
   const dailyMailLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
-  const serperDailyLimit = Number(getSettingValue_('serper_daily_search_limit', 100));
   const serperMonthlyLimit = Number(getSettingValue_('serper_monthly_search_limit', 1000));
   const mailQuota = getMailQuotaStatus_(dailyMailLimit);
   const mailSendingControl = getMailSendingControl_();
@@ -378,10 +377,10 @@ function getDashboardStats(options) {
     sendWindow: sendWindow,
     serperConfigured: serperInfo.configured,
     serperKeyMask: serperInfo.key_mask,
-    serperDailyLimit: serperDailyLimit,
+    serperDailyUnlimited: true,
     serperMonthlyLimit: serperMonthlyLimit,
-    serperTodayRemaining: Math.max(0, serperDailyLimit - serperToday),
     serperMonthRemaining: Math.max(0, serperMonthlyLimit - serperMonth),
+    serperCreditRemaining: String((serperInfo.limits && serperInfo.limits.actualRemaining) || ''),
     queuedJobs: searchJobs.filter(function (job) { return job.status === 'queued'; }).length,
     runningJobs: searchJobs.filter(function (job) { return job.status === 'running'; }).length,
     failedJobs: failedSearchJobs.length,
@@ -393,7 +392,7 @@ function getDashboardStats(options) {
     prospectingLabel: quotaWaiting ? '上限待機中' : activeSearchJobs.length ? '実行中' : '待機中',
     prospectingTone: failedSearchJobs.length ? 'bad' : quotaWaiting ? 'warn' : activeSearchJobs.length ? 'info' : 'ok',
     prospectingReason: quotaWaiting
-      ? 'Serper利用上限のリセット後に、保存済みの施設位置から自動再開します。'
+      ? 'Serper月間上限のリセット後に、保存済みの施設位置から自動再開します。'
       : activeSearchJobs.length
         ? '営業リスト収集ジョブを処理中です'
         : '現在は待機中です。必要に応じて収集ツールから実行できます。',
@@ -426,6 +425,7 @@ function getNextSearchJobResumeAt_(jobs, nowMs) {
     if (!job || (job.status !== 'queued' && job.status !== 'running')) return '';
     try {
       const cursor = JSON.parse(job.cursor_json || '{}');
+      if (String(cursor.quotaCode || cursor.quota_code || '').trim() !== 'SERPER_MONTHLY_LIMIT') return '';
       const resumeAfter = String(cursor.resumeAfter || cursor.resume_after || '').trim();
       return resumeAfter && new Date(resumeAfter).getTime() > currentMs ? resumeAfter : '';
     } catch (error) {
@@ -440,7 +440,8 @@ function getSearchJobResumeOffset_(jobs, resumeAfter) {
   const target = (Array.isArray(jobs) ? jobs : []).find(function (job) {
     try {
       const cursor = JSON.parse((job && job.cursor_json) || '{}');
-      return String(cursor.resumeAfter || cursor.resume_after || '').trim() === targetResumeAfter;
+      return String(cursor.quotaCode || cursor.quota_code || '').trim() === 'SERPER_MONTHLY_LIMIT'
+        && String(cursor.resumeAfter || cursor.resume_after || '').trim() === targetResumeAfter;
     } catch (error) {
       return false;
     }
@@ -462,7 +463,6 @@ function buildStartupDashboardPlaceholder_() {
     updatedAt: null,
   };
   const dailyMailLimit = 80;
-  const serperDailyLimit = 100;
   const serperMonthlyLimit = 1000;
   const serperInfo = getStartupSerperInfo_();
   const timezone = Session.getScriptTimeZone() || 'Asia/Tokyo';
@@ -512,10 +512,10 @@ function buildStartupDashboardPlaceholder_() {
     sendWindow: sendWindow,
     serperConfigured: serperInfo.configured,
     serperKeyMask: serperInfo.key_mask,
-    serperDailyLimit: serperDailyLimit,
+    serperDailyUnlimited: true,
     serperMonthlyLimit: serperMonthlyLimit,
-    serperTodayRemaining: serperDailyLimit,
     serperMonthRemaining: serperMonthlyLimit,
+    serperCreditRemaining: String(serperInfo.creditRemaining || ''),
     queuedJobs: 0,
     runningJobs: 0,
     failedJobs: 0,
@@ -569,12 +569,12 @@ function getStartupSerperInfo_() {
   return {
     configured: Boolean(key),
     key_mask: key ? maskSecret_(key) : '',
-    dailyLimit: 100,
     monthlyLimit: 1000,
+    dailyUnlimited: true,
     todayUsed: 0,
     monthUsed: 0,
-    todayRemaining: 100,
     monthRemaining: 1000,
+    creditRemaining: String((selected && selected.last_remaining) || ''),
     keys: records.map(sanitizeSerperApiKeyRecord_),
     activeKeyId: selected ? selected.id : (legacyKey ? 'legacy-main' : ''),
     startupPlaceholder: true,

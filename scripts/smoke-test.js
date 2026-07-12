@@ -87,6 +87,7 @@ assert(context.normalizeSettingForSave_('gmail_daily_send_limit', 80, 'number').
 assert(context.normalizeSettingForSave_('email_batch_send_limit', 20, 'number').value === '20', 'mail batch limit normalization failed');
 assertThrows(() => context.normalizeSettingForSave_('gmail_daily_send_limit', 81, 'number'), 'consumer Gmail daily limit should reject unsafe values');
 assertThrows(() => context.normalizeSettingForSave_('email_batch_send_limit', 21, 'number'), 'mail batch limit should reject unsafe values');
+assertThrows(() => context.normalizeSettingForSave_('serper_daily_search_limit', 100, 'number'), 'removed Serper daily limit setting should be rejected');
 assertThrows(() => context.normalizeSettingForSave_('unknown_setting', 'x', 'string'), 'unknown settings should be rejected');
 const normalizedSendWindow = JSON.parse(context.normalizeSettingForSave_('email_send_window', {
   enabled: true,
@@ -463,10 +464,10 @@ context.logError_ = originalCalendarLogError;
 const job = context.normalizeSearchJobInput_({
   job_type: 'lead_official_site',
   leadId: 'lead-1',
-  daily_limit: 100,
   job_limit: 5,
 });
 assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job lead item failed');
+assert(!Object.prototype.hasOwnProperty.call(job, 'daily_limit'), 'new search jobs must not persist a daily Serper limit');
 
 const prospectingJob = context.normalizeSearchJobInput_({
   job_type: 'prospecting',
@@ -625,28 +626,25 @@ context.withScriptLock_ = originalTriggerWithLock;
 context.ScriptApp = originalScriptApp;
 
 const scheduledResumeAt = context.getNextSearchJobResumeAt_([
-  { status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2026-07-13T00:05:00+09:00"}' },
+  { status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2026-08-01T00:05:00+09:00","quotaCode":"SERPER_MONTHLY_LIMIT"}' },
   { status: 'completed', cursor_json: '{"offset":20,"resumeAfter":"2026-07-12T23:00:00+09:00"}' },
 ], new Date('2026-07-12T16:00:00+09:00').getTime());
-assert(scheduledResumeAt === '2026-07-13T00:05:00+09:00', 'dashboard should expose the next active quota resume time');
-assert(context.getSearchJobResumeOffset_([{ status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2026-07-13T00:05:00+09:00"}' }], scheduledResumeAt) === 99, 'dashboard should expose the saved facility offset');
+assert(scheduledResumeAt === '2026-08-01T00:05:00+09:00', 'dashboard should expose the next active monthly quota resume time');
+assert(context.getSearchJobResumeOffset_([{ status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2026-08-01T00:05:00+09:00","quotaCode":"SERPER_MONTHLY_LIMIT"}' }], scheduledResumeAt) === 99, 'dashboard should expose the saved facility offset');
+assert(context.getNextSearchJobResumeAt_([{ status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2099-01-01T00:05:00+09:00"}' }], new Date('2026-07-12T16:00:00+09:00').getTime()) === '', 'legacy daily quota cursor must not keep the job waiting');
 
 const runWindow = context.buildSearchJobRunWindow_(300000, 1000);
 assert(runWindow.deadlineMs === 271000, 'search job run window should reserve 30 seconds');
 assert(context.isSearchJobRuntimeExhausted_(runWindow.deadlineMs, runWindow.deadlineMs), 'runtime deadline should stop processing');
 assert(context.parseSearchJobCursor_('{"itemIndex":2,"offset":7}').offset === 7, 'search job cursor should restore item offset');
-assert(context.parseSearchJobCursor_('{"itemIndex":2,"offset":7,"resumeAfter":"2026-07-13T00:05:00+09:00"}').resumeAfter === '2026-07-13T00:05:00+09:00', 'search job cursor should restore quota resume time');
+const parsedMonthlyCursor = context.parseSearchJobCursor_('{"itemIndex":2,"offset":7,"resumeAfter":"2026-08-01T00:05:00+09:00","quotaCode":"SERPER_MONTHLY_LIMIT"}');
+assert(parsedMonthlyCursor.resumeAfter === '2026-08-01T00:05:00+09:00' && parsedMonthlyCursor.quotaCode === 'SERPER_MONTHLY_LIMIT', 'search job cursor should restore monthly quota state');
 
 const originalQuotaUsageCount = context.getSerperUsageCount_;
 context.getSerperUsageCount_ = (range) => range && range.day ? 100 : 0;
-let dailyQuotaError = null;
-try {
-  context.assertSerperLimitAvailable_();
-} catch (error) {
-  dailyQuotaError = error;
-}
-assert(dailyQuotaError && dailyQuotaError.code === 'SERPER_DAILY_LIMIT' && dailyQuotaError.expected === true, 'daily Serper limit should be an expected quota pause');
-assert(context.serperQuotaResumeAfter_(dailyQuotaError, new Date('2026-07-12T03:00:00Z')) === '2026-07-13T00:05:00+09:00', 'daily Serper quota should resume after the next local reset');
+assert(context.assertSerperLimitAvailable_() === undefined, 'daily Serper usage must not block searches');
+const removedDailyQuotaError = context.createExpectedOperationError_('legacy daily limit', 'SERPER_DAILY_LIMIT');
+assert(!context.isSerperQuotaError_(removedDailyQuotaError), 'legacy daily limit must no longer pause a job');
 context.getSerperUsageCount_ = (range) => range && range.month ? 1000 : 0;
 let monthlyQuotaError = null;
 try {
@@ -733,6 +731,7 @@ context.processSourcePageSearchItem_ = () => ({
   nextOffset: 2,
   pausedForQuota: true,
   resumeAfter: '2099-01-01T00:05:00+09:00',
+  quotaCode: 'SERPER_MONTHLY_LIMIT',
 });
 const quotaPausedJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
 const quotaCursor = JSON.parse(mockSearchJob.cursor_json || '{}');
@@ -745,6 +744,15 @@ mockSearchJob.status = 'running';
 context.processSourcePageSearchItem_ = () => { pausedProcessorCalls += 1; return { processedAll: true }; };
 const waitingQuotaJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
 assert(waitingQuotaJobRun.pausedForQuota === true && pausedProcessorCalls === 0, 'quota-waiting job should exit before rebuilding or processing candidates');
+
+let legacyDailyProcessorCalls = 0;
+mockSearchJob.lock_token = 'lock-source-test';
+mockSearchJob.status = 'running';
+mockSearchJob.processed_count = 0;
+mockSearchJob.cursor_json = '{"itemIndex":0,"offset":99,"resumeAfter":"2099-01-01T00:05:00+09:00"}';
+context.processSourcePageSearchItem_ = () => { legacyDailyProcessorCalls += 1; return { processedAll: true, processedCandidates: 1 }; };
+const resumedLegacyDailyJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
+assert(legacyDailyProcessorCalls === 1 && resumedLegacyDailyJobRun.pausedForQuota === false, 'legacy daily quota cursor should resume immediately');
 
 context.claimSearchJobRun_ = originalClaimSearchJobRun;
 context.updateClaimedSearchJob_ = originalUpdateClaimedSearchJob;
@@ -866,7 +874,9 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v161_send_tracking_consistency'), 'v161 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v162_serper_daily_limit_removed'), 'v162 app version missing');
+assert(!serperSource.includes("getSettingValue_('serper_daily_search_limit'"), 'Serper daily limit must not be enforced');
+assert(!serperSource.includes("'SERPER_DAILY_LIMIT'"), 'legacy Serper daily quota code must be removed from runtime logic');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
