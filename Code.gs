@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260712_apps_script_full_workflow_v154_reply_detection_safety';
+const APP_VERSION = '20260712_apps_script_full_workflow_v155_calendar_idempotency';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -767,32 +767,36 @@ function buildLeadListStats_(rows, masterContext, genre) {
 
 function updateLead(id, patch) {
   return withScriptLock_('updateLead', function () {
-    const leadId = requireId_(id);
-    const spreadsheet = getOrCreateSpreadsheet_();
-    const sheet = ensureSheet_(spreadsheet, 'leads');
-    const found = findRowById_(sheet, leadId);
-
-    if (!found) {
-      throw new Error('Lead not found: ' + leadId);
-    }
-
-    const headers = getHeaders_(sheet);
-    const updates = normalizeLeadPatch_(patch);
-    const explicitFields = new Set(Object.keys(updates));
-    const nextRecord = Object.assign({}, found.record, updates, {
-      id: found.record.id,
-      created_at: found.record.created_at,
-      updated_at: nowIso_(),
-    });
-    applyLeadDerivedFields_(nextRecord);
-    if (explicitFields.has('status')) {
-      applyLeadStatusSideEffects_(nextRecord, explicitFields);
-    }
-
-    writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
-
-    return getLeadById(leadId);
+    return updateLeadLocked_(id, patch);
   });
+}
+
+function updateLeadLocked_(id, patch) {
+  const leadId = requireId_(id);
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const sheet = ensureSheet_(spreadsheet, 'leads');
+  const found = findRowById_(sheet, leadId);
+
+  if (!found) {
+    throw new Error('Lead not found: ' + leadId);
+  }
+
+  const headers = getHeaders_(sheet);
+  const updates = normalizeLeadPatch_(patch);
+  const explicitFields = new Set(Object.keys(updates));
+  const nextRecord = Object.assign({}, found.record, updates, {
+    id: found.record.id,
+    created_at: found.record.created_at,
+    updated_at: nowIso_(),
+  });
+  applyLeadDerivedFields_(nextRecord);
+  if (explicitFields.has('status')) {
+    applyLeadStatusSideEffects_(nextRecord, explicitFields);
+  }
+
+  writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+
+  return getLeadById(leadId);
 }
 
 function deleteLead(id, options) {

@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @154 / code v154: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @155 / code v155: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v154_reply_detection_safety`
+- Code version: `20260712_apps_script_full_workflow_v155_calendar_idempotency`
 
 ## 計画書との対応
 
@@ -754,6 +754,17 @@
 - 誤判定候補は自動返信だけでなく、成功送信前の受信日時でも検出。復元時は最新の成功送信種別に応じて`初回メール送信済み`または`2ヶ月後メール送信済み`へ戻し、`last_gmail_thread_id`もクリアする。
 - Chromeの実URLでVersion 154を確認。Gmail連携画面の既存ログスキャンで誤判定候補1件、復元先`初回メール送信済み`、エラー0件を確認し、復元を実行。
 - 復元後のシートで対象UUID`da8bfb99-8883-4f0c-8240-833c2cefc455`が`初回メール送信済み`、`reply_checked=false`、`last_gmail_thread_id`空、`send_count=1`を確認。再スキャンは候補0件・エラー0件、現行異常ログ0件。Gmail返信検索と実メール送信は未実施。
+
+## 2026-07-12 v155 Calendar商談登録の冪等化
+
+- 従来の`createCalendarEventForLead`は排他制御と既存イベント確認がなく、ボタン連打や通信再試行で同じ商談イベントを複数作成できた。またCalendar作成後にGoogle Sheets更新が失敗すると、シートと紐づかない孤立イベントが残る問題を確認。
+- `updateLeadLocked_`を分離し、Calendar作成・既存ID確認・営業先更新を1つのScriptLock内で実行。同じ営業先に`calendar_event_id`があり、Calendar側にイベントが存在する場合は既存イベントを返して再作成しない。
+- Calendar側で削除済みの古いIDはシートからクリアし、1件だけ再作成。新規イベント作成後に営業先更新が失敗した場合は`deleteEvent()`でCalendar側をロールバックする。
+- Calendar招待を送る場合は、確認待ち、送信NG、対応不要、NGマスター、除外ドメイン、無効メールをCalendar作成前に強制遮断。
+- 既存イベント再利用、削除済みIDの再作成、シート更新失敗時の削除、送信NG招待遮断のモック回帰テストを追加。本番シートのCalendarイベントIDは0件、`calendar_auto_create={"enabled":false}`のため実イベント作成は未実施。
+- Version 155を既存Web app URLへデプロイし、実画面でVersion 155、確認待ちからの起動、自動送信停止を確認。Calendarイベントや招待は作成していない。
+- 本番のなっぷ収集ジョブは`status=queued`、`cursor={"itemIndex":0,"offset":99,"resumeAfter":"2026-07-13T00:05:00+09:00"}`、`last_error`空、試行13回、最終更新2026-07-12 16:17:19。Serper日次上限待機中も10分トリガーがジョブを維持し、翌日再開位置を消費していないことを確認。
+- `sync_logs`全使用行を再監査し、既存障害はすべて`resolved`・`info`。未解消の`error`/`warn`は0件。
 
 ## 運用時に確認する外部依存
 

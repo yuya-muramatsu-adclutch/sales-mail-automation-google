@@ -14135,7 +14135,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             messageTarget.hidden = false;
             messageTarget.textContent = '商談予定を登録しました。営業リストと送信対象にも反映しています。';
           }
-          message(`カレンダー登録: ${result.title}`, 'ok');
+          message(result.existing ? `Calendar登録済み: ${result.title}` : `カレンダー登録: ${result.title}`, 'ok');
           await refreshAll();
         } catch (error) {
           message(error.message || String(error), 'error');

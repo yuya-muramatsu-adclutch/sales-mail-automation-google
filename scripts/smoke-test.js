@@ -295,6 +295,87 @@ context.getLeadById = originalFormGetLead;
 context.buildMasterBlockContext_ = originalFormBuildContext;
 context.latestSuccessfulMailSentAt_ = originalFormLatestMail;
 
+const originalCalendarWithLock = context.withScriptLock_;
+const originalCalendarGetLead = context.getLeadById;
+const originalCalendarUpdateLeadLocked = context.updateLeadLocked_;
+const originalCalendarApp = context.CalendarApp;
+const originalCalendarBuildContext = context.buildMasterBlockContext_;
+const originalCalendarLogError = context.logError_;
+let calendarLeadState = Object.assign({}, eligibleLead, {
+  id: 'lead-calendar-test',
+  calendar_event_id: 'calendar-existing-id',
+  status: '商談予定',
+  deal_status: '商談予定',
+});
+let calendarCreateCalls = 0;
+let calendarDeleteCalls = 0;
+let calendarUpdatePatches = [];
+let calendarUpdateShouldFail = false;
+const existingCalendarEvent = {
+  getId: () => 'calendar-existing-id',
+  getTitle: () => '登録済み商談',
+  deleteEvent: () => { calendarDeleteCalls += 1; },
+};
+const createdCalendarEvent = {
+  getId: () => 'calendar-created-id',
+  getTitle: () => '新規商談',
+  deleteEvent: () => { calendarDeleteCalls += 1; },
+};
+let calendarLookupResult = existingCalendarEvent;
+context.withScriptLock_ = (_name, callback) => callback();
+context.getLeadById = () => calendarLeadState;
+context.updateLeadLocked_ = (_id, patch) => {
+  calendarUpdatePatches.push(patch);
+  if (calendarUpdateShouldFail) throw new Error('sheet write failed');
+  calendarLeadState = Object.assign({}, calendarLeadState, patch);
+  return calendarLeadState;
+};
+context.buildMasterBlockContext_ = () => sendSafetyContext;
+context.logError_ = () => {};
+context.CalendarApp = {
+  getDefaultCalendar: () => ({
+    getEventById: () => calendarLookupResult,
+    createEvent: () => { calendarCreateCalls += 1; return createdCalendarEvent; },
+  }),
+};
+const existingCalendarResult = context.createCalendarEventForLead('lead-calendar-test', {
+  start: '2026-07-20T10:00:00+09:00',
+  end: '2026-07-20T11:00:00+09:00',
+});
+assert(existingCalendarResult.existing === true && calendarCreateCalls === 0, 'existing Calendar event must be reused without duplication');
+calendarLookupResult = null;
+calendarLeadState = Object.assign({}, calendarLeadState, { calendar_event_id: 'calendar-stale-id' });
+calendarUpdatePatches = [];
+const recreatedCalendarResult = context.createCalendarEventForLead('lead-calendar-test', {
+  start: '2026-07-20T10:00:00+09:00',
+  end: '2026-07-20T11:00:00+09:00',
+});
+assert(recreatedCalendarResult.existing === false && calendarCreateCalls === 1, 'stale Calendar ID should be cleared and recreated once');
+assert(calendarUpdatePatches[0].calendar_event_id === '' && calendarUpdatePatches[1].calendar_event_id === 'calendar-created-id', 'stale ID clear and new event persistence order failed');
+calendarLeadState = Object.assign({}, calendarLeadState, { calendar_event_id: '' });
+calendarUpdateShouldFail = true;
+assertThrows(() => context.createCalendarEventForLead('lead-calendar-test', {
+  start: '2026-07-21T10:00:00+09:00',
+  end: '2026-07-21T11:00:00+09:00',
+}), 'Calendar creation should fail when lead persistence fails');
+assert(calendarDeleteCalls === 1, 'new Calendar event must be deleted when lead persistence fails');
+calendarUpdateShouldFail = false;
+calendarLeadState = Object.assign({}, calendarLeadState, { send_ng: true, status: '送信NG', calendar_event_id: '' });
+const calendarCreateCallsBeforeNg = calendarCreateCalls;
+assertThrows(() => context.createCalendarEventForLead('lead-calendar-test', {
+  start: '2026-07-22T10:00:00+09:00',
+  end: '2026-07-22T11:00:00+09:00',
+  sendInvites: true,
+  guests: 'blocked@calendar-test.jp',
+}), 'send-NG lead must not receive a Calendar invite');
+assert(calendarCreateCalls === calendarCreateCallsBeforeNg, 'Calendar event must not be created before invite safety checks');
+context.withScriptLock_ = originalCalendarWithLock;
+context.getLeadById = originalCalendarGetLead;
+context.updateLeadLocked_ = originalCalendarUpdateLeadLocked;
+context.CalendarApp = originalCalendarApp;
+context.buildMasterBlockContext_ = originalCalendarBuildContext;
+context.logError_ = originalCalendarLogError;
+
 const job = context.normalizeSearchJobInput_({
   job_type: 'lead_official_site',
   leadId: 'lead-1',
@@ -683,7 +764,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v154_reply_detection_safety'), 'v154 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v155_calendar_idempotency'), 'v155 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -1031,6 +1112,10 @@ assert(fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8').includes('listR
 assert(operationsSource.includes('findHumanReplyAfterSend_'), 'reply check must inspect messages after successful delivery');
 assert(operationsSource.includes("getHeader('Auto-Submitted')") || operationsSource.includes("gmailMessageHeader_(message, 'Auto-Submitted')"), 'reply check must inspect automatic-response headers');
 assert(operationsSource.includes("' after:' + sentDateQuery"), 'reply search must be bounded by the successful send date');
+assert(operationsSource.includes("return withScriptLock_('createCalendarEventForLead'"), 'Calendar creation must be serialized');
+assert(operationsSource.includes('calendar.getEventById(existingEventId)'), 'Calendar creation must reuse an existing event');
+assert(operationsSource.includes('event.deleteEvent()'), 'orphan Calendar events must be rolled back');
+assert(operationsSource.includes('assertCalendarInviteAllowed_'), 'Calendar invitations must enforce send safety');
 assert(html.includes('row-send-ng'), 'lead row status styling missing');
 assert(html.includes('dashboard-hero-grid'), 'legacy-style dashboard hero missing');
 assert(html.includes('dashboard-signal-grid'), 'legacy-style dashboard signals missing');

@@ -371,9 +371,7 @@ function isAutomatedGmailMessage_(message, subject, snippet, fromEmails) {
 }
 
 function createCalendarEventForLead(leadId, input) {
-  const lead = getLeadById(leadId);
   const source = input && typeof input === 'object' ? input : {};
-  const title = String(source.title || [lead.company_name, lead.facility_name, '商談'].filter(Boolean).join(' ')).trim();
   const start = source.start || source.start_at || source.startAt;
   const end = source.end || source.end_at || source.endAt;
   if (!start || !end) throw new Error('Calendar event start and end are required.');
@@ -384,34 +382,103 @@ function createCalendarEventForLead(leadId, input) {
     throw new Error('Invalid calendar event date range.');
   }
 
-  const description = [
-    '会社名: ' + (lead.company_name || ''),
-    '施設名: ' + (lead.facility_name || ''),
-    'メール: ' + (lead.email || ''),
-    '電話: ' + (lead.phone || ''),
-    'Web: ' + (lead.website_url || ''),
-    'メモ: ' + (source.memo || lead.meeting_memo || ''),
-  ].join('\n');
-  const event = CalendarApp.getDefaultCalendar().createEvent(title, startDate, endDate, {
-    description: description,
-    location: source.location || lead.address || '',
-    guests: source.guests || lead.email || '',
-    sendInvites: source.sendInvites === true,
-  });
+  return withScriptLock_('createCalendarEventForLead', function () {
+    let lead = getLeadById(leadId);
+    const calendar = CalendarApp.getDefaultCalendar();
+    const existingEventId = String(lead.calendar_event_id || '').trim();
+    if (existingEventId) {
+      let existingEvent = null;
+      try {
+        existingEvent = calendar.getEventById(existingEventId);
+      } catch (error) {
+        throw createExpectedOperationError_('Calendar登録済みですが、既存イベントを確認できません。', 'CALENDAR_EVENT_LOOKUP_FAILED');
+      }
+      if (existingEvent) {
+        return {
+          ok: true,
+          existing: true,
+          eventId: existingEventId,
+          title: existingEvent.getTitle ? existingEvent.getTitle() : String(source.title || '商談'),
+        };
+      }
+      lead = updateLeadLocked_(lead.id, { calendar_event_id: '' });
+    }
 
-  updateLead(lead.id, {
-    status: '商談予定',
-    meeting_start_at: Utilities.formatDate(startDate, Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX"),
-    meeting_end_at: Utilities.formatDate(endDate, Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX"),
-    meeting_memo: source.memo || lead.meeting_memo || '',
-    calendar_event_id: event.getId(),
-  });
+    const sendInvites = source.sendInvites === true;
+    const guests = String(source.guests || lead.email || '').trim();
+    if (sendInvites) assertCalendarInviteAllowed_(lead, guests);
+    const title = String(source.title || [lead.company_name, lead.facility_name, '商談'].filter(Boolean).join(' ')).trim();
+    const description = [
+      '会社名: ' + (lead.company_name || ''),
+      '施設名: ' + (lead.facility_name || ''),
+      'メール: ' + (lead.email || ''),
+      '電話: ' + (lead.phone || ''),
+      'Web: ' + (lead.website_url || ''),
+      'メモ: ' + (source.memo || lead.meeting_memo || ''),
+    ].join('\n');
+    const event = calendar.createEvent(title, startDate, endDate, {
+      description: description,
+      location: source.location || lead.address || '',
+      guests: guests,
+      sendInvites: sendInvites,
+    });
+    const eventId = String(event.getId() || '');
 
-  return {
-    ok: true,
-    eventId: event.getId(),
-    title: event.getTitle(),
-  };
+    try {
+      updateLeadLocked_(lead.id, {
+        status: '商談予定',
+        meeting_start_at: Utilities.formatDate(startDate, Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        meeting_end_at: Utilities.formatDate(endDate, Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        meeting_memo: source.memo || lead.meeting_memo || '',
+        calendar_event_id: eventId,
+      });
+    } catch (error) {
+      try {
+        event.deleteEvent();
+      } catch (rollbackError) {
+        logError_('createCalendarEventForLeadRollback', rollbackError, {
+          target_sheet: 'leads',
+          target_id: lead.id,
+          calendar_event_id: eventId,
+          original_error: error.message || String(error),
+        });
+      }
+      throw error;
+    }
+
+    return {
+      ok: true,
+      existing: false,
+      eventId: eventId,
+      title: event.getTitle(),
+    };
+  });
+}
+
+function assertCalendarInviteAllowed_(lead, guests) {
+  if (!lead || isArchivedLead_(lead)) {
+    throw createExpectedOperationError_('営業対象外のためCalendar招待を送信できません。', 'CALENDAR_INVITE_BLOCKED');
+  }
+  if (isLeadReviewPending_(lead)) {
+    throw createExpectedOperationError_('確認待ちのためCalendar招待を送信できません。', 'CALENDAR_INVITE_BLOCKED');
+  }
+  if (normalizeBooleanLike_(lead.send_ng) || String(lead.status || '') === '送信NG' || String(lead.status || '') === '対応不要') {
+    throw createExpectedOperationError_('送信NGまたは対応不要のためCalendar招待を送信できません。', 'CALENDAR_INVITE_BLOCKED');
+  }
+  const guestEmails = extractEmailsFromMessageHeader_(guests);
+  if (!guestEmails.length || guestEmails.some(function (email) { return !isValidEmailAddress_(email); })) {
+    throw createExpectedOperationError_('Calendar招待先のメールアドレスが無効です。', 'CALENDAR_INVITE_BLOCKED');
+  }
+  const masterContext = buildMasterBlockContext_();
+  for (let index = 0; index < guestEmails.length; index += 1) {
+    const blocked = isLeadBlockedByMastersInContext_(Object.assign({}, lead, {
+      email: guestEmails[index],
+      email_domain: extractDomainFromEmail_(guestEmails[index]),
+    }), masterContext);
+    if (blocked.blocked) {
+      throw createExpectedOperationError_(blocked.reason || 'Calendar招待先が送信除外です。', 'CALENDAR_INVITE_BLOCKED');
+    }
+  }
 }
 
 function importLeadsFromCsv(csvText, options) {
