@@ -599,6 +599,9 @@ function normalizeSearchJobInput_(input) {
     ? String(source.site_preset || source.sitePreset || detectSourcePagePreset_(firstSourceUrl) || '').trim()
     : '';
   const resultLimitMax = crawlAll ? 20 : 20;
+  const totalCandidates = crawlAll && sitePreset === 'nap_camp'
+    ? Math.max(Number(items[0] && items[0].total_candidates) || 0, 0)
+    : 0;
 
   return {
     job_type: jobType,
@@ -613,6 +616,7 @@ function normalizeSearchJobInput_(input) {
     source_url: firstSourceUrl,
     genre: String(source.genre || '').trim(),
     label: String(source.label || source.name || '').trim(),
+    total_candidates: totalCandidates,
     created_at: nowIso_(),
   };
 }
@@ -699,20 +703,15 @@ function detectSourcePagePreset_(url) {
 
 function buildNapCampSourcePageItems_(url, source) {
   const candidates = fetchNapCampCampsiteUrlEntries_();
-  const chunkSize = Math.min(Math.max(Number(source.results_per_query || source.resultsPerQuery || 20) || 20, 1), 20);
   const sourceUrl = normalizeUrl_(url || NAP_CAMP_LIST_URL);
-  const items = [];
-  for (let offset = 0; offset < candidates.length; offset += chunkSize) {
-    items.push({
-      source_url: sourceUrl,
-      site_preset: 'nap_camp',
-      crawl_all: true,
-      offset: offset,
-      max_items: chunkSize,
-      total_candidates: candidates.length,
-    });
-  }
-  return items;
+  return [{
+    source_url: sourceUrl,
+    site_preset: 'nap_camp',
+    crawl_all: true,
+    offset: 0,
+    max_items: candidates.length,
+    total_candidates: candidates.length,
+  }];
 }
 
 function parseSearchJobLines_(value) {
@@ -807,9 +806,12 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
   }
   const allCandidates = fetchNapCampCampsiteUrlEntries_();
   const offset = Math.max(Number(item.offset) || 0, 0);
-  const limit = Math.min(Math.max(Number(item.max_items || payload.results_per_query || 20) || 20, 1), 20);
+  const fullCrawl = payload.crawl_all === true && String(item.site_preset || payload.site_preset || '') === 'nap_camp';
+  const limit = fullCrawl
+    ? Math.max(allCandidates.length - offset, 0)
+    : Math.min(Math.max(Number(item.max_items || payload.results_per_query || 20) || 20, 1), 20);
   const chunkLength = Math.max(Math.min(limit, allCandidates.length - offset), 0);
-  const candidates = allCandidates.slice(offset + cursorOffset, offset + limit);
+  const candidates = allCandidates.slice(offset + cursorOffset, offset + chunkLength);
   const summary = {
     created: 0,
     skipped: 0,

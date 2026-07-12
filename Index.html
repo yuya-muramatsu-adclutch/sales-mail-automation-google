@@ -15247,14 +15247,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const payload = parseJsonObjectClient(job.query_json);
         const items = Array.isArray(payload.items) ? payload.items : [];
         const type = String(job.job_type || payload.job_type || job.type || 'prospecting');
-        const processed = Math.max(0, Number(job.processed_count || 0));
-        const total = Math.max(Number(job.total_count || payload.job_limit || items.length || 0), processed);
+        const itemProcessed = Math.max(0, Number(job.processed_count || 0));
+        const progress = searchJobDisplayProgress(job, payload);
+        const processed = progress.processed;
+        const total = progress.total;
         const status = normalizeBackgroundJobStatus(job.status || '');
         const results = (state.searchResults || []).filter((result) => String(result.job_id || '') === String(job.id || ''));
         const queries = buildProspectingQueryRows(results, items);
         const duplicateReasons = aggregateProspectingReasons(results, 'duplicate');
         const exclusionReasons = aggregateProspectingReasons(results, 'excluded');
-        const currentPlan = items[Math.min(processed, Math.max(items.length - 1, 0))] || items[0] || {};
+        const currentPlan = items[Math.min(itemProcessed, Math.max(items.length - 1, 0))] || items[0] || {};
         const currentQuery = currentPlan.query || job.current_query || job.query || queries[0]?.query || '';
         const stats = summarizeProspectingProgressResults(results, job);
         return {
@@ -15275,7 +15277,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           finishedAt: job.finished_at || '',
           error: job.last_error || job.error_message || '',
           items,
-          upcomingPlans: items.slice(processed, processed + 5),
+          upcomingPlans: items.slice(itemProcessed, itemProcessed + 5),
           results,
           queries,
           duplicateReasons,
@@ -16525,8 +16527,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function normalizeBackgroundJob(job) {
         const type = job.job_type || job.type || 'background';
         const status = normalizeBackgroundJobStatus(job.status || '');
-        const processed = Number(job.processed_count || job.processed || 0);
-        const total = Math.max(Number(job.total_count || job.total || 0), processed, 0);
+        const progress = searchJobDisplayProgress(job);
+        const processed = progress.processed;
+        const total = progress.total;
         const timeValue = job.updated_at || job.finished_at || job.created_at || job.started_at || '';
         const timeMs = new Date(timeValue).getTime();
         return {
@@ -17153,7 +17156,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
           ['種類', escapeHtml(job.job_type || job.type || '-')],
           ['状態', statusPill(job.status || '-')],
-          ['進捗', `${formatNumber(job.processed_count || job.processed || 0)} / ${formatNumber(job.total_count || job.total || 0)}`],
+          ['進捗', backgroundSearchJobProgressLabel(job)],
           ['エラー', escapeHtml(job.error_message || job.last_error || '-')],
         ])));
       }
@@ -17244,14 +17247,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function advanceBackgroundSearchJob(jobId) {
         if (!jobId) return;
-        const result = await api('advanceSearchJob', { jobId, maxItems: 1 });
-        if (result.busy) {
-          message('このジョブは別の処理で実行中です。完了後に自動で続きから再開します。', 'ok');
-        } else if (result.pausedForRuntime) {
-          message(`最大処理時間の前に途中位置を保存しました。残り ${formatNumber(result.remaining || 0)}チャンクは次回再開します。`, 'ok');
-        } else {
-          const remainingText = Number(result.remaining || 0) ? ` / 残り ${formatNumber(result.remaining)}チャンク` : '';
-          message(`ジョブを進めました: ${formatNumber(result.processed || 0)}チャンク${remainingText}`, result.errors && result.errors.length ? 'error' : 'ok');
+        try {
+          const result = await api('advanceSearchJob', jobId, { maxItems: 1 });
+          if (result.busy) {
+            message('このジョブは別の処理で実行中です。完了後に自動で続きから再開します。', 'ok');
+          } else if (result.pausedForRuntime) {
+            message(`最大処理時間の前に途中位置を保存しました。処理済み ${formatNumber(result.processedCandidates || 0)}件、続きは次回再開します。`, 'ok');
+          } else {
+            const remainingText = Number(result.remaining || 0) ? ` / 残り ${formatNumber(result.remaining)}ジョブ` : '';
+            message(`ジョブを進めました: ${formatNumber(result.processedCandidates || result.processed || 0)}件${remainingText}`, result.errors && result.errors.length ? 'error' : 'ok');
+          }
+        } catch (error) {
+          message(`ジョブを進められませんでした: ${error.message || error}`, 'error');
         }
         await loadOpsData({ render: false });
         renderBackgroundJobsScreen();
@@ -17259,16 +17266,37 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function backgroundSearchJobProgressLabel(job) {
-        const processed = Number(job.processed_count || job.processed || 0);
-        const total = Number(job.total_count || job.total || 0);
+        const progress = searchJobDisplayProgress(job);
+        const processed = progress.processed;
+        const total = progress.total;
+        return `${formatNumber(processed)} / ${formatNumber(total)}${progress.isFacilityProgress ? '<small class="muted">施設</small>' : ''}`;
+      }
+
+      function searchJobDisplayProgress(job, parsedPayload) {
+        const payload = parsedPayload || parseJsonObjectClient(job && job.query_json);
         let cursor = {};
         try {
-          cursor = JSON.parse(job.cursor_json || '{}');
+          cursor = JSON.parse((job && job.cursor_json) || '{}');
         } catch (error) {
           cursor = {};
         }
-        const innerOffset = Math.max(Number(cursor.offset) || 0, 0);
-        return `${formatNumber(processed)} / ${formatNumber(total)}${innerOffset > 0 ? `<small class="muted">チャンク内 ${formatNumber(innerOffset)}件まで保存</small>` : ''}`;
+        const totalCandidates = Math.max(Number(payload.total_candidates || 0), 0);
+        const isFacilityProgress = payload.job_type === 'source_page' && payload.crawl_all === true && totalCandidates > 0;
+        if (isFacilityProgress) {
+          const status = normalizeBackgroundJobStatus((job && job.status) || '');
+          const cursorOffset = Math.max(Number(cursor.offset) || 0, 0);
+          return {
+            processed: status === 'completed' ? totalCandidates : Math.min(cursorOffset, totalCandidates),
+            total: totalCandidates,
+            isFacilityProgress: true,
+          };
+        }
+        const processed = Math.max(Number((job && (job.processed_count || job.processed)) || 0), 0);
+        return {
+          processed: processed,
+          total: Math.max(Number((job && (job.total_count || job.total)) || 0), processed, 0),
+          isFacilityProgress: false,
+        };
       }
 
       function renderBackgroundActivityScreen() {

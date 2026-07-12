@@ -216,9 +216,28 @@ const napCampJob = context.normalizeSearchJobInput_({
   resultsPerQuery: 2,
 });
 assert(napCampJob.crawl_all === true && napCampJob.site_preset === 'nap_camp', 'nap-camp crawl flags failed');
-assert(napCampJob.items.length === 2, 'nap-camp sitemap should be chunked');
-assert(napCampJob.items[0].offset === 0 && napCampJob.items[1].offset === 2, 'nap-camp chunk offsets failed');
+assert(napCampJob.items.length === 1, 'nap-camp full crawl should use one compact resumable item');
+assert(napCampJob.items[0].offset === 0 && napCampJob.items[0].max_items === 3, 'nap-camp compact item range failed');
 assert(napCampJob.items[0].total_candidates === 3, 'nap-camp candidate count failed');
+assert(napCampJob.total_candidates === 3, 'nap-camp display total failed');
+
+const originalFetchNapCampEntries = context.fetchNapCampCampsiteUrlEntries_;
+context.fetchNapCampCampsiteUrlEntries_ = () => Array.from({ length: 5872 }, (_value, index) => ({
+  detail_url: `https://www.nap-camp.com/test/${index + 1}`,
+  campsite_id: String(index + 1),
+  source_id: `nap_camp:test:${index + 1}`,
+}));
+const largeNapCampJob = context.normalizeSearchJobInput_({
+  job_type: 'source_page',
+  sourceUrls: ['https://www.nap-camp.com/'],
+  genre: 'キャンプ',
+  label: 'nap-camp.com',
+  crawlAll: true,
+  sitePreset: 'nap_camp',
+});
+assert(largeNapCampJob.items.length === 1 && largeNapCampJob.total_candidates === 5872, 'large nap-camp crawl should remain compact');
+assert(JSON.stringify(largeNapCampJob).length < 50000, 'search job payload must stay below the Google Sheets cell limit');
+context.fetchNapCampCampsiteUrlEntries_ = originalFetchNapCampEntries;
 
 const consumerGasUsage = context.buildConsumerGasUsageStatus_({
   mailQuotaRemaining: 25,
@@ -396,7 +415,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v145_cloud_job_continuation'), 'v145 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v147_collection_resume_fix'), 'v147 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -411,6 +430,9 @@ assert(emailSource.includes('function getEmailSendTargetBlockReason_'), 'server-
 assert(!emailSource.includes('input.force !== true'), 'email safety checks must not be bypassable with force');
 assert(operationsSource.includes("listSheetRecords('search_jobs', { limit: 1000"), 'cloud job scan should include older queued jobs');
 assert(serperSource.includes('ensureBackgroundJobTrigger_();'), 'new search jobs should ensure the cloud continuation trigger');
+assert(html.includes('function searchJobDisplayProgress(job, parsedPayload)'), 'facility-level collection progress helper missing');
+assert(html.includes("payload.total_candidates"), 'facility total should be used for collection progress');
+assert(html.includes("api('advanceSearchJob', jobId, { maxItems: 1 })"), 'manual search job resume should pass the server arguments separately');
 assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
 assert(webApp.includes("action === 'importEmailTemplates'"), 'email template bulk import dispatch missing');
 assert(webApp.includes("action === 'importSendHistories'"), 'send history bulk import dispatch missing');

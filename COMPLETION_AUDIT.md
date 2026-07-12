@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @145 / code v145: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @147 / code v147: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v145_cloud_job_continuation`
+- Code version: `20260712_apps_script_full_workflow_v147_collection_resume_fix`
 
 ## 計画書との対応
 
@@ -682,6 +682,17 @@
 - Gmail返信確認は設定がONの場合のみ6時間ごとにクラウド実行。自動メール送信は別機能であり、安全のため今回有効化していない。
 - トリガー0件から既定2件を作成し、再実行しても2件のまま重複しないモックテストを追加。`node scripts/smoke-test.js`、全 `.gs` 構文チェック、`git diff --check` 成功。
 - Version 145を既存Web app URLへ再デプロイ。`clasp run installDefaultTriggers` はExecution APIの実行権限不足で利用不可のため、実トリガー件数はWeb app管理画面を正とする。
+
+## 2026-07-12 v146 自動収集の停止原因修正
+
+- 実データ監査で、なっぷ全件収集5,872施設を588チャンク分の完全なJSONとして `search_jobs.query_json` 1セルへ保存し、Google Sheetsの1セル50,000文字上限で進捗更新が失敗していたことを確認。
+- なっぷ全件収集を1個のコンパクトなジョブとして保存し、施設位置は `cursor_json` のoffsetだけで再開する方式へ変更。
+- 画面の進捗は内部チャンク数ではなく、保存済みカーソルから `処理済み施設数 / 全施設数` を表示するよう変更。
+- 既存停止ジョブはコンパクトJSONへ置き換え、queued・ロック解除状態へ復旧する。
+- 手動の「次を処理」が `advanceSearchJob(jobId, options)` ではなくオブジェクト1個を渡していたため、正しい引数へ修正し、失敗時の画面メッセージを追加。
+- 停止ジョブ `699786a9-09ac-46e5-80bd-e154a1d2447f` の `query_json` を510文字へ圧縮し、実行状態を復旧。Version 147を既存Web app URLへ再デプロイ。
+- 実データで12施設の処理、Serper成功ログ12件、営業先追加、`cursor_json={"itemIndex":0,"offset":12}`、処理後のqueued復帰を確認。次回は13件目から自動再開する。
+- `node scripts/smoke-test.js`、全 `.gs` 構文チェック、`git diff --check` 成功。5,872候補の生成JSONが50,000文字未満になる回帰テストを追加。
 
 ## 運用時に確認する外部依存
 
