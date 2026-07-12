@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260712_apps_script_full_workflow_v155_calendar_idempotency';
+const APP_VERSION = '20260712_apps_script_full_workflow_v157_collection_quota_wait_clarity';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',

@@ -632,31 +632,36 @@ function advanceQueuedJobs(options) {
 }
 
 function ensureBackgroundJobTrigger_() {
-  const existing = ScriptApp.getProjectTriggers();
-  const handlers = existing.map(function (trigger) {
-    return trigger.getHandlerFunction();
+  return ensureSingleProjectTrigger_('advanceQueuedJobs', function () {
+    return ScriptApp.newTrigger('advanceQueuedJobs').timeBased().everyMinutes(10).create();
   });
-
-  if (handlers.indexOf('advanceQueuedJobs') === -1) {
-    ScriptApp.newTrigger('advanceQueuedJobs').timeBased().everyMinutes(10).create();
-    return { handler: 'advanceQueuedJobs', created: true };
-  }
-
-  return { handler: 'advanceQueuedJobs', created: false };
 }
 
 function ensureReplyCheckTrigger_() {
-  const existing = ScriptApp.getProjectTriggers();
-  const handlers = existing.map(function (trigger) {
-    return trigger.getHandlerFunction();
+  return ensureSingleProjectTrigger_('checkRepliesForLeads', function () {
+    return ScriptApp.newTrigger('checkRepliesForLeads').timeBased().everyHours(6).create();
   });
+}
 
-  if (handlers.indexOf('checkRepliesForLeads') === -1) {
-    ScriptApp.newTrigger('checkRepliesForLeads').timeBased().everyHours(6).create();
-    return { handler: 'checkRepliesForLeads', created: true };
+function ensureSingleProjectTrigger_(handler, createTrigger) {
+  const existing = ScriptApp.getProjectTriggers();
+  const matches = existing.filter(function (trigger) {
+    return trigger.getHandlerFunction() === handler;
+  });
+  let created = false;
+  if (!matches.length) {
+    createTrigger();
+    created = true;
   }
-
-  return { handler: 'checkRepliesForLeads', created: false };
+  const duplicates = matches.slice(1);
+  duplicates.forEach(function (trigger) {
+    ScriptApp.deleteTrigger(trigger);
+  });
+  return {
+    handler: handler,
+    created: created,
+    removedDuplicates: duplicates.length,
+  };
 }
 
 function installDefaultTriggers() {

@@ -6080,6 +6080,39 @@
         background: #fff;
       }
 
+      .collection-resume-notice {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--tone-warn-line);
+        background: var(--tone-warn-bg);
+        color: #854d0e;
+      }
+
+      .collection-resume-notice > svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .collection-resume-notice strong,
+      .collection-resume-notice small {
+        display: block;
+      }
+
+      .collection-resume-notice strong {
+        color: #713f12;
+        font-size: 13px;
+      }
+
+      .collection-resume-notice small {
+        margin-top: 3px;
+        color: #92400e;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
       .collection-step-management {
         gap: 14px;
       }
@@ -9068,9 +9101,19 @@
         }
 
         .collection-simple-head,
-        .collection-overview-head {
+        .collection-overview-head,
+        .collection-resume-notice {
           align-items: stretch;
           flex-direction: column;
+        }
+
+        .collection-resume-notice {
+          grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .collection-resume-notice > button {
+          grid-column: 1 / -1;
+          width: 100%;
         }
 
         .collection-simple-links {
@@ -15829,6 +15872,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const addedCount = Number(dashboard.prospectingAddedCount || dashboard.serperToday || 0);
         const duplicateCount = Number(dashboard.prospectingDuplicateCount || 0);
         const excludedCount = Number(dashboard.prospectingExcludedCount || 0);
+        const resumeAfter = String(dashboard.prospectingResumeAfter || '').trim();
         target.innerHTML = `
           <div class="collection-simple-head">
             <div class="collection-simple-head-copy">
@@ -15843,6 +15887,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <button type="button" class="mini-button" onclick="showTab('exclusions')">${legacyUiIcon('settings')}除外ドメイン</button>
             </div>
           </div>
+          ${resumeAfter ? `
+            <div class="collection-resume-notice" role="status">
+              ${legacyUiIcon('timerReset')}
+              <div>
+                <strong>Serperの日次上限に達したため待機中です</strong>
+                <small>${escapeHtml(dateTimeLabel(resumeAfter))}以降に、現在の${formatNumber(Number(dashboard.prospectingResumeOffset || 0) + 1)}施設目から自動再開します。</small>
+              </div>
+              <button type="button" class="mini-button" onclick="showTab('backgroundJobs')">進捗を見る</button>
+            </div>
+          ` : ''}
           <div class="collection-management-summary collection-step-management">
             <div class="collection-focus-panel">
               <div class="collection-focus-copy">
@@ -16552,6 +16606,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const progress = searchJobDisplayProgress(job);
         const processed = progress.processed;
         const total = progress.total;
+        const cursor = parseJsonObjectClient(job.cursor_json);
+        const resumeAfter = String(cursor.resumeAfter || cursor.resume_after || '').trim();
+        const quotaWaiting = Boolean(resumeAfter && new Date(resumeAfter).getTime() > Date.now());
         const timeValue = job.updated_at || job.finished_at || job.created_at || job.started_at || '';
         const timeMs = new Date(timeValue).getTime();
         return {
@@ -16566,8 +16623,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           active: ['queued', 'running'].includes(status),
           processed,
           total,
+          resumeAfter,
+          quotaWaiting,
           percent: total ? Math.min(100, Math.round((processed / total) * 100)) : (status === 'completed' ? 100 : 8),
-          message: backgroundJobMessage(job, status, processed, total),
+          message: quotaWaiting
+            ? `${dateTimeLabel(resumeAfter)}までSerper上限待機中。保存済み位置から自動再開します。`
+            : backgroundJobMessage(job, status, processed, total),
           meta: backgroundJobMeta(job),
           foundResults: backgroundJobFoundResults(job),
           timeMs: Number.isFinite(timeMs) ? timeMs : 0,
@@ -16780,6 +16841,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function backgroundNeedsAttention(job) {
         if (!job) return false;
         if (job.status === 'failed') return true;
+        if (job.quotaWaiting) return false;
         return job.active && backgroundUpdatedMinutes(job) >= 3;
       }
 
@@ -16860,6 +16922,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function backgroundHealthMarkup(job) {
         if (!job.active) return '';
+        if (job.quotaWaiting) {
+          return `<div class="background-health-chip"><strong>上限リセット待ち</strong><span>${escapeHtml(dateTimeLabel(job.resumeAfter))}以降に自動再開します</span></div>`;
+        }
         const minutes = backgroundUpdatedMinutes(job);
         if (minutes >= 10) {
           return '<div class="background-health-chip danger"><strong>更新停止の可能性</strong><span>直近の進捗更新から' + formatNumber(minutes) + '分経過しています</span></div>';
@@ -17261,7 +17326,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['種類', escapeHtml(job.job_type || job.type || '-')],
           ['状態', statusPill(job.status || '-')],
           ['進捗', backgroundSearchJobProgressLabel(job)],
-          ['次の処理', escapeHtml(dateTimeLabel(job.next_run_at || job.updated_at) || '-')],
+          ['次の処理', backgroundSearchJobNextRunLabel(job)],
           ['エラー', escapeHtml(job.error_message || job.last_error || '-')],
           ['操作', ['queued', 'running'].includes(String(job.status || '')) ? `<button type="button" class="table-link-button" onclick="advanceBackgroundSearchJob('${escapeJsString(job.id)}')">次を処理</button>` : '<span class="muted">-</span>'],
         ])));
@@ -17294,6 +17359,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const processed = progress.processed;
         const total = progress.total;
         return `${formatNumber(processed)} / ${formatNumber(total)}${progress.isFacilityProgress ? '<small class="muted">施設</small>' : ''}`;
+      }
+
+      function backgroundSearchJobNextRunLabel(job) {
+        const cursor = parseJsonObjectClient(job && job.cursor_json);
+        const resumeAfter = String(cursor.resumeAfter || cursor.resume_after || '').trim();
+        if (resumeAfter && new Date(resumeAfter).getTime() > Date.now()) {
+          return `<strong>${escapeHtml(dateTimeLabel(resumeAfter))}</strong><small class="muted">上限リセット後に自動再開</small>`;
+        }
+        return escapeHtml(dateTimeLabel((job && (job.next_run_at || job.updated_at)) || '') || '-');
       }
 
       function searchJobDisplayProgress(job, parsedPayload) {

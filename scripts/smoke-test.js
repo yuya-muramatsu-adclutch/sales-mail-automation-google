@@ -519,6 +519,10 @@ context.ScriptApp = {
     };
     return builder;
   },
+  deleteTrigger(trigger) {
+    const index = mockProjectTriggers.indexOf(trigger);
+    if (index !== -1) mockProjectTriggers.splice(index, 1);
+  },
 };
 const firstTriggerInstall = context.installDefaultTriggers();
 assert(firstTriggerInstall.triggers.length === 2, 'default cloud triggers should be created');
@@ -526,8 +530,22 @@ assert(mockTriggerSchedules.some((item) => item.handler === 'advanceQueuedJobs' 
 assert(mockTriggerSchedules.some((item) => item.handler === 'checkRepliesForLeads' && item.interval === 'hours' && item.value === 6), 'reply checks should run every 6 hours');
 const secondTriggerInstall = context.installDefaultTriggers();
 assert(secondTriggerInstall.triggers.length === 2 && mockProjectTriggers.length === 2, 'trigger installation should not create duplicates');
+mockProjectTriggers.push({
+  getHandlerFunction() { return 'advanceQueuedJobs'; },
+  getEventType() { return 'CLOCK'; },
+});
+const deduplicatedTriggerInstall = context.installDefaultTriggers();
+assert(deduplicatedTriggerInstall.triggers.length === 2 && mockProjectTriggers.length === 2, 'duplicate cloud triggers should be removed');
+assert(deduplicatedTriggerInstall.ensured.some((item) => item.handler === 'advanceQueuedJobs' && item.removedDuplicates === 1), 'background trigger deduplication should be reported');
 context.withScriptLock_ = originalTriggerWithLock;
 context.ScriptApp = originalScriptApp;
+
+const scheduledResumeAt = context.getNextSearchJobResumeAt_([
+  { status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2026-07-13T00:05:00+09:00"}' },
+  { status: 'completed', cursor_json: '{"offset":20,"resumeAfter":"2026-07-12T23:00:00+09:00"}' },
+], new Date('2026-07-12T16:00:00+09:00').getTime());
+assert(scheduledResumeAt === '2026-07-13T00:05:00+09:00', 'dashboard should expose the next active quota resume time');
+assert(context.getSearchJobResumeOffset_([{ status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2026-07-13T00:05:00+09:00"}' }], scheduledResumeAt) === 99, 'dashboard should expose the saved facility offset');
 
 const runWindow = context.buildSearchJobRunWindow_(300000, 1000);
 assert(runWindow.deadlineMs === 271000, 'search job run window should reserve 30 seconds');
@@ -764,7 +782,7 @@ const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260712_apps_script_full_workflow_v155_calendar_idempotency'), 'v155 app version missing');
+assert(code.includes('20260712_apps_script_full_workflow_v157_collection_quota_wait_clarity'), 'v157 app version missing');
 assert(code.includes("'cursor_json'"), 'search job cursor column missing');
 assert(code.includes("'lock_token'"), 'search job lock token column missing');
 assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
@@ -1058,6 +1076,8 @@ assert(html.includes("['trendingDown', '失注'"), 'legacy analytics risk trend 
 assert(html.includes('backgroundToastStack'), 'legacy background job toast stack missing');
 assert(html.includes('background-center-button'), 'legacy background center button missing');
 assert(html.includes('background-guide-panel'), 'legacy background progress guide panel missing');
+assert(html.includes('上限リセット待ち'), 'quota-waiting background health label missing');
+assert(html.includes('prospectingResumeAfter'), 'collection resume schedule UI missing');
 assert(html.includes('data-ui-icon="listChecks"'), 'legacy background progress list checks icon missing');
 assert(html.includes('data-ui-icon="arrowLeft"'), 'legacy background progress back icon missing');
 assert(html.includes('prospectingProgressDashboard'), 'legacy ProspectingProgressDashboard host missing');

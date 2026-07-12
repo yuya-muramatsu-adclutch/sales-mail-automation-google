@@ -311,6 +311,9 @@ function getDashboardStats(options) {
   const activeSearchJobs = searchJobs.filter(function (job) {
     return job.status === 'queued' || job.status === 'running';
   });
+  const prospectingResumeAfter = getNextSearchJobResumeAt_(activeSearchJobs);
+  const prospectingResumeOffset = getSearchJobResumeOffset_(activeSearchJobs, prospectingResumeAfter);
+  const quotaWaiting = Boolean(prospectingResumeAfter);
   const failedSearchJobs = searchJobs.filter(function (job) {
     return job.status === 'failed';
   });
@@ -381,9 +384,15 @@ function getDashboardStats(options) {
     prospectingAddedCount: sumNumericFields_(syncLogs, ['added_count', 'added']),
     prospectingDuplicateCount: sumNumericFields_(syncLogs, ['duplicate_skip_count', 'skipped']),
     prospectingExcludedCount: sumNumericFields_(syncLogs, ['excluded_count', 'protected_skip_count']),
-    prospectingLabel: activeSearchJobs.length ? '実行中' : '待機中',
-    prospectingTone: failedSearchJobs.length ? 'bad' : activeSearchJobs.length ? 'info' : 'ok',
-    prospectingReason: activeSearchJobs.length ? '営業リスト収集ジョブを処理中です' : '現在は待機中です。必要に応じて収集ツールから実行できます。',
+    prospectingLabel: quotaWaiting ? '上限待機中' : activeSearchJobs.length ? '実行中' : '待機中',
+    prospectingTone: failedSearchJobs.length ? 'bad' : quotaWaiting ? 'warn' : activeSearchJobs.length ? 'info' : 'ok',
+    prospectingReason: quotaWaiting
+      ? 'Serper利用上限のリセット後に、保存済みの施設位置から自動再開します。'
+      : activeSearchJobs.length
+        ? '営業リスト収集ジョブを処理中です'
+        : '現在は待機中です。必要に応じて収集ツールから実行できます。',
+    prospectingResumeAfter: prospectingResumeAfter,
+    prospectingResumeOffset: prospectingResumeOffset,
     prospectingDetail: 'GAS版では search_jobs / sync_logs から直近成果を集計します。',
     integrations: {
       sheets: true,
@@ -403,6 +412,40 @@ function getDashboardStats(options) {
 
   writeDashboardStatsCache_(stats);
   return stats;
+}
+
+function getNextSearchJobResumeAt_(jobs, nowMs) {
+  const currentMs = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+  return (Array.isArray(jobs) ? jobs : []).map(function (job) {
+    if (!job || (job.status !== 'queued' && job.status !== 'running')) return '';
+    try {
+      const cursor = JSON.parse(job.cursor_json || '{}');
+      const resumeAfter = String(cursor.resumeAfter || cursor.resume_after || '').trim();
+      return resumeAfter && new Date(resumeAfter).getTime() > currentMs ? resumeAfter : '';
+    } catch (error) {
+      return '';
+    }
+  }).filter(Boolean).sort()[0] || '';
+}
+
+function getSearchJobResumeOffset_(jobs, resumeAfter) {
+  const targetResumeAfter = String(resumeAfter || '').trim();
+  if (!targetResumeAfter) return 0;
+  const target = (Array.isArray(jobs) ? jobs : []).find(function (job) {
+    try {
+      const cursor = JSON.parse((job && job.cursor_json) || '{}');
+      return String(cursor.resumeAfter || cursor.resume_after || '').trim() === targetResumeAfter;
+    } catch (error) {
+      return false;
+    }
+  });
+  if (!target) return 0;
+  try {
+    const cursor = JSON.parse(target.cursor_json || '{}');
+    return Math.max(Number(cursor.offset) || 0, 0);
+  } catch (error) {
+    return 0;
+  }
 }
 
 function buildStartupDashboardPlaceholder_() {

@@ -5,9 +5,9 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @155 / code v155: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @157 / code v157: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260712_apps_script_full_workflow_v155_calendar_idempotency`
+- Code version: `20260712_apps_script_full_workflow_v157_collection_quota_wait_clarity`
 
 ## 計画書との対応
 
@@ -765,6 +765,15 @@
 - Version 155を既存Web app URLへデプロイし、実画面でVersion 155、確認待ちからの起動、自動送信停止を確認。Calendarイベントや招待は作成していない。
 - 本番のなっぷ収集ジョブは`status=queued`、`cursor={"itemIndex":0,"offset":99,"resumeAfter":"2026-07-13T00:05:00+09:00"}`、`last_error`空、試行13回、最終更新2026-07-12 16:17:19。Serper日次上限待機中も10分トリガーがジョブを維持し、翌日再開位置を消費していないことを確認。
 - `sync_logs`全使用行を再監査し、既存障害はすべて`resolved`・`info`。未解消の`error`/`warn`は0件。
+
+## 2026-07-12 v156-v157 収集再開時刻の可視化とトリガー整理
+
+- Serper日次・月次上限待機中のジョブをダッシュボード集計で判別し、`prospectingResumeAfter`と保存済み施設位置を返すよう変更。
+- 営業リスト収集ツール上部に「上限待機中」「自動再開日時」「再開する施設位置」を表示。バックグラウンド進捗表の「次の処理」も最終更新時刻ではなく、`cursor_json.resumeAfter`の実再開予約を表示する。
+- 既定の時間主導トリガー作成時、`advanceQueuedJobs`または`checkRepliesForLeads`が重複していれば余分なトリガーを削除し、各処理1件へ整理する。
+- 上限待機時刻・施設位置の抽出、トリガー重複削除のモック回帰テストを追加。
+- 本番確認で、バックグラウンド上段だけが上限待機を「進捗更新が遅い」と判定していたためv157で修正。上限待機中は異常件数へ含めず、「上限リセット待ち」と実再開日時を表示する。
+- Version 157を既存Web app URLへデプロイ。実画面で収集ツールに「2026/07/13 00:05以降・100施設目から自動再開」、進捗画面に「上限リセット待ち」、注意0件、エラー0件、`99 / 5,872施設`を確認。
 
 ## 運用時に確認する外部依存
 
