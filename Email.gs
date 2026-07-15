@@ -51,69 +51,71 @@ function isFormOutreachLead_(lead) {
 
 function sendLeadEmail(leadId, templateId, options) {
   const input = options && typeof options === 'object' ? options : {};
-  return withScriptLock_('sendLeadEmail', function () {
-    assertProductionMailDeliveryAllowed_(false);
-    return sendLeadEmailLocked_(leadId, templateId, input, {
-      masterContext: buildMasterBlockContext_(),
-    });
-  });
+  const prepared = withScriptLock_('prepareLeadEmailSend', function () {
+    return prepareLeadEmailSend_(leadId, templateId, input, false);
+  }, { waitMs: 90000 });
+  return deliverPreparedLeadEmail_(prepared);
 }
 
 function sendLeadEmailBatch(leadIds, templateId, options) {
   const input = options && typeof options === 'object' ? options : {};
-  return withScriptLock_('sendLeadEmailBatch', function () {
-    assertProductionMailDeliveryAllowed_(true);
-    const batchLimit = Math.min(Math.max(Number(getSettingValue_('email_batch_send_limit', 20)) || 20, 1), 100);
-    const ids = Array.from(new Set((Array.isArray(leadIds) ? leadIds : []).map(function (id) {
-      return String(id || '').trim();
-    }).filter(Boolean))).slice(0, batchLimit);
-    if (!ids.length) {
-      throw createExpectedOperationError_('送信対象がありません。', 'EMPTY_MAIL_BATCH');
-    }
+  assertProductionMailDeliveryAllowed_(true);
+  const batchLimit = Math.min(Math.max(Number(getSettingValue_('email_batch_send_limit', 20)) || 20, 1), 100);
+  const ids = Array.from(new Set((Array.isArray(leadIds) ? leadIds : []).map(function (id) {
+    return String(id || '').trim();
+  }).filter(Boolean))).slice(0, batchLimit);
+  if (!ids.length) {
+    throw createExpectedOperationError_('送信対象がありません。', 'EMPTY_MAIL_BATCH');
+  }
 
-    const runtimeContext = { masterContext: buildMasterBlockContext_() };
-    const results = ids.map(function (id) {
-      try {
-        return sendLeadEmailLocked_(id, templateId, input, runtimeContext);
-      } catch (error) {
-        if (!isExpectedOperationError_(error)) {
-          logError_('sendLeadEmailBatch:item', error, {
-            target_sheet: 'leads',
-            target_id: id,
-          });
-        }
-        return {
-          ok: false,
-          blocked: isExpectedOperationError_(error),
-          leadId: id,
-          errorMessage: error.message || String(error),
-        };
+  const results = ids.map(function (id) {
+    try {
+      const prepared = withScriptLock_('prepareLeadEmailBatchItem', function () {
+        return prepareLeadEmailSend_(id, templateId, input, true);
+      }, { waitMs: 90000 });
+      return deliverPreparedLeadEmail_(prepared);
+    } catch (error) {
+      if (!isExpectedOperationError_(error)) {
+        logError_('sendLeadEmailBatch:item', error, {
+          target_sheet: 'leads',
+          target_id: id,
+        });
       }
-    });
-    const success = results.filter(function (result) { return result.ok; }).length;
-    const blocked = results.filter(function (result) { return result.blocked; }).length;
-    return {
-      ok: success === results.length,
-      total: results.length,
-      success: success,
-      failed: results.length - success,
-      blocked: blocked,
-      results: results,
-    };
+      return {
+        ok: false,
+        blocked: isExpectedOperationError_(error),
+        leadId: id,
+        errorMessage: error.message || String(error),
+      };
+    }
   });
+  const success = results.filter(function (result) { return result.ok; }).length;
+  const blocked = results.filter(function (result) { return result.blocked; }).length;
+  return {
+    ok: success === results.length,
+    total: results.length,
+    success: success,
+    failed: results.length - success,
+    blocked: blocked,
+    results: results,
+  };
 }
 
-function sendLeadEmailLocked_(leadId, templateId, input, runtimeContext) {
+function prepareLeadEmailSend_(leadId, templateId, input, requireSendWindow) {
+  assertProductionMailDeliveryAllowed_(requireSendWindow === true);
   const lead = getLeadById(leadId);
   const template = templateId ? findSheetRecordById_('email_templates', templateId) : findProductionTemplateForLead_(lead, input.template_type || input.templateType || 'initial');
   if (!template) {
     throw createExpectedOperationError_('Email template not found.', 'MAIL_TEMPLATE_NOT_FOUND');
   }
   validateEmailSendTemplate_(template, lead, input);
-  const context = runtimeContext && runtimeContext.masterContext ? runtimeContext.masterContext : buildMasterBlockContext_();
+  const context = buildMasterBlockContext_();
   const sendBlockReason = getEmailSendTargetBlockReason_(lead, context);
   if (sendBlockReason) throw createExpectedOperationError_(sendBlockReason, 'MAIL_TARGET_BLOCKED');
-  assertEmailSendLimitAvailable_();
+  assertEmailSendLimitAvailable_({
+    includeReservations: true,
+    safety: context.mailSendSafety,
+  });
 
   const senderName = input.sender_name || input.senderName || '';
   const sendType = input.send_type || input.sendType || '初回メール';
@@ -142,15 +144,33 @@ function sendLeadEmailLocked_(leadId, templateId, input, runtimeContext) {
   });
   addProductionSendReservationToSafetyContext_(context.mailSendSafety, reservation);
 
+  return {
+    lead: lead,
+    template: template,
+    senderName: senderName,
+    sendType: sendType,
+    rendered: rendered,
+    sentAt: sentAt,
+    reservation: reservation,
+    requireSendWindow: requireSendWindow === true,
+  };
+}
+
+function deliverPreparedLeadEmail_(prepared) {
+  const input = prepared && typeof prepared === 'object' ? prepared : {};
+  const lead = input.lead || {};
+  const rendered = input.rendered || {};
+  const reservation = input.reservation || {};
   let sendResult = '成功';
   let errorMessage = '';
   try {
+    assertProductionMailDeliveryAllowed_(input.requireSendWindow === true);
     MailApp.sendEmail({
       to: lead.email,
       subject: rendered.subject,
       htmlBody: rendered.htmlBody,
       body: rendered.body,
-      name: senderName,
+      name: input.senderName,
     });
   } catch (error) {
     sendResult = '失敗';
@@ -160,25 +180,35 @@ function sendLeadEmailLocked_(leadId, templateId, input, runtimeContext) {
   let history = reservation;
   const trackingErrors = [];
   try {
-    history = updateSheetRecord_('send_histories', reservation.id, {
-      send_result: sendResult,
-      error_message: errorMessage,
-    });
-  } catch (error) {
-    trackingErrors.push('履歴確定: ' + (error.message || String(error)));
-  }
+    const finalized = withScriptLock_('finalizeLeadEmailSend', function () {
+      const result = { history: reservation, trackingErrors: [] };
+      try {
+        result.history = updateSheetRecord_('send_histories', reservation.id, {
+          send_result: sendResult,
+          error_message: errorMessage,
+        });
+      } catch (error) {
+        result.trackingErrors.push('履歴確定: ' + (error.message || String(error)));
+      }
 
-  if (sendResult === '成功') {
-    try {
-      const nextStatus = sendType === '2ヶ月後メール' ? '2ヶ月後メール送信済み' : '初回メール送信済み';
-      updateLeadAfterSend_(lead.id, {
-        status: nextStatus,
-        last_sent_at: sentAt,
-        send_count: Number(lead.send_count || 0) + 1,
-      });
-    } catch (error) {
-      trackingErrors.push('営業先更新: ' + (error.message || String(error)));
-    }
+      if (sendResult === '成功') {
+        try {
+          const nextStatus = input.sendType === '2ヶ月後メール' ? '2ヶ月後メール送信済み' : '初回メール送信済み';
+          updateLeadAfterSend_(lead.id, {
+            status: nextStatus,
+            last_sent_at: input.sentAt,
+            send_count: Number(lead.send_count || 0) + 1,
+          });
+        } catch (error) {
+          result.trackingErrors.push('営業先更新: ' + (error.message || String(error)));
+        }
+      }
+      return result;
+    }, { waitMs: 90000 });
+    history = finalized.history || history;
+    Array.prototype.push.apply(trackingErrors, finalized.trackingErrors || []);
+  } catch (error) {
+    trackingErrors.push('結果反映ロック: ' + (error.message || String(error)));
   }
 
   if (trackingErrors.length) {
@@ -214,19 +244,25 @@ function assertProductionMailDeliveryAllowed_(requireSendWindow) {
 
 function buildMailSendSafetyContext_() {
   const histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  const today = todayText_();
   const sentLeadIds = {};
   const sentEmails = {};
   const reservedLeadIds = {};
   const reservedEmails = {};
+  let successfulCountToday = 0;
+  let reservedCountToday = 0;
   histories.forEach(function (history) {
     const leadId = String(history.lead_id || '').trim();
     const email = normalizeEmailForSendSafety_(history.to_email || '');
+    const historyDate = String(history.sent_at || history.created_at || '').slice(0, today.length);
     if (isSuccessfulProductionSendHistory_(history)) {
       if (leadId) sentLeadIds[leadId] = true;
       if (email) sentEmails[email] = true;
+      if (historyDate === today) successfulCountToday += 1;
     } else if (isProductionSendReservationHistory_(history)) {
       if (leadId) reservedLeadIds[leadId] = true;
       if (email) reservedEmails[email] = true;
+      if (historyDate === today) reservedCountToday += 1;
     }
   });
   return {
@@ -234,6 +270,8 @@ function buildMailSendSafetyContext_() {
     sentEmails: sentEmails,
     reservedLeadIds: reservedLeadIds,
     reservedEmails: reservedEmails,
+    successfulCountToday: successfulCountToday,
+    reservedCountToday: reservedCountToday,
   };
 }
 
@@ -277,6 +315,10 @@ function addProductionSendReservationToSafetyContext_(safety, history) {
   const email = normalizeEmailForSendSafety_(history.to_email || '');
   if (leadId) safety.reservedLeadIds[leadId] = true;
   if (email) safety.reservedEmails[email] = true;
+  const today = todayText_();
+  if (String(history.sent_at || history.created_at || '').slice(0, today.length) === today) {
+    safety.reservedCountToday = Number(safety.reservedCountToday || 0) + 1;
+  }
   return safety;
 }
 
@@ -413,11 +455,31 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
   const sentAt = nowIso_();
   const subject = '[テスト] ' + rendered.subject;
   const senderName = sampleLead.sender_name || sampleLead.senderName || '営業担当';
+  const reservation = withScriptLock_('sendTestEmail:prepare', function () {
+    assertEmailSendLimitAvailable_();
+    return appendSheetRecord_('send_histories', {
+      lead_id: sampleLead.id || sampleLead.lead_id || '',
+      sent_at: sentAt,
+      send_type: 'テスト送信',
+      to_email: fixedToEmail,
+      company_name: sampleLead.company_name,
+      facility_name: sampleLead.facility_name,
+      genre: sampleLead.genre,
+      template_id: template.id,
+      template_name: template.name,
+      subject: subject,
+      body: rendered.body,
+      send_result: '送信中',
+      error_message: '',
+      gmail_message_id: '',
+      gmail_thread_id: '',
+      sender_name: senderName,
+    });
+  }, { waitMs: 90000 });
   let sendResult = '成功';
   let errorMessage = '';
 
   try {
-    assertEmailSendLimitAvailable_();
     MailApp.sendEmail({
       to: fixedToEmail,
       subject: subject,
@@ -430,36 +492,46 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
     errorMessage = error.message || String(error);
   }
 
-  return withScriptLock_('sendTestEmail:history', function () {
-    const history = appendSheetRecord_('send_histories', {
-      lead_id: sampleLead.id || sampleLead.lead_id || '',
-      sent_at: sentAt,
-      send_type: 'テスト送信',
-      to_email: fixedToEmail,
-      company_name: sampleLead.company_name,
-      facility_name: sampleLead.facility_name,
-      genre: sampleLead.genre,
-      template_id: template.id,
-      template_name: template.name,
-      subject: subject,
-      body: rendered.body,
+  let history = reservation;
+  const trackingErrors = [];
+  try {
+    const finalized = withScriptLock_('sendTestEmail:finalize', function () {
+      const result = { history: reservation, trackingErrors: [] };
+      try {
+        result.history = updateSheetRecord_('send_histories', reservation.id, {
+          send_result: sendResult,
+          error_message: errorMessage,
+        });
+      } catch (error) {
+        result.trackingErrors.push('履歴確定: ' + (error.message || String(error)));
+      }
+      if (sendResult === '成功') {
+        try {
+          updateSheetRecord_('email_templates', templateId, { last_test_sent_at: sentAt });
+        } catch (error) {
+          result.trackingErrors.push('テンプレート更新: ' + (error.message || String(error)));
+        }
+      }
+      return result;
+    }, { waitMs: 90000 });
+    history = finalized.history || history;
+    Array.prototype.push.apply(trackingErrors, finalized.trackingErrors || []);
+  } catch (error) {
+    trackingErrors.push('結果反映ロック: ' + (error.message || String(error)));
+  }
+  if (trackingErrors.length) {
+    logError_('sendTestEmailTracking', new Error(trackingErrors.join(' / ')), {
+      target_sheet: 'send_histories',
+      target_id: reservation.id,
       send_result: sendResult,
-      error_message: errorMessage,
-      gmail_message_id: '',
-      gmail_thread_id: '',
-      sender_name: senderName,
     });
-
-    if (sendResult === '成功') {
-      updateSheetRecord_('email_templates', templateId, { last_test_sent_at: sentAt });
-    }
-
-    return {
-      ok: sendResult === '成功',
-      history: history,
-      errorMessage: errorMessage,
-    };
-  });
+  }
+  return {
+    ok: sendResult === '成功',
+    history: history,
+    errorMessage: errorMessage,
+    warning: trackingErrors.join(' / '),
+  };
 }
 
 function listLeadSendHistories(leadId, options) {
@@ -472,13 +544,12 @@ function listLeadSendHistories(leadId, options) {
     })
     .sort(function (a, b) {
       return String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || ''));
-    })
-    .slice(0, limit);
+    });
 
   return {
     leadId: recordId,
     total: histories.length,
-    items: histories,
+    items: histories.slice(0, limit),
   };
 }
 
@@ -505,11 +576,17 @@ function importSendHistories(input) {
     });
 
     const inserts = [];
+    const incomingIds = {};
     let existingCount = 0;
     let skipped = 0;
     records.forEach(function (record) {
       try {
         const normalized = normalizeSendHistoryImportRecord_(record);
+        if (incomingIds[normalized.id]) {
+          skipped += 1;
+          return;
+        }
+        incomingIds[normalized.id] = true;
         if (existingById[normalized.id]) {
           existingCount += 1;
         } else {
@@ -596,10 +673,11 @@ function updateLeadAfterSend_(leadId, patch) {
   applyLeadDerivedFields_(nextRecord);
   applyLeadStatusSideEffects_(nextRecord, new Set(Object.keys(patch)));
   writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+  clearRuntimeCaches_('leads');
 }
 
 function findProductionTemplateForLead_(lead, templateType) {
-  const templates = listEmailTemplates({ limit: 1000 }).items;
+  const templates = readAllActiveSheetRecords_('email_templates');
   const leadGenre = String(lead && lead.genre || '').trim();
   if (!leadGenre) return null;
   const active = templates.filter(function (template) {
@@ -619,17 +697,30 @@ function getRemainingAppMailLimit_() {
   return Math.max(0, dailyLimit - countSuccessfulProductionSendsToday_());
 }
 
-function assertEmailSendLimitAvailable_() {
+function assertEmailSendLimitAvailable_(options) {
+  const input = options && typeof options === 'object' ? options : {};
   const dailyLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
-  const sentToday = countSuccessfulProductionSendsToday_();
+  const safety = input.safety && typeof input.safety === 'object' ? input.safety : null;
+  const sentToday = safety ? Number(safety.successfulCountToday || 0) : countSuccessfulProductionSendsToday_();
+  const reservedToday = input.includeReservations === true
+    ? Number(safety ? safety.reservedCountToday || 0 : countPendingProductionSendReservationsOnDate_(todayText_()))
+    : 0;
   const remainingQuota = MailApp.getRemainingDailyQuota ? MailApp.getRemainingDailyQuota() : dailyLimit;
 
-  if (sentToday >= dailyLimit) {
+  if (sentToday + reservedToday >= dailyLimit) {
     throw new Error('Daily app mail limit reached: ' + dailyLimit);
   }
   if (remainingQuota <= 0) {
     throw new Error('MailApp remaining daily quota is 0.');
   }
+}
+
+function countPendingProductionSendReservationsOnDate_(datePrefix) {
+  const prefix = String(datePrefix || '');
+  return readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).filter(function (history) {
+    return isProductionSendReservationHistory_(history) &&
+      (!prefix || String(history.sent_at || history.created_at || '').slice(0, prefix.length) === prefix);
+  }).length;
 }
 
 function isValidEmailAddress_(email) {

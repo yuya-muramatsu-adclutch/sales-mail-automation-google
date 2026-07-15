@@ -1,11 +1,16 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260713_apps_script_full_workflow_v168_mobile_width_fix';
+const APP_VERSION = '20260715_apps_script_full_workflow_v195_background_self_healing';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
   SERPER_API_KEYS_JSON: 'SERPER_API_KEYS_JSON',
+  SEARXNG_BASE_URL: 'SEARXNG_BASE_URL',
+  SEARXNG_ACCESS_TOKEN: 'SEARXNG_ACCESS_TOKEN',
+  SEARXNG_ENABLED: 'SEARXNG_ENABLED',
+  SEARXNG_STATUS_JSON: 'SEARXNG_STATUS_JSON',
   GMAIL_REPLY_CHECK_CURSOR: 'GMAIL_REPLY_CHECK_CURSOR',
   GMAIL_REPLY_CHECK_LOCK: 'GMAIL_REPLY_CHECK_LOCK',
+  BACKGROUND_WORKER_STATUS_JSON: 'BACKGROUND_WORKER_STATUS_JSON',
 });
 
 const EXISTING_APP_REFERENCE = Object.freeze({
@@ -64,6 +69,7 @@ const SHEET_DEFINITIONS = Object.freeze({
     'created_at',
     'updated_at',
     'archived_at',
+    'import_row_id',
   ],
   send_histories: [
     'id',
@@ -84,6 +90,7 @@ const SHEET_DEFINITIONS = Object.freeze({
     'gmail_thread_id',
     'sender_name',
     'created_at',
+    'updated_at',
   ],
   email_templates: [
     'id',
@@ -166,6 +173,7 @@ const SHEET_DEFINITIONS = Object.freeze({
     'id',
     'job_type',
     'status',
+    'request_key',
     'query_json',
     'total_count',
     'processed_count',
@@ -173,6 +181,7 @@ const SHEET_DEFINITIONS = Object.freeze({
     'job_limit',
     'cursor_json',
     'last_error',
+    'error_count',
     'lock_token',
     'locked_at',
     'last_heartbeat_at',
@@ -197,6 +206,7 @@ const SHEET_DEFINITIONS = Object.freeze({
     'review_action',
     'reviewed_at',
     'created_at',
+    'updated_at',
   ],
   search_usage_logs: [
     'id',
@@ -243,9 +253,16 @@ const SHEET_DEFINITIONS = Object.freeze({
     'id',
     'event_type',
     'operation',
+    'source',
+    'status',
     'target_sheet',
     'target_id',
     'level',
+    'added_count',
+    'filled_count',
+    'duplicate_skip_count',
+    'excluded_count',
+    'error_count',
     'message',
     'stack',
     'context_json',
@@ -255,12 +272,24 @@ const SHEET_DEFINITIONS = Object.freeze({
     'id',
     'job_type',
     'status',
+    'request_key',
+    'source',
     'payload_json',
     'cursor_json',
     'total_count',
     'processed_count',
+    'added_count',
+    'filled_count',
+    'duplicate_skip_count',
+    'excluded_count',
+    'error_count',
+    'found_results_json',
+    'current_query',
     'last_error',
+    'lock_token',
     'locked_at',
+    'last_heartbeat_at',
+    'attempt_count',
     'started_at',
     'finished_at',
     'created_at',
@@ -285,8 +314,10 @@ const SHEET_DEFINITIONS = Object.freeze({
   raw_import: [
     'id',
     'import_job_id',
+    'source_row_number',
     'row_json',
     'status',
+    'result_json',
     'error_message',
     'created_at',
     'updated_at',
@@ -362,18 +393,6 @@ const DEFAULT_SETTINGS = Object.freeze([
     value: '{"enabled":false}',
     value_type: 'json',
     description: 'Calendar auto-create setting ported from the existing app.',
-  },
-  {
-    key: 'serper_monthly_search_limit',
-    value: '1000',
-    value_type: 'number',
-    description: 'Monthly Serper request cap used by this app.',
-  },
-  {
-    key: 'serper_per_lead_search_limit',
-    value: '3',
-    value_type: 'number',
-    description: 'Maximum Serper requests allowed for one lead.',
   },
   {
     key: 'batch_runtime_budget_ms',
@@ -552,9 +571,37 @@ function getSchemaStatus() {
       ready: missing.length === 0,
     };
   });
+  const schemaIntegrityIssues = [];
+  Object.keys(SHEET_DEFINITIONS).forEach(function (sheetName) {
+    const sheet = spreadsheet.getSheetByName(sheetName);
+    if (!sheet) {
+      schemaIntegrityIssues.push(sheetName + ': シートなし');
+      return;
+    }
+    const headers = getHeaders_(sheet);
+    const missing = SHEET_DEFINITIONS[sheetName].filter(function (header) {
+      return headers.indexOf(header) === -1;
+    });
+    const blankColumns = headers.map(function (header, index) {
+      return header ? 0 : index + 1;
+    }).filter(Boolean);
+    const duplicateHeaders = headers.filter(function (header, index) {
+      return header && headers.indexOf(header) !== index;
+    });
+    if (missing.length) schemaIntegrityIssues.push(sheetName + ': 不足 ' + missing.join(', '));
+    if (blankColumns.length) schemaIntegrityIssues.push(sheetName + ': 空の見出し列 ' + blankColumns.join(', '));
+    if (duplicateHeaders.length) schemaIntegrityIssues.push(sheetName + ': 重複見出し ' + Array.from(new Set(duplicateHeaders)).join(', '));
+  });
+  checks.push({
+    key: 'all-sheet-header-integrity',
+    label: '全シート見出し整合性',
+    detail: schemaIntegrityIssues.length ? schemaIntegrityIssues.slice(0, 8).join(' / ') : 'OK: 全シート',
+    ready: schemaIntegrityIssues.length === 0,
+  });
   const recoverySteps = [
     'Apps Script editorで setup() を実行',
     'Webアプリを再読み込み',
+    '空の見出し列または重複見出しが残る場合は、管理画面の表示内容を確認して見出し行を修復',
     '必要なら COMPLETION_AUDIT.md の対象Versionを確認',
   ].join('\n');
 
@@ -568,37 +615,41 @@ function getSchemaStatus() {
 
 function createLead(input) {
   return withScriptLock_('createLead', function () {
-    const spreadsheet = getOrCreateSpreadsheet_();
-    const sheet = ensureSheet_(spreadsheet, 'leads');
-    const headers = getHeaders_(sheet);
-    const now = nowIso_();
-    const allowDuplicate = Boolean(input && (input.allow_duplicate === true || input.allowDuplicate === true));
-    const lead = normalizeLeadInput_(input, true);
-    const explicitFields = new Set(Object.keys(lead));
-
-    lead.id = Utilities.getUuid();
-    lead.status = lead.status || '未対応';
-    lead.form_status = lead.form_status || '未対応';
-    lead.deal_status = lead.deal_status || '未設定';
-    lead.send_ng = valueOrDefault_(lead.send_ng, false);
-    lead.reply_checked = valueOrDefault_(lead.reply_checked, false);
-    lead.send_count = valueOrDefault_(lead.send_count, 0);
-    lead.created_at = now;
-    lead.updated_at = now;
-    lead.archived_at = '';
-    applyLeadDerivedFields_(lead);
-    applyLeadStatusSideEffects_(lead, explicitFields);
-    if (!allowDuplicate) {
-      assertNoDuplicateLead_(sheet, lead);
-    }
-
-    sheet.appendRow(headers.map(function (header) {
-      return valueOrBlank_(lead[header]);
-    }));
-
-    clearRuntimeCaches_('leads');
-    return lead;
+    return createLeadLocked_(input);
   });
+}
+
+function createLeadLocked_(input) {
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const sheet = ensureSheet_(spreadsheet, 'leads');
+  const headers = getHeaders_(sheet);
+  const now = nowIso_();
+  const allowDuplicate = Boolean(input && (input.allow_duplicate === true || input.allowDuplicate === true));
+  const lead = normalizeLeadInput_(input, true);
+  const explicitFields = new Set(Object.keys(lead));
+
+  lead.id = Utilities.getUuid();
+  lead.status = lead.status || '未対応';
+  lead.form_status = lead.form_status || '未対応';
+  lead.deal_status = lead.deal_status || '未設定';
+  lead.send_ng = valueOrDefault_(lead.send_ng, false);
+  lead.reply_checked = valueOrDefault_(lead.reply_checked, false);
+  lead.send_count = valueOrDefault_(lead.send_count, 0);
+  lead.created_at = now;
+  lead.updated_at = now;
+  lead.archived_at = '';
+  applyLeadDerivedFields_(lead);
+  applyLeadStatusSideEffects_(lead, explicitFields);
+  if (!allowDuplicate) {
+    assertNoDuplicateLead_(sheet, lead);
+  }
+
+  sheet.appendRow(headers.map(function (header) {
+    return valueOrBlank_(lead[header]);
+  }));
+
+  clearRuntimeCaches_('leads');
+  return lead;
 }
 
 function getLeadById(id) {
@@ -673,6 +724,35 @@ function listLeads(options) {
     stats: buildLeadListStats_(rows, masterContext, query.genre),
     filteredStats: buildLeadListStats_(filtered, masterContext, query.genre),
     items: filtered.slice(query.offset, query.offset + query.limit),
+  };
+}
+
+function listEmailSendCandidates(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
+  const genre = String(input.genre || '').trim();
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const sheet = ensureSheet_(spreadsheet, 'leads');
+  const masterContext = buildMasterBlockContext_();
+  const candidates = readSheetRecords_(sheet).filter(function (lead) {
+    if (isArchivedLead_(lead) || !isEmailSendTarget_(lead, masterContext)) return false;
+    return !genre || String(lead.genre || '').trim() === genre;
+  });
+  sortLeads_(candidates, 'updated_desc');
+
+  const seenEmails = {};
+  const uniqueCandidates = candidates.filter(function (lead) {
+    const email = String(lead.email || '').trim().toLowerCase();
+    if (!email || seenEmails[email]) return false;
+    seenEmails[email] = true;
+    return true;
+  });
+
+  return {
+    total: uniqueCandidates.length,
+    limit: limit,
+    genre: genre,
+    items: uniqueCandidates.slice(0, limit),
   };
 }
 
@@ -762,7 +842,70 @@ function buildLeadListStats_(rows, masterContext, genre) {
 function updateLead(id, patch) {
   return withScriptLock_('updateLead', function () {
     return updateLeadLocked_(id, patch);
-  });
+  }, { waitMs: 90000 });
+}
+
+function updateReviewLeadDecision(id, input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const mode = String(source.mode || 'decision').trim();
+  const nextStatus = String(source.status || source.nextStatus || source.next_status || '').trim();
+  const expectedStatus = String(source.expectedStatus || source.expected_status || (mode === 'undo' ? '' : '未対応')).trim();
+  const decisionStatuses = ['対応中', '送信NG', '対応不要'];
+
+  if (mode === 'undo') {
+    if (nextStatus !== '未対応' || decisionStatuses.indexOf(expectedStatus) === -1) {
+      throw createExpectedOperationError_('確認操作の取り消し条件が不正です。', 'REVIEW_DECISION_INVALID');
+    }
+  } else if (mode !== 'decision' || expectedStatus !== '未対応' || decisionStatuses.indexOf(nextStatus) === -1) {
+    throw createExpectedOperationError_('確認待ちで選べない更新内容です。', 'REVIEW_DECISION_INVALID');
+  }
+
+  return withScriptLock_('updateReviewLeadDecision', function () {
+    const leadId = requireId_(id);
+    const current = getLeadById(leadId);
+    const currentStatus = String(current.status || '');
+    const reviewSource = ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(current.source || '')) !== -1;
+
+    if (!reviewSource) {
+      return buildReviewLeadConflict_(current, 'この営業先は確認待ち由来ではないため更新しませんでした。');
+    }
+    if (currentStatus === nextStatus) {
+      return {
+        ok: true,
+        reused: true,
+        conflict: false,
+        lead: current,
+        previous_status: expectedStatus,
+        status: nextStatus,
+      };
+    }
+    if (currentStatus !== expectedStatus) {
+      return buildReviewLeadConflict_(current, '別の処理で状態が「' + (currentStatus || '未設定') + '」に更新されたため、古い確認操作では上書きしませんでした。');
+    }
+    if (mode === 'decision' && !isLeadReviewPending_(current)) {
+      return buildReviewLeadConflict_(current, 'この営業先はすでに確認待ちではないため更新しませんでした。');
+    }
+
+    const updated = updateLeadLocked_(leadId, { status: nextStatus });
+    return {
+      ok: true,
+      reused: false,
+      conflict: false,
+      lead: updated,
+      previous_status: expectedStatus,
+      status: nextStatus,
+    };
+  }, { waitMs: 90000 });
+}
+
+function buildReviewLeadConflict_(lead, message) {
+  return {
+    ok: false,
+    reused: false,
+    conflict: true,
+    lead: lead || null,
+    message: String(message || '営業先の状態が変わったため更新しませんでした。'),
+  };
 }
 
 function updateLeadLocked_(id, patch) {
@@ -789,8 +932,9 @@ function updateLeadLocked_(id, patch) {
   }
 
   writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+  clearRuntimeCaches_('leads');
 
-  return getLeadById(leadId);
+  return nextRecord;
 }
 
 function deleteLead(id, options) {
@@ -807,6 +951,7 @@ function deleteLead(id, options) {
     if (options && options.hardDelete === true) {
       assertLeadHardDeleteAllowed_(found.record);
       sheet.deleteRow(found.rowNumber);
+      clearRuntimeCaches_('leads');
       return {
         ok: true,
         id: leadId,
@@ -826,6 +971,7 @@ function deleteLead(id, options) {
     });
 
     writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+    clearRuntimeCaches_('leads');
     return nextRecord;
   });
 }
@@ -844,22 +990,19 @@ function assertLeadHardDeleteAllowed_(lead, relatedRowsBySheet) {
 
 function listLeadHardDeleteReferences_(lead, relatedRowsBySheet) {
   const leadId = requireId_(lead && lead.id);
-  const rowsBySheet = relatedRowsBySheet && typeof relatedRowsBySheet === 'object'
-    ? relatedRowsBySheet
-    : {
-        send_histories: readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')),
-        reply_logs: readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'reply_logs')),
-        search_results: readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'search_results')),
-      };
+  const rowsBySheet = relatedRowsBySheet && typeof relatedRowsBySheet === 'object' ? relatedRowsBySheet : null;
   const definitions = [
     { sheet: 'send_histories', label: '送信履歴' },
     { sheet: 'reply_logs', label: '返信ログ' },
     { sheet: 'search_results', label: '検索結果' },
+    { sheet: 'search_usage_logs', label: '検索利用履歴' },
   ];
   const references = definitions.map(function (definition) {
-    const count = (Array.isArray(rowsBySheet[definition.sheet]) ? rowsBySheet[definition.sheet] : []).filter(function (record) {
-      return String(record.lead_id || '').trim() === leadId;
-    }).length;
+    const count = rowsBySheet
+      ? (Array.isArray(rowsBySheet[definition.sheet]) ? rowsBySheet[definition.sheet] : []).filter(function (record) {
+          return String(record.lead_id || '').trim() === leadId;
+        }).length
+      : countSheetExactMatches_(definition.sheet, 'lead_id', leadId);
     return {
       sheet: definition.sheet,
       label: definition.label,
@@ -872,6 +1015,23 @@ function listLeadHardDeleteReferences_(lead, relatedRowsBySheet) {
     references.push({ sheet: 'calendar', label: 'Calendarイベント', count: 1 });
   }
   return references;
+}
+
+function countSheetExactMatches_(sheetName, columnName, value) {
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), sheetName);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+  const headers = getHeaders_(sheet);
+  const columnIndex = headers.indexOf(columnName);
+  if (columnIndex === -1) return 0;
+  return sheet
+    .getRange(2, columnIndex + 1, lastRow - 1, 1)
+    .createTextFinder(String(value || ''))
+    .matchEntireCell(true)
+    .matchCase(true)
+    .useRegularExpression(false)
+    .findAll()
+    .length;
 }
 
 function markLeadFormSent(leadId, options) {
@@ -924,6 +1084,7 @@ function markLeadFormSent(leadId, options) {
     });
 
     writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+    clearRuntimeCaches_('leads');
     return getLeadById(id);
   });
 }
@@ -942,8 +1103,16 @@ function unmarkLeadFormSent(leadId) {
     const now = nowIso_();
     const headers = getHeaders_(sheet);
     const customFields = parseJsonObjectSafe_(found.record.custom_fields_json);
+    const currentCount = Math.max(0, Number(customFields.form_send_count || 0));
+    const hasRecordedFormSend = currentCount > 0 ||
+      Boolean(customFields.last_form_sent_at) ||
+      String(found.record.status || '') === 'フォーム対応済み' ||
+      String(found.record.form_status || '') === '対応済み';
+    if (!hasRecordedFormSend) {
+      throw createExpectedOperationError_('取り消せるフォーム送信記録がありません。', 'FORM_SEND_NOT_RECORDED');
+    }
     const events = formSendEventsFromCustomFields_(customFields);
-    const nextCount = Math.max(0, Number(customFields.form_send_count || 0) - 1);
+    const nextCount = Math.max(0, currentCount - 1);
     const fallbackSentAt = latestSuccessfulMailSentAt_(id);
     const previousSentEvent = events.find(function (event) {
       return event && event.type === 'sent' && event.previous_status;
@@ -978,6 +1147,7 @@ function unmarkLeadFormSent(leadId) {
     });
 
     writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+    clearRuntimeCaches_('leads');
     return getLeadById(id);
   });
 }
@@ -1022,8 +1192,7 @@ function listLeadDuplicateCandidates(leadId, options) {
     .filter(Boolean)
     .sort(function (a, b) {
       return Number(b.send_count || 0) - Number(a.send_count || 0) || String(a.company_name || a.facility_name || '').localeCompare(String(b.company_name || b.facility_name || ''), 'ja');
-    })
-    .slice(0, limit);
+    });
 
   return {
     leadId: recordId,
@@ -1035,7 +1204,7 @@ function listLeadDuplicateCandidates(leadId, options) {
       website_url: current.website_url,
     },
     total: candidates.length,
-    items: candidates,
+    items: candidates.slice(0, limit),
   };
 }
 
@@ -1046,13 +1215,15 @@ function saveSerperApiKey(apiKey) {
     throw new Error('Serper API key is required.');
   }
 
-  PropertiesService.getScriptProperties().setProperty(PROPERTY_KEYS.SERPER_API_KEY, normalized);
-  upsertSerperPrimaryKey_(normalized, 'Serperキー');
+  return withScriptLock_('saveSerperApiKey', function () {
+    PropertiesService.getScriptProperties().setProperty(PROPERTY_KEYS.SERPER_API_KEY, normalized);
+    upsertSerperPrimaryKey_(normalized, 'Serperキー');
 
-  return {
-    ok: true,
-    saved: true,
-  };
+    return {
+      ok: true,
+      saved: true,
+    };
+  }, { waitMs: 90000 });
 }
 
 function debugListLeads() {
@@ -1076,7 +1247,10 @@ function getOrCreateSpreadsheet_() {
       logError_('getOrCreateSpreadsheet_', error, {
         storedId: storedId,
       });
-      properties.deleteProperty(PROPERTY_KEYS.SPREADSHEET_ID);
+      throw createExpectedOperationError_(
+        '保存先スプレッドシートを開けません。保存先IDは保持しています。権限または一時的なGoogle側エラーを確認してから再試行してください。',
+        'SPREADSHEET_UNAVAILABLE'
+      );
     }
   }
 
@@ -1295,17 +1469,17 @@ function getHeaders_(sheet) {
   const lastColumn = Math.max(sheet.getLastColumn(), 1);
   return sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function (value) {
     return String(value || '').trim();
-  }).filter(Boolean);
+  });
 }
 
 function findRowById_(sheet, id) {
-  const values = sheet.getDataRange().getValues();
-
-  if (values.length < 2) {
+  const lastRow = sheet.getLastRow();
+  const lastColumn = Math.max(sheet.getLastColumn(), 1);
+  if (lastRow < 2) {
     return null;
   }
 
-  const headers = values[0].map(function (value) {
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function (value) {
     return String(value || '').trim();
   });
   const idColumnIndex = headers.indexOf('id');
@@ -1314,16 +1488,62 @@ function findRowById_(sheet, id) {
     throw new Error('Sheet is missing id header: ' + sheet.getName());
   }
 
-  for (let rowIndex = 1; rowIndex < values.length; rowIndex += 1) {
-    if (String(values[rowIndex][idColumnIndex]) === String(id)) {
-      return {
-        rowNumber: rowIndex + 1,
-        record: rowToRecord_(headers, values[rowIndex]),
-      };
-    }
+  const targetId = String(id || '');
+  const match = sheet
+    .getRange(2, idColumnIndex + 1, lastRow - 1, 1)
+    .createTextFinder(targetId)
+    .matchEntireCell(true)
+    .matchCase(true)
+    .useRegularExpression(false)
+    .findNext();
+  if (!match) {
+    return null;
   }
 
-  return null;
+  const rowNumber = match.getRow();
+  const row = sheet.getRange(rowNumber, 1, 1, lastColumn).getValues()[0];
+  if (String(row[idColumnIndex]) !== targetId) {
+    return null;
+  }
+
+  return {
+    rowNumber: rowNumber,
+    record: rowToRecord_(headers, row),
+  };
+}
+
+function findActiveLeadBySourceReference_(source, sourceId) {
+  const normalizedSource = String(source || '').trim();
+  const normalizedSourceId = String(sourceId || '').trim();
+  if (!normalizedSource || !normalizedSourceId) return null;
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
+  const headers = getHeaders_(sheet);
+  const sourceIdColumnIndex = headers.indexOf('source_id');
+  const lastRow = sheet.getLastRow();
+  if (sourceIdColumnIndex === -1 || lastRow < 2) return null;
+  const seen = {};
+  const matches = sheet
+    .getRange(2, sourceIdColumnIndex + 1, lastRow - 1, 1)
+    .createTextFinder(normalizedSourceId)
+    .matchEntireCell(true)
+    .matchCase(true)
+    .useRegularExpression(false)
+    .findAll()
+    .map(function (range) {
+      const row = sheet.getRange(range.getRow(), 1, 1, headers.length).getValues()[0];
+      return rowToRecord_(headers, row);
+    })
+    .filter(function (lead) {
+      const id = String(lead.id || '');
+      if (!id || seen[id] || isArchivedLead_(lead)) return false;
+      if (String(lead.source || '') !== normalizedSource || String(lead.source_id || '') !== normalizedSourceId) return false;
+      seen[id] = true;
+      return true;
+    });
+  if (matches.length > 1) {
+    throw createExpectedOperationError_('同じ追加元IDを持つ営業先が複数あるため、自動復旧できません。', 'AMBIGUOUS_LEAD_SOURCE_REFERENCE');
+  }
+  return matches[0] || null;
 }
 
 function normalizeLeadInput_(input, isCreate) {
@@ -1333,8 +1553,8 @@ function normalizeLeadInput_(input, isCreate) {
 
   const normalized = normalizeLeadPatch_(input);
 
-  if (isCreate && !normalized.company_name) {
-    throw new Error('company_name is required.');
+  if (isCreate && !normalized.company_name && !normalized.facility_name && !normalized.email && !normalized.form_url) {
+    throw new Error('company_name, facility_name, email, or form_url is required.');
   }
 
   return normalized;
@@ -1565,8 +1785,36 @@ function applyLeadStatusSideEffects_(lead, explicitFields) {
 }
 
 function assertNoDuplicateLead_(sheet, lead) {
-  const existingLeads = readSheetRecords_(sheet);
-  const duplicate = existingLeads.find(function (existing) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  const headers = getHeaders_(sheet);
+  const candidateRows = {};
+  const collectCandidateRows = function (columnName, value, matchCase) {
+    const text = String(value || '').trim();
+    const columnIndex = headers.indexOf(columnName);
+    if (!text || columnIndex === -1) return;
+    sheet
+      .getRange(2, columnIndex + 1, lastRow - 1, 1)
+      .createTextFinder(text)
+      .matchEntireCell(false)
+      .matchCase(matchCase === true)
+      .useRegularExpression(false)
+      .findAll()
+      .forEach(function (range) {
+        candidateRows[range.getRow()] = true;
+      });
+  };
+
+  collectCandidateRows('email', lead.email, false);
+  collectCandidateRows('source_id', lead.source_id, true);
+  collectCandidateRows('normalized_company_name', lead.normalized_company_name, false);
+
+  const duplicate = Object.keys(candidateRows).map(Number).sort(function (left, right) {
+    return left - right;
+  }).map(function (rowNumber) {
+    const row = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+    return rowToRecord_(headers, row);
+  }).find(function (existing) {
     if (isArchivedLead_(existing)) {
       return false;
     }
@@ -1784,11 +2032,13 @@ function requireId_(id) {
   return normalized;
 }
 
-function withScriptLock_(operation, callback) {
+function withScriptLock_(operation, callback, options) {
+  const lockOptions = options && typeof options === 'object' ? options : {};
+  const waitMs = Math.min(Math.max(Number(lockOptions.waitMs) || 30000, 1000), 300000);
   const lock = LockService.getScriptLock();
 
   try {
-    lock.waitLock(30000);
+    lock.waitLock(waitMs);
     return callback();
   } catch (error) {
     if (!isExpectedOperationError_(error)) {
@@ -1869,6 +2119,17 @@ function safeJsonStringify_(value) {
       stringifyError: error.message,
     });
   }
+}
+
+function computeRequestDigest_(value) {
+  const bytes = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    String(value == null ? '' : value),
+    Utilities.Charset.UTF_8
+  );
+  return bytes.map(function (byte) {
+    return ('0' + ((Number(byte) + 256) % 256).toString(16)).slice(-2);
+  }).join('');
 }
 
 function valueOrBlank_(value) {

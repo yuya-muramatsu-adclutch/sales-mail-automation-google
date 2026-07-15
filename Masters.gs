@@ -43,6 +43,7 @@ function importEmailTemplates(input) {
 
     const inserts = [];
     const updates = [];
+    const incomingIds = {};
     let skipped = 0;
     records.forEach(function (record) {
       try {
@@ -54,6 +55,11 @@ function importEmailTemplates(input) {
           created_at: createdAt || nowIso_(),
           updated_at: updatedAt || nowIso_(),
         });
+        if (incomingIds[nextRecord.id]) {
+          skipped += 1;
+          return;
+        }
+        incomingIds[nextRecord.id] = true;
         if (existingById[nextRecord.id]) {
           updates.push(nextRecord);
         } else {
@@ -138,7 +144,7 @@ function setEmailTemplateProduction(id, input) {
       const mismatchReason = getTemplateGenreContentMismatchReason_(template);
       if (mismatchReason) throw new Error(mismatchReason);
 
-      listSheetRecords('email_templates', { limit: 1000, includeInactive: true }).items
+      readAllActiveSheetRecords_('email_templates')
         .filter(function (item) {
           return item.id !== templateId
             && normalizeBooleanLike_(item.active)
@@ -288,6 +294,7 @@ function importExcludedDomains(input) {
     records.forEach(function (record) {
       try {
         const normalized = normalizeExcludedDomainInput_(record);
+        if (incomingByDomain[normalized.domain]) skipped += 1;
         incomingByDomain[normalized.domain] = normalized;
       } catch (error) {
         skipped += 1;
@@ -533,10 +540,14 @@ function isLeadBlockedByMasters_(lead) {
 
 function buildMasterBlockContext_() {
   return {
-    ngMasters: listNgMasters({ limit: 1000 }).items,
-    excludedDomains: listExcludedDomains({ limit: 1000 }).items,
+    ngMasters: readAllActiveSheetRecords_('ng_masters'),
+    excludedDomains: readAllActiveSheetRecords_('excluded_domains'),
     mailSendSafety: buildMailSendSafetyContext_(),
   };
+}
+
+function readAllActiveSheetRecords_(sheetName) {
+  return readAllSheetRecordsByName_(sheetName);
 }
 
 function isLeadBlockedByMastersInContext_(lead, context) {

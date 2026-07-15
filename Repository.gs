@@ -1,21 +1,11 @@
 function listSheetRecords(sheetName, options) {
-  const spreadsheet = getOrCreateSpreadsheet_();
-  const sheet = ensureSheet_(spreadsheet, sheetName);
-  const records = readSheetRecords_(sheet);
   const query = options && typeof options === 'object' ? options : {};
-  const includeInactive = query.includeInactive === true;
-  const includeArchived = query.includeArchived === true;
+  const records = readAllSheetRecordsByName_(sheetName, query);
   const search = String(query.search || '').trim().toLowerCase();
   const limit = Math.min(Math.max(Number(query.limit) || 200, 1), 1000);
   const offset = Math.max(Number(query.offset) || 0, 0);
 
   const filtered = records.filter(function (record) {
-    if (!includeInactive && Object.prototype.hasOwnProperty.call(record, 'active') && normalizeBooleanLike_(record.active) === false) {
-      return false;
-    }
-    if (!includeArchived && Object.prototype.hasOwnProperty.call(record, 'archived_at') && record.archived_at) {
-      return false;
-    }
     if (!search) {
       return true;
     }
@@ -36,6 +26,21 @@ function listSheetRecords(sheetName, options) {
   };
 }
 
+function readAllSheetRecordsByName_(sheetName, options) {
+  const query = options && typeof options === 'object' ? options : {};
+  const includeInactive = query.includeInactive === true;
+  const includeArchived = query.includeArchived === true;
+  return readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), sheetName)).filter(function (record) {
+    if (!includeInactive && Object.prototype.hasOwnProperty.call(record, 'active') && normalizeBooleanLike_(record.active) === false) {
+      return false;
+    }
+    if (!includeArchived && Object.prototype.hasOwnProperty.call(record, 'archived_at') && record.archived_at) {
+      return false;
+    }
+    return true;
+  });
+}
+
 function appendSheetRecord_(sheetName, record) {
   const spreadsheet = getOrCreateSpreadsheet_();
   const sheet = ensureSheet_(spreadsheet, sheetName);
@@ -53,6 +58,31 @@ function appendSheetRecord_(sheetName, record) {
 
   clearRuntimeCaches_(sheetName);
   return findRowById_(sheet, nextRecord.id).record;
+}
+
+function appendSheetRecords_(sheetName, records) {
+  const source = Array.isArray(records) ? records : [];
+  if (!source.length) return [];
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const sheet = ensureSheet_(spreadsheet, sheetName);
+  const headers = getHeaders_(sheet);
+  const now = nowIso_();
+  const nextRecords = source.map(function (record) {
+    const item = record && typeof record === 'object' ? record : {};
+    return Object.assign({}, item, {
+      id: item.id || Utilities.getUuid(),
+      created_at: item.created_at || now,
+      updated_at: item.updated_at || now,
+    });
+  });
+  const values = nextRecords.map(function (record) {
+    return headers.map(function (header) {
+      return valueOrBlank_(record[header]);
+    });
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, values.length, headers.length).setValues(values);
+  clearRuntimeCaches_(sheetName);
+  return nextRecords;
 }
 
 function updateSheetRecord_(sheetName, id, patch) {
@@ -172,8 +202,6 @@ function normalizeSettingForSave_(key, value, valueType) {
   const numberRules = {
     gmail_daily_send_limit: { min: 1, max: 80 },
     email_batch_send_limit: { min: 1, max: 20 },
-    serper_monthly_search_limit: { min: 1, max: 1000 },
-    serper_per_lead_search_limit: { min: 1, max: 3 },
     batch_runtime_budget_ms: { min: 10000, max: 330000 },
   };
   const jsonKeys = [
@@ -595,6 +623,7 @@ function clearRuntimeCaches_(changedSheetName) {
     CacheService.getScriptCache().remove('dashboard_stats_v2');
     CacheService.getScriptCache().remove('dashboard_stats_v3');
     CacheService.getScriptCache().remove('dashboard_stats_v4');
+    CacheService.getScriptCache().remove('dashboard_stats_v5');
   } catch (error) {
     console.warn('Cache clear skipped: ' + error.message);
   }

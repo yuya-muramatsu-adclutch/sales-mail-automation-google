@@ -1,1623 +1,1370 @@
+const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const root = path.resolve(__dirname, '..');
-const gsFiles = fs.readdirSync(root).filter((file) => file.endsWith('.gs')).sort();
-const context = {
-  console,
-  Utilities: {
-    formatDate(date, _timezone, pattern) {
-      const iso = new Date(date).toISOString();
-      return pattern === 'yyyy-MM-dd' ? iso.slice(0, 10) : iso;
-    },
-  },
-  Session: {
-    getScriptTimeZone() {
-      return 'Asia/Tokyo';
-    },
-  },
-};
-vm.createContext(context);
-
-for (const file of gsFiles) {
-  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, { filename: file });
-}
-
-context.getSettingValue_ = (_key, defaultValue) => defaultValue;
-
-function assert(condition, message) {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function assertThrows(fn, message) {
-  let threw = false;
-  try {
-    fn();
-  } catch (error) {
-    threw = true;
-  }
-  assert(threw, message);
-}
-
-const lead = context.normalizeLeadInput_({
-  company_name: '株式会社Example',
-  websiteUrl: 'example.com/contact',
-  email: 'SALES@EXAMPLE.COM',
-  status: '商談予定',
-  customFields: { rank: 'A' },
-}, true);
-lead.status = lead.status || '未対応';
-lead.form_status = lead.form_status || '未対応';
-lead.deal_status = lead.deal_status || '未設定';
-lead.send_ng = false;
-lead.reply_checked = false;
-lead.send_count = 0;
-context.applyLeadDerivedFields_(lead);
-context.applyLeadStatusSideEffects_(lead, new Set(Object.keys(lead)));
-
-assert(lead.normalized_company_name === 'example', 'company normalization failed');
-assert(lead.email === 'sales@example.com', 'email normalization failed');
-assert(lead.email_domain === 'example.com', 'email domain failed');
-assert(lead.website_domain === 'example.com', 'website domain failed');
-assert(lead.deal_status === '商談予定', 'deal status side effect failed');
-assert(lead.reply_checked === true, 'reply side effect failed');
-
-const hardDeleteLead = { id: 'lead-hard-delete-test', calendar_event_id: 'calendar-event-test' };
-const hardDeleteReferences = context.listLeadHardDeleteReferences_(hardDeleteLead, {
-  send_histories: [{ lead_id: 'lead-hard-delete-test' }, { lead_id: 'other-lead' }],
-  reply_logs: [],
-  search_results: [{ lead_id: 'lead-hard-delete-test' }],
+const root = process.env.APP_ROOT || path.resolve(__dirname, '..');
+const files = ['Code.gs', 'Email.gs', 'Masters.gs', 'Operations.gs', 'Repository.gs', 'Serper.gs', 'WebApp.gs'];
+const context = vm.createContext({ console });
+files.forEach((file) => {
+  const source = fs.readFileSync(path.join(root, file), 'utf8');
+  new Function(source);
+  vm.runInContext(source, context, { filename: file });
 });
-assert(hardDeleteReferences.length === 3, 'hard delete should detect send history, search result, and Calendar references');
-assertThrows(() => context.assertLeadHardDeleteAllowed_(hardDeleteLead, {
-  send_histories: [{ lead_id: 'lead-hard-delete-test' }],
-  reply_logs: [],
-  search_results: [],
-}), 'hard delete should be blocked when related data exists');
-assert(context.assertLeadHardDeleteAllowed_({ id: 'lead-hard-delete-clean', calendar_event_id: '' }, {
+JSON.parse(fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8'));
+
+const lockCalls = [];
+let deliveryChecks = 0;
+let masterBuilds = 0;
+let mailLockDepth = 0;
+context.withScriptLock_ = (operation, callback, options) => {
+  lockCalls.push({ operation, options });
+  mailLockDepth += 1;
+  try {
+    return callback();
+  } finally {
+    mailLockDepth -= 1;
+  }
+};
+context.assertProductionMailDeliveryAllowed_ = () => { deliveryChecks += 1; };
+context.getSettingValue_ = (key, fallback) => key === 'email_batch_send_limit' ? 20 : fallback;
+context.buildMasterBlockContext_ = () => { masterBuilds += 1; return {}; };
+context.prepareLeadEmailSend_ = (id) => {
+  assert.strictEqual(mailLockDepth, 1);
+  return { lead: { id } };
+};
+context.deliverPreparedLeadEmail_ = (prepared) => {
+  assert.strictEqual(mailLockDepth, 0);
+  return { ok: true, leadId: prepared.lead.id };
+};
+context.isExpectedOperationError_ = () => false;
+context.logError_ = () => {};
+const batch = context.sendLeadEmailBatch(['lead-1', 'lead-2', 'lead-1'], 'template-1', {});
+assert.strictEqual(batch.total, 2);
+assert.strictEqual(batch.success, 2);
+assert.deepStrictEqual(lockCalls.map((item) => item.operation), ['prepareLeadEmailBatchItem', 'prepareLeadEmailBatchItem']);
+assert(lockCalls.every((item) => item.options.waitMs === 90000));
+assert.strictEqual(deliveryChecks, 1);
+assert.strictEqual(masterBuilds, 0);
+
+const unlockedMailContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), unlockedMailContext, { filename: file });
+});
+let unlockedMailDepth = 0;
+const unlockedMailOperations = [];
+const deliveryCheckDepths = [];
+let finalizedLeadSend = 0;
+unlockedMailContext.withScriptLock_ = (operation, callback, options) => {
+  unlockedMailOperations.push({ operation, options });
+  unlockedMailDepth += 1;
+  try {
+    return callback();
+  } finally {
+    unlockedMailDepth -= 1;
+  }
+};
+unlockedMailContext.assertProductionMailDeliveryAllowed_ = () => { deliveryCheckDepths.push(unlockedMailDepth); };
+unlockedMailContext.getLeadById = () => ({ id: 'lead-unlocked', email: 'safe@example.net', genre: 'キャンプ', send_count: 0 });
+unlockedMailContext.findSheetRecordById_ = () => ({ id: 'template-unlocked', template_type: 'initial', is_production: true, active: true, genre: 'キャンプ', subject: 'Subject', body: 'Body' });
+unlockedMailContext.validateEmailSendTemplate_ = () => {};
+unlockedMailContext.buildMasterBlockContext_ = () => ({
+  mailSendSafety: { sentLeadIds: {}, sentEmails: {}, reservedLeadIds: {}, reservedEmails: {}, successfulCountToday: 0, reservedCountToday: 0 },
+});
+unlockedMailContext.getEmailSendTargetBlockReason_ = () => '';
+unlockedMailContext.assertEmailSendLimitAvailable_ = () => {};
+unlockedMailContext.renderTemplateForLead_ = () => ({ subject: 'Subject', body: 'Body', htmlBody: 'Body' });
+unlockedMailContext.nowIso_ = () => '2026-07-15T01:00:00.000Z';
+unlockedMailContext.todayText_ = () => '2026-07-15';
+unlockedMailContext.appendSheetRecord_ = (_sheet, record) => Object.assign({ id: 'reservation-unlocked' }, record);
+unlockedMailContext.MailApp = {
+  sendEmail: () => { assert.strictEqual(unlockedMailDepth, 0, 'MailApp.sendEmail must run outside the script lock'); },
+};
+unlockedMailContext.updateSheetRecord_ = (_sheet, _id, patch) => {
+  assert.strictEqual(unlockedMailDepth, 1);
+  return Object.assign({ id: 'reservation-unlocked' }, patch);
+};
+unlockedMailContext.updateLeadAfterSend_ = () => {
+  assert.strictEqual(unlockedMailDepth, 1);
+  finalizedLeadSend += 1;
+};
+unlockedMailContext.logError_ = () => {};
+const unlockedMailResult = unlockedMailContext.sendLeadEmail('lead-unlocked', 'template-unlocked', {});
+assert.strictEqual(unlockedMailResult.ok, true);
+assert.strictEqual(finalizedLeadSend, 1);
+assert.deepStrictEqual(unlockedMailOperations.map((item) => item.operation), ['prepareLeadEmailSend', 'finalizeLeadEmailSend']);
+assert.deepStrictEqual(deliveryCheckDepths, [1, 0]);
+unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
+unlockedMailContext.ensureSheet_ = () => ({});
+unlockedMailContext.readSheetRecords_ = () => [
+  { lead_id: 'sent', to_email: 'sent@example.net', sent_at: '2026-07-15T00:00:00Z', send_result: '成功', send_type: '初回メール' },
+  { lead_id: 'reserved', to_email: 'reserved@example.net', sent_at: '2026-07-15T00:01:00Z', send_result: '送信中', send_type: '初回メール' },
+];
+const dailyMailSafety = unlockedMailContext.buildMailSendSafetyContext_();
+assert.strictEqual(dailyMailSafety.successfulCountToday, 1);
+assert.strictEqual(dailyMailSafety.reservedCountToday, 1);
+const dailyLimitContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), dailyLimitContext, { filename: 'Code.gs' });
+vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), dailyLimitContext, { filename: 'Email.gs' });
+dailyLimitContext.getSettingValue_ = () => 2;
+dailyLimitContext.MailApp = { getRemainingDailyQuota: () => 100 };
+assert.throws(() => dailyLimitContext.assertEmailSendLimitAvailable_({ includeReservations: true, safety: dailyMailSafety }), /Daily app mail limit reached/);
+
+let creditFetches = 0;
+let fetchesObservedAtLock = -1;
+let creditWriteCount = 0;
+context.nowIso_ = () => '2026-07-15T00:00:00.000Z';
+context.PropertiesService = {
+  getScriptProperties: () => ({ getProperty: () => 'legacy-key' }),
+};
+context.Utilities = { getUuid: () => 'uuid-1' };
+context.readSerperApiKeyRecords_ = () => [{
+  id: 'key-1', key: 'secret-key', active: true, role: 'main', name: 'main', source: 'managed',
+}];
+context.fetchSerperCreditInfo_ = () => {
+  creditFetches += 1;
+  return { ok: true, remaining: 25 };
+};
+context.withScriptLock_ = (operation, callback, options) => {
+  assert.strictEqual(operation, 'refreshSerperCredits:save');
+  assert.strictEqual(options.waitMs, 90000);
+  fetchesObservedAtLock = creditFetches;
+  return callback();
+};
+context.mergeSerperCreditRecord_ = (record) => Object.assign({}, record, { last_remaining: 25 });
+context.harmonizeSerperCreditRecords_ = (records) => records;
+context.writeSerperApiKeyRecords_ = () => { creditWriteCount += 1; };
+context.syncPrimarySerperApiKeyProperty_ = () => {};
+context.buildSerperApiKeyManagerInfo_ = (message) => ({ message });
+const creditResult = context.refreshSerperCredits();
+assert.strictEqual(creditFetches, 1);
+assert.strictEqual(fetchesObservedAtLock, 1);
+assert.strictEqual(creditWriteCount, 1);
+assert.strictEqual(creditResult.message, 'Serper残量を確認しました。');
+
+context.getSettingValue_ = (_key, fallback) => fallback;
+context.buildSearchJobRunWindow_ = (budget, startedAt) => ({ deadlineMs: startedAt + budget, startedAtMs: startedAt });
+context.isSearchJobRuntimeExhausted_ = () => false;
+const originalReadAllSheetRecordsByName = context.readAllSheetRecordsByName_;
+context.readAllSheetRecordsByName_ = () => [
+  { id: 'job-1', status: 'queued', query_json: '{}', updated_at: '1' },
+  { id: 'job-2', status: 'queued', query_json: '{}', updated_at: '2' },
+  { id: 'job-3', status: 'queued', query_json: '{}', updated_at: '3' },
+  { id: 'job-4', status: 'queued', query_json: '{}', updated_at: '4' },
+  { id: 'job-5', status: 'queued', query_json: '{}', updated_at: '5' },
+];
+context.recoverStaleCsvPreparationJobs_ = () => 0;
+context.advanceSearchJob = (id) => ({ id, completed: id === 'job-1' });
+context.appendSyncError_ = () => {};
+const queue = context.advanceQueuedJobs({ maxJobs: 2, runtimeBudgetMs: 300000 });
+assert.strictEqual(queue.jobs.length, 2);
+assert.strictEqual(queue.remainingJobs, 4);
+assert.strictEqual(queue.resumable, true);
+
+const hardDeleteReferences = context.listLeadHardDeleteReferences_({ id: 'lead-1', calendar_event_id: '' }, {
   send_histories: [],
   reply_logs: [],
   search_results: [],
-}) === true, 'hard delete should remain available for an unreferenced lead');
-
-assert(context.normalizeSettingForSave_('gmail_daily_send_limit', 80, 'number').value === '80', 'consumer Gmail daily limit normalization failed');
-assert(context.normalizeSettingForSave_('email_batch_send_limit', 20, 'number').value === '20', 'mail batch limit normalization failed');
-assertThrows(() => context.normalizeSettingForSave_('gmail_daily_send_limit', 81, 'number'), 'consumer Gmail daily limit should reject unsafe values');
-assertThrows(() => context.normalizeSettingForSave_('email_batch_send_limit', 21, 'number'), 'mail batch limit should reject unsafe values');
-assertThrows(() => context.normalizeSettingForSave_('serper_daily_search_limit', 100, 'number'), 'removed Serper daily limit setting should be rejected');
-assertThrows(() => context.normalizeSettingForSave_('unknown_setting', 'x', 'string'), 'unknown settings should be rejected');
-const normalizedSendWindow = JSON.parse(context.normalizeSettingForSave_('email_send_window', {
-  enabled: true,
-  start: '07:00',
-  end: '08:00',
-  timezone: 'Asia/Tokyo',
-}, 'json').value);
-assert(normalizedSendWindow.start === '07:00' && normalizedSendWindow.end === '08:00', 'send window normalization failed');
-assertThrows(() => context.normalizeSettingForSave_('email_send_window', {
-  enabled: true,
-  start: '08:00',
-  end: '07:00',
-  timezone: 'Asia/Tokyo',
-}, 'json'), 'reversed send window should be rejected');
-const normalizedSourcePageSetting = JSON.parse(context.normalizeSettingForSave_('source_page_prospecting', {
-  sites: [{ id: 'site-1', label: 'なっぷ', url: 'https://www.nap-camp.com/', crawlAll: true, genre: 'キャンプ', enabled: true }],
-}, 'json').value);
-assert(normalizedSourcePageSetting.sites.length === 1 && normalizedSourcePageSetting.sites[0].url.includes('nap-camp.com'), 'source page settings normalization failed');
-const pendingReservationStatus = context.buildPendingSendReservationStatus_([
-  { id: 'pending-recent', lead_id: 'lead-1', send_type: '初回メール', send_result: '送信中', sent_at: '2026-07-12T11:45:00.000Z' },
-  { id: 'pending-stale', lead_id: 'lead-2', send_type: '初回メール', send_result: '送信中', sent_at: '2026-07-12T11:00:00.000Z' },
-  { id: 'success', lead_id: 'lead-3', send_type: '初回メール', send_result: '成功', sent_at: '2026-07-12T11:00:00.000Z' },
-], new Date('2026-07-12T12:00:00.000Z').getTime());
-assert(pendingReservationStatus.count === 2 && pendingReservationStatus.staleCount === 1, 'pending send reservations should distinguish recent and stale records');
-assert(context.countLeadSendTrackingMismatches_([
-  { id: 'lead-count-ok', send_count: 1 },
-  { id: 'lead-count-bad', send_count: 2 },
-  { id: 'lead-form-only', send_count: 0 },
-], [
-  { lead_id: 'lead-count-ok', send_type: '初回メール', send_result: '成功' },
-  { lead_id: 'lead-count-bad', send_type: '初回メール', send_result: '成功' },
-]) === 1, 'send tracking mismatch detector failed');
-
-const template = context.normalizeEmailTemplateInput_({
-  name: '初回',
-  template_type: 'initial',
-  subject: '{{company_name}} ご担当者様',
-  body: '{{company_name}}\n{{contact_name}}様',
-  is_production: false,
+  search_usage_logs: [{ lead_id: 'lead-1' }, { lead_id: 'lead-2' }],
 });
-const rendered = context.renderTemplateForLead_(template, lead);
-assert(rendered.subject === '株式会社Example ご担当者様', 'template subject rendering failed');
-assert(rendered.body.includes('ご担当者'), 'template body rendering failed');
-assert(context.getTemplateGenreContentMismatchReason_({
-  genre: 'キャンプ',
-  subject: 'お問い合わせ',
-  body: '温泉宿向けのWEB広告運用をご提案します。',
-}).includes('ジャンルは「キャンプ」'), 'template audience mismatch should be detected');
-assert(context.getTemplateGenreContentMismatchReason_({
-  genre: 'キャンプ',
-  subject: 'お問い合わせ',
-  body: 'キャンプ施設向けのWEB広告運用をご提案します。',
-}) === '', 'matching template audience should be allowed');
-assertThrows(() => context.validateEmailSendTemplate_({
-  active: true,
-  is_production: true,
-  template_type: 'initial',
-  genre: 'キャンプ',
-  subject: 'お問い合わせ',
-  body: '温泉宿向けのWEB広告運用をご提案します。',
-}, { genre: 'キャンプ' }, {}), 'template audience mismatch should block delivery');
-const originalTemplateSaveLock = context.withScriptLock_;
-context.withScriptLock_ = (_name, callback) => callback();
-assertThrows(() => context.saveEmailTemplate({
-  name: '直接本番ON',
-  template_type: 'initial',
-  genre: 'キャンプ',
-  subject: '件名',
-  body: '本文',
-  is_production: true,
-}), 'normal template save should not enable production directly');
-context.withScriptLock_ = originalTemplateSaveLock;
+assert.deepStrictEqual(JSON.parse(JSON.stringify(hardDeleteReferences)), [{
+  sheet: 'search_usage_logs',
+  label: '検索利用履歴',
+  count: 1,
+}]);
 
-const sendLead = Object.assign({}, lead, {
-  id: 'lead-send-1',
-  genre: 'グランピング',
-  email: 'send@sales-test.jp',
-  status: '未対応',
-  deal_status: '未設定',
-  send_count: 0,
-  last_sent_at: '',
-});
-const productionTemplate = {
-  id: 'tpl-prod',
-  active: true,
-  template_type: 'initial',
-  genre: 'グランピング',
-  is_production: true,
-  subject: '{{屋号}} ご担当者様',
-  body: '{{屋号}}',
-};
-const draftTemplate = Object.assign({}, productionTemplate, { id: 'tpl-draft', is_production: false });
-const formTemplate = Object.assign({}, productionTemplate, { id: 'tpl-form', template_type: 'form' });
-const mismatchTemplate = Object.assign({}, productionTemplate, { id: 'tpl-mismatch', genre: '温泉旅館' });
-context.validateEmailSendTemplate_(productionTemplate, sendLead, { send_type: '初回メール' });
-assertThrows(() => context.validateEmailSendTemplate_(draftTemplate, sendLead, {}), 'draft template should be blocked');
-assertThrows(() => context.validateEmailSendTemplate_(formTemplate, sendLead, {}), 'form template should be blocked for MailApp sends');
-assertThrows(() => context.validateEmailSendTemplate_(mismatchTemplate, sendLead, {}), 'genre-mismatched template should be blocked');
-assert(context.countSuccessfulProductionSends_([
-  { send_result: '成功', send_type: '初回メール', sent_at: '2026-07-12T00:00:00Z' },
-  { send_result: '成功', send_type: 'テスト送信', sent_at: '2026-07-12T01:00:00Z' },
-  { send_result: '失敗', send_type: '初回メール', sent_at: '2026-07-12T02:00:00Z' },
-], '2026-07-12') === 1, 'production send counter should exclude test and failed sends');
-const originalListEmailTemplates = context.listEmailTemplates;
-context.listEmailTemplates = () => ({ items: [mismatchTemplate, productionTemplate] });
-assert(context.findProductionTemplateForLead_(sendLead, 'initial').id === 'tpl-prod', 'production template lookup should prefer exact genre');
-context.listEmailTemplates = () => ({ items: [mismatchTemplate] });
-assert(context.findProductionTemplateForLead_(sendLead, 'initial') === null, 'production template lookup should not fall back to mismatched genre');
-context.listEmailTemplates = originalListEmailTemplates;
-
-const ng = context.normalizeNgMasterInput_({
-  email: 'block@example.com',
-  reason: '配信停止',
-});
-assert(ng.domain === 'example.com', 'NG email domain failed');
-
-const sendSafetyContext = {
-  ngMasters: [],
-  excludedDomains: [],
-  mailSendSafety: { sentLeadIds: {}, sentEmails: {}, reservedLeadIds: {}, reservedEmails: {} },
-};
-const eligibleLead = Object.assign({}, sendLead, { send_ng: false, reply_checked: false });
-assert(context.isEmailSendTarget_(eligibleLead, sendSafetyContext), 'eligible lead should remain sendable');
-assert(context.isValidEmailAddress_('info@nupuka.jp'), 'normal business email should be valid');
-assert(context.isValidEmailAddress_('rsv@489pro-x.com'), 'business email with a hyphenated domain should be valid');
-assert(context.isValidEmailAddress_('u@business.jp'), 'one-letter local parts should remain valid');
-assert(context.isValidEmailAddress_('pr@hotel.jp'), 'public-relations mailbox should remain valid');
-[
-  '1203-featured-75x75@1.5x.jpg',
-  'button-only@2x.png',
-  'e=.01@window.innerwidth',
-  'u@i.msgs.jp',
-  'info@example.com',
-  'privacy@hotel.jp',
-  'recruit@hotel.jp',
-  'webmaster@hotel.jp',
-].forEach((email) => {
-  assert(!context.isValidEmailAddress_(email), `scraped non-business email must be rejected: ${email}`);
-});
-assert(
-  context.extractEmailFromSearchResult_('privacy@real-site.jp / info@real-site.jp') === 'info@real-site.jp',
-  'contact email should be preferred over privacy email',
-);
-const pendingCollectedLead = Object.assign({}, eligibleLead, {
-  source: 'source_page',
-  status: '未対応',
-});
-assert(context.isLeadReviewPending_(pendingCollectedLead), 'newly collected lead should be review-pending');
-assert(!context.isEmailSendTarget_(pendingCollectedLead, sendSafetyContext), 'review-pending lead must not enter email delivery');
-assert(context.isEmailSendTarget_(Object.assign({}, pendingCollectedLead, { status: '対応中' }), sendSafetyContext), 'approved collected lead should become email-eligible');
-const pendingFormLead = Object.assign({}, pendingCollectedLead, {
-  email: '',
-  form_url: 'https://pending-form-test.jp/contact',
-  form_status: '未対応',
-  custom_fields_json: '{}',
-});
-assert(!context.isFormSendTarget_(pendingFormLead, sendSafetyContext), 'review-pending lead must not enter form outreach');
-assert(context.isFormSendTarget_(Object.assign({}, pendingFormLead, { status: '対応中' }), sendSafetyContext), 'approved collected lead should become form-eligible');
-assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { send_ng: true }), sendSafetyContext), 'send_ng lead must be blocked');
-assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { status: '送信NG' }), sendSafetyContext), 'send NG status must be blocked');
-assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { company_name: '株式会社送信停止' }), Object.assign({}, sendSafetyContext, {
-  ngMasters: [{ company_name: '株式会社送信停止', reason: '会社指定' }],
-})), 'NG master company must be blocked');
-assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { email: 'blocked@ng-test.jp' }), Object.assign({}, sendSafetyContext, {
-  ngMasters: [{ email: 'blocked@ng-test.jp', reason: 'メール指定' }],
-})), 'NG master email must be blocked');
-assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, { email: 'sales@sub.example.org' }), Object.assign({}, sendSafetyContext, {
-  ngMasters: [{ domain: 'example.org', reason: 'ドメイン指定' }],
-})), 'NG master domain and subdomain must be blocked');
-assert(!context.isEmailSendTarget_(eligibleLead, Object.assign({}, sendSafetyContext, {
-  mailSendSafety: { sentLeadIds: {}, sentEmails: {}, reservedLeadIds: { 'lead-send-1': true }, reservedEmails: {} },
-})), 'pending production send reservation must block retry');
-assert(!context.isEmailSendTarget_(Object.assign({}, eligibleLead, {
-  email: 'sales@blocked-domain.example',
-  website_url: 'https://different.example/',
-  website_domain: 'different.example',
-}), Object.assign({}, sendSafetyContext, {
-  ngMasters: [{ domain: 'blocked-domain.example', reason: 'メールドメイン指定' }],
-})), 'NG email domain must be checked even when website domain exists');
-
-const originalSendSafetyWithLock = context.withScriptLock_;
-const originalSendSafetyGetLead = context.getLeadById;
-const originalSendSafetyFindTemplate = context.findSheetRecordById_;
-const originalSendSafetyBuildContext = context.buildMasterBlockContext_;
-const originalSendSafetyMailApp = context.MailApp;
-const originalSendSafetyMailControl = context.getMailSendingControl_;
-const originalSendSafetyWindow = context.buildSendWindowStatus_;
-const originalSendSafetyLimit = context.assertEmailSendLimitAvailable_;
-const originalSendSafetyAppend = context.appendSheetRecord_;
-const originalSendSafetyUpdateRecord = context.updateSheetRecord_;
-const originalSendSafetyUpdateLead = context.updateLeadAfterSend_;
-let forcedNgSendCalls = 0;
-context.withScriptLock_ = (_name, callback) => callback();
-context.getLeadById = () => Object.assign({}, eligibleLead, { send_ng: true });
-context.findSheetRecordById_ = () => productionTemplate;
-context.buildMasterBlockContext_ = () => sendSafetyContext;
-context.getMailSendingControl_ = () => ({ enabled: true, reason: '' });
-context.buildSendWindowStatus_ = () => ({ enabled: true, allowed: true, label: '07:00-08:00' });
-context.MailApp = { sendEmail() { forcedNgSendCalls += 1; } };
-assertThrows(() => context.sendLeadEmail('lead-send-1', 'tpl-prod', { force: true }), 'force must not bypass send NG');
-assert(forcedNgSendCalls === 0, 'MailApp must not run for send NG even when force is requested');
-context.getLeadById = () => Object.assign({}, eligibleLead, { send_ng: false });
-context.getMailSendingControl_ = () => ({ enabled: false, reason: '停止中' });
-assertThrows(() => context.sendLeadEmail('lead-send-1', 'tpl-prod', {}), 'server must block production sends while mail control is disabled');
-assert(forcedNgSendCalls === 0, 'MailApp must not run while mail control is disabled');
-context.getMailSendingControl_ = () => ({ enabled: true, reason: '' });
-context.buildSendWindowStatus_ = () => ({ enabled: true, allowed: false, label: '07:00-08:00' });
-assertThrows(() => context.sendLeadEmailBatch(['lead-send-1'], 'tpl-prod', {}), 'server batch must block outside the configured send window');
-assert(forcedNgSendCalls === 0, 'MailApp must not run outside the batch send window');
-context.buildSendWindowStatus_ = () => ({ enabled: true, allowed: true, label: '07:00-08:00' });
-
-const reservationEvents = [];
-let reservationSequence = 0;
-let reservedMailCalls = 0;
-context.getLeadById = (id) => Object.assign({}, eligibleLead, { id, email: 'same-recipient@sales-test.jp', send_ng: false });
-context.buildMasterBlockContext_ = () => ({
-  ngMasters: [],
-  excludedDomains: [],
-  mailSendSafety: { sentLeadIds: {}, sentEmails: {}, reservedLeadIds: {}, reservedEmails: {} },
-});
-context.assertEmailSendLimitAvailable_ = () => {};
-context.appendSheetRecord_ = (_sheetName, record) => {
-  reservationEvents.push(record.send_result);
-  reservationSequence += 1;
-  return Object.assign({ id: `reservation-${reservationSequence}` }, record);
-};
-context.updateSheetRecord_ = (_sheetName, id, patch) => Object.assign({ id }, patch);
-context.updateLeadAfterSend_ = () => {};
-context.MailApp = {
-  sendEmail() {
-    reservationEvents.push('MailApp');
-    reservedMailCalls += 1;
-  },
-};
-const reservedBatch = context.sendLeadEmailBatch(['lead-send-1', 'lead-send-2'], 'tpl-prod', { send_type: '初回メール' });
-assert(reservationEvents[0] === '送信中' && reservationEvents[1] === 'MailApp', 'production send reservation must be stored before MailApp');
-assert(reservedBatch.success === 1 && reservedBatch.failed === 1 && reservedBatch.blocked === 1, 'server batch should block a second lead with the same reserved email');
-assert(reservedMailCalls === 1, 'same recipient must be sent at most once in a server batch');
-assert(context.isProductionSendReservationHistory_({ send_result: '送信中', send_type: '初回メール' }), 'production send reservation history detection failed');
-assert(!context.isProductionSendReservationHistory_({ send_result: '送信中', send_type: 'テスト送信' }), 'test send reservation must not block production delivery');
-context.withScriptLock_ = originalSendSafetyWithLock;
-context.getLeadById = originalSendSafetyGetLead;
-context.findSheetRecordById_ = originalSendSafetyFindTemplate;
-context.buildMasterBlockContext_ = originalSendSafetyBuildContext;
-context.MailApp = originalSendSafetyMailApp;
-context.getMailSendingControl_ = originalSendSafetyMailControl;
-context.buildSendWindowStatus_ = originalSendSafetyWindow;
-context.assertEmailSendLimitAvailable_ = originalSendSafetyLimit;
-context.appendSheetRecord_ = originalSendSafetyAppend;
-context.updateSheetRecord_ = originalSendSafetyUpdateRecord;
-context.updateLeadAfterSend_ = originalSendSafetyUpdateLead;
-
-const originalFormWithLock = context.withScriptLock_;
-const originalFormSpreadsheet = context.getOrCreateSpreadsheet_;
-const originalFormEnsureSheet = context.ensureSheet_;
-const originalFormFindRow = context.findRowById_;
-const originalFormHeaders = context.getHeaders_;
-const originalFormWriteRow = context.writeRecordToRow_;
-const originalFormGetLead = context.getLeadById;
-const originalFormBuildContext = context.buildMasterBlockContext_;
-const originalFormLatestMail = context.latestSuccessfulMailSentAt_;
-let formRecordUnderTest = Object.assign({}, pendingFormLead, { id: 'lead-form-review-test' });
-let writtenFormRecord = null;
-context.withScriptLock_ = (_name, callback) => callback();
+const activeRecordsFixture = Array.from({ length: 1002 }, (_value, index) => ({
+  id: `record-${index + 1}`,
+  active: index === 500 ? false : true,
+}));
 context.getOrCreateSpreadsheet_ = () => ({});
 context.ensureSheet_ = () => ({});
-context.findRowById_ = () => ({ rowNumber: 2, record: formRecordUnderTest });
-context.getHeaders_ = () => [];
-context.writeRecordToRow_ = (_sheet, _row, _headers, record) => { writtenFormRecord = record; };
-context.getLeadById = () => writtenFormRecord || formRecordUnderTest;
-context.buildMasterBlockContext_ = () => sendSafetyContext;
-context.latestSuccessfulMailSentAt_ = () => '';
-assertThrows(() => context.markLeadFormSent('lead-form-review-test', {}), 'server must reject form completion before lead approval');
-assert(writtenFormRecord === null, 'review-pending form lead must not be updated');
-formRecordUnderTest = Object.assign({}, formRecordUnderTest, { status: '対応中' });
-context.markLeadFormSent('lead-form-review-test', { body: 'test body', template_id: 'tpl-form' });
-assert(writtenFormRecord && writtenFormRecord.status === 'フォーム対応済み', 'approved form lead should be markable as sent');
-assert(JSON.parse(writtenFormRecord.custom_fields_json).last_form_previous_status === '対応中', 'form send should preserve the approved status for undo');
-formRecordUnderTest = writtenFormRecord;
-writtenFormRecord = null;
-context.unmarkLeadFormSent('lead-form-review-test');
-assert(writtenFormRecord && writtenFormRecord.status === '対応中', 'undoing form sent must restore approved status instead of review-pending');
-context.withScriptLock_ = originalFormWithLock;
-context.getOrCreateSpreadsheet_ = originalFormSpreadsheet;
-context.ensureSheet_ = originalFormEnsureSheet;
-context.findRowById_ = originalFormFindRow;
-context.getHeaders_ = originalFormHeaders;
-context.writeRecordToRow_ = originalFormWriteRow;
-context.getLeadById = originalFormGetLead;
-context.buildMasterBlockContext_ = originalFormBuildContext;
-context.latestSuccessfulMailSentAt_ = originalFormLatestMail;
+context.readSheetRecords_ = () => activeRecordsFixture;
+context.readAllSheetRecordsByName_ = originalReadAllSheetRecordsByName;
+const allActiveRecords = context.readAllActiveSheetRecords_('ng_masters');
+assert.strictEqual(allActiveRecords.length, 1001);
+assert.strictEqual(allActiveRecords[allActiveRecords.length - 1].id, 'record-1002');
+const pagedActiveRecords = context.listSheetRecords('ng_masters', { limit: 5000 });
+assert.strictEqual(pagedActiveRecords.total, 1001);
+assert.strictEqual(pagedActiveRecords.items.length, 1000);
+assert.strictEqual(context.readAllSheetRecordsByName_('ng_masters', { includeInactive: true }).length, 1002);
+const usageFixture = Array.from({ length: 1002 }, () => ({ created_at: '2026-07-15T00:00:00.000Z', credits: 1 }));
+assert.strictEqual(context.getSerperUsageCount_({ day: '2026-07-15' }, usageFixture), 1002);
 
-const originalCalendarWithLock = context.withScriptLock_;
-const originalCalendarGetLead = context.getLeadById;
-const originalCalendarUpdateLeadLocked = context.updateLeadLocked_;
-const originalCalendarApp = context.CalendarApp;
-const originalCalendarBuildContext = context.buildMasterBlockContext_;
-const originalCalendarLogError = context.logError_;
-let calendarLeadState = Object.assign({}, eligibleLead, {
-  id: 'lead-calendar-test',
-  calendar_event_id: 'calendar-existing-id',
-  status: '商談予定',
-  deal_status: '商談予定',
-});
-let calendarCreateCalls = 0;
-let calendarDeleteCalls = 0;
-let calendarUpdatePatches = [];
-let calendarUpdateShouldFail = false;
-const existingCalendarEvent = {
-  getId: () => 'calendar-existing-id',
-  getTitle: () => '登録済み商談',
-  deleteEvent: () => { calendarDeleteCalls += 1; },
+let dashboardCacheUpdate = null;
+context.readAllSheetRecordsByName_ = () => [
+  { id: 'legacy-v4', cache_key: 'dashboard_stats_v4', updated_at: '2026-07-15T00:03:00.000Z' },
+  { id: 'old-v5', cache_key: 'dashboard_stats_v5', updated_at: '2026-07-15T00:01:00.000Z' },
+  { id: 'latest-v5', cache_key: 'dashboard_stats_v5', updated_at: '2026-07-15T00:02:00.000Z' },
+];
+context.updateSheetRecord_ = (sheetName, id, payload) => {
+  dashboardCacheUpdate = { sheetName, id, payload };
+  return payload;
 };
-const createdCalendarEvent = {
-  getId: () => 'calendar-created-id',
-  getTitle: () => '新規商談',
-  deleteEvent: () => { calendarDeleteCalls += 1; },
+context.appendSheetRecord_ = () => { throw new Error('dashboard cache must update instead of append'); };
+context.Utilities = Object.assign({}, context.Utilities, { formatDate: () => '2026-07-15T00:30:00.000Z' });
+context.Session = { getScriptTimeZone: () => 'Asia/Tokyo' };
+context.upsertDashboardCacheSheet_({ leadsTotal: 1002 });
+assert.strictEqual(dashboardCacheUpdate.sheetName, 'dashboard_cache');
+assert.strictEqual(dashboardCacheUpdate.id, 'latest-v5');
+assert.strictEqual(dashboardCacheUpdate.payload.cache_key, 'dashboard_stats_v5');
+
+let persistedDashboardReads = 0;
+context.CacheService = { getScriptCache: () => ({ get: () => null }) };
+context.readDashboardStatsSheetCache_ = () => {
+  persistedDashboardReads += 1;
+  return { persistedCache: true };
 };
-let calendarLookupResult = existingCalendarEvent;
-context.withScriptLock_ = (_name, callback) => callback();
-context.getLeadById = () => calendarLeadState;
-context.updateLeadLocked_ = (_id, patch) => {
-  calendarUpdatePatches.push(patch);
-  if (calendarUpdateShouldFail) throw new Error('sheet write failed');
-  calendarLeadState = Object.assign({}, calendarLeadState, patch);
-  return calendarLeadState;
+assert.strictEqual(context.readDashboardStatsCache_({ allowPersisted: true }), null);
+assert.strictEqual(persistedDashboardReads, 0);
+assert.strictEqual(context.readDashboardStatsCache_({ allowPersisted: true, allowStale: true }).persistedCache, true);
+assert.strictEqual(persistedDashboardReads, 1);
+
+let domainCacheLock = null;
+let domainCacheUpdate = null;
+context.readAllSheetRecordsByName_ = () => [
+  { id: 'domain-old', cache_key: 'lead-key', website_url: 'https://old.example', updated_at: '2026-07-15T00:01:00.000Z' },
+  { id: 'domain-new', cache_key: 'lead-key', website_url: 'https://new.example', updated_at: '2026-07-15T00:02:00.000Z' },
+];
+assert.strictEqual(context.readDomainCache_('lead-key').website_url, 'https://new.example');
+context.withScriptLock_ = (operation, callback, options) => {
+  domainCacheLock = { operation, options };
+  return callback();
 };
-context.buildMasterBlockContext_ = () => sendSafetyContext;
-context.logError_ = () => {};
-context.CalendarApp = {
-  getDefaultCalendar: () => ({
-    getEventById: () => calendarLookupResult,
-    createEvent: () => { calendarCreateCalls += 1; return createdCalendarEvent; },
-  }),
+context.updateSheetRecord_ = (sheetName, id, payload) => {
+  domainCacheUpdate = { sheetName, id, payload };
+  return payload;
 };
-const existingCalendarResult = context.createCalendarEventForLead('lead-calendar-test', {
-  start: '2026-07-20T10:00:00+09:00',
-  end: '2026-07-20T11:00:00+09:00',
-});
-assert(existingCalendarResult.existing === true && calendarCreateCalls === 0, 'existing Calendar event must be reused without duplication');
-calendarLookupResult = null;
-calendarLeadState = Object.assign({}, calendarLeadState, { calendar_event_id: 'calendar-stale-id' });
-calendarUpdatePatches = [];
-const recreatedCalendarResult = context.createCalendarEventForLead('lead-calendar-test', {
-  start: '2026-07-20T10:00:00+09:00',
-  end: '2026-07-20T11:00:00+09:00',
-});
-assert(recreatedCalendarResult.existing === false && calendarCreateCalls === 1, 'stale Calendar ID should be cleared and recreated once');
-assert(calendarUpdatePatches[0].calendar_event_id === '' && calendarUpdatePatches[1].calendar_event_id === 'calendar-created-id', 'stale ID clear and new event persistence order failed');
-calendarLeadState = Object.assign({}, calendarLeadState, { calendar_event_id: '' });
-calendarUpdateShouldFail = true;
-assertThrows(() => context.createCalendarEventForLead('lead-calendar-test', {
-  start: '2026-07-21T10:00:00+09:00',
-  end: '2026-07-21T11:00:00+09:00',
-}), 'Calendar creation should fail when lead persistence fails');
-assert(calendarDeleteCalls === 1, 'new Calendar event must be deleted when lead persistence fails');
-calendarUpdateShouldFail = false;
-calendarLeadState = Object.assign({}, calendarLeadState, { send_ng: true, status: '送信NG', calendar_event_id: '' });
-const calendarCreateCallsBeforeNg = calendarCreateCalls;
-assertThrows(() => context.createCalendarEventForLead('lead-calendar-test', {
-  start: '2026-07-22T10:00:00+09:00',
-  end: '2026-07-22T11:00:00+09:00',
-  sendInvites: true,
-  guests: 'blocked@calendar-test.jp',
-}), 'send-NG lead must not receive a Calendar invite');
-assert(calendarCreateCalls === calendarCreateCallsBeforeNg, 'Calendar event must not be created before invite safety checks');
-context.withScriptLock_ = originalCalendarWithLock;
-context.getLeadById = originalCalendarGetLead;
-context.updateLeadLocked_ = originalCalendarUpdateLeadLocked;
-context.CalendarApp = originalCalendarApp;
-context.buildMasterBlockContext_ = originalCalendarBuildContext;
-context.logError_ = originalCalendarLogError;
+context.appendSheetRecord_ = () => { throw new Error('domain cache must update instead of append'); };
+context.writeDomainCache_('lead-key', { company_name: 'Example' }, { url: 'https://latest.example', confidence: 0.9, source: {} }, 'lead_official_site');
+assert.strictEqual(domainCacheLock.operation, 'writeDomainCache');
+assert.strictEqual(domainCacheLock.options.waitMs, 90000);
+assert.strictEqual(domainCacheUpdate.id, 'domain-new');
 
-const job = context.normalizeSearchJobInput_({
-  job_type: 'lead_official_site',
-  leadId: 'lead-1',
-  job_limit: 5,
+context.withScriptLock_ = (_operation, callback) => callback();
+context.getOrCreateSpreadsheet_ = () => ({});
+context.ensureSheet_ = () => ({});
+context.findRowById_ = () => ({
+  rowNumber: 2,
+  record: { id: 'lead-form', status: '対応中', form_status: '未対応', custom_fields_json: '{}' },
 });
-assert(job.items.length === 1 && job.items[0].lead_id === 'lead-1', 'search job lead item failed');
-assert(!Object.prototype.hasOwnProperty.call(job, 'daily_limit'), 'new search jobs must not persist a daily Serper limit');
+context.getHeaders_ = () => ['id', 'status', 'form_status', 'custom_fields_json'];
+assert.throws(() => context.unmarkLeadFormSent('lead-form'), /取り消せるフォーム送信記録がありません/);
 
-const prospectingJob = context.normalizeSearchJobInput_({
-  job_type: 'prospecting',
-  queries: ['グランピング 埼玉県 公式サイト', '温泉旅館 群馬県 お問い合わせ'],
-  genre: '宿泊施設',
-  job_limit: 10,
-  resultsPerQuery: 8,
-});
-assert(prospectingJob.items.length === 2, 'prospecting multi-query job failed');
-assert(prospectingJob.results_per_query === 8, 'prospecting results per query failed');
-
-const sourcePageJob = context.normalizeSearchJobInput_({
-  job_type: 'source_page',
-  sourceUrls: ['example.com/list'],
-  genre: '宿泊施設',
-  label: 'まとめサイト',
-  useSerperFallback: false,
-});
-assert(sourcePageJob.items.length === 1 && sourcePageJob.items[0].source_url === 'https://example.com/list', 'source page job item failed');
-assert(sourcePageJob.use_serper_fallback === false, 'source page fallback flag failed');
-
-context.UrlFetchApp = {
-  fetch() {
-    return {
-      getResponseCode: () => 200,
-      getContentText: () => [
-        '<urlset>',
-        '<url><loc>https://www.nap-camp.com/hokkaido/12139/</loc></url>',
-        '<url><loc>https://www.nap-camp.com/hokkaido/12139/images</loc></url>',
-        '<url><loc>https://www.nap-camp.com/tochigi/15952/</loc></url>',
-        '<url><loc>https://www.nap-camp.com/chiba/14286/</loc></url>',
-        '</urlset>',
-      ].join(''),
-    };
-  },
+let capturedCalendarOptions = null;
+let calendarLockDepth = 0;
+let calendarCreateCount = 0;
+const calendarSearches = [];
+let calendarEventsForRecovery = [];
+const calendarClaims = {};
+context.withScriptLock_ = (_operation, callback) => {
+  calendarLockDepth += 1;
+  try {
+    return callback();
+  } finally {
+    calendarLockDepth -= 1;
+  }
 };
-const napCampJob = context.normalizeSearchJobInput_({
-  job_type: 'source_page',
-  sourceUrls: ['https://www.nap-camp.com/list'],
-  genre: 'キャンプ場',
-  label: 'なっぷ全国キャンプ場',
-  crawlAll: true,
-  sitePreset: 'nap_camp',
-  resultsPerQuery: 2,
-});
-assert(napCampJob.crawl_all === true && napCampJob.site_preset === 'nap_camp', 'nap-camp crawl flags failed');
-assert(napCampJob.items.length === 1, 'nap-camp full crawl should use one compact resumable item');
-assert(napCampJob.items[0].offset === 0 && napCampJob.items[0].max_items === 3, 'nap-camp compact item range failed');
-assert(napCampJob.items[0].total_candidates === 3, 'nap-camp candidate count failed');
-assert(napCampJob.total_candidates === 3, 'nap-camp display total failed');
-
-const originalFetchNapCampEntries = context.fetchNapCampCampsiteUrlEntries_;
-context.fetchNapCampCampsiteUrlEntries_ = () => Array.from({ length: 5872 }, (_value, index) => ({
-  detail_url: `https://www.nap-camp.com/test/${index + 1}`,
-  campsite_id: String(index + 1),
-  source_id: `nap_camp:test:${index + 1}`,
-}));
-const largeNapCampJob = context.normalizeSearchJobInput_({
-  job_type: 'source_page',
-  sourceUrls: ['https://www.nap-camp.com/'],
-  genre: 'キャンプ',
-  label: 'nap-camp.com',
-  crawlAll: true,
-  sitePreset: 'nap_camp',
-});
-assert(largeNapCampJob.items.length === 1 && largeNapCampJob.total_candidates === 5872, 'large nap-camp crawl should remain compact');
-assert(JSON.stringify(largeNapCampJob).length < 50000, 'search job payload must stay below the Google Sheets cell limit');
-context.fetchNapCampCampsiteUrlEntries_ = originalFetchNapCampEntries;
-
-const sourcePageLeadIndex = context.buildSourcePageLeadIndexFromRecords_([
-  {
-    id: 'existing-source-id',
-    source: 'source_page',
-    source_id: 'nap_camp:test:1',
-    external_id: 'https://www.nap-camp.com/test/1',
-    company_name: '既存キャンプ場',
-    website_url: 'https://existing-camp.example/',
-    website_domain: 'existing-camp.example',
-  },
-]);
-assert(context.findExistingSourcePageLead_({ source_id: 'nap_camp:test:1' }, '別名称', '', sourcePageLeadIndex).id === 'existing-source-id', 'source ID duplicate index failed');
-assert(context.findExistingSourcePageLead_({ detail_url: 'https://www.nap-camp.com/test/1' }, '別名称', '', sourcePageLeadIndex).id === 'existing-source-id', 'source detail URL duplicate index failed');
-assert(context.findExistingSourcePageLead_({}, '別施設', 'https://existing-camp.example/another-facility', sourcePageLeadIndex) === null, 'shared official domain must not hide a different facility');
-context.addLeadToSourcePageIndex_(sourcePageLeadIndex, {
-  id: 'added-in-run',
-  source: 'source_page',
-  source_id: 'nap_camp:test:2',
-  company_name: '実行中追加キャンプ場',
-  facility_name: '実行中追加キャンプ場',
-});
-assert(context.findExistingSourcePageLead_({ source_id: 'nap_camp:test:2' }, '実行中追加キャンプ場', '', sourcePageLeadIndex).id === 'added-in-run', 'same-run duplicate index update failed');
-
-const consumerGasUsage = context.buildConsumerGasUsageStatus_({
-  mailQuotaRemaining: 25,
-  sentToday: 75,
-  appMailLimit: 80,
-  triggerCount: 14,
-  urlFetchRecordedToday: 14000,
-  batchRuntimeBudgetMs: 300000,
-});
-assert(consumerGasUsage.accountType === 'consumer', 'consumer GAS quota profile missing');
-assert(consumerGasUsage.limits.emailRecipientsPerDay === 100, 'consumer mail quota should be 100 recipients');
-assert(consumerGasUsage.limits.triggerRuntimeMinutesPerDay === 90, 'consumer trigger runtime quota should be 90 minutes');
-assert(consumerGasUsage.email.used === 75 && consumerGasUsage.email.remaining === 25, 'consumer mail usage calculation failed');
-assert(consumerGasUsage.alerts.some((item) => item.key === 'triggers'), 'trigger quota warning should be reported');
-assert(consumerGasUsage.alerts.some((item) => item.key === 'urlFetch'), 'URL Fetch quota warning should be reported');
-const disabledAutomaticReplySweep = context.checkRepliesForLeads();
-assert(disabledAutomaticReplySweep.disabled === true && disabledAutomaticReplySweep.checked === 0, 'disabled automatic reply check should exit without Gmail access');
-
-const originalTriggerWithLock = context.withScriptLock_;
-const originalScriptApp = context.ScriptApp;
-const mockProjectTriggers = [];
-const mockTriggerSchedules = [];
-context.withScriptLock_ = (_name, callback) => callback();
-context.ScriptApp = {
-  getProjectTriggers() {
-    return mockProjectTriggers.slice();
-  },
-  newTrigger(handler) {
-    const schedule = { handler, interval: '', value: 0 };
-    const builder = {
-      timeBased() { return builder; },
-      everyMinutes(value) { schedule.interval = 'minutes'; schedule.value = value; return builder; },
-      everyHours(value) { schedule.interval = 'hours'; schedule.value = value; return builder; },
-      create() {
-        mockTriggerSchedules.push(Object.assign({}, schedule));
-        const trigger = {
-          getHandlerFunction() { return handler; },
-          getEventType() { return 'CLOCK'; },
-        };
-        mockProjectTriggers.push(trigger);
-        return trigger;
-      },
-    };
-    return builder;
-  },
-  deleteTrigger(trigger) {
-    const index = mockProjectTriggers.indexOf(trigger);
-    if (index !== -1) mockProjectTriggers.splice(index, 1);
-  },
-};
-const firstTriggerInstall = context.installDefaultTriggers();
-assert(firstTriggerInstall.triggers.length === 2, 'default cloud triggers should be created');
-assert(mockTriggerSchedules.some((item) => item.handler === 'advanceQueuedJobs' && item.interval === 'minutes' && item.value === 10), 'background jobs should run every 10 minutes');
-assert(mockTriggerSchedules.some((item) => item.handler === 'checkRepliesForLeads' && item.interval === 'hours' && item.value === 6), 'reply checks should run every 6 hours');
-const secondTriggerInstall = context.installDefaultTriggers();
-assert(secondTriggerInstall.triggers.length === 2 && mockProjectTriggers.length === 2, 'trigger installation should not create duplicates');
-mockProjectTriggers.push({
-  getHandlerFunction() { return 'advanceQueuedJobs'; },
-  getEventType() { return 'CLOCK'; },
-});
-const deduplicatedTriggerInstall = context.installDefaultTriggers();
-assert(deduplicatedTriggerInstall.triggers.length === 2 && mockProjectTriggers.length === 2, 'duplicate cloud triggers should be removed');
-assert(deduplicatedTriggerInstall.ensured.some((item) => item.handler === 'advanceQueuedJobs' && item.removedDuplicates === 1), 'background trigger deduplication should be reported');
-context.withScriptLock_ = originalTriggerWithLock;
-context.ScriptApp = originalScriptApp;
-
-const scheduledResumeAt = context.getNextSearchJobResumeAt_([
-  { status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2026-08-01T00:05:00+09:00","quotaCode":"SERPER_MONTHLY_LIMIT"}' },
-  { status: 'completed', cursor_json: '{"offset":20,"resumeAfter":"2026-07-12T23:00:00+09:00"}' },
-], new Date('2026-07-12T16:00:00+09:00').getTime());
-assert(scheduledResumeAt === '2026-08-01T00:05:00+09:00', 'dashboard should expose the next active monthly quota resume time');
-assert(context.getSearchJobResumeOffset_([{ status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2026-08-01T00:05:00+09:00","quotaCode":"SERPER_MONTHLY_LIMIT"}' }], scheduledResumeAt) === 99, 'dashboard should expose the saved facility offset');
-assert(context.getNextSearchJobResumeAt_([{ status: 'queued', cursor_json: '{"offset":99,"resumeAfter":"2099-01-01T00:05:00+09:00"}' }], new Date('2026-07-12T16:00:00+09:00').getTime()) === '', 'legacy daily quota cursor must not keep the job waiting');
-
-const runWindow = context.buildSearchJobRunWindow_(300000, 1000);
-assert(runWindow.deadlineMs === 271000, 'search job run window should reserve 30 seconds');
-assert(context.isSearchJobRuntimeExhausted_(runWindow.deadlineMs, runWindow.deadlineMs), 'runtime deadline should stop processing');
-assert(context.parseSearchJobCursor_('{"itemIndex":2,"offset":7}').offset === 7, 'search job cursor should restore item offset');
-const parsedMonthlyCursor = context.parseSearchJobCursor_('{"itemIndex":2,"offset":7,"resumeAfter":"2026-08-01T00:05:00+09:00","quotaCode":"SERPER_MONTHLY_LIMIT"}');
-assert(parsedMonthlyCursor.resumeAfter === '2026-08-01T00:05:00+09:00' && parsedMonthlyCursor.quotaCode === 'SERPER_MONTHLY_LIMIT', 'search job cursor should restore monthly quota state');
-
-const originalQuotaUsageCount = context.getSerperUsageCount_;
-context.getSerperUsageCount_ = (range) => range && range.day ? 100 : 0;
-assert(context.assertSerperLimitAvailable_() === undefined, 'daily Serper usage must not block searches');
-const removedDailyQuotaError = context.createExpectedOperationError_('legacy daily limit', 'SERPER_DAILY_LIMIT');
-assert(!context.isSerperQuotaError_(removedDailyQuotaError), 'legacy daily limit must no longer pause a job');
-context.getSerperUsageCount_ = (range) => range && range.month ? 1000 : 0;
-let monthlyQuotaError = null;
-try {
-  context.assertSerperLimitAvailable_();
-} catch (error) {
-  monthlyQuotaError = error;
-}
-assert(monthlyQuotaError && monthlyQuotaError.code === 'SERPER_MONTHLY_LIMIT', 'monthly Serper limit should be classified');
-assert(context.serperQuotaResumeAfter_(monthlyQuotaError, new Date('2026-07-12T03:00:00Z')) === '2026-08-01T00:05:00+09:00', 'monthly Serper quota should resume after the next monthly reset');
-const perLeadQuotaError = context.createExpectedOperationError_('lead limit', 'SERPER_LEAD_LIMIT');
-assert(!context.isSerperQuotaError_(perLeadQuotaError), 'per-lead limit must not pause the whole job until tomorrow');
-assert(context.isSerperLeadLimitError_(perLeadQuotaError), 'per-lead limit should be classified as a permanent item skip');
-context.getSerperUsageCount_ = originalQuotaUsageCount;
-
-const originalClaimSearchJobRun = context.claimSearchJobRun_;
-const originalUpdateClaimedSearchJob = context.updateClaimedSearchJob_;
-const originalProcessProspectingSearchItem = context.processProspectingSearchItem_;
-const originalProcessSourcePageSearchItem = context.processSourcePageSearchItem_;
-const originalAppendSyncError = context.appendSyncError_;
-const originalBuildSourcePageLeadIndex = context.buildSourcePageLeadIndex_;
-let mockSearchJob = {
-  id: 'job-runtime-test',
-  status: 'running',
-  lock_token: 'lock-runtime-test',
-  processed_count: 0,
-  total_count: 3,
-  attempt_count: 1,
-  cursor_json: '',
-  query_json: JSON.stringify({
-    job_type: 'prospecting',
-    job_limit: 3,
-    items: [{ query: 'one' }, { query: 'two' }, { query: 'three' }],
-  }),
-};
-context.claimSearchJobRun_ = () => ({ claimed: true, busy: false, job: Object.assign({}, mockSearchJob), lockToken: 'lock-runtime-test' });
-context.updateClaimedSearchJob_ = (_jobId, _lockToken, patch, release) => {
-  mockSearchJob = Object.assign({}, mockSearchJob, patch);
-  if (release) mockSearchJob.lock_token = '';
-  return { owned: true, record: Object.assign({}, mockSearchJob) };
-};
-context.processProspectingSearchItem_ = () => {};
-context.appendSyncError_ = () => {};
-context.buildSourcePageLeadIndex_ = () => context.buildSourcePageLeadIndexFromRecords_([]);
-const firstJobRun = context.advanceSearchJob('job-runtime-test', { maxItems: 2, runtimeBudgetMs: 10000 });
-assert(firstJobRun.processedCount === 2 && firstJobRun.resumable === true, 'first search job run should persist progress and remain resumable');
-assert(mockSearchJob.status === 'queued' && mockSearchJob.processed_count === 2, 'partial search job should return to queued state');
-mockSearchJob.lock_token = 'lock-runtime-test';
-mockSearchJob.status = 'running';
-const secondJobRun = context.advanceSearchJob('job-runtime-test', { maxItems: 2, runtimeBudgetMs: 10000 });
-assert(secondJobRun.completed === true && secondJobRun.processedCount === 3, 'second search job run should resume and complete');
-
-context.claimSearchJobRun_ = () => ({ claimed: false, busy: true, reason: 'already_running', job: Object.assign({}, mockSearchJob, { status: 'running' }) });
-const busyJobRun = context.advanceSearchJob('job-runtime-test', { maxItems: 1, runtimeBudgetMs: 10000 });
-assert(busyJobRun.busy === true && busyJobRun.skipped === true && busyJobRun.processed === 0, 'active search job claim should prevent duplicate processing');
-
-mockSearchJob = {
-  id: 'job-source-cursor-test',
-  status: 'running',
-  lock_token: 'lock-source-test',
-  processed_count: 0,
-  total_count: 1,
-  attempt_count: 1,
-  cursor_json: '',
-  query_json: JSON.stringify({
-    job_type: 'source_page',
-    job_limit: 1,
-    items: [{ source_url: 'example.com/list' }],
-  }),
-};
-context.claimSearchJobRun_ = () => ({ claimed: true, busy: false, job: Object.assign({}, mockSearchJob), lockToken: 'lock-source-test' });
-context.processSourcePageSearchItem_ = () => ({ created: 1, processedCandidates: 2, processedAll: false, nextOffset: 2 });
-const cursorJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
-const storedCursor = JSON.parse(mockSearchJob.cursor_json || '{}');
-assert(cursorJobRun.pausedForRuntime === true && cursorJobRun.processedCount === 0, 'partial source page item should pause without advancing the outer item');
-assert(storedCursor.itemIndex === 0 && storedCursor.offset === 2, 'partial source page item should persist its inner cursor');
-
-mockSearchJob.lock_token = 'lock-source-test';
-mockSearchJob.status = 'running';
-mockSearchJob.cursor_json = '';
-context.processSourcePageSearchItem_ = () => ({
-  created: 0,
-  processedCandidates: 2,
-  processedAll: false,
-  nextOffset: 2,
-  pausedForQuota: true,
-  resumeAfter: '2099-01-01T00:05:00+09:00',
-  quotaCode: 'SERPER_MONTHLY_LIMIT',
-});
-const quotaPausedJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
-const quotaCursor = JSON.parse(mockSearchJob.cursor_json || '{}');
-assert(quotaPausedJobRun.pausedForQuota === true && quotaPausedJobRun.pausedForRuntime === false, 'quota pause must be distinct from runtime pause');
-assert(quotaCursor.offset === 2 && quotaCursor.resumeAfter === '2099-01-01T00:05:00+09:00', 'quota pause should preserve the facility cursor and resume time');
-
-let pausedProcessorCalls = 0;
-mockSearchJob.lock_token = 'lock-source-test';
-mockSearchJob.status = 'running';
-context.processSourcePageSearchItem_ = () => { pausedProcessorCalls += 1; return { processedAll: true }; };
-const waitingQuotaJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
-assert(waitingQuotaJobRun.pausedForQuota === true && pausedProcessorCalls === 0, 'quota-waiting job should exit before rebuilding or processing candidates');
-
-let legacyDailyProcessorCalls = 0;
-mockSearchJob.lock_token = 'lock-source-test';
-mockSearchJob.status = 'running';
-mockSearchJob.processed_count = 0;
-mockSearchJob.cursor_json = '{"itemIndex":0,"offset":99,"resumeAfter":"2099-01-01T00:05:00+09:00"}';
-context.processSourcePageSearchItem_ = () => { legacyDailyProcessorCalls += 1; return { processedAll: true, processedCandidates: 1 }; };
-const resumedLegacyDailyJobRun = context.advanceSearchJob('job-source-cursor-test', { maxItems: 1, runtimeBudgetMs: 10000 });
-assert(legacyDailyProcessorCalls === 1 && resumedLegacyDailyJobRun.pausedForQuota === false, 'legacy daily quota cursor should resume immediately');
-
-context.claimSearchJobRun_ = originalClaimSearchJobRun;
-context.updateClaimedSearchJob_ = originalUpdateClaimedSearchJob;
-context.processProspectingSearchItem_ = originalProcessProspectingSearchItem;
-context.processSourcePageSearchItem_ = originalProcessSourcePageSearchItem;
-context.appendSyncError_ = originalAppendSyncError;
-context.buildSourcePageLeadIndex_ = originalBuildSourcePageLeadIndex;
-
-const originalPropertiesService = context.PropertiesService;
-const originalGmailApp = context.GmailApp;
-const originalListLeads = context.listLeads;
-const originalReplyListSheetRecords = context.listSheetRecords;
-const originalWithScriptLock = context.withScriptLock_;
-const originalClaimGmailReplyCheckRun = context.claimGmailReplyCheckRun_;
-const originalReleaseGmailReplyCheckRun = context.releaseGmailReplyCheckRun_;
-const originalBuildLatestReplySendIndex = context.buildLatestSuccessfulMailSentAtByLeadId_;
-const originalBuildLatestReplyHistoryIndex = context.buildLatestSuccessfulMailHistoryByLeadId_;
-const replyCursorStore = {};
-const replyLeads = Array.from({ length: 5 }, (_value, index) => ({
-  id: `reply-lead-${index + 1}`,
-  email: `reply${index + 1}@reply-test.jp`,
-  reply_checked: false,
-}));
 context.PropertiesService = {
-  getScriptProperties() {
+  getScriptProperties: () => ({
+    getProperty: (key) => calendarClaims[key] || '',
+    setProperty: (key, value) => { calendarClaims[key] = value; },
+    deleteProperty: (key) => { delete calendarClaims[key]; },
+  }),
+};
+let calendarLead = {
+  id: 'lead-calendar', status: '対応中', source: 'manual', send_ng: false,
+  email: 'guest@example.com', calendar_event_id: '', company_name: 'Example', facility_name: 'Example',
+};
+context.getLeadById = () => calendarLead;
+context.updateLeadLocked_ = (_id, patch) => {
+  assert.strictEqual(calendarLockDepth, 1);
+  calendarLead = Object.assign({}, calendarLead, patch);
+  return calendarLead;
+};
+context.assertCalendarInviteAllowed_ = () => {};
+context.CalendarApp = {
+  getDefaultCalendar: () => {
+    assert.strictEqual(calendarLockDepth, 0);
     return {
-      getProperty(key) { return replyCursorStore[key] || ''; },
-      setProperty(key, value) { replyCursorStore[key] = String(value); },
-      deleteProperty(key) { delete replyCursorStore[key]; },
-    };
+    getEventById: () => { assert.strictEqual(calendarLockDepth, 0); return null; },
+    getEvents: (_start, _end, options) => {
+      assert.strictEqual(calendarLockDepth, 0, 'Calendar recovery lookup must run outside the script lock');
+      calendarSearches.push(options);
+      return calendarEventsForRecovery.slice();
+    },
+    createEvent: (_title, _start, _end, options) => {
+      assert.strictEqual(calendarLockDepth, 0, 'Calendar createEvent must run outside the script lock');
+      calendarCreateCount += 1;
+      capturedCalendarOptions = options;
+      return {
+        getId: () => `event-${calendarCreateCount}`,
+        getTitle: () => 'Example meeting',
+        getDescription: () => options.description || '',
+        getStartTime: () => _start,
+        getEndTime: () => _end,
+        deleteEvent: () => {},
+      };
+    },
+  };
   },
 };
-context.GmailApp = { search() { return []; } };
-context.listLeads = (options) => ({
-  total: replyLeads.length,
-  items: replyLeads.slice(Number(options.offset || 0), Number(options.offset || 0) + Number(options.limit || 100)),
+context.Utilities = Object.assign({}, context.Utilities, { formatDate: () => '2026-07-20T10:00:00+09:00' });
+context.Session = { getScriptTimeZone: () => 'Asia/Tokyo' };
+context.createCalendarEventForLead('lead-calendar', {
+  start: '2026-07-20T10:00:00+09:00',
+  end: '2026-07-20T11:00:00+09:00',
+});
+assert.strictEqual(capturedCalendarOptions.sendInvites, false);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(capturedCalendarOptions, 'guests'), false);
+assert(capturedCalendarOptions.description.includes('calendar_event_claim:uuid-1'));
+calendarLead = Object.assign({}, calendarLead, { calendar_event_id: '' });
+context.createCalendarEventForLead('lead-calendar', {
+  start: '2026-07-20T10:00:00+09:00',
+  end: '2026-07-20T11:00:00+09:00',
+  sendInvites: true,
+  guests: 'guest@example.com',
+});
+assert.strictEqual(capturedCalendarOptions.sendInvites, true);
+assert.strictEqual(capturedCalendarOptions.guests, 'guest@example.com');
+
+calendarLead = Object.assign({}, calendarLead, { calendar_event_id: '', status: '対応中' });
+calendarClaims['calendar_event_claim:lead-calendar'] = JSON.stringify({
+  token: 'orphan-token',
+  claimedAt: '2000-01-01T00:00:00.000Z',
+  start: '2026-07-20T10:00:00+09:00',
+  end: '2026-07-20T11:00:00+09:00',
+});
+calendarEventsForRecovery = [{
+  getId: () => 'orphan-event',
+  getTitle: () => 'Recovered meeting',
+  getDescription: () => '管理ID: calendar_event_claim:orphan-token',
+  getStartTime: () => new Date('2026-07-20T10:00:00+09:00'),
+  getEndTime: () => new Date('2026-07-20T11:00:00+09:00'),
+  deleteEvent: () => { throw new Error('a recovered event must not be deleted after successful finalization'); },
+}];
+const calendarCreateCountBeforeRecovery = calendarCreateCount;
+const recoveredCalendarEvent = context.createCalendarEventForLead('lead-calendar', {
+  start: '2026-07-20T10:00:00+09:00',
+  end: '2026-07-20T11:00:00+09:00',
+});
+assert.strictEqual(recoveredCalendarEvent.recovered, true);
+assert.strictEqual(recoveredCalendarEvent.existing, true);
+assert.strictEqual(recoveredCalendarEvent.eventId, 'orphan-event');
+assert.strictEqual(calendarCreateCount, calendarCreateCountBeforeRecovery, 'stale Calendar retries must reuse the orphan event');
+assert(calendarSearches.length > 0, 'a stale Calendar claim must scan the original event range');
+assert.strictEqual(calendarLead.calendar_event_id, 'orphan-event');
+
+assert.doesNotThrow(() => context.normalizeLeadInput_({ facility_name: '屋号のみ' }, true));
+assert.throws(() => context.normalizeLeadInput_({}, true), /company_name, facility_name, email, or form_url is required/);
+const syncInput = JSON.parse(JSON.stringify(context.buildSyncLeadInput_({
+  company_name: 'Example',
+  email: 'https://example.com/contact',
+  status: '送信NG',
+}, { source: 'csv_upload' })));
+assert.deepStrictEqual(syncInput, {
+  company_name: 'Example',
+  form_url: 'https://example.com/contact',
+  source: 'csv_upload',
+});
+const syncPatch = JSON.parse(JSON.stringify(context.buildSyncFillPatch_({
+  company_name: '既存会社', facility_name: '', email: '', notes: '既存メモ',
+}, {
+  company_name: '上書き禁止', facility_name: '補完屋号', email: 'new@example.com', notes: '上書き禁止',
+})));
+assert.deepStrictEqual(syncPatch, { facility_name: '補完屋号', email: 'new@example.com' });
+
+const leadA = { id: 'lead-a' };
+const leadB = { id: 'lead-b' };
+assert.strictEqual(context.resolveSyncLeadMatch_([], [leadA], [leadA], [leadA, leadB]).id, 'lead-a');
+assert.strictEqual(context.resolveSyncLeadMatch_([], [], [leadA, leadB], [leadA]).id, 'lead-a');
+assert.throws(() => context.resolveSyncLeadMatch_([], [leadA], [leadB], []), /別の既存営業先/);
+assert.throws(() => context.resolveSyncLeadMatch_([], [leadA, leadB], [], []), /複数の既存営業先/);
+
+let capturedSyncPatch = null;
+context.getOrCreateSpreadsheet_ = () => ({});
+context.ensureSheet_ = () => ({});
+context.findSyncLeadMatchLocked_ = () => ({ id: 'sync-lead', company_name: '既存会社', facility_name: '', email: '', notes: '既存メモ' });
+context.updateLeadLocked_ = (id, patch) => {
+  capturedSyncPatch = { id, patch };
+  return Object.assign({ id }, patch);
+};
+const syncUpsert = context.upsertSyncLeadLocked_({ company_name: '既存会社', facility_name: '補完屋号', email: 'new@example.com', notes: '上書き禁止' }, {});
+assert.strictEqual(syncUpsert.action, 'filled');
+assert.strictEqual(syncUpsert.filledFields, 2);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(capturedSyncPatch)), {
+  id: 'sync-lead',
+  patch: { facility_name: '補完屋号', email: 'new@example.com' },
+});
+
+let importItemLocks = 0;
+let syncLogEntry = null;
+context.Utilities = Object.assign({}, context.Utilities, {
+  parseCsv: () => [
+    ['会社名'],
+    ['追加'],
+    ['補完'],
+    ['重複'],
+    ['失敗'],
+    ['   '],
+  ],
+});
+context.withScriptLock_ = (operation, callback, options) => {
+  assert.strictEqual(operation, 'importLeadsFromCsv:item');
+  assert.strictEqual(options.waitMs, 90000);
+  importItemLocks += 1;
+  return callback();
+};
+context.upsertSyncLeadLocked_ = (raw) => {
+  if (raw.company_name === '追加') return { action: 'added' };
+  if (raw.company_name === '補完') return { action: 'filled', filledFields: 2 };
+  if (raw.company_name === '重複') return { action: 'skipped' };
+  throw Object.assign(new Error('入力エラー'), { code: 'SYNC_TEST_ERROR' });
+};
+context.appendSheetRecord_ = (sheetName, entry) => {
+  if (sheetName === 'sync_logs') syncLogEntry = entry;
+  return entry;
+};
+const importResult = context.importLeadsFromCsv('ignored', { source: 'csv_upload' });
+assert.strictEqual(importItemLocks, 4);
+assert.strictEqual(importResult.added, 1);
+assert.strictEqual(importResult.filled, 1);
+assert.strictEqual(importResult.filledFields, 2);
+assert.strictEqual(importResult.skipped, 1);
+assert.strictEqual(importResult.error_count, 1);
+assert.strictEqual(syncLogEntry.added_count, 1);
+assert.strictEqual(syncLogEntry.filled_count, 1);
+assert.strictEqual(syncLogEntry.duplicate_skip_count, 1);
+assert.strictEqual(syncLogEntry.error_count, 1);
+
+let queuedJobRecord = null;
+let queuedRawRecords = null;
+let ensuredCsvTrigger = 0;
+let csvUuid = 0;
+context.Utilities = Object.assign({}, context.Utilities, {
+  parseCsv: () => [
+    ['会社名', 'メールアドレス'],
+    ['会社A', 'a@example.com'],
+    ['', ''],
+    ['会社B', 'b@example.com'],
+  ],
+  getUuid: () => `csv-uuid-${++csvUuid}`,
+  computeDigest: (_algorithm, value) => Array.from(Buffer.from(String(value), 'utf8')).slice(0, 32),
+  DigestAlgorithm: { SHA_256: 'SHA_256' },
+  Charset: { UTF_8: 'UTF_8' },
 });
 context.withScriptLock_ = (_operation, callback) => callback();
-context.claimGmailReplyCheckRun_ = () => ({ claimed: true, busy: false, lockToken: 'reply-check-test-lock' });
-context.releaseGmailReplyCheckRun_ = () => true;
-context.buildLatestSuccessfulMailSentAtByLeadId_ = () => replyLeads.reduce((acc, lead) => {
-  acc[lead.id] = '2026-06-10T00:00:00+09:00';
-  return acc;
-}, {});
-const firstReplySweep = context.checkRepliesForLeads({ maxThreads: 2, limit: 5, runtimeBudgetMs: 10000 });
-assert(firstReplySweep.attemptedChecks === 2 && firstReplySweep.nextCursorOffset === 2, 'reply check should cap attempts and persist the next cursor');
-const secondReplySweep = context.checkRepliesForLeads({ maxThreads: 2, limit: 5, runtimeBudgetMs: 10000 });
-assert(secondReplySweep.cursorOffset === 2 && secondReplySweep.nextCursorOffset === 4, 'reply check should resume from the persisted cursor');
-context.claimGmailReplyCheckRun_ = () => ({ claimed: false, busy: true });
-const busyReplySweep = context.checkRepliesForLeads({ maxThreads: 2, limit: 5, runtimeBudgetMs: 10000 });
-assert(busyReplySweep.busy === true && busyReplySweep.checked === 0, 'concurrent reply check should be skipped safely');
+context.ensureBackgroundJobTrigger_ = () => { ensuredCsvTrigger += 1; };
+context.readAllSheetRecordsByName_ = () => [];
+context.appendSheetRecord_ = (sheetName, record) => {
+  assert.strictEqual(sheetName, 'jobs');
+  queuedJobRecord = Object.assign({}, record);
+  return queuedJobRecord;
+};
+context.appendSheetRecords_ = (sheetName, records) => {
+  assert.strictEqual(sheetName, 'raw_import');
+  queuedRawRecords = records;
+  return records;
+};
+context.updateSheetRecord_ = (sheetName, id, patch) => {
+  assert.strictEqual(sheetName, 'jobs');
+  assert.strictEqual(id, queuedJobRecord.id);
+  queuedJobRecord = Object.assign({}, queuedJobRecord, patch);
+  return queuedJobRecord;
+};
+const queuedCsv = context.startLeadCsvImport('ignored', { source: 'csv_upload' });
+assert.strictEqual(ensuredCsvTrigger, 1);
+assert.strictEqual(queuedCsv.total, 2);
+assert.strictEqual(queuedJobRecord.job_type, 'csv_import');
+assert.strictEqual(queuedJobRecord.status, 'queued');
+assert(/^csv:/.test(queuedJobRecord.request_key));
+assert.strictEqual(queuedRawRecords.length, 2);
+assert(queuedRawRecords.every((row) => row.id));
+assert.strictEqual(queuedRawRecords[0].source_row_number, 2);
+assert.strictEqual(queuedRawRecords[1].source_row_number, 4);
+assert.strictEqual(context.isCsvImportPreparationStale_({ last_heartbeat_at: '2026-07-15T00:00:00.000Z' }, Date.parse('2026-07-15T00:14:59.000Z')), false);
+assert.strictEqual(context.isCsvImportPreparationStale_({ last_heartbeat_at: '2026-07-15T00:00:00.000Z' }, Date.parse('2026-07-15T00:15:00.000Z')), true);
+const queuedCsvSummary = context.summarizeLeadCsvImportRows_([
+  { status: 'completed', result_json: '{"action":"added"}' },
+  { status: 'completed', result_json: '{"action":"filled","filledFields":2}' },
+  { status: 'completed', result_json: '{"action":"skipped"}' },
+  { status: 'failed', result_json: '{"action":"error"}' },
+  { status: 'queued', result_json: '' },
+]);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(queuedCsvSummary)), {
+  total: 5, processed: 4, added: 1, filled: 1, filledFields: 2, skipped: 1, errors: 1,
+});
 
-const replySentAt = new Date('2026-06-10T00:00:00+09:00');
-const mockReplyMessage = (options) => ({
-  getDate: () => new Date(options.date),
-  getFrom: () => options.from || 'Reply User <reply1@reply-test.jp>',
-  getSubject: () => options.subject || 'Re: お問い合わせ',
-  getPlainBody: () => options.body || '返信本文です',
-  getHeader: (name) => (options.headers && options.headers[name]) || '',
+const searchStartContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), searchStartContext, { filename: file });
 });
-const preSendMessage = mockReplyMessage({ date: '2026-06-09T12:00:00+09:00' });
-const automatedReceipt = mockReplyMessage({
-  date: '2026-06-10T01:00:00+09:00',
-  subject: 'お問い合わせフォーム（お客様控え）',
-  body: 'この度はお問い合わせいただき、受付いたしました。',
-  headers: { 'Auto-Submitted': 'auto-replied' },
+let searchStartLockDepth = 0;
+let searchStartAppends = 0;
+let searchTriggerChecks = 0;
+const searchStartRecords = [];
+searchStartContext.Utilities = {
+  computeDigest: (_algorithm, value) => Array.from(Buffer.from(String(value), 'utf8')).slice(0, 32),
+  DigestAlgorithm: { SHA_256: 'SHA_256' },
+  Charset: { UTF_8: 'UTF_8' },
+};
+searchStartContext.normalizeSearchJobInput_ = () => {
+  assert.strictEqual(searchStartLockDepth, 0, 'search payload normalization and sitemap fetches must run outside ScriptLock');
+  return {
+    job_type: 'source_page', job_limit: 1, items: [{ source_url: 'https://example.com/list' }],
+    results_per_query: 10, crawl_all: true, created_at: 'volatile',
+  };
+};
+searchStartContext.withScriptLock_ = (_operation, callback) => {
+  searchStartLockDepth += 1;
+  try {
+    return callback();
+  } finally {
+    searchStartLockDepth -= 1;
+  }
+};
+searchStartContext.readAllSheetRecordsByName_ = () => searchStartRecords;
+searchStartContext.appendSheetRecord_ = (_sheetName, record) => {
+  searchStartAppends += 1;
+  const saved = Object.assign({ id: 'search-start-1' }, record);
+  searchStartRecords.push(saved);
+  return saved;
+};
+searchStartContext.ensureBackgroundJobTrigger_ = () => { searchTriggerChecks += 1; return {}; };
+const firstSearchStart = searchStartContext.startSerperSearchJob({});
+const duplicateSearchStart = searchStartContext.startSerperSearchJob({});
+assert.strictEqual(searchStartAppends, 1);
+assert.strictEqual(searchTriggerChecks, 2);
+assert.strictEqual(firstSearchStart.reused, false);
+assert.strictEqual(duplicateSearchStart.reused, true);
+assert.strictEqual(duplicateSearchStart.duplicatePrevented, true);
+assert.strictEqual(duplicateSearchStart.id, firstSearchStart.id);
+
+const searchRecoveryContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), searchRecoveryContext, { filename: file });
 });
-const wrongSenderMessage = mockReplyMessage({
-  date: '2026-06-10T02:00:00+09:00',
-  from: 'Other User <other@reply-test.jp>',
+let recoveryJob = {
+  id: 'search-recovery-1', status: 'running', lock_token: 'search-lock', processed_count: 1,
+  total_count: 2, error_count: 1, last_error: 'prior item failed', attempt_count: 2,
+  query_json: JSON.stringify({
+    job_type: 'prospecting', job_limit: 2, items: [{ query: 'first' }, { query: 'second' }],
+  }),
+};
+let recoveryFinalPatch = null;
+searchRecoveryContext.getSettingValue_ = (_key, fallback) => fallback;
+searchRecoveryContext.claimSearchJobRun_ = () => ({ claimed: true, busy: false, job: recoveryJob, lockToken: 'search-lock' });
+searchRecoveryContext.processProspectingSearchItem_ = () => {};
+searchRecoveryContext.isSearchJobRuntimeExhausted_ = () => false;
+searchRecoveryContext.nowIso_ = () => '2026-07-15T05:00:00.000Z';
+searchRecoveryContext.updateClaimedSearchJob_ = (_id, _token, patch, release) => {
+  recoveryJob = Object.assign({}, recoveryJob, patch);
+  if (release) recoveryFinalPatch = Object.assign({}, patch);
+  return { owned: true, record: recoveryJob };
+};
+searchRecoveryContext.appendSyncError_ = () => {};
+const recoveredSearchJob = searchRecoveryContext.advanceSearchJob('search-recovery-1', { maxItems: 1, runtimeBudgetMs: 60000 });
+assert.strictEqual(recoveredSearchJob.completed, true);
+assert.strictEqual(recoveryFinalPatch.status, 'failed', 'a prior chunk error must not be erased by a later clean chunk');
+assert.strictEqual(recoveryJob.error_count, 1);
+assert.strictEqual(recoveryJob.last_error, 'prior item failed');
+assert.strictEqual(searchRecoveryContext.isRetryableSearchJobError_(new Error('Serper request failed: HTTP 503 unavailable')), true);
+assert.strictEqual(searchRecoveryContext.isRetryableSearchJobError_(new Error('Serper API key is not configured.')), false);
+
+const retryableSearchContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), retryableSearchContext, { filename: file });
 });
-const humanReplyMessage = mockReplyMessage({ date: '2026-06-10T03:00:00+09:00' });
-const ignoredReplyResult = context.findHumanReplyAfterSend_([{
-  getId: () => 'thread-auto',
-  getMessages: () => [preSendMessage, automatedReceipt, wrongSenderMessage],
-}], 'reply1@reply-test.jp', replySentAt);
-assert(!ignoredReplyResult.message && ignoredReplyResult.ignoredAutoReplies === 1, 'pre-send, wrong-sender, and automated messages must not count as replies');
-const humanReplyResult = context.findHumanReplyAfterSend_([{
-  getId: () => 'thread-human',
-  getMessages: () => [preSendMessage, automatedReceipt, humanReplyMessage],
-}], 'reply1@reply-test.jp', replySentAt);
-assert(humanReplyResult.message === humanReplyMessage && humanReplyResult.ignoredAutoReplies === 1, 'only a human message from the lead after delivery should count as a reply');
-assert(context.isAutoReplyMessage_('【別邸 蘇庵】お問い合わせフォーム（お客様控え）', 'お問い合わせを受付いたしました。'), 'form receipt should be recognized as an automatic response');
-context.listLeads = () => ({ items: [{
-  id: 'reply-false-positive',
+let retryableJob = {
+  id: 'search-retry-1', status: 'queued', lock_token: 'retry-lock', processed_count: 0,
+  total_count: 1, error_count: 0, last_error: '', attempt_count: 0,
+  query_json: JSON.stringify({ job_type: 'prospecting', job_limit: 1, items: [{ query: 'retry me' }] }),
+};
+let retryableShouldFail = true;
+let retryableFinalPatch = null;
+retryableSearchContext.getSettingValue_ = (_key, fallback) => fallback;
+retryableSearchContext.claimSearchJobRun_ = () => ({ claimed: true, busy: false, job: retryableJob, lockToken: 'retry-lock' });
+retryableSearchContext.processProspectingSearchItem_ = () => {
+  if (retryableShouldFail) throw new Error('Serper request failed: HTTP 503 unavailable');
+};
+retryableSearchContext.isSearchJobRuntimeExhausted_ = () => false;
+retryableSearchContext.nowIso_ = () => '2026-07-15T05:10:00.000Z';
+retryableSearchContext.appendSyncError_ = () => {};
+retryableSearchContext.updateClaimedSearchJob_ = (_id, _token, patch, release) => {
+  retryableJob = Object.assign({}, retryableJob, patch);
+  if (release) retryableFinalPatch = Object.assign({}, patch);
+  return { owned: true, record: retryableJob };
+};
+const pausedSearchJob = retryableSearchContext.advanceSearchJob('search-retry-1', { maxItems: 1, runtimeBudgetMs: 60000 });
+assert.strictEqual(pausedSearchJob.pausedForRetry, true);
+assert.strictEqual(pausedSearchJob.completed, false);
+assert.strictEqual(retryableFinalPatch.status, 'queued');
+assert.strictEqual(retryableJob.processed_count, 0);
+assert.strictEqual(retryableJob.error_count, 0);
+assert(/HTTP 503/.test(retryableJob.last_error));
+retryableShouldFail = false;
+retryableFinalPatch = null;
+const resumedSearchJob = retryableSearchContext.advanceSearchJob('search-retry-1', { maxItems: 1, runtimeBudgetMs: 60000 });
+assert.strictEqual(resumedSearchJob.completed, true);
+assert.strictEqual(retryableFinalPatch.status, 'completed');
+assert.strictEqual(retryableJob.processed_count, 1);
+assert.strictEqual(retryableJob.last_error, '');
+
+const advanceImportContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), advanceImportContext, { filename: file });
+});
+const importJobFixture = {
+  id: 'csv-job-1', job_type: 'csv_import', status: 'running', source: 'csv_upload',
+  payload_json: '{"options":{"source":"csv_upload"}}', lock_token: 'csv-lock', total_count: 3,
+};
+const importRawFixture = [
+  { id: 'raw-1', import_job_id: 'csv-job-1', status: 'queued', row_json: '{"company_name":"追加"}', result_json: '' },
+  { id: 'raw-2', import_job_id: 'csv-job-1', status: 'queued', row_json: '{"company_name":"補完"}', result_json: '' },
+  { id: 'raw-3', import_job_id: 'csv-job-1', status: 'queued', row_json: '{"company_name":"失敗"}', result_json: '' },
+];
+let finalizedImportPatch = null;
+let completionLogCount = 0;
+advanceImportContext.buildSearchJobRunWindow_ = () => ({ deadlineMs: Date.now() + 60000, startedAtMs: Date.now() });
+advanceImportContext.isSearchJobRuntimeExhausted_ = () => false;
+advanceImportContext.claimLeadCsvImportJobRun_ = () => ({ claimed: true, busy: false, job: importJobFixture, lockToken: 'csv-lock' });
+advanceImportContext.listRawImportRowsForJob_ = () => importRawFixture.map((row) => Object.assign({}, row));
+advanceImportContext.withScriptLock_ = (_operation, callback) => callback();
+advanceImportContext.findSheetRecordById_ = (_sheetName, id) => importRawFixture.find((row) => row.id === id) || null;
+advanceImportContext.upsertSyncLeadLocked_ = (raw) => {
+  if (raw.company_name === '追加') return { action: 'added', lead: { id: 'lead-added' } };
+  if (raw.company_name === '補完') return { action: 'filled', filledFields: 2, fields: ['email', 'phone'], lead: { id: 'lead-filled' } };
+  throw Object.assign(new Error('invalid row'), { code: 'SYNC_INVALID' });
+};
+advanceImportContext.updateSheetRecord_ = (sheetName, id, patch) => {
+  assert.strictEqual(sheetName, 'raw_import');
+  const row = importRawFixture.find((item) => item.id === id);
+  Object.assign(row, patch);
+  return row;
+};
+advanceImportContext.updateClaimedLeadCsvImportJob_ = (_id, _token, patch) => {
+  finalizedImportPatch = patch;
+  return { owned: true, record: Object.assign({}, importJobFixture, patch) };
+};
+advanceImportContext.appendSheetRecord_ = (sheetName) => {
+  assert.strictEqual(sheetName, 'sync_logs');
+  completionLogCount += 1;
+  return {};
+};
+advanceImportContext.appendSyncError_ = () => {};
+advanceImportContext.nowIso_ = () => '2026-07-15T01:00:00.000Z';
+const advancedImport = advanceImportContext.advanceLeadCsvImportJob('csv-job-1', { maxItems: 10, runtimeBudgetMs: 60000 });
+assert.strictEqual(advancedImport.completed, true);
+assert.strictEqual(advancedImport.added, 1);
+assert.strictEqual(advancedImport.filled, 1);
+assert.strictEqual(advancedImport.errors, 1);
+assert.strictEqual(finalizedImportPatch.status, 'completed');
+assert.strictEqual(finalizedImportPatch.processed_count, 3);
+assert.strictEqual(completionLogCount, 1);
+assert.strictEqual(advanceImportContext.isRetryableCsvImportError_({ code: 'SPREADSHEET_UNAVAILABLE', message: 'temporary' }), true);
+assert.strictEqual(advanceImportContext.isRetryableCsvImportError_(new Error('Invalid email address.')), false);
+
+const importIdempotencyContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), importIdempotencyContext, { filename: file });
+});
+importIdempotencyContext.getOrCreateSpreadsheet_ = () => ({});
+importIdempotencyContext.ensureSheet_ = () => ({});
+importIdempotencyContext.getHeaders_ = () => ['id', 'import_row_id'];
+importIdempotencyContext.findLeadRecordsByExactColumnValue_ = () => [{ id: 'already-created', import_row_id: 'raw-idempotent' }];
+importIdempotencyContext.createLeadLocked_ = () => { throw new Error('idempotent retry must not create another lead'); };
+const idempotentImportRetry = importIdempotencyContext.upsertSyncLeadLocked_(
+  { company_name: 'Retry company', email: 'retry@example.com' },
+  { source: 'csv_upload', allow_duplicate: true, import_row_id: 'raw-idempotent' },
+);
+assert.strictEqual(idempotentImportRetry.action, 'skipped');
+assert.strictEqual(idempotentImportRetry.reused, true);
+
+const migrationContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), migrationContext, { filename: file });
+});
+const migrationHeaders = vm.runInContext('SHEET_DEFINITIONS.leads.slice()', migrationContext);
+let stagingClearCount = 0;
+let stagingHeaderWrite = null;
+let migrationBackupCalls = 0;
+let liveClearCount = 0;
+let liveWriteValues = null;
+let stagingDeleted = 0;
+const stagingSheet = {
+  getMaxRows: () => 10,
+  getMaxColumns: () => 100,
+  getLastColumn: () => migrationHeaders.length,
+  getLastRow: () => 1,
+  getRange: (row, column, rowCount, columnCount) => ({
+    clearContent: () => { stagingClearCount += 1; },
+    setValues: (values) => { if (row === 1) stagingHeaderWrite = values; },
+    getValues: () => [],
+  }),
+  setFrozenRows: () => {},
+};
+const liveSheet = {
+  getMaxRows: () => 10,
+  getMaxColumns: () => 100,
+  getDataRange: () => ({ getValues: () => [['id', 'company_name'], ['old-id', 'Old company']] }),
+  getRange: (_row, _column, rowCount, _columnCount) => ({
+    clearContent: () => { liveClearCount += 1; },
+    setValues: (values) => { if (rowCount > 1) liveWriteValues = values; },
+  }),
+  setFrozenRows: () => {},
+};
+const migrationSpreadsheet = {
+  getSheetByName: (name) => name === '__leads_migration_staging' ? stagingSheet : null,
+  insertSheet: () => { throw new Error('staging already exists'); },
+  deleteSheet: (sheet) => { assert.strictEqual(sheet, stagingSheet); stagingDeleted += 1; },
+};
+const migrationLockOptions = [];
+migrationContext.withScriptLock_ = (_operation, callback, options) => {
+  migrationLockOptions.push(options);
+  return callback();
+};
+migrationContext.getOrCreateSpreadsheet_ = () => migrationSpreadsheet;
+migrationContext.ensureSheet_ = () => liveSheet;
+migrationContext.getHeaders_ = (sheet) => sheet === liveSheet ? migrationHeaders.slice() : migrationHeaders.slice();
+migrationContext.countNonBlankSheetRows_ = () => 5;
+migrationContext.ensureSheetGridSize_ = () => {};
+migrationContext.formatHeaderRow_ = () => {};
+migrationContext.clearRuntimeCaches_ = () => { throw new Error('prepare must not invalidate or replace live leads'); };
+const preparedMigration = migrationContext.prepareLeadMigration({ totalRows: 3, replace: true });
+assert.strictEqual(preparedMigration.liveDataPreserved, true);
+assert.strictEqual(stagingClearCount, 1);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(stagingHeaderWrite)), [JSON.parse(JSON.stringify(migrationHeaders))]);
+assert.strictEqual(liveClearCount, 0);
+assert.strictEqual(migrationLockOptions[0].waitMs, 90000);
+
+const duplicateMigrationRows = [
+  (() => { const row = Array(migrationHeaders.length).fill(''); row[migrationHeaders.indexOf('id')] = 'duplicate-id'; row[migrationHeaders.indexOf('company_name')] = 'Company A'; return row; })(),
+  (() => { const row = Array(migrationHeaders.length).fill(''); row[migrationHeaders.indexOf('id')] = 'duplicate-id'; row[migrationHeaders.indexOf('company_name')] = 'Company B'; return row; })(),
+];
+const duplicateMigrationSheet = {
+  getLastRow: () => 3,
+  getRange: () => ({ getValues: () => duplicateMigrationRows }),
+};
+assert.throws(() => migrationContext.readValidatedLeadMigrationRows_(duplicateMigrationSheet, migrationHeaders), /重複ID/);
+
+const nextMigrationRow = Array(migrationHeaders.length).fill('');
+nextMigrationRow[migrationHeaders.indexOf('id')] = 'new-id';
+nextMigrationRow[migrationHeaders.indexOf('company_name')] = 'New company';
+migrationContext.getLeadMigrationStagingSheet_ = () => stagingSheet;
+migrationContext.assertLeadMigrationStagingHeaders_ = () => {};
+migrationContext.readValidatedLeadMigrationRows_ = () => [nextMigrationRow];
+migrationContext.createSpreadsheetBackup = () => { migrationBackupCalls += 1; return { id: 'backup-id', url: 'https://drive.example/backup' }; };
+migrationContext.appendSheetRecord_ = () => ({});
+migrationContext.nowIso_ = () => '2026-07-15T03:00:00.000Z';
+migrationContext.safeJsonStringify_ = JSON.stringify;
+migrationContext.clearRuntimeCaches_ = () => {};
+assert.throws(() => migrationContext.finalizeLeadMigration({ expectedRows: 2 }), /移行件数が一致しません/);
+assert.strictEqual(migrationBackupCalls, 0);
+assert.strictEqual(liveClearCount, 0);
+const finalizedMigration = migrationContext.finalizeLeadMigration({ expectedRows: 1, source: 'test' });
+assert.strictEqual(finalizedMigration.migratedRows, 1);
+assert.strictEqual(finalizedMigration.backup.id, 'backup-id');
+assert.strictEqual(migrationBackupCalls, 1);
+assert.strictEqual(liveClearCount, 1);
+assert.strictEqual(liveWriteValues.length, 2);
+assert.strictEqual(stagingDeleted, 1);
+
+let searchResultRecord = {
+  id: 'result-1', lead_id: '', job_id: 'job-1', result_type: 'prospecting',
+  title: '復旧対象', url: 'https://example.com', snippet: '',
+};
+const searchResultLinkLocks = [];
+context.findSheetRecordById_ = (sheetName) => sheetName === 'search_results' ? searchResultRecord : null;
+context.findActiveLeadBySourceReference_ = () => ({ id: 'recovered-lead', company_name: '復旧対象' });
+context.createLead = () => { throw new Error('recovery must reuse the previously created lead'); };
+context.withScriptLock_ = (operation, callback, options) => {
+  searchResultLinkLocks.push({ operation, options });
+  return callback();
+};
+context.updateSheetRecord_ = (_sheetName, _id, patch) => {
+  searchResultRecord = Object.assign({}, searchResultRecord, patch);
+  return searchResultRecord;
+};
+const recoveredSearchResult = context.addSearchResultToLead('result-1', {});
+assert.strictEqual(recoveredSearchResult.lead.id, 'recovered-lead');
+assert.strictEqual(recoveredSearchResult.reused, true);
+assert.strictEqual(recoveredSearchResult.recovered, true);
+assert.strictEqual(recoveredSearchResult.result.lead_id, 'recovered-lead');
+assert.deepStrictEqual(searchResultLinkLocks.map((item) => item.operation), [
+  'claimSearchResultForLeadCreation',
+  'finalizeSearchResultLeadCreation',
+]);
+assert(searchResultLinkLocks.every((item) => item.options.waitMs === 90000));
+searchResultRecord = Object.assign({}, searchResultRecord, { lead_id: 'other-lead' });
+assert.throws(() => context.finalizeSearchResultLeadCreation_('result-1', 'recovered-lead', 'uuid-1'), /別の営業先に紐付け済み/);
+
+let replyLead = { id: 'reply-lead', status: '初回メール送信済み', reply_checked: false, archived_at: '' };
+let replyUpdate = null;
+let replyRecordLock = null;
+context.getLeadById = () => replyLead;
+context.findReplyLogByLeadAndThread_ = () => ({ id: 'existing-reply-log', lead_id: 'reply-lead', thread_id: 'thread-1' });
+context.appendSheetRecord_ = () => { throw new Error('existing reply log must not be appended again'); };
+context.updateLeadLocked_ = (id, patch) => {
+  replyUpdate = { id, patch };
+  replyLead = Object.assign({}, replyLead, patch);
+  return replyLead;
+};
+context.withScriptLock_ = (operation, callback, options) => {
+  replyRecordLock = { operation, options };
+  return callback();
+};
+const recordedReply = context.recordDetectedReply_('reply-lead', { thread_id: 'thread-1', subject: '返信' });
+assert.strictEqual(recordedReply.log.id, 'existing-reply-log');
+assert.strictEqual(recordedReply.lead.reply_checked, true);
+assert.strictEqual(replyUpdate.id, 'reply-lead');
+assert.strictEqual(replyUpdate.patch.last_gmail_thread_id, 'thread-1');
+assert.strictEqual(replyRecordLock.operation, 'recordDetectedReply');
+assert.strictEqual(replyRecordLock.options.waitMs, 90000);
+replyUpdate = null;
+const alreadyRecordedReply = context.recordDetectedReply_('reply-lead', { thread_id: 'thread-1' });
+assert.strictEqual(alreadyRecordedReply.alreadyRecorded, true);
+assert.strictEqual(replyUpdate, null);
+assert.strictEqual(context.replyFalsePositiveRestoreStatus_({ source: 'source_page' }, null), '対応中');
+assert.strictEqual(context.replyFalsePositiveRestoreStatus_({ source: 'manual' }, null), '未対応');
+assert.strictEqual(context.replyFalsePositiveRestoreStatus_({}, { send_type: '初回メール' }), '初回メール送信済み');
+replyLead = Object.assign({}, replyLead, {
   status: '返信あり',
   reply_checked: true,
-  email: 'reply1@reply-test.jp',
-  facility_name: '誤判定テスト',
-}] });
-context.listSheetRecords = () => ({ items: [{
-  lead_id: 'reply-false-positive',
-  subject: '過去のお問い合わせ',
-  snippet: '送信前のメール',
-  received_at: '2026-06-09T00:00:00+09:00',
-  from_email: 'reply1@reply-test.jp',
-}] });
-context.buildLatestSuccessfulMailHistoryByLeadId_ = () => ({
-  'reply-false-positive': { sent_at: '2026-06-10T00:00:00+09:00', send_type: '初回メール' },
+  last_gmail_thread_id: 'legacy-thread',
+  source: 'source_page',
 });
-const preSendFalsePositiveResult = context.listReplyFalsePositiveCandidates({ limit: 10 });
-assert(preSendFalsePositiveResult.candidates.length === 1, 'a message received before delivery should be a false-positive candidate');
-assert(preSendFalsePositiveResult.candidates[0].restoreStatus === '初回メール送信済み', 'false-positive restoration should use the latest successful send type');
-context.PropertiesService = originalPropertiesService;
-context.GmailApp = originalGmailApp;
-context.listLeads = originalListLeads;
-context.listSheetRecords = originalReplyListSheetRecords;
-context.withScriptLock_ = originalWithScriptLock;
-context.claimGmailReplyCheckRun_ = originalClaimGmailReplyCheckRun;
-context.releaseGmailReplyCheckRun_ = originalReleaseGmailReplyCheckRun;
-context.buildLatestSuccessfulMailSentAtByLeadId_ = originalBuildLatestReplySendIndex;
-context.buildLatestSuccessfulMailHistoryByLeadId_ = originalBuildLatestReplyHistoryIndex;
+const restoredFalsePositive = context.restoreReplyFalsePositiveCandidate_({
+  leadId: 'reply-lead',
+  restoreStatus: '初回メール送信済み',
+  expectedStatus: '返信あり',
+  expectedReplyChecked: true,
+  expectedThreadId: 'legacy-thread',
+});
+assert.strictEqual(restoredFalsePositive.ok, true);
+assert.strictEqual(replyLead.status, '初回メール送信済み');
+assert.strictEqual(replyLead.reply_checked, false);
+replyLead = Object.assign({}, replyLead, {
+  status: '商談予定',
+  reply_checked: true,
+  last_gmail_thread_id: 'new-human-thread',
+});
+replyUpdate = null;
+const staleFalsePositiveRestore = context.restoreReplyFalsePositiveCandidate_({
+  leadId: 'reply-lead',
+  restoreStatus: '初回メール送信済み',
+  expectedStatus: '返信あり',
+  expectedReplyChecked: true,
+  expectedThreadId: 'legacy-thread',
+});
+assert.strictEqual(staleFalsePositiveRestore.conflict, true);
+assert.strictEqual(replyUpdate, null, 'a stale false-positive repair must not overwrite a newer lead state');
 
-const html = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-const code = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
-const webApp = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
-const masters = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
+const replyRepairContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), replyRepairContext, { filename: file });
+});
+replyRepairContext.listLeads = () => ({
+  total: 3,
+  items: [
+    { id: 'lead-genuine', company_name: 'Genuine', email: 'genuine@example.net', reply_checked: true },
+    { id: 'lead-auto-only', company_name: 'Auto', email: 'auto@example.net', reply_checked: true },
+  ],
+});
+replyRepairContext.buildLatestSuccessfulMailHistoryByLeadId_ = () => ({
+  'lead-genuine': { sent_at: '2026-07-15T10:00:00Z', send_type: '初回メール' },
+  'lead-auto-only': { sent_at: '2026-07-15T10:00:00Z', send_type: '初回メール' },
+});
+replyRepairContext.readAllSheetRecordsByName_ = () => [
+  { lead_id: 'lead-genuine', received_at: '2026-07-15T09:00:00Z', subject: '自動返信', snippet: '' },
+  { lead_id: 'lead-genuine', received_at: '2026-07-15T11:00:00Z', subject: 'ご連絡ありがとうございます', snippet: '担当者からの返信です' },
+  { lead_id: 'lead-auto-only', received_at: '2026-07-15T11:00:00Z', subject: '自動返信', snippet: '受付しました' },
+];
+const replyRepairCandidates = replyRepairContext.listReplyFalsePositiveCandidates({ limit: 2, offset: 0 });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(replyRepairCandidates.candidates.map((item) => item.leadId))), ['lead-auto-only']);
+assert.strictEqual(replyRepairCandidates.total, 3);
+assert.strictEqual(replyRepairCandidates.remaining, 1);
+assert.strictEqual(replyRepairCandidates.stoppedEarly, true);
+replyRepairContext.listReplyFalsePositiveCandidates = () => ({
+  candidates: [{ leadId: 'restore-ok', restoreStatus: '未対応' }, { leadId: 'restore-fail', restoreStatus: '未対応' }],
+  errors: [], remaining: 0,
+});
+replyRepairContext.restoreReplyFalsePositiveCandidate_ = (candidate) => {
+  if (candidate.leadId === 'restore-fail') throw new Error('temporary update failure');
+  return { ok: true, conflict: false };
+};
+const partialReplyRestore = replyRepairContext.restoreReplyFalsePositiveCandidates({});
+assert.strictEqual(partialReplyRestore.updated, 1);
+assert.strictEqual(partialReplyRestore.errors.length, 1);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(partialReplyRestore.candidates.map((item) => item.leadId))), ['restore-fail']);
+
+let spreadsheetBindingDeleted = false;
+let replacementSpreadsheetCreated = false;
+const bindingContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), bindingContext, { filename: 'Code.gs' });
+bindingContext.PropertiesService = {
+  getScriptProperties: () => ({
+    getProperty: () => 'stored-spreadsheet-id',
+    deleteProperty: () => { spreadsheetBindingDeleted = true; },
+    setProperty: () => {},
+  }),
+};
+bindingContext.SpreadsheetApp = {
+  openById: () => { throw new Error('temporary Google Sheets failure'); },
+  getActiveSpreadsheet: () => ({ id: 'unexpected-active' }),
+  create: () => { replacementSpreadsheetCreated = true; return {}; },
+};
+bindingContext.logError_ = () => {};
+assert.throws(() => bindingContext.getOrCreateSpreadsheet_(), /保存先スプレッドシートを開けません/);
+assert.strictEqual(spreadsheetBindingDeleted, false);
+assert.strictEqual(replacementSpreadsheetCreated, false);
+
+const candidateContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), candidateContext, { filename: 'Code.gs' });
+candidateContext.getOrCreateSpreadsheet_ = () => ({});
+candidateContext.ensureSheet_ = () => ({});
+candidateContext.buildMasterBlockContext_ = () => ({});
+candidateContext.isArchivedLead_ = (lead) => Boolean(lead.archived_at);
+candidateContext.isEmailSendTarget_ = (lead) => Boolean(lead.sendable);
+candidateContext.readSheetRecords_ = () => [
+  { id: 'other-genre', email: 'other@example.com', genre: '医療', sendable: true, updated_at: '2026-07-15T00:04:00Z' },
+  { id: 'duplicate-old', email: 'same@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-07-15T00:01:00Z' },
+  { id: 'duplicate-new', email: 'SAME@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-07-15T00:03:00Z' },
+  { id: 'unique', email: 'unique@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-07-15T00:02:00Z' },
+  { id: 'blocked', email: 'blocked@example.com', genre: 'キャンプ', sendable: false, updated_at: '2026-07-15T00:05:00Z' },
+];
+const emailCandidates = candidateContext.listEmailSendCandidates({ genre: 'キャンプ', limit: 100 });
+assert.strictEqual(emailCandidates.total, 2);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(emailCandidates.items.map((lead) => lead.id))), ['duplicate-new', 'unique']);
+
+const historyContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), historyContext, { filename: 'Code.gs' });
+vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), historyContext, { filename: 'Email.gs' });
+historyContext.getOrCreateSpreadsheet_ = () => ({});
+historyContext.ensureSheet_ = () => ({});
+historyContext.readSheetRecords_ = () => [
+  { id: 'history-1', lead_id: 'lead-history', sent_at: '2026-07-15T00:03:00Z' },
+  { id: 'history-2', lead_id: 'lead-history', sent_at: '2026-07-15T00:02:00Z' },
+  { id: 'history-3', lead_id: 'lead-history', sent_at: '2026-07-15T00:01:00Z' },
+  { id: 'other-history', lead_id: 'other-lead', sent_at: '2026-07-15T00:04:00Z' },
+];
+const pagedHistories = historyContext.listLeadSendHistories('lead-history', { limit: 2 });
+assert.strictEqual(pagedHistories.total, 3);
+assert.strictEqual(pagedHistories.items.length, 2);
+
+const duplicateImportContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), duplicateImportContext, { filename: file });
+});
+duplicateImportContext.withScriptLock_ = (_operation, callback) => callback();
+duplicateImportContext.getOrCreateSpreadsheet_ = () => ({});
+duplicateImportContext.ensureSheet_ = () => ({});
+duplicateImportContext.getHeaders_ = () => [];
+duplicateImportContext.readSheetRecords_ = () => [];
+duplicateImportContext.nowIso_ = () => '2026-07-15T00:00:00.000Z';
+duplicateImportContext.Utilities = { getUuid: () => 'generated-id' };
+const templateDuplicateImport = duplicateImportContext.importEmailTemplates({
+  dryRun: true,
+  records: [
+    { id: 'template-duplicate', name: 'A', subject: 'Subject', body: 'Body' },
+    { id: 'template-duplicate', name: 'B', subject: 'Subject', body: 'Body' },
+  ],
+});
+assert.strictEqual(templateDuplicateImport.inserted, 1);
+assert.strictEqual(templateDuplicateImport.skipped, 1);
+const historyDuplicateImport = duplicateImportContext.importSendHistories({
+  dryRun: true,
+  records: [
+    { id: 'history-duplicate', lead_id: 'lead-1' },
+    { id: 'history-duplicate', lead_id: 'lead-1' },
+  ],
+});
+assert.strictEqual(historyDuplicateImport.inserted, 1);
+assert.strictEqual(historyDuplicateImport.skipped, 1);
+
+const duplicateContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), duplicateContext, { filename: 'Code.gs' });
+duplicateContext.getOrCreateSpreadsheet_ = () => ({});
+duplicateContext.ensureSheet_ = () => ({});
+duplicateContext.isArchivedLead_ = () => false;
+duplicateContext.readSheetRecords_ = () => [
+  { id: 'current', company_name: 'Current' },
+  { id: 'candidate-1', company_name: 'A' },
+  { id: 'candidate-2', company_name: 'B' },
+  { id: 'candidate-3', company_name: 'C' },
+];
+duplicateContext.duplicateKeysForLead_ = () => ({});
+duplicateContext.duplicateMatchedKeys_ = () => ['email'];
+duplicateContext.duplicateReasonLabels_ = () => ['メール'];
+duplicateContext.duplicateReasonDetail_ = () => 'same@example.com';
+const pagedDuplicates = duplicateContext.listLeadDuplicateCandidates('current', { limit: 2 });
+assert.strictEqual(pagedDuplicates.total, 3);
+assert.strictEqual(pagedDuplicates.items.length, 2);
+
+const sparseHeaders = historyContext.getHeaders_({
+  getLastColumn: () => 3,
+  getRange: () => ({ getValues: () => [['id', '', 'email']] }),
+});
+assert.deepStrictEqual(JSON.parse(JSON.stringify(sparseHeaders)), ['id', '', 'email']);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(historyContext.rowToRecord_(sparseHeaders, ['lead-1', 'orphaned-value', 'safe@example.com']))), {
+  id: 'lead-1',
+  email: 'safe@example.com',
+});
+
+const analyticsContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), analyticsContext, { filename: file });
+});
+analyticsContext.nowIso_ = () => '2026-07-15T12:00:00+09:00';
+const analyticsSnapshot = analyticsContext.buildAnalyticsSnapshot_([
+  { id: 'lead-a', created_at: '2026-07-01T09:00:00+09:00', updated_at: '2026-07-10T09:00:00+09:00', source: 'source_page', genre: 'キャンプ', reply_checked: true, status: '返信あり' },
+  { id: 'lead-b', created_at: '2026-06-01T09:00:00+09:00', updated_at: '2026-07-11T09:00:00+09:00', source: 'csv_upload', genre: '美容', send_ng: true, status: '送信NG' },
+  { id: 'lead-c', created_at: '2026-06-02T09:00:00+09:00', updated_at: '2026-06-20T09:00:00+09:00', source: 'manual', genre: 'キャンプ', deal_status: '受注', status: '受注' },
+  { id: 'lead-archived', created_at: '2026-07-01T09:00:00+09:00', updated_at: '2026-07-01T09:00:00+09:00', archived_at: '2026-07-02T09:00:00+09:00', genre: 'キャンプ' },
+], [
+  { id: 'history-a1', lead_id: 'lead-a', sent_at: '2026-07-14T10:00:00+09:00', send_type: '初回メール', send_result: '成功', template_id: 'template-a', template_name: 'A', genre: 'キャンプ' },
+  { id: 'history-a2', lead_id: 'lead-a', sent_at: '2026-07-15T10:00:00+09:00', send_type: 'フォロー', send_result: '成功', template_id: 'template-a', template_name: 'A', genre: 'キャンプ' },
+  { id: 'history-b1', lead_id: 'lead-b', sent_at: '2026-07-15T10:00:00+09:00', send_type: '初回メール', send_result: '失敗', template_id: 'template-b', template_name: 'B', genre: '美容' },
+  { id: 'history-b2', lead_id: 'lead-b', sent_at: '2026-07-15T10:01:00+09:00', send_type: '初回メール', send_result: '送信中', template_id: 'template-b', template_name: 'B', genre: '美容' },
+  { id: 'history-c1', lead_id: 'lead-c', sent_at: '2026-06-15T10:00:00+09:00', send_type: '初回メール', send_result: '成功', template_id: 'template-c', template_name: 'C', genre: 'キャンプ' },
+  { id: 'history-test', lead_id: 'lead-a', sent_at: '2026-07-15T11:00:00+09:00', send_type: 'テスト送信', send_result: '成功', template_id: 'template-a', template_name: 'A' },
+], '2026-07-15');
+assert.strictEqual(analyticsSnapshot.funnel.leads, 3);
+assert.strictEqual(analyticsSnapshot.funnel.sent, 3);
+assert.strictEqual(analyticsSnapshot.funnel.replies, 2, 'send NG alone must not count as a reply');
+assert.strictEqual(analyticsSnapshot.funnel.sendNg, 1);
+assert.strictEqual(analyticsSnapshot.quality.sendTotal, 4, 'pending and test histories must not count as completed attempts');
+assert.strictEqual(analyticsSnapshot.quality.sendFailures, 1);
+assert.strictEqual(analyticsSnapshot.quality.noReply, 0, 'multiple sends to one replied lead must not inflate no-reply count');
+assert.strictEqual(analyticsSnapshot.currentMonth.sent, 2);
+assert.strictEqual(analyticsSnapshot.currentMonth.replies, 1);
+assert.strictEqual(analyticsSnapshot.currentMonthLeadSourceRows[0].sourceKey, 'prospecting');
+assert.strictEqual(analyticsSnapshot.templateRows.find((row) => row.templateId === 'template-a').sent, 1);
+
+const testMailContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), testMailContext, { filename: file });
+});
+let testMailLockDepth = 0;
+const testMailOperations = [];
+testMailContext.withScriptLock_ = (operation, callback, options) => {
+  testMailOperations.push({ operation, options });
+  testMailLockDepth += 1;
+  try {
+    return callback();
+  } finally {
+    testMailLockDepth -= 1;
+  }
+};
+testMailContext.findSheetRecordById_ = () => ({ id: 'template-test', name: 'Test', subject: 'Subject', body: 'Body' });
+testMailContext.isValidEmailAddress_ = () => true;
+testMailContext.renderTemplateForLead_ = () => ({ subject: 'Subject', body: 'Body', htmlBody: '<p>Body</p>' });
+testMailContext.nowIso_ = () => '2026-07-15T12:00:00+09:00';
+testMailContext.assertEmailSendLimitAvailable_ = () => { assert.strictEqual(testMailLockDepth, 1); };
+testMailContext.appendSheetRecord_ = (_sheet, record) => {
+  assert.strictEqual(testMailLockDepth, 1);
+  assert.strictEqual(record.send_result, '送信中');
+  return Object.assign({ id: 'test-reservation' }, record);
+};
+testMailContext.MailApp = { sendEmail: () => { assert.strictEqual(testMailLockDepth, 0); } };
+testMailContext.updateSheetRecord_ = (_sheet, _id, patch) => {
+  assert.strictEqual(testMailLockDepth, 1);
+  return Object.assign({ id: 'updated' }, patch);
+};
+testMailContext.logError_ = () => {};
+const testMailResult = testMailContext.sendTestEmail('template-test', 'ignored@example.com', {});
+assert.strictEqual(testMailResult.ok, true);
+assert.deepStrictEqual(testMailOperations.map((item) => item.operation), ['sendTestEmail:prepare', 'sendTestEmail:finalize']);
+assert(testMailOperations.every((item) => item.options.waitMs === 90000));
+
+const reviewDecisionContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), reviewDecisionContext, { filename: file });
+});
+let reviewDecisionLead = { id: 'review-1', status: '未対応', source: 'source_page', send_ng: false };
+let reviewDecisionWrites = 0;
+reviewDecisionContext.withScriptLock_ = (operation, callback, options) => {
+  assert.strictEqual(operation, 'updateReviewLeadDecision');
+  assert.strictEqual(options.waitMs, 90000);
+  return callback();
+};
+reviewDecisionContext.getLeadById = () => Object.assign({}, reviewDecisionLead);
+reviewDecisionContext.updateLeadLocked_ = (_id, patch) => {
+  reviewDecisionWrites += 1;
+  reviewDecisionLead = Object.assign({}, reviewDecisionLead, patch);
+  return Object.assign({}, reviewDecisionLead);
+};
+const reviewDecision = reviewDecisionContext.updateReviewLeadDecision('review-1', {
+  mode: 'decision', expected_status: '未対応', status: '対応中',
+});
+assert.strictEqual(reviewDecision.ok, true);
+assert.strictEqual(reviewDecision.reused, false);
+assert.strictEqual(reviewDecisionLead.status, '対応中');
+const reviewDecisionRetry = reviewDecisionContext.updateReviewLeadDecision('review-1', {
+  mode: 'decision', expected_status: '未対応', status: '対応中',
+});
+assert.strictEqual(reviewDecisionRetry.ok, true);
+assert.strictEqual(reviewDecisionRetry.reused, true);
+assert.strictEqual(reviewDecisionWrites, 1, 'a retried review decision must not write twice');
+reviewDecisionLead.status = '返信あり';
+const reviewDecisionConflict = reviewDecisionContext.updateReviewLeadDecision('review-1', {
+  mode: 'decision', expected_status: '未対応', status: '送信NG',
+});
+assert.strictEqual(reviewDecisionConflict.ok, false);
+assert.strictEqual(reviewDecisionConflict.conflict, true);
+assert.strictEqual(reviewDecisionLead.status, '返信あり');
+assert.strictEqual(reviewDecisionWrites, 1, 'a stale review action must not overwrite a reply status');
+reviewDecisionLead.status = '対応中';
+const reviewUndo = reviewDecisionContext.updateReviewLeadDecision('review-1', {
+  mode: 'undo', expected_status: '対応中', status: '未対応',
+});
+assert.strictEqual(reviewUndo.ok, true);
+assert.strictEqual(reviewDecisionLead.status, '未対応');
+assert.throws(() => reviewDecisionContext.updateReviewLeadDecision('review-1', {
+  mode: 'decision', expected_status: '未対応', status: '返信あり',
+}), /選べない更新内容/);
+
+const searchReviewContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), searchReviewContext, { filename: file });
+});
+const searchReviewRecords = {
+  'result-unconfirmed': { id: 'result-unconfirmed', review_status: 'unconfirmed', review_action: '' },
+  'result-added': { id: 'result-added', review_status: 'added', review_action: 'add_lead', lead_id: 'lead-existing' },
+  'result-excluded': { id: 'result-excluded', review_status: 'excluded', review_action: 'exclude', lead_id: '' },
+  'result-claim': { id: 'result-claim', review_status: 'unconfirmed', review_action: '', title: 'Claim target', url: 'https://claim.example' },
+  'result-retry': { id: 'result-retry', review_status: 'adding', review_action: 'add_lead_claim:lost-token', reviewed_at: new Date().toISOString(), title: 'Retry target', url: 'https://retry.example' },
+  'result-release': { id: 'result-release', review_status: 'unconfirmed', review_action: '', title: 'Release target', url: 'https://release.example' },
+  'result-failure': { id: 'result-failure', review_status: 'unconfirmed', review_action: '', title: 'Failure target', url: 'https://failure.example' },
+};
+let searchReviewLock = null;
+let searchClaimToken = 0;
+searchReviewContext.Utilities = { getUuid: () => `search-claim-${++searchClaimToken}` };
+searchReviewContext.withScriptLock_ = (operation, callback, options) => {
+  searchReviewLock = { operation, options };
+  return callback();
+};
+searchReviewContext.findSheetRecordById_ = (_sheet, id) => searchReviewRecords[id] ? Object.assign({}, searchReviewRecords[id]) : null;
+searchReviewContext.updateSheetRecord_ = (_sheet, id, patch) => {
+  searchReviewRecords[id] = Object.assign({}, searchReviewRecords[id], patch);
+  return Object.assign({}, searchReviewRecords[id]);
+};
+searchReviewContext.nowIso_ = () => new Date().toISOString();
+const searchReview = searchReviewContext.reviewSearchResults({
+  ids: ['result-unconfirmed', 'result-added', 'missing-result', 'result-unconfirmed'], action: 'confirm',
+});
+assert.strictEqual(searchReview.reviewed, 1);
+assert.strictEqual(searchReview.conflicts.length, 1);
+assert.strictEqual(searchReview.missing.length, 1);
+assert.strictEqual(searchReviewRecords['result-unconfirmed'].review_status, 'confirmed');
+assert.strictEqual(searchReviewRecords['result-added'].review_status, 'added');
+assert.strictEqual(searchReviewLock.operation, 'reviewSearchResults');
+assert.strictEqual(searchReviewLock.options.waitMs, 90000);
+const searchReviewRetry = searchReviewContext.reviewSearchResults({ ids: ['result-unconfirmed'], action: 'confirm' });
+assert.strictEqual(searchReviewRetry.reviewed, 1);
+assert.strictEqual(searchReviewRetry.conflicts.length, 0);
+assert.throws(() => searchReviewContext.reviewSearchResults({ ids: ['result-unconfirmed'], action: 'add_lead' }), /操作が不正/);
+searchReviewContext.findActiveLeadBySourceReference_ = () => null;
+assert.throws(() => searchReviewContext.addSearchResultToLead('result-excluded', {}), /すでに/);
+
+const searchClaim = searchReviewContext.claimSearchResultForLeadCreation_('result-claim', '');
+assert.strictEqual(searchReviewRecords['result-claim'].review_status, 'adding');
+assert.strictEqual(searchReviewRecords['result-claim'].review_action, `add_lead_claim:${searchClaim.token}`);
+const reviewDuringClaim = searchReviewContext.reviewSearchResults({ ids: ['result-claim'], action: 'exclude' });
+assert.strictEqual(reviewDuringClaim.reviewed, 0);
+assert.strictEqual(reviewDuringClaim.conflicts.length, 1);
+assert.strictEqual(searchReviewRecords['result-claim'].review_status, 'adding', 'review must not overwrite an active add claim');
+assert.throws(() => searchReviewContext.claimSearchResultForLeadCreation_('result-claim', ''), /別の処理で営業リストへ追加中/);
+const finalizedClaim = searchReviewContext.finalizeSearchResultLeadCreation_('result-claim', 'lead-from-claim', searchClaim.token);
+assert.strictEqual(finalizedClaim.review_status, 'added');
+assert.strictEqual(finalizedClaim.lead_id, 'lead-from-claim');
+
+const retryClaim = searchReviewContext.claimSearchResultForLeadCreation_('result-retry', 'recovered-retry-lead');
+assert.notStrictEqual(retryClaim.token, 'lost-token');
+assert.strictEqual(retryClaim.reused, true);
+const finalizedRetry = searchReviewContext.finalizeSearchResultLeadCreation_('result-retry', 'recovered-retry-lead', retryClaim.token);
+assert.strictEqual(finalizedRetry.lead_id, 'recovered-retry-lead', 'a retry must recover the previously created lead');
+
+const releasableClaim = searchReviewContext.claimSearchResultForLeadCreation_('result-release', '');
+const releasedClaim = searchReviewContext.releaseSearchResultLeadCreationClaim_('result-release', releasableClaim.token);
+assert.strictEqual(releasedClaim.review_status, 'unconfirmed');
+assert.strictEqual(releasedClaim.review_action, '');
+
+searchReviewContext.createLead = () => { throw new Error('simulated create failure'); };
+assert.throws(() => searchReviewContext.addSearchResultToLead('result-failure', {}), /simulated create failure/);
+assert.strictEqual(searchReviewRecords['result-failure'].review_status, 'unconfirmed', 'a failed create must release its claim');
+assert.strictEqual(searchReviewRecords['result-failure'].review_action, '');
+
+const searchMergeContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), searchMergeContext, { filename: file });
+});
+let searchMergeLead = {
+  id: 'merge-lead',
+  status: '送信NG',
+  website_url: 'https://manual.example',
+  form_url: '',
+};
+let searchMergePatch = null;
+searchMergeContext.withScriptLock_ = (operation, callback, options) => {
+  assert.strictEqual(operation, 'updateLeadFromSearchResult');
+  assert.strictEqual(options.waitMs, 90000);
+  return callback();
+};
+searchMergeContext.getLeadById = () => Object.assign({}, searchMergeLead);
+searchMergeContext.updateLeadLocked_ = (_id, patch) => {
+  searchMergePatch = Object.assign({}, patch);
+  searchMergeLead = Object.assign({}, searchMergeLead, patch);
+  return Object.assign({}, searchMergeLead);
+};
+const preservedSearchMerge = searchMergeContext.updateLeadFromSearchResult_(
+  { id: 'merge-lead', status: '未対応', website_url: '' },
+  { website_url: 'https://search.example', form_url: 'https://search.example/contact' },
+  'lead_form_url'
+);
+assert.strictEqual(preservedSearchMerge.updated, true);
+assert.strictEqual(searchMergeLead.website_url, 'https://manual.example', 'search must not overwrite a manually entered website');
+assert.strictEqual(searchMergeLead.form_url, 'https://search.example/contact');
+assert.strictEqual(searchMergeLead.status, '送信NG', 'search must not overwrite a newer send-NG decision');
+assert.strictEqual(Object.prototype.hasOwnProperty.call(searchMergePatch, 'status'), false);
+searchMergeLead = { id: 'merge-lead', status: '未対応', website_url: '', form_url: '' };
+searchMergePatch = null;
+const filledSearchMerge = searchMergeContext.updateLeadFromSearchResult_(
+  { id: 'merge-lead' },
+  { website_url: 'https://search.example', form_url: 'https://search.example/contact' },
+  'lead_form_url'
+);
+assert.strictEqual(filledSearchMerge.updated, true);
+assert.strictEqual(searchMergeLead.website_url, 'https://search.example');
+assert.strictEqual(searchMergeLead.form_url, 'https://search.example/contact');
+assert.strictEqual(searchMergeLead.status, 'フォーム対応中');
+searchMergePatch = null;
+const skippedSearchMerge = searchMergeContext.updateLeadFromSearchResult_(
+  { id: 'merge-lead' },
+  { website_url: 'https://different.example', form_url: 'https://different.example/contact' },
+  'lead_form_url'
+);
+assert.strictEqual(skippedSearchMerge.updated, false);
+assert.strictEqual(searchMergePatch, null);
+
+const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
-const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-const manifest = fs.readFileSync(path.join(root, 'appsscript.json'), 'utf8');
-assert(code.includes('20260713_apps_script_full_workflow_v168_mobile_width_fix'), 'v168 app version missing');
-assert(html.includes('[hidden] {'), 'global hidden-state rule missing');
-assert(html.includes('id="navMore"'), 'progressive sidebar disclosure missing');
-assert(html.includes('const PAGE_DESCRIPTIONS'), 'common page descriptions missing');
-assert(html.includes('function organizeTableRowActions'), 'table row action organizer missing');
-assert(html.includes('.settings-status-item.is-normal > .pill'), 'normal-status pill suppression missing');
-assert(html.includes('.section-description'), 'common page header description style missing');
-assert(html.includes('id="reviewInboxPanel"'), 'review inbox panel missing');
-assert(html.includes('function handleAppKeyboardShortcuts'), 'review keyboard shortcuts missing');
-assert(html.includes('function showUndoAction'), 'undo action helper missing');
-assert(html.includes('id="taskCenterPanel"'), 'global task center missing');
-assert(html.includes("'collection_keyword_presets'"), 'collection keyword preset persistence missing');
-assert(html.includes('function renderCollectionEstimateMarkup'), 'collection estimate missing');
-assert(html.includes('function renderSourcePageEstimateMarkup'), 'source-page estimate missing');
-assert(html.includes("'lead_saved_views'"), 'lead saved view persistence missing');
-assert(html.includes('function filterAdminSettings'), 'admin setting search missing');
-assert(html.includes('function renderSendingSafetySummary'), 'send safety summary missing');
-assert(!serperSource.includes("getSettingValue_('serper_daily_search_limit'"), 'Serper daily limit must not be enforced');
-assert(!serperSource.includes("'SERPER_DAILY_LIMIT'"), 'legacy Serper daily quota code must be removed from runtime logic');
-assert(code.includes("'cursor_json'"), 'search job cursor column missing');
-assert(code.includes("'lock_token'"), 'search job lock token column missing');
-assert(code.includes('GMAIL_REPLY_CHECK_CURSOR'), 'Gmail reply cursor property missing');
-assert(html.includes('id="gasUsagePanel"'), 'consumer GAS usage panel missing');
-assert(html.includes('function renderGasUsagePanel()'), 'consumer GAS usage renderer missing');
-assert(html.includes('一般Googleアカウント'), 'consumer account quota label missing');
-assert(html.includes('1回の最大処理時間'), 'maximum runtime label missing');
-assert(!html.includes('1回の実行予算'), 'ambiguous runtime budget label should not be shown');
-assert(webApp.includes('function buildConsumerGasUsageStatus_'), 'consumer GAS usage status builder missing');
-assert(manifest.includes('https://www.googleapis.com/auth/script.send_mail'), 'MailApp send scope missing');
-assert(emailSource.includes('function getEmailSendTargetBlockReason_'), 'server-side email block reason helper missing');
-assert(!emailSource.includes('input.force !== true'), 'email safety checks must not be bypassable with force');
-assert(operationsSource.includes("listSheetRecords('search_jobs', { limit: 1000"), 'cloud job scan should include older queued jobs');
-assert(serperSource.includes('ensureBackgroundJobTrigger_();'), 'new search jobs should ensure the cloud continuation trigger');
-assert(serperSource.includes('function buildSourcePageLeadIndexFromRecords_'), 'source-page duplicate index builder missing');
-assert(serperSource.includes('addLeadToSourcePageIndex_(leadIndex, lead);'), 'same-run source-page index update missing');
-assert(!serperSource.includes('officialDomain && index.domains'), 'source-page collection must not deduplicate different facilities by domain alone');
-assert(code.includes("clearRuntimeCaches_('leads');\n    return lead;"), 'lead creation should return the written UUID record without a full reread');
-assert(html.includes('function searchJobDisplayProgress(job, parsedPayload)'), 'facility-level collection progress helper missing');
-assert(html.includes("payload.total_candidates"), 'facility total should be used for collection progress');
-assert(html.includes("api('advanceSearchJob', jobId, { maxItems: 1 })"), 'manual search job resume should pass the server arguments separately');
-assert(manifest.includes('https://mail.google.com/'), 'GmailApp full mail scope missing');
-assert(webApp.includes("action === 'importEmailTemplates'"), 'email template bulk import dispatch missing');
-assert(webApp.includes("action === 'importSendHistories'"), 'send history bulk import dispatch missing');
-assert(masters.includes('function importEmailTemplates'), 'email template bulk import API missing');
-assert(emailSource.includes('function importSendHistories'), 'send history bulk import API missing');
-assert(webApp.includes("action === 'importExcludedDomains'"), 'excluded domain bulk import dispatch missing');
-assert(masters.includes('function importExcludedDomains'), 'excluded domain bulk import API missing');
-assert(html.includes('HTTPS_PROTOCOL_PREFIX'), 'Apps Script-safe URL prefix helper missing');
-assert(!html.includes('https://'), 'Index.html should not contain raw https:// literals that Apps Script can split in userCodeAppPanel');
-assert(html.includes('<span>WEBサイト</span>'), 'website mini link should display WEBサイト label');
-assert(!html.includes('<span>WEB</span><small>${escapeHtml(compactUrl(lead.website_url))}</small>'), 'website mini link should not display the compact domain');
-assert(html.includes('id="leadLoadPanel"'), 'lead manual load panel missing');
-assert(html.includes('flex-wrap: wrap'), 'lead load panel should wrap progress without squeezing text');
-assert(html.includes('getStartupDashboardStats_') || webApp.includes('getStartupDashboardStats_'), 'startup should use cached/lightweight dashboard stats');
-assert(html.includes('schedulePostStartupRefresh'), 'startup should schedule deferred dashboard refresh');
-assert(html.includes('ensureTabDataLoaded'), 'tabs should lazy-load their own data');
-assert(!html.includes('await Promise.all([leadLoadTask, loadTemplates(), loadMasters(), loadSearchResults(), loadOpsData(), loadEmailLeads(), loadDealLeads()])'), 'startup should not block on every secondary list');
-assert(html.includes('TABLE_RENDER_BATCHES'), 'table render batch limits missing');
-assert(html.includes('limitedTableRows'), 'limited table row renderer missing');
-assert(html.includes('table-load-more-row'), 'table load more row UI missing');
-assert(html.includes('renderActiveLoadedScreen'), 'active-screen only deferred renderer missing');
-assert(html.includes('onCollectionSupportToggle'), 'collection support lazy load handler missing');
-assert(html.includes('onAdminDisclosureToggle'), 'admin detail lazy load handler missing');
-assert(html.includes('onGmailDisclosureToggle'), 'Gmail detail lazy load handler missing');
-assert(html.includes("if (name === 'search') {\n            renderCollectionCommandCenter(state.serper || {});\n            return;"), 'search tab should not load collection logs before details open');
-assert(html.includes("ensureDataLoaded('ops', () => loadOpsData({ render: false }))"), 'ops data should load without rendering every legacy table');
-assert(html.includes('show-background-center-button'), 'background center button should not always overlay primary screens');
-assert(html.includes('function updateBackgroundCenterButton'), 'background center visibility controller missing');
-assert(html.includes('messageClearTimer'), 'success message auto-clear missing');
-assert(html.includes('#formWorkPanel:empty'), 'empty form work panel should not render as a blank sticky card');
-assert(html.includes('#dashboardSendQueue:empty'), 'empty dashboard dynamic card should be hidden until data renders');
-assert(html.includes("renderSerper(initial.serper);\n          message('', '');"), 'global loading message should clear after primary dashboard render');
-assert(html.includes('loadInitialReviewLeads()'), 'initial review-only lead load missing');
-assert(html.includes("filter: 'review', mode: 'review', limit: INITIAL_REVIEW_LEAD_LIMIT"), 'initial load should request review leads only');
-assert(html.includes('data-tab="reviewLeads"'), 'review leads sidebar menu missing');
-assert(html.includes('id="reviewLeads"'), 'review leads section missing');
-assert(html.includes('loadReviewLeadMenu'), 'review leads menu loader missing');
-assert(html.includes('renderReviewLeadsScreen'), 'review leads renderer missing');
-assert(html.includes('updateReviewLeadStatus'), 'review leads status action missing');
-assert(html.includes('openReviewLeadsInList'), 'review leads list handoff missing');
-assert(html.includes("if (name === 'reviewLeads')"), 'review leads tab should lazy-load its own queue');
-assert(html.includes("data-shortcut-tab=\"reviewLeads\""), 'top shortcut should prioritize review leads');
-assert(html.includes('<section id="reviewLeads" class="section active">'), 'app should start on review leads section');
-assert(html.includes("let currentTab = 'reviewLeads';"), 'current tab should start as review leads');
-assert(html.includes(`data-shortcut-tab="reviewLeads" onclick="showTab('reviewLeads')" aria-current="page"`), 'review leads shortcut should start active');
-assert(html.includes('loadAllLeadsManually'), 'manual full lead load action missing');
-assert(html.includes('leadLoadProgressBar'), 'lead load progress UI missing');
-assert(html.includes('id="leadSendTemplate"'), 'lead email send UI missing');
-assert(html.includes('sendSelectedLeadEmail'), 'lead email send handler missing');
-assert(html.includes('isLeadSendTemplateOption'), 'lead detail send template filtering missing');
-assert(html.includes("template.template_type !== 'initial'"), 'lead send template options should exclude non-initial templates');
-assert(html.includes('本番テンプレートを自動選択'), 'lead send template auto-selection option missing');
-assert(html.includes('id="meetingStart"'), 'calendar event UI missing');
-assert(html.includes('createSelectedLeadCalendarEvent'), 'calendar event handler missing');
-assert(html.includes('id="leadPager"'), 'lead pager UI missing');
-assert(html.includes('lead-pagination-pages'), 'legacy lead pager page buttons missing');
-assert(html.includes('chevronFirst'), 'legacy lead pager first icon missing');
-assert(html.includes('全${formatNumber(total)}件'), 'legacy lead pager total display missing');
-assert(html.includes('class="sidebar"'), 'sidebar layout missing');
-assert(html.includes('authGate'), 'legacy login/auth gate missing');
-assert(html.includes('login-card'), 'legacy login card styling missing');
-assert(html.includes('renderAuthorizationGate'), 'authorization gate renderer missing');
-assert(html.includes('class="tab nav-item active"'), 'sidebar nav item missing');
-assert(html.includes('class="section-header"'), 'section header UI missing');
-assert(html.includes('NAV_ICON_SVGS'), 'legacy lucide-style navigation icon map missing');
-assert(html.includes('hydrateLegacyNavigationIcons'), 'legacy navigation icon hydration missing');
-assert(html.includes('DASHBOARD_ICON_KEYS'), 'legacy dashboard card icon map missing');
-assert(html.includes('dashboard-signal-icon'), 'legacy dashboard signal card icon slot missing');
-assert(html.includes('dashboardIcon(iconKey)'), 'legacy dashboard card icon renderer missing');
-assert(html.includes('legacy-component-parity'), 'legacy common component parity marker missing');
-assert(html.includes('status-pill pill'), 'legacy StatusPill class alias missing');
-assert(html.includes('overscroll-behavior-inline: contain'), 'legacy DataTable scroll behavior missing');
-assert(html.includes('tr:focus-within td'), 'legacy DataTable focus state missing');
-assert(html.includes('table-link-button.primary-action'), 'legacy table primary action button style missing');
-assert(html.includes('.mini-button.active'), 'legacy mini button active style missing');
-assert(html.includes('.button-link.secondary'), 'legacy secondary action button style missing');
-assert(html.includes('LEGACY_UI_ICON_SVGS'), 'legacy utility icon map missing');
-assert(html.includes('hydrateLegacyUtilityIcons'), 'legacy utility icon hydration missing');
-assert(html.includes('list-filter-panel-icon'), 'legacy ListSearchFilters slider icon missing');
-assert(html.includes('list-filter-actions'), 'legacy ListSearchFilters action row missing');
-assert(html.includes('clearFormFilters'), 'legacy form filter clear action missing');
-assert(html.includes('data-table-empty-cell'), 'legacy DataTable empty state missing');
-assert(html.includes('table-wrap::-webkit-scrollbar'), 'legacy table scrollbar styling missing');
-assert(html.includes('url-mini-link'), 'legacy URL mini link style missing');
-assert(html.includes("legacyUiIcon('external')"), 'legacy URL external icon missing');
-assert(html.includes('formUrlMiniLink'), 'legacy form URL mini link helper missing');
-assert(html.includes('facility-copy-button'), 'legacy facility copy button style missing');
-assert(html.includes('copyFormLeadFacilityName'), 'legacy facility copy handler missing');
-assert(html.includes('selectNextFormLead'), 'legacy form work next action missing');
-assert(html.includes('formStatusToneClient'), 'legacy form work status tone helper missing');
-assert(html.includes("legacyUiIcon('mousePointer')"), 'legacy form work facility copy icon missing');
-assert(html.includes("legacyUiIcon('clipboard')"), 'legacy form work clipboard icon missing');
-assert(html.includes("legacyUiIcon('checkCircle')"), 'legacy form work sent icon missing');
-assert(html.includes('.form-work-actions .form-url-link'), 'legacy form work URL link sizing missing');
-assert(html.includes('button.primary,'), 'legacy primary button tone override missing');
-assert(html.includes('design-system-polish'), 'global design polish layer missing');
-assert(html.includes('--role-primary: #111827'), 'design color role token missing');
-assert(html.includes('.status-pill,\n      .pill') && html.includes('font-size: 11px'), 'compact status pill rule missing');
-assert(html.includes('table {\n        font-size: 12px;'), 'dense table typography rule missing');
-assert(html.includes('.panel,\n      .template-sender-banner'), 'quiet panel/card rule missing');
-assert(html.includes('v129-header-status-action-pill-rules'), 'v129 design rule layer missing');
-assert(html.includes('grid-template-columns: minmax(0, 1fr) auto'), 'common section header layout missing');
-assert(html.includes('.app-safety-strip[hidden]'), 'normal status strip hide rule missing');
-assert(html.includes('if (!issues.length && sendingEnabled)'), 'normal app safety status should hide when healthy');
-assert(html.includes('target.className = `app-safety-strip ${severityClass}`'), 'abnormal status tone class missing');
-assert(html.includes('.lead-action-cell,\n      .table-action-row,\n      .template-action-row,\n      .job-result-actions,\n      .excluded-domain-actions'), 'table row action hierarchy selector missing');
-assert(html.includes('max-width: min(100%, 13rem);'), 'strict pill max-width rule missing');
-assert(html.includes('title="${escapeHtml(label)}"'), 'pill full-label title guard missing');
-assert(html.includes("showTab('admin')"), 'dashboard API action should point to admin like legacy AppFrame');
-assert(html.includes("icon: 'keyRound', label: 'OAuth Client'"), 'legacy Google credentials OAuth icon missing');
-assert(html.includes("icon: 'refreshCw', label: 'Refresh Token'"), 'legacy Google credentials refresh icon missing');
-assert(html.includes("icon: 'mailCheck', label: 'テスト宛先'"), 'legacy Google credentials test recipient icon missing');
-assert(html.includes('onclick="refreshGmailAuthorizationStatus()"'), 'Gmail authorization status refresh button missing');
-assert(html.includes('onclick="runGmailIntegrationCheck()"'), 'Gmail integration check button missing');
-assert(html.includes('初期表示はGmail承認、送信枠、時間主導トリガーだけ'), 'Gmail overview should stay compact');
-assert(html.includes('grid-template-columns: repeat(3, minmax(180px, 1fr))'), 'Gmail overview card grid spacing missing');
-assert(html.includes('.settings-status-item small'), 'status card detail text should use compact small spacing');
-assert(html.includes('.settings-status-item > div,\n      .readiness-item > div'), 'status card label/detail stack spacing guard missing');
-assert(html.includes('.settings-status-item strong,\n      .readiness-item strong'), 'status card title wrapping guard missing');
-assert(html.includes('.settings-status-item .pill,\n      .readiness-item .pill'), 'status card pill alignment guard missing');
-assert(html.includes('grid-template-columns: repeat(2, minmax(0, 1fr))'), 'dashboard API list should use readable compact grid');
-assert(html.includes('.dashboard-api-row > span:nth-child(2)'), 'dashboard API row text spacing guard missing');
-assert(html.includes('.dashboard-api-row small') && html.includes('display: none;'), 'dashboard API details should be compact on desktop');
-assert(html.includes('admin-primary-grid'), 'admin compact primary grid missing');
-assert(html.includes('admin-accordion-list'), 'admin accordion list missing');
-assert(html.includes('admin-inner-disclosure'), 'admin detail disclosure missing');
-assert(html.includes('admin-automation-summary'), 'admin automation summary missing');
-assert(html.includes('#admin .panel.stack'), 'admin panel spacing override missing');
-assert(html.includes('.admin-disclosure-body') && html.includes('align-items: start'), 'admin accordion child card alignment guard missing');
-assert(html.includes('.admin-disclosure-body > .panel') && html.includes('align-self: start'), 'admin accordion child panel stretch guard missing');
-assert(html.includes('grid-template-columns: repeat(auto-fit, minmax(520px, 1fr))'), 'admin accordion detail cards should use readable two-column sizing');
-assert(html.includes('.admin-disclosure-body > .panel:last-child:nth-child(odd)'), 'admin accordion odd child card span guard missing');
-assert(html.includes('const adminLoadResults = await Promise.allSettled'), 'admin deferred render should tolerate partial data load failures');
-assert(html.includes('--card-pad: 18px'), 'global card padding token missing');
-assert(html.includes('.panel-body:not(.table-wrap)'), 'panel body spacing guardrail missing');
-assert(html.includes('.panel.stack > .table-wrap'), 'panel stack table edge compensation missing');
-assert(html.includes('.panel .settings-status-item'), 'nested card spacing guardrail missing');
-assert(html.includes('.background-guide-panel .panel-body'), 'background guide layout override missing');
-assert(html.includes('.exclusion-hero-panel:empty'), 'empty exclusion/send-ng hero panel should not render as a blank card');
-assert(html.includes('.template-tag-card *'), 'template tag card text wrapping guard missing');
-assert(html.includes('.sync-preview-card'), 'sync preview nested card guard missing');
-assert(html.includes('.sync-preview-head'), 'sync metric card header spacing missing');
-assert(html.includes('function syncMetricIcon(label)'), 'sync metric card should use icons instead of truncated label text');
-assert(!html.includes('label.slice(0, 2)'), 'sync metric card should not render clipped label text as an icon');
-assert(html.includes('.collection-status-item *'), 'collection status nested card text wrapping guard missing');
-assert(html.includes('.panel:empty'), 'empty dynamic panel guard missing');
-assert(html.includes('.stats-grid:empty'), 'empty stats grid guard missing');
-assert(html.includes('.template-tag-panel:empty'), 'empty template tag panel guard missing');
-assert(html.includes('.lead-quick-views:empty'), 'empty lead quick view guard missing');
-assert(html.includes('.collection-command-center:empty'), 'empty collection command center guard missing');
-assert(html.includes('.table-wrap:has(> table:empty)'), 'empty table wrapper guard missing');
-assert(html.includes('sending-plan-panel:has(#sendingPlanGrid:empty):has(#sendingPlanTable:empty)'), 'empty sending plan panel guard missing');
-assert(html.includes('formLeadEmptyState'), 'form lead empty state missing');
-assert(html.includes('renderFormLeadEmptyState'), 'form lead empty renderer missing');
-assert(html.includes('.dashboard-hero-grid') && html.includes('align-items: start'), 'dashboard card stretch guard missing');
-assert(html.includes('list-view-settings-summary-copy'), 'list view settings accordion copy missing');
-assert(html.includes('.prospecting-progress-empty > svg'), 'prospecting empty icon size guard missing');
-assert(html.includes('.setup-step a svg'), 'setup guide external icon size guard missing');
-assert(html.includes('.dashboard-focus-section:has(.dashboard-signal-grid:empty)'), 'empty dashboard focus section guard missing');
-assert(html.includes('id="gmailOverviewPanel"'), 'Gmail compact overview panel missing');
-assert(html.includes('gmail-accordion-list'), 'Gmail accordion list missing');
-assert(html.includes('#gmail .panel.stack'), 'Gmail panel spacing override missing');
-assert(html.includes('gmail-overview-status-grid'), 'Gmail overview status grid missing');
-assert(html.includes('renderMailSendLockPanel();\n            ensureDataLoaded'), 'Gmail tab should render send lock before async data load');
-assert(html.includes("legacyUiIcon('shieldCheck')}連携テスト"), 'legacy Gmail connection check icon button missing');
-assert(html.includes('gmail-connection-status-grid'), 'legacy Gmail connection status grid missing');
-assert(html.includes("legacyUiIcon('triangleAlert')"), 'legacy Gmail missing-scope alert icon missing');
-assert(html.includes("icon: locked ? 'lock' : 'unlock'"), 'legacy mail send lock status icon missing');
-assert(html.includes("legacyUiIcon('unlock')}ジョブ処理を確認"), 'legacy mail send unlock button icon missing');
-assert(html.includes('messageCircleReply'), 'legacy Gmail reply check icon missing');
-assert(html.includes("legacyUiIcon('messageCircleReply')}返信チェック"), 'legacy Gmail reply check button icon missing');
-assert(html.includes("legacyUiIcon('refreshCw')}候補を確認"), 'legacy reply false-positive scan icon missing');
-assert(html.includes("legacyUiIcon('rotateCcw')}候補を戻す"), 'legacy reply false-positive restore icon missing');
-assert(html.includes('grid-template-columns: auto minmax(0, 1fr) auto;'), 'legacy reply note icon layout missing');
-assert(html.includes('background: #fffbeb;'), 'legacy reply false-positive warning card tone missing');
-assert(html.includes("legacyUiIcon('save')}保存する"), 'legacy calendar save icon missing');
-assert(html.includes('templateActionDialogHost'), 'legacy template action dialog host missing');
-assert(html.includes('openTemplateEditDialog'), 'legacy template edit dialog opener missing');
-assert(html.includes('template-edit-dialog'), 'legacy template edit dialog shell missing');
-assert(html.includes('template-test-dialog'), 'legacy template test dialog shell missing');
-assert(html.includes('template-test-recipient'), 'legacy template test recipient card missing');
-assert(html.includes('.template-test-layout,'), 'legacy template test dialog responsive rule missing');
-assert(html.includes('runTemplateTestSend'), 'legacy template test dialog send action missing');
-assert(html.includes("legacyUiIcon('send')}この内容でテスト送信"), 'legacy template test send icon button missing');
-assert(html.includes("const TEMPLATE_TEST_FIXED_EMAIL = 'yuya1998nu@gmail.com'"), 'template test fixed recipient missing');
-assert(html.includes("const TEMPLATE_TEST_FIXED_NAME = '村松侑哉'"), 'template test fixed recipient name missing');
-assert(html.includes('会社名<input id="templateTestCompany" value="${escapeHtml(sampleLead.company_name || \'\')}" readonly>'), 'template test company should be fixed readonly');
-assert(html.includes('appSafetyStrip'), 'legacy app safety strip missing');
-assert(html.includes("icon: 'shieldCheck'"), 'abnormal safety strip shield issue icon missing');
-assert(html.includes("icon: 'clock3'"), 'abnormal safety strip clock issue icon missing');
-assert(html.includes("icon: 'mailCheck'"), 'abnormal safety strip Gmail issue icon missing');
-assert(html.includes("icon: 'plug'"), 'abnormal safety strip plug issue icon missing');
-assert(html.includes('settings-status-item with-icon'), 'legacy admin status icon row missing');
-assert(html.includes('readiness-item with-icon'), 'legacy readiness icon row missing');
-assert(html.includes('.readiness-item > div'), 'legacy readiness label/detail vertical stack missing');
-assert(html.includes('.readiness-item small'), 'legacy readiness detail block style missing');
-assert(html.includes('table-wrap table-email-leads'), 'legacy email-leads table wrapper missing');
-assert(html.includes('.table-email-leads table'), 'legacy email-leads table layout missing');
-assert(html.includes('.table-email-leads td'), 'legacy email-leads truncation missing');
-assert(html.includes('prospecting-collection-tool'), 'legacy prospecting collection tool shell missing');
-assert(html.includes('collection-command-center simple'), 'legacy collection command center should be first-class shell');
-assert(html.includes('collection-simple-links'), 'legacy collection command header links missing');
-assert(html.includes('collection-management-summary'), 'simplified collection management summary missing');
-assert(html.includes('collection-overview-panel'), 'simplified collection overview panel missing');
-assert(html.includes('collection-advanced-actions'), 'simplified collection advanced accordion missing');
-assert(html.includes('collection-focus-panel'), 'collection focus card missing');
-assert(html.includes('collection-focus-meta'), 'collection focus status chips missing');
-assert(html.includes('collectionPrimaryAction'), 'collection primary action helper missing');
-assert(html.includes('補助機能・詳細設定'), 'collection support accordion label missing');
-assert(!html.includes('<div class="collection-stepper"'), 'collection stepper should not be visible in initial command center');
-assert(!html.includes('<div class="collection-status-bar"'), 'collection status card bar should not be visible in initial command center');
-assert(!html.includes('<aside class="collection-result-summary"'), 'collection result summary should be moved out of the initial command center');
-assert(html.includes('collectionSupportDetails'), 'collection detail logs accordion missing');
-assert(html.includes('openCollectionSupport'), 'collection detail logs opener missing');
-assert(html.includes('updateCollectionAreaPreview'), 'collection area preview live updater missing');
-assert(html.includes('収集ルート'), 'collection focus route label missing');
-assert(html.includes('キーワード型'), 'keyword collection route missing');
-assert(html.includes('サイト収集型'), 'source-page collection route missing');
-assert(html.includes('collectionKeywordTerms'), 'keyword collection textarea missing');
-assert(html.includes('buildKeywordCollectionQueries'), 'keyword collection query builder missing');
-assert(html.includes('sourcePageUrls'), 'source-page URL textarea missing');
-assert(html.includes('sourcePageUseSerperFallback'), 'source-page Serper fallback toggle missing');
-assert(html.includes('.collection-overview-card svg'), 'collection overview icon size guard missing');
-assert(html.includes('prospecting-activity-panel compact'), 'legacy collection activity panel should be compact');
-assert(html.includes('prospecting-activity-detail-toggle'), 'legacy collection recent results should be collapsible');
-assert(html.includes('prospecting-activity-empty-note'), 'legacy collection empty recent results note missing');
-assert(html.includes('.prospecting-activity-empty-note svg'), 'legacy collection empty note icon should be size constrained');
-assert(html.includes("legacyUiIcon('mapPinned')") || html.includes('mapPinned'), 'legacy genre-area collection icon missing');
-assert(html.includes("legacyUiIcon('globe2')") || html.includes('globe2'), 'legacy source-page collection icon missing');
-assert(code.includes("['serper', 'search_job', 'prospecting', 'source_page']"), 'source-page leads should be included in review filter');
-assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('processSourcePageSearchItem_'), 'source-page search processor missing');
-assert(html.indexOf('id="collectionCommandCenter"') < html.indexOf('id="searchActivityPanel"'), 'step collection manager should precede detailed activity');
-assert(html.indexOf('id="collectionCommandCenter"') < html.indexOf('id="searchOverview"'), 'legacy collection tool should appear before support overview cards');
-assert(html.includes("item.icon || 'rocket'"), 'legacy readiness default rocket icon missing');
-assert(html.includes("icon: 'database', label: 'Google Sheets'"), 'legacy admin database status item missing');
-assert(html.includes("icon: 'searchCheck', label: 'Serper'"), 'legacy admin Serper status item missing');
-assert(html.includes("icon: 'serverCog', label: 'GAS分割処理'"), 'legacy admin server cog status item missing');
-assert(html.includes("legacyUiIcon('keyRound')"), 'legacy Serper setup key icon missing');
-assert(html.includes("legacyUiIcon('refreshCw')}残量確認"), 'legacy Serper refresh icon missing');
-assert(html.includes("api('refreshSerperCredits')"), 'Serper remaining credit refresh should call the server credit checker');
-assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('function refreshSerperCredits'), 'Serper credit refresh API missing');
-assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('SERPER_CREDIT_ENDPOINTS'), 'Serper credit endpoint fallback list missing');
-assert(html.includes("legacyUiIcon('searchCheck')}検索APIテスト"), 'legacy Serper search test icon missing');
-assert(html.includes("legacyUiIcon('serverCog')}<span>環境変数ではなくApps ScriptのPropertiesService"), 'legacy Serper setup command icon missing');
-assert(!html.includes('aria-hidden=\"true\">SK</span>'), 'legacy Serper summary text badge should be icon');
-assert(!html.includes('aria-hidden=\"true\">KY</span>'), 'legacy Serper setup text badge should be icon');
-assert(!html.includes('aria-hidden=\"true\">PS</span>'), 'legacy Serper command text badge should be icon');
-assert(html.includes('automationCardHeader'), 'legacy automation card icon header helper missing');
-assert(html.includes('automation-card-title'), 'legacy automation card title icon layout missing');
-assert(html.includes('automation-status-grid'), 'legacy email discovery status grid missing');
-assert(html.includes("automationCardHeader('mailSearch'"), 'legacy email discovery header icon missing');
-assert(html.includes("icon: 'mailSearch', label: '自動取得'"), 'legacy email discovery status item missing');
-assert(html.includes("icon: 'timerReset', label: '再実行スキップ'"), 'legacy email discovery timer reset item missing');
-assert(html.includes("icon: 'history', label: '最終更新'"), 'legacy email discovery history item missing');
-assert(html.includes('appRouteProgress'), 'legacy route progress missing');
-assert(html.includes('toolbar-shortcut'), 'legacy top shortcut bar missing');
-assert(html.includes('data-shortcut-tab="emailLeads"'), 'legacy top shortcut email tab missing');
-assert(!html.includes('class="utility-action"'), 'top shortcut bar should not include GAS utility actions');
-assert(html.includes("legacyUiIcon('eye')}差し込み後を確認"), 'legacy email preview eye icon missing');
-assert(html.includes("legacyUiIcon('send')}この内容で1件送信"), 'legacy email preview send icon missing');
-assert(html.includes("legacyUiIcon('send')}対象リストを確認して自動送信"), 'legacy email batch send icon missing');
-assert(html.includes('data-ui-icon="download"></span>CSV出力'), 'legacy histories CSV download icon missing');
-assert(html.includes('data-ui-icon="send"></span>送信プレビューへ'), 'legacy histories send preview icon missing');
-assert(!html.includes("${legacyUiIcon('download')}CSV出力"), 'histories CSV button should not show raw template text');
-assert(!html.includes("${legacyUiIcon('send')}送信プレビューへ"), 'histories send preview button should not show raw template text');
-assert(html.includes("['listPlus', '今月追加'"), 'legacy analytics list plus icon missing');
-assert(html.includes("legacyUiIcon(step.icon || 'barChart3')"), 'legacy analytics funnel icons missing');
-assert(html.includes("['shieldAlert', '送信NG'"), 'legacy analytics risk shield icon missing');
-assert(html.includes("['trendingDown', '失注'"), 'legacy analytics risk trend icon missing');
-assert(html.includes('backgroundToastStack'), 'legacy background job toast stack missing');
-assert(html.includes('background-center-button'), 'legacy background center button missing');
-assert(html.includes('background-guide-panel'), 'legacy background progress guide panel missing');
-assert(html.includes('上限リセット待ち'), 'quota-waiting background health label missing');
-assert(html.includes('prospectingResumeAfter'), 'collection resume schedule UI missing');
-assert(html.includes('saveSettingWithFeedback'), 'setting save error feedback helper missing');
-assert(html.includes('送信結果確認中'), 'pending send reservation history filter missing');
-assert(html.includes('data-ui-icon="listChecks"'), 'legacy background progress list checks icon missing');
-assert(html.includes('data-ui-icon="arrowLeft"'), 'legacy background progress back icon missing');
-assert(html.includes('prospectingProgressDashboard'), 'legacy ProspectingProgressDashboard host missing');
-assert(html.includes('renderProspectingProgressDashboard'), 'legacy ProspectingProgressDashboard renderer missing');
-assert(html.includes('prospecting-progress-dashboard'), 'legacy ProspectingProgressDashboard shell missing');
-assert(html.includes('prospecting-progress-stat'), 'legacy ProspectingProgressDashboard stat tiles missing');
-assert(html.includes('prospecting-details-section'), 'legacy ProspectingProgressDashboard details missing');
-assert(html.includes("listChecks: iconSvg"), 'legacy list checks icon definition missing');
-assert(html.includes("arrowLeft: iconSvg"), 'legacy arrow left icon definition missing');
-assert(html.includes("legacyUiIcon('loaderCircle')"), 'legacy background toast loader icon missing');
-assert(html.includes("legacyUiIcon('xCircle')"), 'legacy background toast failure icon missing');
-assert(html.includes('background-toast-spin'), 'legacy background toast spinner animation missing');
-assert(html.includes('background-toast-resume'), 'legacy background toast action class missing');
-assert(html.includes('background-toast-found-list'), 'legacy background toast found list missing');
-assert(html.includes('displayBackgroundJobLabel'), 'legacy background toast label cleanup missing');
-assert(html.includes('displayBackgroundJobMessage'), 'legacy background toast message cleanup missing');
-assert(html.includes('backgroundOverviewPanel'), 'legacy background overview panel missing');
-assert(html.includes('background-overview-kpis'), 'legacy background overview KPI UI missing');
-assert(html.includes('renderLegacyBackgroundOverview'), 'legacy background overview renderer missing');
-assert(html.includes('setBackgroundOverviewView'), 'legacy background overview filters missing');
-assert(html.includes('syncImportPanel'), 'legacy sync import panel missing');
-assert(html.includes('sync-preview-metrics'), 'legacy sync preview metrics missing');
-assert(html.includes('.grid.sync-page-grid'), 'legacy sync page grid should keep import panel from collapsing');
-assert(html.includes('sync-rule-panel'), 'legacy sync rule panel missing');
-assert(html.includes('renderLegacySyncImportPanel'), 'legacy sync import renderer missing');
-assert(html.includes('handleSyncImportFile'), 'legacy sync file upload handler missing');
-assert(html.includes('runLegacySyncImport'), 'legacy sync import action missing');
-assert(html.includes('addJobResultLead'), 'legacy job result add action missing');
-assert(html.includes('reviewSelectedJobResults'), 'legacy job result bulk review action missing');
-assert(html.includes('excludeJobResult'), 'legacy job result exclude action missing');
-assert(html.includes('toggleAllVisibleJobResults'), 'legacy job result selection action missing');
-assert(html.includes('jobResultEmail_'), 'legacy job result editable email missing');
-assert(html.includes('jobResultRenderLimit'), 'legacy job result render limit state missing');
-assert(html.includes('reviewVisibleEmailJobResults'), 'legacy visible email review action missing');
-assert(html.includes('reviewAllEmailJobResults'), 'legacy all email review action missing');
-assert(html.includes('reviewAllUrlJobResults'), 'legacy all URL review action missing');
-assert(html.includes('loadMoreJobResults'), 'legacy job result load more action missing');
-assert(html.includes('job-results-load-more'), 'legacy job result load more UI missing');
-assert(html.includes("legacyUiIcon('squarePen')"), 'legacy job result edit icon missing');
-assert(html.includes("legacyUiIcon('xCircle')"), 'legacy job result exclude icon missing');
-assert(html.includes('grid-template-columns: repeat(5, minmax(0, 1fr));'), 'legacy job result category grid missing');
-assert(html.includes('grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));'), 'legacy job result card grid missing');
-assert(html.includes('content-visibility: auto;'), 'legacy job result card virtualization hint missing');
-assert(code.includes("'review_status'"), 'search result review status schema missing');
-assert(fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8').includes('addSearchResultToLead'), 'search result add API missing');
-assert(webApp.includes('reviewSearchResults'), 'search result review API dispatch missing');
-assert(html.includes('gmailReplyCheckPanel'), 'legacy Gmail reply check panel missing');
-assert(html.includes('adminGmailReplyCheckPanel'), 'legacy admin Gmail reply check panel missing');
-assert(html.includes('calendarAutoCreateSettingsPanel'), 'legacy calendar auto-create settings panel missing');
-assert(html.includes('scanReplyFalsePositives'), 'legacy reply false-positive scan missing');
-assert(fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8').includes('listReplyFalsePositiveCandidates'), 'reply false-positive API missing');
-assert(operationsSource.includes('findHumanReplyAfterSend_'), 'reply check must inspect messages after successful delivery');
-assert(operationsSource.includes("getHeader('Auto-Submitted')") || operationsSource.includes("gmailMessageHeader_(message, 'Auto-Submitted')"), 'reply check must inspect automatic-response headers');
-assert(operationsSource.includes("' after:' + sentDateQuery"), 'reply search must be bounded by the successful send date');
-assert(operationsSource.includes("return withScriptLock_('createCalendarEventForLead'"), 'Calendar creation must be serialized');
-assert(operationsSource.includes('calendar.getEventById(existingEventId)'), 'Calendar creation must reuse an existing event');
-assert(operationsSource.includes('event.deleteEvent()'), 'orphan Calendar events must be rolled back');
-assert(operationsSource.includes('assertCalendarInviteAllowed_'), 'Calendar invitations must enforce send safety');
-assert(html.includes('row-send-ng'), 'lead row status styling missing');
-assert(html.includes('dashboard-hero-grid'), 'legacy-style dashboard hero missing');
-assert(html.includes('dashboard-signal-grid'), 'legacy-style dashboard signals missing');
-assert(html.includes('dashboardMailSendingControl'), 'legacy mail sending control card missing');
-assert(html.includes('dashboardProspectingStatus'), 'legacy dashboard prospecting status card missing');
-assert(html.includes('toggleMailSendingControl'), 'legacy mail sending toggle missing');
-assert(code.includes('mail_sending_control'), 'mail sending control default setting missing');
-assert(html.includes('lead-quick-views'), 'lead quick views missing');
-assert(html.includes('lead-kpi-grid'), 'lead KPI grid missing');
-assert(html.includes('leadBulkActionBar'), 'legacy lead bulk action bar missing');
-assert(html.includes('leadDetailDialog'), 'legacy lead detail dialog missing');
-assert(html.includes('quick-lead-dialog'), 'legacy quick lead dialog shell missing');
-assert(html.includes('quick-dialog-header-actions'), 'legacy quick lead dialog header actions missing');
-assert(html.includes('leadDialogStatusPills'), 'legacy quick lead dialog status pills missing');
-assert(html.includes('renderLeadDialogStatusPills'), 'legacy quick lead dialog status renderer missing');
-assert(html.includes('prospecting-review-guide'), 'legacy review guide missing');
-assert(html.includes('table-link-button'), 'legacy lead table action button missing');
-assert(html.includes('lead-select-cell'), 'legacy lead table select cell missing');
-assert(html.includes('templateSafetyPanel'), 'legacy template safety panel missing');
-assert(html.includes('templateSenderBanner'), 'legacy template sender banner missing');
-assert(html.includes('template-create-panel'), 'legacy template create panel shell missing');
-assert(html.includes('templateWorkbenchDetails'), 'simplified template workbench accordion missing');
-assert(html.includes('templateTagDetails'), 'simplified template tag accordion missing');
-assert(html.includes('template-example-disclosure'), 'simplified template example accordion missing');
-assert(html.includes('template-sample-actions'), 'legacy template sample actions missing');
-assert(html.includes('templateSubmitButton'), 'legacy template save button state missing');
-assert(html.includes('templateNewButton'), 'legacy template create-another action missing');
-assert(html.includes('updateTemplateFormState'), 'legacy template form state renderer missing');
-assert(html.includes('startNewTemplate'), 'legacy template start new action missing');
-assert(html.includes('フォーム営業用は件名なし可'), 'legacy form template subject optional hint missing');
-assert(html.includes('保存済みテンプレートを更新'), 'legacy saved template update label missing');
-assert(html.includes('sendNgHero'), 'legacy send NG hero missing');
-assert(html.includes('exclusionsHero'), 'legacy exclusions hero missing');
-assert(html.includes('excluded-domain-manager'), 'legacy ExcludedDomainManager shell missing');
-assert(html.includes('exclusion-workbench'), 'legacy ExcludedDomainManager workbench missing');
-assert(html.includes('excludedDomainSearch'), 'legacy excluded domain search missing');
-assert(html.includes('excludedDomainStatus'), 'legacy excluded domain status filter missing');
-assert(html.includes("api('listExcludedDomains', { limit: 300, includeInactive: true })"), 'excluded domains manager should load inactive rows for status filter');
-assert(html.includes('renderExcludedDomainManager'), 'legacy ExcludedDomainManager renderer missing');
-assert(html.includes('editExcludedDomain'), 'legacy excluded domain edit action missing');
-assert(html.includes('stopExcludedDomain'), 'legacy excluded domain stop action missing');
-assert(html.includes('reactivateExcludedDomain'), 'legacy excluded domain reactivate action missing');
-assert(html.includes('formOutreachSummary'), 'legacy form outreach summary missing');
-assert(html.includes('form-work-panel'), 'form outreach panel missing');
-assert(html.includes('form-board-grid'), 'legacy form board layout missing');
-assert(html.includes('searchOverview'), 'Serper search overview missing');
-assert(html.includes('searchActivityPanel'), 'legacy prospecting activity panel missing');
-assert(html.includes('collectionCommandCenter'), 'legacy collection command center missing');
-assert(html.includes('serperKeyManagerPanel'), 'legacy Serper key manager panel missing');
-assert(html.includes('api-key-summary'), 'legacy Serper key summary missing');
-assert(html.includes('searchUsageTable'), 'Serper usage table missing');
-assert(html.includes('opsReadinessPanel'), 'legacy operations readiness panel missing');
-assert(html.includes('opsStatusGrid'), 'legacy operations status grid missing');
-assert(html.includes('jobTable'), 'operations job table missing');
-assert(html.includes('syncLogTable'), 'operations sync log table missing');
-[
-  'backgroundJobs',
-  'emailLeads',
-  'sending',
-  'histories',
-  'deals',
-  'analytics',
-  'sync',
-  'gmail',
-  'admin',
-  'sendNg',
-  'exclusions',
-].forEach((tabId) => {
-  assert(html.includes(`data-tab="${tabId}"`), `legacy nav tab missing: ${tabId}`);
-  assert(html.includes(`id="${tabId}"`), `legacy section missing: ${tabId}`);
+assert(codeSource.includes('20260715_apps_script_full_workflow_v195_background_self_healing'));
+assert(codeSource.includes("'filled_count'"));
+assert(codeSource.includes('function createLeadLocked_'));
+assert(codeSource.includes('function findActiveLeadBySourceReference_'));
+assert(codeSource.includes('function listEmailSendCandidates'));
+assert(codeSource.includes('function updateReviewLeadDecision'));
+assert(codeSource.includes("withScriptLock_('saveSerperApiKey'"));
+const spreadsheetBindingStart = codeSource.indexOf('function getOrCreateSpreadsheet_');
+const spreadsheetBindingEnd = codeSource.indexOf('\nfunction ', spreadsheetBindingStart + 10);
+assert(!codeSource.slice(spreadsheetBindingStart, spreadsheetBindingEnd).includes('deleteProperty(PROPERTY_KEYS.SPREADSHEET_ID)'));
+assert(!emailSource.includes("return withScriptLock_('sendLeadEmailBatch'"));
+assert(serperSource.indexOf('fetchSerperCreditInfo_(key)') < serperSource.indexOf("withScriptLock_('refreshSerperCredits:save'"));
+assert(codeSource.includes("{ sheet: 'search_usage_logs', label: '検索利用履歴' }"));
+assert(codeSource.includes('countSheetExactMatches_'));
+const mastersSource = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
+assert(mastersSource.includes("ngMasters: readAllActiveSheetRecords_('ng_masters')"));
+assert(mastersSource.includes("excludedDomains: readAllActiveSheetRecords_('excluded_domains')"));
+assert(!mastersSource.includes("listSheetRecords('email_templates', { limit: 1000, includeInactive: true })"));
+assert(emailSource.includes("const templates = readAllActiveSheetRecords_('email_templates')"));
+assert(codeSource.includes("'FORM_SEND_NOT_RECORDED'"));
+const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
+assert(operationsSource.includes("const guests = sendInvites ? String(source.guests || lead.email || '').trim() : ''"));
+assert(operationsSource.includes("readAllSheetRecordsByName_('search_jobs'"));
+assert(operationsSource.includes("readAllSheetRecordsByName_('reply_logs'"));
+assert(operationsSource.includes("withScriptLock_('importLeadsFromCsv:item'"));
+assert(operationsSource.includes('function startLeadCsvImport'));
+assert(operationsSource.includes('function advanceLeadCsvImportJob'));
+assert(operationsSource.includes('function buildLeadCsvImportRequestKey_'));
+assert(operationsSource.includes('function recoverStaleCsvPreparationJobs_'));
+assert(operationsSource.includes("withScriptLock_('startLeadCsvImport:appendRawChunk'"));
+assert(operationsSource.includes("readAllSheetRecordsByName_('jobs'"));
+assert(operationsSource.includes('function buildSyncFillPatch_'));
+assert(operationsSource.includes("withScriptLock_('recordDetectedReply'"));
+assert(operationsSource.includes('function findReplyLogByLeadAndThread_'));
+assert(operationsSource.includes("withScriptLock_('restoreReplyFalsePositiveCandidate'"));
+assert(operationsSource.includes('function findCalendarEventByClaim_'));
+assert(operationsSource.includes("'管理ID: ' + claimMarker"));
+assert(serperSource.includes("readAllSheetRecordsByName_('domain_cache'"));
+assert(serperSource.includes("readAllSheetRecordsByName_('search_usage_logs'"));
+assert(serperSource.includes("withScriptLock_('writeDomainCache'"));
+assert(serperSource.includes('function buildSearchJobRequestKey_'));
+assert(serperSource.includes('function isRetryableSearchJobError_'));
+assert(serperSource.includes("withScriptLock_('reviewSearchResults'"));
+assert(serperSource.includes("withScriptLock_('claimSearchResultForLeadCreation'"));
+assert(serperSource.includes("withScriptLock_('finalizeSearchResultLeadCreation'"));
+assert(serperSource.includes('function releaseSearchResultLeadCreationClaim_'));
+assert(serperSource.includes("withScriptLock_('updateLeadFromSearchResult'"));
+assert(serperSource.includes("withScriptLock_('recordSerperActiveKeyTestResult'"));
+assert(serperSource.includes("withScriptLock_('recordSerperActiveKeyCreditResult'"));
+assert(serperSource.includes("withScriptLock_('saveSearxngConfig'"));
+const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
+assert(webAppSource.includes("readAllSheetRecordsByName_('search_jobs'"));
+assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
+assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5')"));
+assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
+assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
+assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHistories, today)'));
+const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
+assert(!indexSource.includes('function importCsv(event)'));
+assert(indexSource.includes('finish();\n            reject(error);'));
+assert(indexSource.includes("apiQuiet('listEmailSendCandidates', { genre, limit: 100 })"));
+assert(indexSource.includes("api('startLeadCsvImport', csvText, options || {})"));
+assert(indexSource.includes("api('advanceLeadCsvImportJob', job.id, { maxItems: 25, runtimeBudgetMs: 90000 })"));
+assert(indexSource.includes("apiQuiet('updateReviewLeadDecision'"));
+assert(indexSource.includes('reviewPendingLeadIds'));
+assert(indexSource.includes('pendingJobResultIds'));
+assert(indexSource.includes("item.review_status === 'unconfirmed' || item.review_status === 'adding'"));
+assert(indexSource.includes("adding: '追加処理中'"));
+assert(indexSource.includes('function isJobResultReviewActionable'));
+assert(indexSource.includes('別処理で更新済みのため上書きしませんでした'));
+assert(indexSource.includes('Promise.allSettled(['));
+assert(indexSource.includes("window.addEventListener('unhandledrejection'"));
+assert(indexSource.includes('if (state.analyticsData) return state.analyticsData;'));
+['updateLeadLocked_', 'deleteLead', 'markLeadFormSent', 'unmarkLeadFormSent'].forEach((functionName) => {
+  const start = codeSource.indexOf(`function ${functionName}`);
+  const next = codeSource.indexOf('\nfunction ', start + 10);
+  const body = codeSource.slice(start, next === -1 ? codeSource.length : next);
+  assert(body.includes("clearRuntimeCaches_('leads')"), `${functionName} must invalidate dashboard cache`);
 });
-[
-  'backgroundActivity',
-  'errors',
-  'ops',
-].forEach((sectionId) => {
-  assert(html.includes(`id="${sectionId}"`), `legacy supporting section missing: ${sectionId}`);
-});
-[
-  'backgroundJobTable',
-  'backgroundActivityTable',
-  'emailLeadTable',
-  'sendingPlanTable',
-  'sendHistoryScreenTable',
-  'dealTable',
-  'analyticsFunnel',
-  'syncScreenTable',
-  'gmailStatusPills',
-  'adminReadinessPanel',
-  'errorDetailsTable',
-].forEach((marker) => {
-  assert(html.includes(marker), `legacy expanded UI marker missing: ${marker}`);
-});
-[
-  'emailPreviewPanel',
-  'templateTestRecipientPanel',
-  'jobResultsReviewPanel',
-  'gmailConnectionCheckPanel',
-  'mailSendLockPanel',
-  'googleCredentialSummaryPanel',
-  'adminReadinessRunnerPanel',
-  'schemaStatusPanel',
-  'renderAdminReadinessRunnerPanel',
-  'renderSchemaStatusPanel',
-  'runAdminReadinessCheck',
-  'refreshSchemaStatus',
-  'adminAutomationSettingsPanel',
-  'customFieldDefinitionPanel',
-  'leadListViewSettingsPanel',
-  'renderListViewSettingsPanel',
-  'renderCustomFieldDefinitionPanel',
-  'saveCustomFieldDefinitionFromForm',
-  'templateTagMenuPanel',
-  'template-tag-panel',
-  'renderTemplateTagMenuPanel',
-  'insertTemplateTag',
-  'applyTemplateSample',
-  'renderTemplateVariablePreview',
-  'renderBackgroundJobWidgets',
-  'goBackFromBackgroundCenter',
-  'dismissBackgroundToast',
-  'duplicateLeadManagerPanel',
-  'adminErrorDetailsPanel',
-  'renderBackgroundActivityScreen',
-  'renderErrorDetailsScreen',
-  'collection-tab-panel',
-  'autoCollectionEnabled',
-  'submitCollectionAreaSearch',
-  'submitCollectionKeywordSearch',
-  'importCollectionCsv',
-  'saveSourcePageCollectionSettings',
-  'genreManagerPanel',
-  'reasonMasterManagerPanel',
-  'renderGenreManagerPanel',
-  'renderReasonMasterManagerPanel',
-  'saveGenreFromForm',
-  'saveReasonFromForm',
-  'leadStatusControlPanel',
-  'renderLeadStatusControlPanel',
-  'quick-status-layout',
-  'status-lock-box',
-  'leadSendNgReason',
-  'leadFormStatus',
-  'meeting-form',
-  'leadMeetLink',
-  'leadHistoryPanel',
-  'quick-history-section',
-  'quick-history-item',
-  'loadLeadSendHistoriesForDialog',
-  'renderLeadHistoryPanel',
-  'leadFormHistoryPanel',
-  'quick-form-history-summary',
-  'formHistoryItemsClient',
-  'copyLeadFormHistoryBody',
-  'dialog-eyebrow',
-  'data-ui-icon="x"',
-  'form-sent-check',
-  'toggleFormLeadSent',
-  'markFormLeadSent',
-  'unmarkFormLeadSent',
-  'formSendSummaryCell',
-  "filter: 'form_all'",
-  'leadDangerPanel',
-  'renderLeadDangerPanel',
-  'excludeSelectedLeadDomainAndArchive',
-  'archiveSelectedLeadFromDangerZone',
-  'leadDuplicatePanel',
-  'loadLeadDuplicateCandidatesForDialog',
-  'renderLeadDuplicatePanel',
-  'keepCurrentLeadFromDuplicatePanel',
-  'keepExistingLeadFromDuplicatePanel',
-  'renderTemplateProductionStatus',
-  'renderTemplateActionCell',
-  'sendTemplateTestFromRow',
-  'toggleTemplateProduction',
-  'deleteTemplateFromRow',
-  "legacyUiIcon('pencil')",
-  "legacyUiIcon('eye')",
-  "legacyUiIcon('power')",
-  "legacyUiIcon('trash2')",
-  "legacyUiIcon('save')",
-  'mail-sending-control',
-  'mail-sending-status',
-  'dashboard-prospecting-stats',
-  'renderDashboardMailSendingControl',
-  'renderDashboardProspectingStatus',
-  'dialog-backdrop',
-  'dialog-panel',
-  'send-target-preview',
-  'emailBatchConfirmOpen',
-  'openEmailBatchConfirm',
-  'runConfirmedEmailBatch',
-  '対象リストを確認して自動送信',
-  '対象リストを自動送信しますか？',
-  'gmailTestSendHistoryPanel',
-  'renderGmailTestSendHistoryPanel',
-  'Gmailテスト送信履歴',
-  'isTestSendHistory',
-  'template-variable-empty-list',
-  "template-variable-card ${item.empty ? 'empty' : ''}",
-  '空欄タグ',
-  '空欄なし',
-  'template-body-diff-panel',
-  'template-subject-diff-panel',
-  'template-empty-token',
-  'template-filled-token',
-  'renderTemplateSubjectDiffPreview',
-  'renderTemplateBodyDiffPreview',
-  'renderTemplateWithVariableMarkers',
-  'collectEmptyTemplateContexts',
-  '件名差分',
-  'テンプレート件名',
-  '送信時件名',
-  '件名内の差し込みタグ',
-  '本文差分',
-  'historyFilterPanel',
-  'history-filter-panel',
-  'filteredSendHistories',
-  'exportFilteredSendHistoriesCsv',
-  'renderHistoryActionCell',
-  '本文/Gmail',
-  '履歴区分',
-  '絞り込み中',
-  'analytics-source-panel',
-  'analyticsSourceGrid',
-  'analyticsRiskStrip',
-  'analyticsDailyTable',
-  'analyticsMonthlyTable',
-  'analyticsTemplateTable',
-  'buildClientAnalyticsData',
-  'buildClientAnalyticsTemplateRows',
-  'メール文別返信率',
-  'テンプレート別の反応',
-  'mail-copy-cell',
-].forEach((marker) => {
-  assert(html.includes(marker), `legacy UI marker missing: ${marker}`);
-});
-assert(emailSource.includes("send_type: 'テスト送信'"), 'test send history type missing');
-assert(emailSource.includes("const TEMPLATE_TEST_FIXED_EMAIL_ = 'yuya1998nu@gmail.com'"), 'server test send fixed recipient missing');
-assert(emailSource.includes("const TEMPLATE_TEST_FIXED_NAME_ = '村松侑哉'"), 'server test send fixed name missing');
-assert(emailSource.includes("error_message: errorMessage"), 'test send failure reason history missing');
-assert(emailSource.includes("return withScriptLock_('sendLeadEmail'"), 'sendLeadEmail should keep send/check/update in one script lock');
-assert(!emailSource.includes('sendLeadEmail:afterSend'), 'sendLeadEmail should not split post-send update into a second lock');
-assert(emailSource.includes("send_result: PRODUCTION_SEND_RESERVED_RESULT_"), 'production history reservation must be written before delivery');
-assert(emailSource.indexOf("send_result: PRODUCTION_SEND_RESERVED_RESULT_") < emailSource.indexOf('MailApp.sendEmail({'), 'production reservation must precede MailApp delivery');
-assert(emailSource.includes('function sendLeadEmailBatch('), 'server-side email batch function missing');
-assert(emailSource.includes('assertProductionMailDeliveryAllowed_(true);'), 'server-side batch must enforce send control and send window');
-assert(html.includes("api('sendLeadEmailBatch'"), 'client batch should use one server-side batch request');
-assert(html.includes('if (isReviewPendingLead(lead)) return false;'), 'client email target must exclude review-pending leads');
-assert(html.includes('function formLeadBlockReasonClient('), 'client form target block reason missing');
-assert(html.includes("id=\"formPreviewWorkingButton\""), 'form preview approval bypass control missing');
-assert(emailSource.includes('if (isLeadReviewPending_(lead))'), 'server delivery targets must exclude review-pending leads');
-assert(code.includes("'FORM_TARGET_BLOCKED'"), 'server form completion must reject blocked targets');
-assert(code.includes('last_form_previous_status'), 'form undo should preserve the prior approved status');
-assert(html.includes("['1回上限', `${formatNumber(batchLimit)}件`]"), 'send plan should show the configured batch limit');
-assert(html.includes('1回${formatNumber(batchLimit)}件まで'), 'send limit pill should use the configured batch limit');
-assert(emailSource.includes('getPriorSuccessfulEmailBlockReason_'), 'prior successful send guard missing');
-assert(emailSource.includes('buildMailSendSafetyContext_'), 'send history safety context missing');
-assert(emailSource.includes('sentEmails[email] = true'), 'same email successful history guard missing');
-assert(emailSource.includes('reservedEmails[email] = true'), 'pending send reservation email guard missing');
-assert(emailSource.includes("String(history.send_type || '').indexOf('テスト') === -1"), 'test sends should not block production send history guard');
-assert(emailSource.includes('function validateEmailSendTemplate_'), 'server-side send template validation missing');
-assert(emailSource.includes('フォーム用テンプレートはメール送信できません。'), 'server should block form templates for MailApp sends');
-assert(emailSource.includes('本番ONのテンプレートだけメール送信できます。'), 'server should block draft templates for MailApp sends');
-assert(emailSource.includes('テンプレートと営業先のジャンルが一致していません。'), 'server should block genre-mismatched templates');
-assert(!emailSource.includes('|| active[0] || null'), 'production template lookup must not fall back to mismatched first template');
-assert(emailSource.includes('function countSuccessfulProductionSends_'), 'production send counter helper missing');
-assert(webApp.includes('countSuccessfulProductionSends_(sendHistories, today)'), 'dashboard sentToday should exclude test sends');
-assert(webApp.includes('countSuccessfulProductionSends_(sendHistories, month)'), 'dashboard sentMonth should exclude test sends');
-assert(code.includes('isSuccessfulProductionSendHistory_(history)'), 'latest successful send lookup should exclude test histories');
-assert(masters.includes('mailSendSafety: buildMailSendSafetyContext_()'), 'master context should include mail send safety history');
-assert(html.includes('const seenEmails = new Set();'), 'email batch should dedupe same recipient in the client preview');
-assert(code.includes("createExpectedOperationError_('Duplicate lead exists:"), 'expected duplicate should not be logged as a system error');
-assert(html.includes("Number(lead.send_count || 0) > 0 || String(lead.status || '').includes('送信済み')"), 'client email eligibility should block previously sent leads');
-assert(html.includes('会社名') && html.includes('差し込みメニュー'), 'legacy template tag menu labels missing');
-assert(emailSource.includes("'会社名'"), 'server Japanese template variables missing');
-assert(masters.includes("templateType !== 'form' && !subject"), 'form template subject optional server rule missing');
-[
-  'custom_field_definitions',
-  'list_view_settings',
-].forEach((marker) => {
-  assert(code.includes(marker), `legacy custom/list schema missing: ${marker}`);
-});
-const refreshAllBlock = html.slice(html.indexOf('async function refreshAll'), html.indexOf('async function showStartupError'));
-assert(refreshAllBlock.includes("api('getInitialData')"), 'refreshAll should load initial data');
-assert(!refreshAllBlock.includes("api('getAuthorizationStatus')"), 'refreshAll should not preflight authorization');
-assert(html.includes("limit: INITIAL_REVIEW_LEAD_LIMIT, quiet: true"), 'initial review lead load should not lock global navigation');
-assert(html.includes("loadOptions.quiet ? await apiQuiet('listLeads', request) : await api('listLeads', request)"), 'loadLeads should support quiet mode');
-const navHtml = html.slice(html.indexOf('<nav class="tabs">'), html.indexOf('</nav>', html.indexOf('<nav class="tabs">')));
-assert(!navHtml.includes('tab nav-item secondary'), 'AppFrame sidebar should expose only the legacy primary menu items');
-[
-  'data-tab="leads"',
-  'data-tab="reviewLeads"',
-  'data-tab="search"',
-  'data-tab="backgroundJobs"',
-  'data-tab="emailLeads"',
-  'data-tab="forms"',
-  'data-tab="dashboard"',
-  'data-tab="analytics"',
-  'data-tab="sync"',
-  'data-tab="sendNg"',
-  'data-tab="exclusions"',
-  'data-tab="templates"',
-  'data-tab="sending"',
-  'data-tab="histories"',
-  'data-tab="deals"',
-  'data-tab="gmail"',
-  'data-tab="admin"',
-].reduce((lastIndex, marker) => {
-  const index = navHtml.indexOf(marker);
-  assert(index > lastIndex, `AppFrame nav order mismatch near ${marker}`);
-  return index;
-}, -1);
-const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((match) => match[1]);
-for (const [index, script] of scripts.entries()) {
-  new Function(script);
-  console.log(`Index.html script ${index + 1} OK`);
-}
+const updateAfterSendStart = emailSource.indexOf('function updateLeadAfterSend_');
+const updateAfterSendEnd = emailSource.indexOf('\nfunction ', updateAfterSendStart + 10);
+assert(emailSource.slice(updateAfterSendStart, updateAfterSendEnd).includes("clearRuntimeCaches_('leads')"));
 
-const initialDataBlock = webApp.slice(webApp.indexOf('function getInitialData'), webApp.indexOf('function getStartupDashboardStats_'));
-assert(!initialDataBlock.includes('setup()'), 'getInitialData should not run setup on every startup');
-assert(initialDataBlock.includes('getStartupSerperInfo_()'), 'getInitialData should use lightweight Serper startup info');
-assert(webApp.includes('function getReferenceData'), 'reference data should be loaded separately from startup');
-assert(webApp.includes('function getGmailAuthorizationStatus'), 'Gmail authorization status API missing');
-assert(webApp.includes('function checkGmailIntegration'), 'Gmail integration check API missing');
-assert(webApp.includes('function isAuthorizationRequiredStatus_'), 'authorization status strict helper missing');
-assert(!webApp.includes("status.indexOf('REQUIRED') !== -1"), 'NOT_REQUIRED must not be treated as REQUIRED');
-assert(webApp.includes("'https://www.googleapis.com/auth/script.send_mail'"), 'server Gmail required scopes should include MailApp send scope');
-assert(webApp.includes("'https://mail.google.com/'"), 'server Gmail required scopes should include GmailApp mail scope');
-assert(webApp.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'dashboard should read all lead rows');
-assert(webApp.includes('dashboard_stats_v4'), 'dashboard cache key should include consumer GAS usage payload');
-[
-  'saveEmailTemplate',
-  'importEmailTemplates',
-  'setEmailTemplateProduction',
-  'setMailSendingControl',
-  'saveNgMaster',
-  'saveExcludedDomain',
-  'importExcludedDomains',
-  'listGenres',
-  'saveGenre',
-  'deleteGenre',
-  'listReasons',
-  'saveReason',
-  'updateReason',
-  'saveSerperApiKey',
-  'listSerperApiKeyManager',
-  'refreshSerperCredits',
-  'saveSerperApiKeyEntry',
-  'updateSerperApiKeyEntry',
-  'deleteSerperApiKeyEntry',
-  'listLeadSendHistories',
-  'importSendHistories',
-  'listLeadDuplicateCandidates',
-  'markLeadFormSent',
-  'unmarkLeadFormSent',
-  'checkRepliesForLeads',
-  'createCalendarEventForLead',
-  'importLeadsFromCsv',
-  'createSpreadsheetBackup',
-  'saveCustomFieldDefinition',
-  'updateCustomFieldDefinition',
-  'saveListViewSettings',
-  'prepareLeadMigration',
-  'writeLeadMigrationRows',
-  'finalizeLeadMigration',
-  'getSchemaStatus',
-].forEach((action) => {
-  assert(webApp.includes(`action === '${action}'`), `doPost action missing: ${action}`);
+const backgroundRecoveryContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), backgroundRecoveryContext, { filename: file });
 });
-assert(masters.includes('function setEmailTemplateProduction'), 'template production API missing');
+backgroundRecoveryContext.nowIso_ = () => '2026-07-15T12:00:00.000Z';
+const stalledSourcePageJob = {
+  id: 'stalled-source-page',
+  job_type: 'source_page',
+  status: 'running',
+  query_json: JSON.stringify({ job_type: 'source_page' }),
+  cursor_json: JSON.stringify({ itemIndex: 0, offset: 124, staleRecoveryCount: 2 }),
+  error_count: 0,
+  locked_at: '2026-07-15T10:00:00.000Z',
+  last_heartbeat_at: '2026-07-15T10:00:00.000Z',
+};
+assert.strictEqual(backgroundRecoveryContext.isStaleSearchJob_(stalledSourcePageJob, Date.parse('2026-07-15T12:00:00.000Z')), true);
+const poisonCandidateRecovery = backgroundRecoveryContext.buildStaleSearchJobRecoveryPatch_(stalledSourcePageJob);
+const recoveredCursor = JSON.parse(poisonCandidateRecovery.patch.cursor_json);
+assert.strictEqual(poisonCandidateRecovery.skippedCandidate, true);
+assert.strictEqual(recoveredCursor.offset, 125);
+assert.strictEqual(recoveredCursor.staleRecoveryCount, 0);
+assert.strictEqual(poisonCandidateRecovery.patch.error_count, undefined);
+assert.match(poisonCandidateRecovery.patch.last_error, /3回連続/);
+const firstRecovery = backgroundRecoveryContext.buildStaleSearchJobRecoveryPatch_(Object.assign({}, stalledSourcePageJob, {
+  cursor_json: JSON.stringify({ itemIndex: 0, offset: 124 }),
+}));
+assert.strictEqual(JSON.parse(firstRecovery.patch.cursor_json).offset, 124);
+assert.strictEqual(JSON.parse(firstRecovery.patch.cursor_json).staleRecoveryCount, 1);
+assert(operationsSource.includes('function repairBackgroundJobs'));
+assert(operationsSource.includes('function getBackgroundWorkerHealth'));
+assert(operationsSource.includes('function recoverStaleSearchJobs_'));
+assert(serperSource.includes("payload.job_type === 'source_page' ? String(progressRecord.cursor_json || job.cursor_json || '') : ''"));
+assert(indexSource.includes('自動復旧して再開'));
+assert(indexSource.includes("api('repairBackgroundJobs'"));
 
-console.log('smoke-test OK');
+console.log('v195 audit regression tests passed.');

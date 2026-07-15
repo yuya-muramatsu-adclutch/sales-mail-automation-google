@@ -6,6 +6,12 @@ const SERPER_CREDIT_ENDPOINTS = Object.freeze([
   'https://google.serper.dev/credits',
   'https://google.serper.dev/usage',
 ]);
+const SERPER_LOW_CREDIT_THRESHOLD_PERCENT = 20;
+const SERPER_CREDIT_REFRESH_INTERVAL_SECONDS = 900;
+const SERPER_SEARCH_FAILURE_CACHE_SECONDS = 600;
+const SERPER_SEARCH_FAILURE_CACHE_KEY = 'serper_search_unavailable_v1';
+const SEARXNG_ACCESS_TOKEN_HEADER = 'X-SearXNG-Token';
+const SEARXNG_DEFAULT_LANGUAGE = 'ja-JP';
 
 function getSerperApiKeyInfo() {
   const key = getSerperApiKey_();
@@ -18,7 +24,7 @@ function getSerperApiKeyInfo() {
 
 function testSerperApiKey() {
   try {
-    const result = callSerperSearch_('OpenAI official site', {
+    const result = callSerperSearchDirect_('OpenAI official site', {
       num: 1,
       purpose: 'manual_search_preview',
       source: 'api_key_test',
@@ -40,36 +46,108 @@ function listSerperApiKeyManager() {
   return buildSerperApiKeyManagerInfo_();
 }
 
+function getSearxngConfig() {
+  return getSearxngConfigInfo_();
+}
+
+function saveSearxngConfig(input) {
+  const payload = input && typeof input === 'object' ? input : {};
+  const baseUrl = normalizeSearxngBaseUrl_(payload.baseUrl || payload.base_url || '');
+  const providedToken = String(payload.accessToken || payload.access_token || payload.token || '').trim();
+  const enabled = payload.enabled !== false;
+
+  if (!baseUrl) throw new Error('PC検索の公開URLを入力してください。');
+  withScriptLock_('saveSearxngConfig', function () {
+    const properties = PropertiesService.getScriptProperties();
+    const existingToken = String(properties.getProperty(PROPERTY_KEYS.SEARXNG_ACCESS_TOKEN) || '').trim();
+    const accessToken = providedToken || existingToken;
+    if (!accessToken) throw new Error('PC検索のアクセストークンを入力してください。');
+
+    properties.setProperties({
+      [PROPERTY_KEYS.SEARXNG_BASE_URL]: baseUrl,
+      [PROPERTY_KEYS.SEARXNG_ACCESS_TOKEN]: accessToken,
+      [PROPERTY_KEYS.SEARXNG_ENABLED]: enabled ? 'true' : 'false',
+    });
+
+    return true;
+  }, { waitMs: 90000 });
+  return Object.assign({}, buildSerperApiKeyManagerInfo_('PC検索メイン設定を保存しました。'), {
+    ok: true,
+  });
+}
+
+function testSearxngConnection() {
+  try {
+    const result = callSearxngSearch_('神奈川 キャンプ場 公式', {
+      num: 3,
+      purpose: 'manual_search_preview',
+      source: 'searxng_connection_test',
+    });
+    return {
+      ok: true,
+      provider: 'searxng',
+      resultCount: result.organic.length,
+      checkedAt: nowIso_(),
+      manager: buildSerperApiKeyManagerInfo_('PC検索への接続を確認しました。'),
+    };
+  } catch (error) {
+    recordSearxngStatus_(false, 0, error.message || String(error));
+    throw error;
+  }
+}
+
 function refreshSerperCredits() {
-  return withScriptLock_('refreshSerperCredits', function () {
-    const now = nowIso_();
-    const legacyKey = String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SERPER_API_KEY) || '').trim();
-    let records = readSerperApiKeyRecords_();
-    if (!records.length && legacyKey) {
-      records = [{
-        active: true,
-        created_at: now,
-        id: Utilities.getUuid(),
-        key: legacyKey,
-        last_checked_at: '',
-        last_error: '',
-        last_remaining: '',
-        last_search_error: '',
-        last_search_result_count: '',
-        last_search_status: '未確認',
-        last_search_test_at: '',
-        last_status: '未確認',
-        name: 'PropertiesService メインキー',
-        role: 'main',
-        source: 'env',
-        updated_at: now,
-      }];
+  const startedAt = nowIso_();
+  const properties = PropertiesService.getScriptProperties();
+  const legacyKey = String(properties.getProperty(PROPERTY_KEYS.SERPER_API_KEY) || '').trim();
+  let requestedRecords = readSerperApiKeyRecords_();
+  if (!requestedRecords.length && legacyKey) {
+    requestedRecords = [{
+      active: true,
+      created_at: startedAt,
+      id: Utilities.getUuid(),
+      key: legacyKey,
+      last_checked_at: '',
+      last_error: '',
+      last_remaining: '',
+      last_search_error: '',
+      last_search_result_count: '',
+      last_search_status: '未確認',
+      last_search_test_at: '',
+      last_status: '未確認',
+      name: 'PropertiesService メインキー',
+      role: 'main',
+      source: 'env',
+      updated_at: startedAt,
+    }];
+  }
+  if (!requestedRecords.length) {
+    return buildSerperApiKeyManagerInfo_('Serper APIキーが未設定です。');
+  }
+
+  const creditResultByKey = Object.create(null);
+  requestedRecords.forEach(function (record) {
+    if (record.active === false) return;
+    const key = String(record.key || '').trim();
+    if (key && !Object.prototype.hasOwnProperty.call(creditResultByKey, key)) {
+      creditResultByKey[key] = fetchSerperCreditInfo_(key);
     }
-    if (!records.length) {
-      return buildSerperApiKeyManagerInfo_('Serper APIキーが未設定です。');
+  });
+
+  return withScriptLock_('refreshSerperCredits:save', function () {
+    const now = nowIso_();
+    let currentRecords = readSerperApiKeyRecords_();
+    const currentLegacyKey = String(properties.getProperty(PROPERTY_KEYS.SERPER_API_KEY) || '').trim();
+    if (!currentRecords.length && currentLegacyKey) {
+      currentRecords = requestedRecords.filter(function (record) {
+        return String(record.key || '').trim() === currentLegacyKey;
+      });
+    }
+    if (!currentRecords.length) {
+      return buildSerperApiKeyManagerInfo_('残量確認中にAPIキー設定が変更されたため、保存をスキップしました。');
     }
 
-    const nextRecords = records.map(function (record) {
+    const nextRecords = currentRecords.map(function (record) {
       if (record.active === false) {
         return Object.assign({}, record, {
           last_checked_at: now,
@@ -78,19 +156,24 @@ function refreshSerperCredits() {
           updated_at: now,
         });
       }
-      const result = fetchSerperCreditInfo_(record.key);
-      return Object.assign({}, record, {
-        last_checked_at: now,
-        last_error: result.ok ? '' : result.errorMessage,
-        last_remaining: result.remainingLabel || '',
-        last_status: result.ok ? (result.remainingZero ? '残量なし' : '利用可能') : 'エラー',
-        updated_at: now,
-      });
+      const key = String(record.key || '').trim();
+      if (!Object.prototype.hasOwnProperty.call(creditResultByKey, key)) return record;
+      const result = creditResultByKey[key];
+      if (!result.ok) {
+        return Object.assign({}, record, {
+          last_checked_at: now,
+          last_error: result.errorMessage,
+          last_status: 'エラー',
+          updated_at: now,
+        });
+      }
+      return mergeSerperCreditRecord_(record, result, now);
     });
-    writeSerperApiKeyRecords_(nextRecords);
-    syncPrimarySerperApiKeyProperty_(nextRecords);
+    const harmonizedRecords = harmonizeSerperCreditRecords_(nextRecords);
+    writeSerperApiKeyRecords_(harmonizedRecords);
+    syncPrimarySerperApiKeyProperty_(harmonizedRecords);
     return buildSerperApiKeyManagerInfo_('Serper残量を確認しました。');
-  });
+  }, { waitMs: 90000 });
 }
 
 function saveSerperApiKeyEntry(input) {
@@ -116,6 +199,10 @@ function saveSerperApiKeyEntry(input) {
       updated_at: now,
       last_status: '未確認',
       last_search_status: '未確認',
+      credit_total: '',
+      credit_total_source: '',
+      last_remaining_value: '',
+      last_remaining_percent: '',
     });
     writeSerperApiKeyRecords_(nextRecords);
     syncPrimarySerperApiKeyProperty_(nextRecords);
@@ -167,106 +254,260 @@ function deleteSerperApiKeyEntry(id) {
 
 function runSmallSearchJob(input) {
   const job = startSerperSearchJob(input || {});
-  return advanceSearchJob(job.id, {
+  const result = advanceSearchJob(job.id, {
     maxItems: Number(input && input.maxItems) || 5,
+  });
+  return Object.assign({}, result, {
+    reusedJob: job.reused === true,
+    duplicatePrevented: job.duplicatePrevented === true,
+    triggerWarning: job.triggerWarning || '',
   });
 }
 
 function addSearchResultToLead(resultId, input) {
   const id = requireId_(resultId);
   const overrides = input && typeof input === 'object' ? input : {};
-  const result = findSheetRecordById_('search_results', id);
-  if (!result) throw new Error('Search result not found: ' + id);
+  const initialResult = findSheetRecordById_('search_results', id);
+  if (!initialResult) throw new Error('Search result not found: ' + id);
 
-  if (result.lead_id) {
-    const existingLead = getLeadById(result.lead_id);
-    updateSheetRecord_('search_results', id, {
+  const recoveryLead = initialResult.lead_id
+    ? null
+    : findActiveLeadBySourceReference_('prospecting', id);
+  const claim = claimSearchResultForLeadCreation_(id, recoveryLead && recoveryLead.id);
+  const result = claim.record;
+  let lead = null;
+  let reused = Boolean(claim.reused);
+  let recovered = Boolean(recoveryLead);
+
+  try {
+    if (claim.leadId) {
+      lead = getLeadById(claim.leadId);
+      reused = true;
+    } else if (recoveryLead) {
+      lead = recoveryLead;
+      reused = true;
+      recovered = true;
+    }
+
+    const title = String(overrides.company_name || overrides.facility_name || result.title || '').trim();
+    const url = String(overrides.website_url || result.url || '').trim();
+    const snippet = String(overrides.snippet || result.snippet || '').trim();
+    const resultType = String(result.result_type || '').trim();
+    const formUrl = String(overrides.form_url || (isFormSearchResult_(result, overrides) ? url : '') || '').trim();
+    const websiteUrl = String(overrides.website_url || (formUrl && url === formUrl ? '' : url) || url || '').trim();
+    const email = String(overrides.email || extractEmailFromSearchResult_(snippet) || '').trim();
+    const companyName = title || deriveSearchResultCompanyName_(websiteUrl || formUrl || email || id);
+
+    if (!lead) {
+      try {
+        lead = createLead({
+          source: 'prospecting',
+          source_id: id,
+          external_id: result.job_id || '',
+          genre: overrides.genre || '',
+          company_name: companyName,
+          facility_name: overrides.facility_name || companyName,
+          email: email,
+          website_url: websiteUrl,
+          form_url: formUrl,
+          status: '未対応',
+          notes: '検索結果レビューから追加',
+          source_payload_json: safeJsonStringify_({
+            search_result_id: id,
+            job_id: result.job_id || '',
+            query: result.query || '',
+            result_type: resultType,
+            title: result.title || '',
+            url: result.url || '',
+            snippet: result.snippet || '',
+            rank: result.rank || '',
+            override: overrides,
+          }),
+        });
+      } catch (error) {
+        const duplicate = String(error.code || '') === 'DUPLICATE_LEAD' || /^Duplicate lead exists:/.test(String(error.message || ''));
+        if (!duplicate) throw error;
+        lead = findActiveLeadBySourceReference_('prospecting', id);
+        if (!lead) throw error;
+        reused = true;
+        recovered = true;
+      }
+    }
+
+    const linkedResult = claim.token
+      ? finalizeSearchResultLeadCreation_(id, lead.id, claim.token)
+      : claim.record;
+
+    return {
+      ok: true,
+      lead: lead,
+      result: linkedResult,
+      reused: reused,
+      recovered: recovered,
+    };
+  } catch (error) {
+    if (claim && claim.token) releaseSearchResultLeadCreationClaim_(id, claim.token);
+    throw error;
+  }
+}
+
+function claimSearchResultForLeadCreation_(resultId, recoveryLeadId) {
+  return withScriptLock_('claimSearchResultForLeadCreation', function () {
+    const id = requireId_(resultId);
+    const current = findSheetRecordById_('search_results', id);
+    if (!current) throw new Error('Search result not found: ' + id);
+    const linkedLeadId = String(current.lead_id || '').trim();
+    if (linkedLeadId) {
+      const normalizedRecord = String(current.review_status || '') === 'added'
+        ? current
+        : updateSheetRecord_('search_results', id, {
+          review_status: 'added',
+          review_action: 'add_lead',
+          reviewed_at: nowIso_(),
+        });
+      return {
+        record: normalizedRecord,
+        leadId: linkedLeadId,
+        token: '',
+        reused: true,
+      };
+    }
+
+    const status = String(current.review_status || 'unconfirmed').trim() || 'unconfirmed';
+    const recoveryId = String(recoveryLeadId || '').trim();
+    if (status === 'adding' && !recoveryId && !isSearchResultLeadClaimStale_(current)) {
+      throw createExpectedOperationError_('この検索結果は別の処理で営業リストへ追加中です。少し待ってから更新してください。', 'SEARCH_RESULT_ADD_BUSY');
+    }
+    if (status !== 'unconfirmed' && status !== 'adding') {
+      throw createExpectedOperationError_('この検索結果はすでに「' + status + '」として確認済みです。結果一覧を更新してください。', 'SEARCH_RESULT_ALREADY_REVIEWED');
+    }
+
+    const token = Utilities.getUuid();
+    const claimed = updateSheetRecord_('search_results', id, {
+      review_status: 'adding',
+      review_action: 'add_lead_claim:' + token,
+      reviewed_at: nowIso_(),
+    });
+    return {
+      record: claimed,
+      leadId: '',
+      token: token,
+      reused: Boolean(recoveryId),
+    };
+  }, { waitMs: 90000 });
+}
+
+function isSearchResultLeadClaimStale_(record) {
+  const claimedAt = new Date(String(record && record.reviewed_at || '')).getTime();
+  if (!isFinite(claimedAt)) return true;
+  return Date.now() - claimedAt >= 15 * 60 * 1000;
+}
+
+function finalizeSearchResultLeadCreation_(resultId, leadId, token) {
+  return withScriptLock_('finalizeSearchResultLeadCreation', function () {
+    const id = requireId_(resultId);
+    const normalizedLeadId = requireId_(leadId);
+    const normalizedToken = requireId_(token);
+    const current = findSheetRecordById_('search_results', id);
+    if (!current) throw new Error('Search result not found: ' + id);
+    const linkedLeadId = String(current.lead_id || '').trim();
+    if (linkedLeadId) {
+      if (linkedLeadId !== normalizedLeadId) {
+        throw createExpectedOperationError_('検索結果は別の営業先に紐付け済みです。', 'SEARCH_RESULT_LEAD_CONFLICT');
+      }
+      return String(current.review_status || '') === 'added'
+        ? current
+        : updateSheetRecord_('search_results', id, {
+          review_status: 'added',
+          review_action: 'add_lead',
+          reviewed_at: nowIso_(),
+        });
+    }
+
+    const expectedAction = 'add_lead_claim:' + normalizedToken;
+    if (String(current.review_status || '') !== 'adding' || String(current.review_action || '') !== expectedAction) {
+      throw createExpectedOperationError_('検索結果の追加状態が別の処理で変更されました。結果一覧を更新してください。', 'SEARCH_RESULT_ADD_CONFLICT');
+    }
+    return updateSheetRecord_('search_results', id, {
+      lead_id: normalizedLeadId,
       review_status: 'added',
       review_action: 'add_lead',
       reviewed_at: nowIso_(),
     });
-    return {
-      ok: true,
-      lead: existingLead,
-      result: findSheetRecordById_('search_results', id),
-      reused: true,
-    };
+  }, { waitMs: 90000 });
+}
+
+function releaseSearchResultLeadCreationClaim_(resultId, token) {
+  try {
+    return withScriptLock_('releaseSearchResultLeadCreationClaim', function () {
+      const id = requireId_(resultId);
+      const normalizedToken = requireId_(token);
+      const current = findSheetRecordById_('search_results', id);
+      if (!current) return null;
+      if (String(current.review_status || '') !== 'adding' || String(current.review_action || '') !== 'add_lead_claim:' + normalizedToken) {
+        return current;
+      }
+      return updateSheetRecord_('search_results', id, {
+        review_status: 'unconfirmed',
+        review_action: '',
+        reviewed_at: '',
+      });
+    }, { waitMs: 90000 });
+  } catch (error) {
+    console.warn('Search result add claim release skipped: ' + String(error && error.message || error));
+    return null;
   }
-
-  const title = String(overrides.company_name || overrides.facility_name || result.title || '').trim();
-  const url = String(overrides.website_url || result.url || '').trim();
-  const snippet = String(overrides.snippet || result.snippet || '').trim();
-  const resultType = String(result.result_type || '').trim();
-  const formUrl = String(overrides.form_url || (isFormSearchResult_(result, overrides) ? url : '') || '').trim();
-  const websiteUrl = String(overrides.website_url || (formUrl && url === formUrl ? '' : url) || url || '').trim();
-  const email = String(overrides.email || extractEmailFromSearchResult_(snippet) || '').trim();
-  const companyName = title || deriveSearchResultCompanyName_(websiteUrl || formUrl || email || id);
-  const lead = createLead({
-    source: 'prospecting',
-    source_id: id,
-    external_id: result.job_id || '',
-    genre: overrides.genre || '',
-    company_name: companyName,
-    facility_name: overrides.facility_name || companyName,
-    email: email,
-    website_url: websiteUrl,
-    form_url: formUrl,
-    status: '未対応',
-    notes: 'Serper検索結果レビューから追加',
-    source_payload_json: safeJsonStringify_({
-      search_result_id: id,
-      job_id: result.job_id || '',
-      query: result.query || '',
-      result_type: resultType,
-      title: result.title || '',
-      url: result.url || '',
-      snippet: result.snippet || '',
-      rank: result.rank || '',
-      override: overrides,
-    }),
-  });
-
-  updateSheetRecord_('search_results', id, {
-    lead_id: lead.id,
-    review_status: 'added',
-    review_action: 'add_lead',
-    reviewed_at: nowIso_(),
-  });
-
-  return {
-    ok: true,
-    lead: lead,
-    result: findSheetRecordById_('search_results', id),
-    reused: false,
-  };
 }
 
 function reviewSearchResults(input) {
   const source = input && typeof input === 'object' ? input : {};
-  const ids = Array.isArray(source.ids) ? source.ids : [source.id || source.resultId || source.result_id].filter(Boolean);
-  const action = String(source.action || 'dismiss').trim();
-  const status = action === 'add_lead' ? 'added'
-    : action === 'confirm' || action === 'confirmed' ? 'confirmed'
-      : action === 'exclude' || action === 'excluded' ? 'excluded'
-        : 'dismissed';
-  const reviewed = [];
+  const ids = Array.from(new Set((Array.isArray(source.ids) ? source.ids : [source.id || source.resultId || source.result_id]).filter(Boolean).map(String))).slice(0, 500);
+  const rawAction = String(source.action || 'dismiss').trim();
+  const action = rawAction === 'confirmed' ? 'confirm' : rawAction === 'excluded' ? 'exclude' : rawAction;
+  const statusByAction = { confirm: 'confirmed', exclude: 'excluded', dismiss: 'dismissed' };
+  const status = statusByAction[action];
+  if (!status) throw createExpectedOperationError_('検索結果レビューの操作が不正です。', 'SEARCH_RESULT_REVIEW_INVALID');
 
-  ids.forEach(function (id) {
-    if (!id) return;
-    const record = findSheetRecordById_('search_results', id);
-    if (!record) return;
-    reviewed.push(updateSheetRecord_('search_results', id, {
-      review_status: status,
-      review_action: action,
-      reviewed_at: nowIso_(),
-    }));
-  });
+  return withScriptLock_('reviewSearchResults', function () {
+    const reviewed = [];
+    const conflicts = [];
+    const missing = [];
+    ids.forEach(function (id) {
+      const record = findSheetRecordById_('search_results', id);
+      if (!record) {
+        missing.push(id);
+        return;
+      }
+      const currentStatus = String(record.review_status || 'unconfirmed').trim() || 'unconfirmed';
+      if (currentStatus === status) {
+        reviewed.push(record);
+        return;
+      }
+      if (currentStatus !== 'unconfirmed') {
+        conflicts.push({
+          id: id,
+          status: currentStatus,
+          record: record,
+          message: '別の処理で「' + currentStatus + '」に更新済みです。',
+        });
+        return;
+      }
+      reviewed.push(updateSheetRecord_('search_results', id, {
+        review_status: status,
+        review_action: action,
+        reviewed_at: nowIso_(),
+      }));
+    });
 
-  return {
-    ok: true,
-    reviewed: reviewed.length,
-    items: reviewed,
-  };
+    return {
+      ok: conflicts.length === 0 && missing.length === 0,
+      status: status,
+      reviewed: reviewed.length,
+      items: reviewed,
+      conflicts: conflicts,
+      missing: missing,
+    };
+  }, { waitMs: 90000 });
 }
 
 function isFormSearchResult_(result, overrides) {
@@ -313,12 +554,17 @@ function deriveSearchResultCompanyName_(value) {
 }
 
 function startSerperSearchJob(input) {
-  return withScriptLock_('startSerperSearchJob', function () {
-    ensureBackgroundJobTrigger_();
-    const payload = normalizeSearchJobInput_(input);
-    return appendSheetRecord_('search_jobs', {
+  // Building a full source-page payload may fetch a remote sitemap. Do that before
+  // taking the global data lock so review/send operations cannot be starved.
+  const payload = normalizeSearchJobInput_(input);
+  const requestKey = buildSearchJobRequestKey_(payload);
+  const queued = withScriptLock_('startSerperSearchJob', function () {
+    const existing = findReusableSearchJob_(requestKey);
+    if (existing) return { job: existing, reused: true };
+    return { job: appendSheetRecord_('search_jobs', {
       job_type: payload.job_type,
       status: 'queued',
+      request_key: requestKey,
       query_json: safeJsonStringify_(payload),
       total_count: payload.items.length,
       processed_count: 0,
@@ -326,14 +572,43 @@ function startSerperSearchJob(input) {
       job_limit: payload.job_limit,
       cursor_json: '',
       last_error: '',
+      error_count: 0,
       lock_token: '',
       locked_at: '',
       last_heartbeat_at: '',
       attempt_count: 0,
       started_at: '',
       finished_at: '',
-    });
+    }), reused: false };
+  }, { waitMs: 90000 });
+  const triggerResult = ensureBackgroundJobTriggerBestEffort_();
+  return Object.assign({}, queued.job, {
+    queued: String(queued.job.status || '') === 'queued',
+    reused: queued.reused,
+    duplicatePrevented: queued.reused,
+    triggerWarning: triggerResult.warning || '',
   });
+}
+
+function buildSearchJobRequestKey_(payload) {
+  const source = payload && typeof payload === 'object' ? Object.assign({}, payload) : {};
+  delete source.created_at;
+  return 'search:' + computeRequestDigest_(safeJsonStringify_(source));
+}
+
+function findReusableSearchJob_(requestKey) {
+  const key = String(requestKey || '').trim();
+  if (!key) return null;
+  return readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
+    return ['queued', 'running'].indexOf(String(job.status || '')) !== -1;
+  }).find(function (job) {
+    if (String(job.request_key || '') === key) return true;
+    try {
+      return buildSearchJobRequestKey_(JSON.parse(job.query_json || '{}')) === key;
+    } catch (error) {
+      return false;
+    }
+  }) || null;
 }
 
 function advanceSearchJob(jobId, options) {
@@ -352,7 +627,7 @@ function advanceSearchJob(jobId, options) {
       remaining: Math.max(Number(claimedJob.total_count || 0) - Number(claimedJob.processed_count || 0), 0),
       updatedLeads: 0,
       errors: [],
-      completed: String(claimedJob.status || '') === 'completed',
+      completed: ['completed', 'failed'].indexOf(String(claimedJob.status || '')) !== -1,
       busy: claim.busy === true,
       skipped: true,
       resumable: String(claimedJob.status || '') === 'queued' || String(claimedJob.status || '') === 'running',
@@ -399,6 +674,16 @@ function advanceSearchJob(jobId, options) {
   const endIndex = Math.min(startIndex + maxItems, targetCount);
   const cursor = parseSearchJobCursor_(job.cursor_json);
   let progressRecord = job;
+  if (cursor.quotaCode === 'SERPER_MONTHLY_LIMIT') {
+    cursor.resumeAfter = '';
+    cursor.quotaCode = '';
+    const migratedCursor = updateClaimedSearchJob_(job.id, lockToken, {
+      cursor_json: safeJsonStringify_({ itemIndex: cursor.itemIndex, offset: cursor.offset }),
+      last_error: '',
+      last_heartbeat_at: nowIso_(),
+    }, false);
+    if (migratedCursor.owned) progressRecord = migratedCursor.record;
+  }
   const summary = {
     id: job.id,
     processed: 0,
@@ -417,17 +702,6 @@ function advanceSearchJob(jobId, options) {
     resumeAfter: cursor.resumeAfter || '',
     attemptCount: Number(job.attempt_count || 0),
   };
-
-  if (cursor.resumeAfter && cursor.quotaCode === 'SERPER_MONTHLY_LIMIT' && new Date(cursor.resumeAfter).getTime() > Date.now()) {
-    updateClaimedSearchJob_(job.id, lockToken, {
-      status: 'queued',
-      finished_at: '',
-      last_error: '',
-    }, true);
-    summary.pausedForQuota = true;
-    summary.elapsedMs = Date.now() - runWindow.startedAtMs;
-    return summary;
-  }
 
   const sourcePageLeadIndex = payload.job_type === 'source_page' ? buildSourcePageLeadIndex_() : null;
 
@@ -451,14 +725,8 @@ function advanceSearchJob(jobId, options) {
         summary.updatedLeads += Number(result.created || 0);
         summary.processedCandidates += Number(result.processedCandidates || 0);
         if (result.processedAll === false) {
-          summary.pausedForQuota = result.pausedForQuota === true;
-          summary.pausedForRuntime = !summary.pausedForQuota;
-          summary.resumeAfter = result.resumeAfter || '';
+          summary.pausedForRuntime = true;
           const nextCursor = { itemIndex: index, offset: Number(result.nextOffset || 0) };
-          if (summary.pausedForQuota && summary.resumeAfter) {
-            nextCursor.resumeAfter = summary.resumeAfter;
-            nextCursor.quotaCode = result.quotaCode || 'SERPER_MONTHLY_LIMIT';
-          }
           const partialUpdate = updateClaimedSearchJob_(job.id, lockToken, {
             status: 'running',
             cursor_json: safeJsonStringify_(nextCursor),
@@ -474,6 +742,7 @@ function advanceSearchJob(jobId, options) {
       const progressUpdate = updateClaimedSearchJob_(job.id, lockToken, {
         processed_count: index + 1,
         cursor_json: '',
+        last_error: Number(progressRecord.error_count || 0) > 0 ? String(progressRecord.last_error || '') : '',
         last_heartbeat_at: nowIso_(),
       }, false);
       if (!progressUpdate.owned) {
@@ -482,33 +751,29 @@ function advanceSearchJob(jobId, options) {
       }
       progressRecord = progressUpdate.record;
     } catch (error) {
-      if (isSerperQuotaError_(error)) {
-        const resumeAfter = serperQuotaResumeAfter_(error);
-        summary.pausedForQuota = true;
-        summary.resumeAfter = resumeAfter;
-        const quotaUpdate = updateClaimedSearchJob_(job.id, lockToken, {
-          status: 'running',
-          cursor_json: safeJsonStringify_({ itemIndex: index, offset: cursor.itemIndex === index ? cursor.offset : 0, resumeAfter: resumeAfter, quotaCode: String(error.code || '') }),
-          last_error: '',
+      if (isRetryableSearchJobError_(error)) {
+        summary.errors.push({
+          index: index,
+          message: error.message || String(error),
+          retryable: true,
+        });
+        appendSyncError_('advanceSearchJobRetryable', error, {
+          target_sheet: 'search_jobs',
+          target_id: job.id,
+          item: item,
+        });
+        const retryUpdate = updateClaimedSearchJob_(job.id, lockToken, {
+          cursor_json: payload.job_type === 'source_page' ? String(progressRecord.cursor_json || job.cursor_json || '') : '',
+          last_error: error.message || String(error),
           last_heartbeat_at: nowIso_(),
         }, false);
-        if (quotaUpdate.owned) progressRecord = quotaUpdate.record;
+        if (retryUpdate.owned) progressRecord = retryUpdate.record;
+        summary.pausedForRetry = true;
         break;
-      }
-      if (isSerperLeadLimitError_(error)) {
-        const skippedUpdate = updateClaimedSearchJob_(job.id, lockToken, {
-          processed_count: index + 1,
-          cursor_json: '',
-          last_error: '',
-          last_heartbeat_at: nowIso_(),
-        }, false);
-        if (!skippedUpdate.owned) break;
-        progressRecord = skippedUpdate.record;
-        continue;
       }
       summary.errors.push({
         index: index,
-        message: error.message,
+        message: error.message || String(error),
       });
       appendSyncError_('advanceSearchJob', error, {
         target_sheet: 'search_jobs',
@@ -518,7 +783,8 @@ function advanceSearchJob(jobId, options) {
       const errorUpdate = updateClaimedSearchJob_(job.id, lockToken, {
         processed_count: index + 1,
         cursor_json: '',
-        last_error: error.message,
+        last_error: error.message || String(error),
+        error_count: Number(progressRecord.error_count || 0) + 1,
         last_heartbeat_at: nowIso_(),
       }, false);
       if (!errorUpdate.owned) break;
@@ -532,8 +798,9 @@ function advanceSearchJob(jobId, options) {
   summary.total = targetCount;
   summary.remaining = Math.max(targetCount - processedCount, 0);
   if (completed) {
+    const cumulativeErrorCount = Number(progressRecord.error_count || 0);
     updateClaimedSearchJob_(job.id, lockToken, {
-      status: summary.errors.length > 0 ? 'failed' : 'completed',
+      status: cumulativeErrorCount > 0 ? 'failed' : 'completed',
       cursor_json: '',
       finished_at: nowIso_(),
     }, true);
@@ -580,9 +847,10 @@ function parseSearchJobCursor_(value) {
       offset: Math.max(Number(parsed.offset) || 0, 0),
       resumeAfter: String(parsed.resumeAfter || parsed.resume_after || '').trim(),
       quotaCode: String(parsed.quotaCode || parsed.quota_code || '').trim(),
+      staleRecoveryCount: Math.max(Number(parsed.staleRecoveryCount || parsed.stale_recovery_count) || 0, 0),
     };
   } catch (error) {
-    return { itemIndex: 0, offset: 0, resumeAfter: '', quotaCode: '' };
+    return { itemIndex: 0, offset: 0, resumeAfter: '', quotaCode: '', staleRecoveryCount: 0 };
   }
 }
 
@@ -602,7 +870,10 @@ function claimSearchJobRun_(jobId, runtimeBudgetMs) {
     }
     const now = nowIso_();
     const lockToken = Utilities.getUuid();
-    const claimedJob = updateSheetRecord_('search_jobs', job.id, {
+    const staleRecovery = status === 'running' && isStaleSearchJob_(job, Date.now(), leaseMs)
+      ? buildStaleSearchJobRecoveryPatch_(job)
+      : { patch: {} };
+    const claimedJob = updateSheetRecord_('search_jobs', job.id, Object.assign({}, staleRecovery.patch || {}, {
       status: 'running',
       lock_token: lockToken,
       locked_at: now,
@@ -610,10 +881,17 @@ function claimSearchJobRun_(jobId, runtimeBudgetMs) {
       attempt_count: Number(job.attempt_count || 0) + 1,
       started_at: job.started_at || now,
       finished_at: '',
-      last_error: '',
-    });
+    }));
     return { claimed: true, busy: false, job: claimedJob, lockToken: lockToken, reason: status === 'running' ? 'stale_recovery' : 'claimed' };
   });
+}
+
+function isRetryableSearchJobError_(error) {
+  const code = String((error && error.code) || '').trim();
+  if (code === 'SPREADSHEET_UNAVAILABLE') return true;
+  const message = String((error && error.message) || error || '');
+  if (/API key is not configured|query is required|invalid search job|not found|no items/i.test(message)) return false;
+  return /lock.*timeout|ロック.*タイムアウト|service invoked too many times|service (?:spreadsheets|sheets|drive|urlfetch).*failed|internal error|timed? out|一時的|try again|exceeded maximum execution time|quota exceeded|検索プロバイダーを利用できません|へ接続できません|HTTP\s+(?:408|425|429|5\d\d)\b/i.test(message);
 }
 
 function updateClaimedSearchJob_(jobId, lockToken, patch, release) {
@@ -791,11 +1069,10 @@ function processLeadSearchItem_(item, jobType, jobId) {
   const cacheKey = buildDomainCacheKey_(lead, jobType);
   const cached = readDomainCache_(cacheKey);
   if (cached) {
-    updateLeadFromSearchResult_(lead, cached, jobType);
-    return { updated: true, cacheHit: true };
+    const merged = updateLeadFromSearchResult_(lead, cached, jobType);
+    return { updated: merged.updated, cacheHit: true };
   }
 
-  assertSerperLimitAvailable_(lead.id);
   const query = buildLeadSearchQuery_(lead, jobType);
   const response = callSerperSearch_(query, {
     num: 5,
@@ -824,12 +1101,11 @@ function processLeadSearchItem_(item, jobType, jobId) {
   }
 
   const cacheRecord = writeDomainCache_(cacheKey, lead, selected, jobType);
-  updateLeadFromSearchResult_(lead, cacheRecord, jobType);
-  return { updated: true, cacheHit: false };
+  const merged = updateLeadFromSearchResult_(lead, cacheRecord, jobType);
+  return { updated: merged.updated, cacheHit: false };
 }
 
 function processProspectingSearchItem_(item, payload, jobId) {
-  assertSerperLimitAvailable_();
   const response = callSerperSearch_(item.query, {
     num: payload.results_per_query || 10,
     purpose: 'genre_area_search',
@@ -928,12 +1204,6 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
       if (result.created) summary.created += 1;
       if (result.skipped) summary.skipped += 1;
     } catch (error) {
-      if (isSerperQuotaError_(error)) {
-        summary.pausedForQuota = true;
-        summary.resumeAfter = serperQuotaResumeAfter_(error);
-        summary.quotaCode = String(error.code || '');
-        break;
-      }
       summary.skipped += 1;
       appendSyncError_('processNapCampSourcePageItem', error, {
         target_sheet: 'search_jobs',
@@ -1131,12 +1401,6 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
       }
       if (result.created) summary.created += 1;
     } catch (error) {
-      if (isSerperQuotaError_(error)) {
-        summary.pausedForQuota = true;
-        summary.resumeAfter = serperQuotaResumeAfter_(error);
-        summary.quotaCode = String(error.code || '');
-        break;
-      }
       appendSyncError_('processSourcePageCandidate', error, {
         target_sheet: 'search_jobs',
         target_id: jobId || '',
@@ -1214,7 +1478,6 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
   if (!officialUrl && payload.use_serper_fallback !== false && getSerperApiKey_()) {
     if (!hasSearchJobRuntimeAvailable_(runtimeContext, 45000)) return { created: false, deferred: true };
     try {
-      assertSerperLimitAvailable_();
       const query = candidate.serper_query || [facilityName, candidate.address || '', genre, '公式サイト'].filter(Boolean).join(' ');
       const response = callSerperSearch_(query, {
         num: 5,
@@ -1233,16 +1496,6 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
         discoveryMode = 'serper_fallback';
       }
     } catch (error) {
-      if (isSerperQuotaError_(error)) {
-        return {
-          created: false,
-          deferred: true,
-          pausedForQuota: true,
-          resumeAfter: serperQuotaResumeAfter_(error),
-          quotaCode: String(error.code || ''),
-          quotaMessage: error.message || String(error),
-        };
-      }
       serperResult = {
         query: candidate.serper_query || [facilityName, candidate.address || '', genre, '公式サイト'].filter(Boolean).join(' '),
         selected: null,
@@ -1706,33 +1959,41 @@ function selectLeadSearchResult_(results, jobType) {
 }
 
 function updateLeadFromSearchResult_(lead, result, jobType) {
-  const patch = {};
-  if (jobType === 'lead_form_url') {
-    patch.form_url = result.form_url || result.url || result.website_url || '';
-    if (patch.form_url && lead.status !== 'フォーム対応済み') {
-      patch.status = lead.status === '未対応' ? 'フォーム対応中' : lead.status;
+  const leadId = requireId_(lead && lead.id);
+  const searchResult = result && typeof result === 'object' ? result : {};
+  return withScriptLock_('updateLeadFromSearchResult', function () {
+    const current = getLeadById(leadId);
+    const patch = {};
+    const candidateWebsite = String(searchResult.website_url || (jobType !== 'lead_form_url' ? searchResult.url : '') || '').trim();
+    const candidateForm = String(searchResult.form_url || (jobType === 'lead_form_url' ? searchResult.url || searchResult.website_url : '') || '').trim();
+
+    if (candidateWebsite && !String(current.website_url || '').trim()) patch.website_url = candidateWebsite;
+    if (candidateForm && !String(current.form_url || '').trim()) {
+      patch.form_url = candidateForm;
+      if (String(current.status || '') === '未対応') patch.status = 'フォーム対応中';
     }
-  } else {
-    patch.website_url = result.website_url || result.url || '';
-  }
 
-  if (!patch.website_url && result.website_url) patch.website_url = result.website_url;
-  if (!patch.form_url && result.form_url) patch.form_url = result.form_url;
-
-  if (Object.keys(patch).length > 0) {
-    updateLead(lead.id, patch);
-  }
+    if (!Object.keys(patch).length) {
+      return { updated: false, lead: current };
+    }
+    return {
+      updated: true,
+      lead: updateLeadLocked_(leadId, patch),
+    };
+  }, { waitMs: 90000 });
 }
 
 function readDomainCache_(cacheKey) {
-  const records = listSheetRecords('domain_cache', { limit: 1000, includeInactive: true }).items;
+  const records = readAllSheetRecordsByName_('domain_cache', { includeInactive: true, includeArchived: true });
   const now = new Date().getTime();
-  const record = records.find(function (item) {
+  const record = records.filter(function (item) {
     if (item.cache_key !== cacheKey) return false;
     if (!item.expires_at) return true;
     const expiresAt = new Date(item.expires_at).getTime();
     return !Number.isFinite(expiresAt) || expiresAt > now;
-  });
+  }).sort(function (left, right) {
+    return String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
+  })[0] || null;
 
   if (!record) return null;
   return {
@@ -1759,15 +2020,19 @@ function writeDomainCache_(cacheKey, lead, selected, jobType) {
     source_json: safeJsonStringify_(selected.source || {}),
     expires_at: expiresAt,
   };
-  const existing = listSheetRecords('domain_cache', { limit: 1000, includeInactive: true }).items.find(function (item) {
-    return item.cache_key === cacheKey;
-  });
+  return withScriptLock_('writeDomainCache', function () {
+    const existing = readAllSheetRecordsByName_('domain_cache', { includeInactive: true, includeArchived: true }).filter(function (item) {
+      return item.cache_key === cacheKey;
+    }).sort(function (left, right) {
+      return String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
+    })[0] || null;
 
-  if (existing) {
-    return updateSheetRecord_('domain_cache', existing.id, record);
-  }
+    if (existing) {
+      return updateSheetRecord_('domain_cache', existing.id, record);
+    }
 
-  return appendSheetRecord_('domain_cache', record);
+    return appendSheetRecord_('domain_cache', record);
+  }, { waitMs: 90000 });
 }
 
 function buildDomainCacheKey_(lead, jobType) {
@@ -1775,6 +2040,75 @@ function buildDomainCacheKey_(lead, jobType) {
 }
 
 function callSerperSearch_(query, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const serperKey = getSerperApiKey_();
+  const searxngConfig = readSearxngConfig_();
+  const searxngReady = searxngConfig.enabled && searxngConfig.baseUrl && searxngConfig.accessToken;
+  const skipSerper = isSerperSearchTemporarilyUnavailable_();
+  let searxngError = null;
+  let serperError = null;
+
+  if (searxngReady) {
+    try {
+      return callSearxngSearch_(query, input);
+    } catch (error) {
+      searxngError = error;
+    }
+  }
+
+  if (serperKey && !skipSerper) {
+    try {
+      const result = callSerperSearchDirect_(query, input);
+      clearSerperSearchUnavailable_();
+      return result;
+    } catch (error) {
+      serperError = error;
+      markSerperSearchUnavailable_(error.message || String(error));
+    }
+  }
+
+  if (searxngError) {
+    const messages = ['PC検索: ' + (searxngError.message || String(searxngError))];
+    if (serperError) messages.push('Serper予備: ' + (serperError.message || String(serperError)));
+    if (serperKey && skipSerper) messages.push('Serper予備: 一時停止中');
+    throw new Error('検索プロバイダーを利用できません。' + messages.join(' / '));
+  }
+  if (serperError) throw serperError;
+  if (!searxngReady && !serperKey) {
+    throw new Error('PC検索またはSerper予備キーを設定してください。');
+  }
+  throw new Error('検索プロバイダーを利用できません。');
+}
+
+function isSerperSearchTemporarilyUnavailable_() {
+  try {
+    return Boolean(CacheService.getScriptCache().get(SERPER_SEARCH_FAILURE_CACHE_KEY));
+  } catch (error) {
+    return false;
+  }
+}
+
+function markSerperSearchUnavailable_(message) {
+  try {
+    CacheService.getScriptCache().put(
+      SERPER_SEARCH_FAILURE_CACHE_KEY,
+      String(message || 'unavailable').slice(0, 500),
+      SERPER_SEARCH_FAILURE_CACHE_SECONDS
+    );
+  } catch (error) {
+    // Cache failure must not block the fallback search.
+  }
+}
+
+function clearSerperSearchUnavailable_() {
+  try {
+    CacheService.getScriptCache().remove(SERPER_SEARCH_FAILURE_CACHE_KEY);
+  } catch (error) {
+    // Cache cleanup is best effort.
+  }
+}
+
+function callSerperSearchDirect_(query, options) {
   const key = getSerperApiKey_();
   if (!key) throw new Error('Serper API key is not configured.');
   const input = options && typeof options === 'object' ? options : {};
@@ -1804,7 +2138,9 @@ function callSerperSearch_(query, options) {
     data = { raw: text };
   }
 
-  const creditInfo = extractSerperCreditInfo_(data, response.getAllHeaders ? response.getAllHeaders() : {});
+  const creditInfo = extractSerperCreditInfo_(data, response.getAllHeaders ? response.getAllHeaders() : {}, {
+    allowAccountBalance: false,
+  });
 
   logSerperUsage_({
     credits: 1,
@@ -1821,6 +2157,8 @@ function callSerperSearch_(query, options) {
 
   if (creditInfo.remainingLabel) {
     recordSerperActiveKeyCreditResult_(creditInfo);
+  } else {
+    maybeRefreshActiveSerperCredit_();
   }
 
   if (code < 200 || code >= 300) {
@@ -1830,7 +2168,167 @@ function callSerperSearch_(query, options) {
   return {
     organic: Array.isArray(data.organic) ? data.organic : [],
     raw: data,
+    provider: 'serper',
   };
+}
+
+function callSearxngSearch_(query, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const config = readSearxngConfig_();
+  const normalizedQuery = String(query || '').trim();
+  const maxResults = Math.min(Math.max(Number(input.num) || 5, 1), 20);
+
+  if (!config.enabled || !config.baseUrl || !config.accessToken) {
+    throw new Error('PC検索が未設定または無効です。');
+  }
+  if (!normalizedQuery) throw new Error('検索キーワードが空です。');
+
+  const endpoint = config.baseUrl + '/search' +
+    '?q=' + encodeURIComponent(normalizedQuery) +
+    '&format=json' +
+    '&categories=general' +
+    '&language=' + encodeURIComponent(SEARXNG_DEFAULT_LANGUAGE) +
+    '&safesearch=0';
+  let response;
+  try {
+    response = UrlFetchApp.fetch(endpoint, {
+      method: 'get',
+      headers: {
+        Accept: 'application/json',
+        [SEARXNG_ACCESS_TOKEN_HEADER]: config.accessToken,
+      },
+      followRedirects: true,
+      muteHttpExceptions: true,
+    });
+  } catch (error) {
+    const message = error.message || String(error);
+    recordSearxngStatus_(false, 0, message);
+    logSerperUsage_({
+      credits: 0,
+      jobId: input.jobId || null,
+      leadId: input.leadId || '',
+      purpose: input.purpose || 'unknown',
+      query: normalizedQuery,
+      resultCount: 0,
+      source: 'searxng:' + String(input.source || ''),
+      status: 'error',
+      errorMessage: message,
+    });
+    throw new Error('PC検索へ接続できません。PC側の検索サービスを確認してください。');
+  }
+
+  const code = response.getResponseCode();
+  const text = response.getContentText();
+  let data = {};
+  try {
+    data = JSON.parse(text || '{}');
+  } catch (error) {
+    data = { raw: text };
+  }
+
+  if (code < 200 || code >= 300) {
+    const errorMessage = String(data.error || data.message || ('HTTP ' + code));
+    recordSearxngStatus_(false, 0, errorMessage);
+    logSerperUsage_({
+      credits: 0,
+      jobId: input.jobId || null,
+      leadId: input.leadId || '',
+      purpose: input.purpose || 'unknown',
+      query: normalizedQuery,
+      resultCount: 0,
+      source: 'searxng:' + String(input.source || ''),
+      status: 'error',
+      errorMessage: errorMessage,
+    });
+    throw new Error('PC検索がエラーを返しました: HTTP ' + code + ' ' + errorMessage);
+  }
+
+  const rawResults = Array.isArray(data.results) ? data.results : [];
+  const organic = rawResults
+    .filter(function (item) {
+      return item && item.url && item.title;
+    })
+    .map(function (item, index) {
+      return {
+        title: String(item.title || ''),
+        link: String(item.url || ''),
+        snippet: String(item.content || ''),
+        position: index + 1,
+        source: 'searxng',
+      };
+    })
+    .slice(0, maxResults);
+
+  recordSearxngStatus_(true, organic.length, '');
+  logSerperUsage_({
+    credits: 0,
+    jobId: input.jobId || null,
+    leadId: input.leadId || '',
+    purpose: input.purpose || 'unknown',
+    query: normalizedQuery,
+    resultCount: organic.length,
+    source: 'searxng:' + String(input.source || ''),
+    status: 'success',
+    errorMessage: '',
+  });
+
+  return {
+    organic: organic,
+    raw: data,
+    provider: 'searxng',
+  };
+}
+
+function normalizeSearxngBaseUrl_(value) {
+  let normalized = String(value || '').trim().replace(/\/+$/, '');
+  normalized = normalized.replace(/\/search$/i, '');
+  if (!normalized) return '';
+  if (!/^https:\/\/[a-z0-9.-]+(?::\d+)?(?:\/[^?#\s]*)?$/i.test(normalized)) {
+    throw new Error('PC検索の公開URLはhttps://で始まるURLを入力してください。');
+  }
+  return normalized;
+}
+
+function readSearxngConfig_() {
+  const properties = PropertiesService.getScriptProperties();
+  const baseUrl = normalizeSearxngBaseUrl_(properties.getProperty(PROPERTY_KEYS.SEARXNG_BASE_URL) || '');
+  const accessToken = String(properties.getProperty(PROPERTY_KEYS.SEARXNG_ACCESS_TOKEN) || '').trim();
+  const enabledValue = String(properties.getProperty(PROPERTY_KEYS.SEARXNG_ENABLED) || '').trim().toLowerCase();
+  return {
+    baseUrl: baseUrl,
+    accessToken: accessToken,
+    enabled: enabledValue !== 'false' && Boolean(baseUrl && accessToken),
+  };
+}
+
+function getSearxngConfigInfo_() {
+  const config = readSearxngConfig_();
+  const properties = PropertiesService.getScriptProperties();
+  let status = {};
+  try {
+    status = JSON.parse(String(properties.getProperty(PROPERTY_KEYS.SEARXNG_STATUS_JSON) || '{}')) || {};
+  } catch (error) {
+    status = {};
+  }
+  return {
+    configured: Boolean(config.baseUrl && config.accessToken),
+    enabled: config.enabled,
+    baseUrl: config.baseUrl,
+    tokenMask: config.accessToken ? maskSecret_(config.accessToken) : '',
+    lastStatus: String(status.lastStatus || '未確認'),
+    lastCheckedAt: String(status.lastCheckedAt || ''),
+    lastError: String(status.lastError || ''),
+    lastResultCount: status.lastResultCount === '' || status.lastResultCount === undefined ? '' : Number(status.lastResultCount),
+  };
+}
+
+function recordSearxngStatus_(ok, resultCount, errorMessage) {
+  PropertiesService.getScriptProperties().setProperty(PROPERTY_KEYS.SEARXNG_STATUS_JSON, JSON.stringify({
+    lastStatus: ok ? '稼働中' : '接続失敗',
+    lastCheckedAt: nowIso_(),
+    lastError: String(errorMessage || ''),
+    lastResultCount: Number(resultCount) || 0,
+  }));
 }
 
 function fetchSerperCreditInfo_(apiKey) {
@@ -1864,15 +2362,15 @@ function fetchSerperCreditInfo_(apiKey) {
       } catch (error) {
         data = { raw: text };
       }
-      const creditInfo = extractSerperCreditInfo_(data, response.getAllHeaders ? response.getAllHeaders() : {});
+      const creditInfo = extractSerperCreditInfo_(data, response.getAllHeaders ? response.getAllHeaders() : {}, {
+        allowAccountBalance: true,
+      });
       if (code >= 200 && code < 300 && creditInfo.remainingLabel) {
-        return {
+        return Object.assign({}, creditInfo, {
           ok: true,
           endpoint: endpoint,
           errorMessage: '',
-          remainingLabel: creditInfo.remainingLabel,
-          remainingZero: creditInfo.remainingZero,
-        };
+        });
       }
       const message = String(data.message || data.error || text || '残量項目なし').slice(0, 180);
       errors.push(endpoint.replace('https://google.serper.dev', '') + ': HTTP ' + code + ' ' + message);
@@ -1889,39 +2387,59 @@ function fetchSerperCreditInfo_(apiKey) {
   };
 }
 
-function extractSerperCreditInfo_(payload, headers) {
-  const headerValue = readNumericHeader_(headers, [
+function extractSerperCreditInfo_(payload, headers, options) {
+  const config = options && typeof options === 'object' ? options : {};
+  const headerRemaining = readNumericHeader_(headers, [
     'x-credits-left',
     'x-credit-left',
     'x-credits-remaining',
     'x-credit-remaining',
-    'x-ratelimit-remaining',
     'credits-remaining',
   ]);
-  if (headerValue !== '') {
-    return buildSerperCreditInfo_(headerValue);
-  }
-
-  const remaining = findSerperCreditValue_(payload, [
+  const remainingKeys = [
     'remainingCredits',
     'creditsRemaining',
     'remaining_credits',
     'credits_remaining',
-    'creditBalance',
-    'credit_balance',
-    'balance',
-    'credits',
-    'credit',
-    'remaining',
-  ], 0);
-  if (remaining !== '') {
-    return buildSerperCreditInfo_(remaining);
+  ];
+  if (config.allowAccountBalance === true) {
+    remainingKeys.push('creditBalance', 'credit_balance', 'balance');
   }
-
-  return {
-    remainingLabel: '',
-    remainingZero: false,
-  };
+  const remaining = headerRemaining !== '' ? headerRemaining : findSerperCreditValue_(payload, remainingKeys, 0);
+  const total = readNumericHeader_(headers, [
+    'x-credits-total',
+    'x-credit-limit',
+    'x-credits-limit',
+  ]) || findSerperCreditValue_(payload, [
+    'totalCredits',
+    'creditsTotal',
+    'total_credits',
+    'credits_total',
+    'creditLimit',
+    'credit_limit',
+    'purchasedCredits',
+    'purchased_credits',
+    'initialCredits',
+    'initial_credits',
+  ], 0);
+  const used = findSerperCreditValue_(payload, [
+    'usedCredits',
+    'creditsUsed',
+    'used_credits',
+    'credits_used',
+    'consumedCredits',
+    'consumed_credits',
+  ], 0);
+  const percent = readNumericHeader_(headers, [
+    'x-credits-remaining-percent',
+    'x-credit-remaining-percent',
+  ]) || findSerperCreditValue_(payload, [
+    'remainingPercent',
+    'remainingPercentage',
+    'creditRemainingPercent',
+    'credit_remaining_percent',
+  ], 0);
+  return buildSerperCreditInfo_(remaining, total, used, percent);
 }
 
 function readNumericHeader_(headers, names) {
@@ -1978,12 +2496,31 @@ function normalizeSerperCreditNumber_(value) {
   return Number.isFinite(number) ? number : '';
 }
 
-function buildSerperCreditInfo_(remaining) {
+function buildSerperCreditInfo_(remaining, total, used, percent) {
   const number = normalizeSerperCreditNumber_(remaining);
+  let totalNumber = normalizeSerperCreditNumber_(total);
+  const usedNumber = normalizeSerperCreditNumber_(used);
+  if (totalNumber === '' && number !== '' && usedNumber !== '') {
+    totalNumber = Math.max(number + usedNumber, number);
+  }
+  let percentNumber = normalizeSerperCreditPercent_(percent);
+  if (percentNumber === '' && number !== '' && totalNumber !== '' && totalNumber > 0) {
+    percentNumber = Math.max(0, Math.min(100, (number / totalNumber) * 100));
+  }
   return {
     remainingLabel: number === '' ? '' : formatSerperCreditNumber_(number) + ' credits',
     remainingZero: number !== '' && number <= 0,
+    remainingValue: number,
+    totalValue: totalNumber,
+    remainingPercent: percentNumber,
+    lowCredit: percentNumber !== '' && percentNumber < SERPER_LOW_CREDIT_THRESHOLD_PERCENT,
   };
+}
+
+function normalizeSerperCreditPercent_(value) {
+  const number = normalizeSerperCreditNumber_(value);
+  if (number === '') return '';
+  return Math.max(0, Math.min(100, number));
 }
 
 function formatSerperCreditNumber_(value) {
@@ -1992,47 +2529,11 @@ function formatSerperCreditNumber_(value) {
   return number.toLocaleString ? number.toLocaleString('en-US') : String(number);
 }
 
-function assertSerperLimitAvailable_(leadId) {
-  const month = monthText_();
-  const monthlyLimit = Number(getSettingValue_('serper_monthly_search_limit', 1000));
-  const perLeadLimit = Number(getSettingValue_('serper_per_lead_search_limit', 3));
-  const monthCount = getSerperUsageCount_({ month: month });
-
-  if (monthCount >= monthlyLimit) {
-    throw createExpectedOperationError_('Monthly Serper limit reached: ' + monthlyLimit, 'SERPER_MONTHLY_LIMIT');
-  }
-  if (leadId) {
-    const leadCount = getSerperUsageCount_({ leadId: leadId });
-    if (leadCount >= perLeadLimit) {
-      throw createExpectedOperationError_('Per-lead Serper limit reached for lead: ' + leadId, 'SERPER_LEAD_LIMIT');
-    }
-  }
-}
-
-function isSerperQuotaError_(error) {
-  return Boolean(error && String(error.code || '') === 'SERPER_MONTHLY_LIMIT');
-}
-
-function isSerperLeadLimitError_(error) {
-  return Boolean(error && String(error.code || '') === 'SERPER_LEAD_LIMIT');
-}
-
-function serperQuotaResumeAfter_(error, nowDate) {
-  const timezone = Session.getScriptTimeZone() || 'Asia/Tokyo';
-  const now = nowDate instanceof Date ? nowDate : new Date();
-  const localDate = Utilities.formatDate(now, timezone, 'yyyy-MM-dd');
-  const parts = localDate.split('-').map(Number);
-  let year = parts[0];
-  const month = parts[1] + 1;
-  const day = 1;
-  const next = new Date(Date.UTC(year, month - 1, day));
-  const dateText = Utilities.formatDate(next, 'UTC', 'yyyy-MM-dd');
-  return dateText + 'T00:05:00+09:00';
-}
-
-function getSerperUsageCount_(range) {
-  const records = listSheetRecords('search_usage_logs', { limit: 5000, includeInactive: true }).items;
-  return records.reduce(function (sum, record) {
+function getSerperUsageCount_(range, records) {
+  const usageRecords = Array.isArray(records)
+    ? records
+    : readAllSheetRecordsByName_('search_usage_logs', { includeInactive: true, includeArchived: true });
+  return usageRecords.reduce(function (sum, record) {
     const createdAt = String(record.created_at || '').trim();
     if (range.day && createdAt.slice(0, 10) !== range.day) return sum;
     if (range.month && createdAt.slice(0, 7) !== range.month) return sum;
@@ -2052,7 +2553,7 @@ function logSerperUsage_(entry) {
     source: entry.source || '',
     query: entry.query || '',
     request_count: 1,
-    credits: entry.credits || 1,
+    credits: entry.credits === 0 ? 0 : (entry.credits || 1),
     result_count: entry.resultCount || 0,
     status: entry.status || 'success',
     cache_hit: false,
@@ -2114,7 +2615,7 @@ function upsertSerperPrimaryKey_(key, name) {
 }
 
 function buildSerperApiKeyManagerInfo_(message) {
-  const records = readSerperApiKeyRecords_();
+  const records = harmonizeSerperCreditRecords_(readSerperApiKeyRecords_());
   const legacyKey = String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SERPER_API_KEY) || '').trim();
   const selected = selectPrimarySerperApiKeyRecord_(records);
   const configured = Boolean(selected && selected.key) || Boolean(legacyKey);
@@ -2122,8 +2623,10 @@ function buildSerperApiKeyManagerInfo_(message) {
   const month = monthText_();
   const todayUsed = getSerperUsageCount_({ day: today });
   const monthUsed = getSerperUsageCount_({ month: month });
-  const monthlyLimit = Number(getSettingValue_('serper_monthly_search_limit', 1000));
-  const actualRemaining = String((selected && selected.last_remaining) || '').trim();
+  const creditStatus = buildSerperCreditStatusFromRecord_(selected);
+  const actualRemaining = creditStatus.remainingLabel;
+  const searxng = getSearxngConfigInfo_();
+  const searchConfigured = configured || (searxng.configured && searxng.enabled);
   const sanitized = records.map(sanitizeSerperApiKeyRecord_);
   if (!sanitized.length && legacyKey) {
     sanitized.push({
@@ -2133,6 +2636,8 @@ function buildSerperApiKeyManagerInfo_(message) {
       last_checked_at: '',
       last_error: '',
       last_remaining: '',
+      last_remaining_percent: '',
+      last_remaining_value: '',
       last_search_error: '',
       last_search_result_count: '',
       last_search_status: '未確認',
@@ -2145,23 +2650,31 @@ function buildSerperApiKeyManagerInfo_(message) {
   }
   return {
     configured: configured,
+    searchConfigured: searchConfigured,
+    searxng: searxng,
     credit: {
       detail: configured
-        ? (actualRemaining ? 'Serper残量 ' + actualRemaining + ' / 月間使用 ' + monthUsed + '件' : '日次制限なし / 月間残り ' + Math.max(0, monthlyLimit - monthUsed) + '件')
+        ? (actualRemaining
+          ? 'Serper残量 ' + actualRemaining + (creditStatus.percentKnown ? ' / ' + Math.round(creditStatus.remainingPercent * 10) / 10 + '%（20%未満で警告）' : ' / 残量率の基準を確認中')
+          : '利用回数の上限なし / Serper残量の確認待ち')
         : 'Serper APIキーをPropertiesServiceへ保存してください。',
-      label: configured ? 'Serper利用可能' : 'Serper未設定',
+      label: configured ? (creditStatus.lowCredit ? 'Serper残量20%未満' : 'Serper利用可能') : 'Serper未設定',
       ready: configured,
-      tone: configured ? 'ok' : 'warn',
+      tone: configured ? (creditStatus.lowCredit ? 'warn' : 'ok') : 'warn',
     },
     key_mask: configured ? maskSecret_(selected && selected.key ? selected.key : legacyKey) : '',
     keys: sanitized,
     limits: {
-      monthly: monthlyLimit,
-      dailyUnlimited: true,
+      unlimited: true,
+      alertThresholdPercent: SERPER_LOW_CREDIT_THRESHOLD_PERCENT,
       todayUsed: todayUsed,
       monthUsed: monthUsed,
-      monthRemaining: Math.max(0, monthlyLimit - monthUsed),
       actualRemaining: actualRemaining,
+      remainingValue: creditStatus.remainingValue,
+      totalValue: creditStatus.totalValue,
+      remainingPercent: creditStatus.remainingPercent,
+      percentKnown: creditStatus.percentKnown,
+      lowCredit: creditStatus.lowCredit,
     },
     message: message || '',
   };
@@ -2175,6 +2688,10 @@ function sanitizeSerperApiKeyRecord_(record) {
     last_checked_at: record.last_checked_at || '',
     last_error: record.last_error || '',
     last_remaining: record.last_remaining || '',
+    last_remaining_percent: record.last_remaining_percent === '' || record.last_remaining_percent === undefined ? '' : Number(record.last_remaining_percent),
+    last_remaining_value: record.last_remaining_value === '' || record.last_remaining_value === undefined ? '' : Number(record.last_remaining_value),
+    credit_total: record.credit_total === '' || record.credit_total === undefined ? '' : Number(record.credit_total),
+    credit_total_source: record.credit_total_source || '',
     last_search_error: record.last_search_error || '',
     last_search_result_count: record.last_search_result_count || '',
     last_search_status: record.last_search_status || '未確認',
@@ -2206,6 +2723,10 @@ function readSerperApiKeyRecords_() {
           last_checked_at: String(record.last_checked_at || ''),
           last_error: String(record.last_error || ''),
           last_remaining: record.last_remaining || '',
+          last_remaining_percent: record.last_remaining_percent === '' || record.last_remaining_percent === undefined ? '' : Number(record.last_remaining_percent),
+          last_remaining_value: record.last_remaining_value === '' || record.last_remaining_value === undefined ? '' : Number(record.last_remaining_value),
+          credit_total: record.credit_total === '' || record.credit_total === undefined ? '' : Number(record.credit_total),
+          credit_total_source: String(record.credit_total_source || ''),
           last_search_error: String(record.last_search_error || ''),
           last_search_result_count: record.last_search_result_count || '',
           last_search_status: String(record.last_search_status || '未確認'),
@@ -2249,43 +2770,181 @@ function syncPrimarySerperApiKeyProperty_(records) {
 }
 
 function recordSerperActiveKeyTestResult_(ok, resultCount, errorMessage) {
-  const records = readSerperApiKeyRecords_();
-  const selected = selectPrimarySerperApiKeyRecord_(records);
-  if (!selected) return;
-  const now = nowIso_();
-  const nextRecords = records.map(function (record) {
-    if (record.id !== selected.id) return record;
-    return Object.assign({}, record, {
-      last_checked_at: record.last_checked_at || '',
-      last_error: ok ? (record.last_error || '') : errorMessage,
-      last_remaining: record.last_remaining || '',
-      last_search_error: ok ? '' : errorMessage,
-      last_search_result_count: Number(resultCount || 0),
-      last_search_status: ok ? '成功' : '失敗',
-      last_search_test_at: now,
-      last_status: ok ? '利用可能' : 'エラー',
-      updated_at: now,
+  return withScriptLock_('recordSerperActiveKeyTestResult', function () {
+    const records = readSerperApiKeyRecords_();
+    const selected = selectPrimarySerperApiKeyRecord_(records);
+    if (!selected) return null;
+    const now = nowIso_();
+    const nextRecords = records.map(function (record) {
+      if (record.id !== selected.id) return record;
+      const creditStatus = buildSerperCreditStatusFromRecord_(record);
+      return Object.assign({}, record, {
+        last_checked_at: record.last_checked_at || '',
+        last_error: ok ? (record.last_error || '') : errorMessage,
+        last_remaining: record.last_remaining || '',
+        last_search_error: ok ? '' : errorMessage,
+        last_search_result_count: Number(resultCount || 0),
+        last_search_status: ok ? '成功' : '失敗',
+        last_search_test_at: now,
+        last_status: ok ? (creditStatus.remainingZero ? '残量なし' : creditStatus.lowCredit ? '残量20%未満' : '利用可能') : 'エラー',
+        updated_at: now,
+      });
     });
-  });
-  writeSerperApiKeyRecords_(nextRecords);
+    writeSerperApiKeyRecords_(nextRecords);
+    return selected.id;
+  }, { waitMs: 90000 });
 }
 
 function recordSerperActiveKeyCreditResult_(creditInfo) {
+  return withScriptLock_('recordSerperActiveKeyCreditResult', function () {
+    const records = readSerperApiKeyRecords_();
+    const selected = selectPrimarySerperApiKeyRecord_(records);
+    if (!selected) return null;
+    const now = nowIso_();
+    const nextRecords = records.map(function (record) {
+      if (record.id !== selected.id) return record;
+      return mergeSerperCreditRecord_(record, creditInfo, now);
+    });
+    writeSerperApiKeyRecords_(harmonizeSerperCreditRecords_(nextRecords));
+    return selected.id;
+  }, { waitMs: 90000 });
+}
+
+function mergeSerperCreditRecord_(record, creditInfo, checkedAt) {
+  const current = record && typeof record === 'object' ? record : {};
+  const result = creditInfo && typeof creditInfo === 'object' ? creditInfo : {};
+  const remainingValue = normalizeSerperCreditNumber_(result.remainingValue !== undefined ? result.remainingValue : result.remainingLabel);
+  const existingTotal = normalizeSerperCreditNumber_(current.credit_total);
+  const apiTotal = normalizeSerperCreditNumber_(result.totalValue);
+  let totalValue = apiTotal !== '' ? apiTotal : existingTotal;
+  let totalSource = apiTotal !== '' ? 'api' : String(current.credit_total_source || '');
+  if (remainingValue !== '' && (totalValue === '' || remainingValue > totalValue)) {
+    totalValue = remainingValue;
+    totalSource = 'observed_max';
+  }
+  let remainingPercent = normalizeSerperCreditPercent_(result.remainingPercent);
+  if (remainingPercent === '' && remainingValue !== '' && totalValue !== '' && totalValue > 0) {
+    remainingPercent = Math.max(0, Math.min(100, (remainingValue / totalValue) * 100));
+  }
+  const remainingZero = remainingValue !== '' && remainingValue <= 0;
+  const lowCredit = remainingPercent !== '' && remainingPercent < SERPER_LOW_CREDIT_THRESHOLD_PERCENT;
+  return Object.assign({}, current, {
+    credit_total: totalValue,
+    credit_total_source: totalSource,
+    last_checked_at: checkedAt || nowIso_(),
+    last_error: '',
+    last_remaining: result.remainingLabel || (remainingValue === '' ? current.last_remaining || '' : formatSerperCreditNumber_(remainingValue) + ' credits'),
+    last_remaining_percent: remainingPercent,
+    last_remaining_value: remainingValue,
+    last_status: remainingZero ? '残量なし' : lowCredit ? '残量20%未満' : '利用可能',
+    updated_at: checkedAt || nowIso_(),
+  });
+}
+
+function harmonizeSerperCreditRecords_(records) {
+  const sourceRecords = Array.isArray(records) ? records : [];
+  const groups = Object.create(null);
+  sourceRecords.forEach(function (record) {
+    const key = String(record && record.key || '').trim();
+    if (!key) return;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(record);
+  });
+
+  const canonicalByKey = Object.create(null);
+  Object.keys(groups).forEach(function (key) {
+    const group = groups[key];
+    if (group.length < 2) return;
+    const newest = group
+      .filter(function (record) {
+        return normalizeSerperCreditNumber_(record.last_remaining_value !== undefined && record.last_remaining_value !== ''
+          ? record.last_remaining_value
+          : record.last_remaining) !== '';
+      })
+      .sort(function (left, right) {
+        return String(right.last_checked_at || right.updated_at || '').localeCompare(String(left.last_checked_at || left.updated_at || ''));
+      })[0];
+    if (!newest) return;
+
+    const remainingValue = normalizeSerperCreditNumber_(newest.last_remaining_value !== undefined && newest.last_remaining_value !== ''
+      ? newest.last_remaining_value
+      : newest.last_remaining);
+    const apiTotalRecord = group
+      .filter(function (record) {
+        return record.credit_total_source === 'api' && normalizeSerperCreditNumber_(record.credit_total) !== '';
+      })
+      .sort(function (left, right) {
+        return String(right.last_checked_at || right.updated_at || '').localeCompare(String(left.last_checked_at || left.updated_at || ''));
+      })[0];
+    const observedTotals = group
+      .map(function (record) { return normalizeSerperCreditNumber_(record.credit_total); })
+      .filter(function (value) { return value !== ''; });
+    let totalValue = apiTotalRecord ? normalizeSerperCreditNumber_(apiTotalRecord.credit_total) : '';
+    let totalSource = apiTotalRecord ? 'api' : '';
+    if (totalValue === '' && observedTotals.length) {
+      totalValue = Math.max.apply(null, observedTotals);
+      totalSource = 'observed_max';
+    }
+    if (remainingValue !== '' && (totalValue === '' || remainingValue > totalValue)) {
+      totalValue = remainingValue;
+      totalSource = 'observed_max';
+    }
+    const remainingPercent = remainingValue !== '' && totalValue !== '' && totalValue > 0
+      ? Math.max(0, Math.min(100, (remainingValue / totalValue) * 100))
+      : normalizeSerperCreditPercent_(newest.last_remaining_percent);
+    const remainingZero = remainingValue !== '' && remainingValue <= 0;
+    const lowCredit = remainingPercent !== '' && remainingPercent < SERPER_LOW_CREDIT_THRESHOLD_PERCENT;
+    canonicalByKey[key] = {
+      credit_total: totalValue,
+      credit_total_source: totalSource,
+      last_checked_at: newest.last_checked_at || '',
+      last_error: newest.last_error || '',
+      last_remaining: newest.last_remaining || (remainingValue === '' ? '' : formatSerperCreditNumber_(remainingValue) + ' credits'),
+      last_remaining_percent: remainingPercent,
+      last_remaining_value: remainingValue,
+      last_status: remainingZero ? '残量なし' : lowCredit ? '残量20%未満' : '利用可能',
+    };
+  });
+
+  return sourceRecords.map(function (record) {
+    const canonical = canonicalByKey[String(record && record.key || '').trim()];
+    return canonical ? Object.assign({}, record, canonical) : record;
+  });
+}
+
+function buildSerperCreditStatusFromRecord_(record) {
+  const source = record && typeof record === 'object' ? record : {};
+  const remainingValue = normalizeSerperCreditNumber_(source.last_remaining_value !== undefined && source.last_remaining_value !== '' ? source.last_remaining_value : source.last_remaining);
+  const totalValue = normalizeSerperCreditNumber_(source.credit_total);
+  let remainingPercent = normalizeSerperCreditPercent_(source.last_remaining_percent);
+  if (remainingPercent === '' && remainingValue !== '' && totalValue !== '' && totalValue > 0) {
+    remainingPercent = Math.max(0, Math.min(100, (remainingValue / totalValue) * 100));
+  }
+  return {
+    remainingLabel: String(source.last_remaining || (remainingValue === '' ? '' : formatSerperCreditNumber_(remainingValue) + ' credits')).trim(),
+    remainingValue: remainingValue,
+    totalValue: totalValue,
+    remainingPercent: remainingPercent,
+    percentKnown: remainingPercent !== '',
+    remainingZero: remainingValue !== '' && remainingValue <= 0,
+    lowCredit: remainingPercent !== '' && remainingPercent < SERPER_LOW_CREDIT_THRESHOLD_PERCENT,
+  };
+}
+
+function maybeRefreshActiveSerperCredit_() {
   const records = readSerperApiKeyRecords_();
   const selected = selectPrimarySerperApiKeyRecord_(records);
-  if (!selected) return;
-  const now = nowIso_();
-  const nextRecords = records.map(function (record) {
-    if (record.id !== selected.id) return record;
-    return Object.assign({}, record, {
-      last_checked_at: now,
-      last_error: '',
-      last_remaining: creditInfo.remainingLabel || record.last_remaining || '',
-      last_status: creditInfo.remainingZero ? '残量なし' : '利用可能',
-      updated_at: now,
-    });
-  });
-  writeSerperApiKeyRecords_(nextRecords);
+  if (!selected || !selected.key) return;
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'serper_credit_refresh_' + String(selected.id || 'main').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80);
+  try {
+    if (cache.get(cacheKey)) return;
+    cache.put(cacheKey, '1', SERPER_CREDIT_REFRESH_INTERVAL_SECONDS);
+  } catch (error) {
+    console.warn('Serper credit refresh throttle skipped: ' + error.message);
+  }
+  const result = fetchSerperCreditInfo_(selected.key);
+  if (result.ok) recordSerperActiveKeyCreditResult_(result);
 }
 
 function appendSyncError_(operation, error, context) {

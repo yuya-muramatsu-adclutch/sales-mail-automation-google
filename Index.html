@@ -703,6 +703,10 @@
         display: none;
       }
 
+      .background-toast-stack.compact {
+        width: min(320px, calc(100vw - 36px));
+      }
+
       .background-toast {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
@@ -713,6 +717,40 @@
         background: #ffffff;
         box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
         pointer-events: auto;
+      }
+
+      .background-toast-stack.compact .background-toast {
+        gap: 8px;
+        padding: 9px 10px;
+      }
+
+      .background-toast-stack.compact .background-toast-icon {
+        width: 28px;
+        height: 28px;
+      }
+
+      .background-toast-stack.compact .background-toast-body {
+        gap: 4px;
+      }
+
+      .background-toast-stack.compact .background-toast p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .background-toast-stack.compact .background-toast-meta span,
+      .background-toast-stack.compact .background-toast-found-list {
+        display: none;
+      }
+
+      .background-toast-stack.compact .background-toast-meta {
+        justify-content: flex-end;
+        min-height: 20px;
+      }
+
+      .background-toast-stack.compact .background-progress-track {
+        height: 5px;
       }
 
       .background-toast.completed {
@@ -1634,6 +1672,13 @@
         grid-column: 1 / -1;
         color: inherit;
         opacity: 0.86;
+      }
+
+      .background-health-chip .background-repair-button {
+        grid-column: 1 / -1;
+        justify-self: start;
+        min-height: 30px;
+        margin-top: 2px;
       }
 
       .background-current-task {
@@ -3800,6 +3845,211 @@
         border: 1px solid #bfdbfe;
         border-radius: 8px;
         background: #eff6ff;
+      }
+
+      .serper-credit-overview {
+        display: grid;
+        gap: 18px;
+        padding: 20px;
+        border: 1px solid var(--tone-info-line);
+        border-radius: 10px;
+        background: var(--tone-info-bg);
+      }
+
+      .serper-credit-overview.is-ok {
+        border-color: var(--tone-ok-line);
+        background: var(--tone-ok-bg);
+      }
+
+      .serper-credit-overview.is-low {
+        border-color: var(--tone-warn-line);
+        background: var(--tone-warn-bg);
+      }
+
+      .serper-credit-overview.is-empty {
+        border-color: #fecaca;
+        background: #fff7f7;
+      }
+
+      .serper-credit-overview-head,
+      .serper-credit-overview-footer,
+      .serper-credit-overview-actions,
+      .serper-credit-heading {
+        display: flex;
+        align-items: center;
+      }
+
+      .serper-credit-overview-head,
+      .serper-credit-overview-footer {
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .serper-credit-heading {
+        gap: 10px;
+      }
+
+      .serper-credit-heading > svg {
+        width: 22px;
+        height: 22px;
+        color: var(--blue);
+        stroke-width: 2.1;
+      }
+
+      .serper-credit-heading p,
+      .serper-credit-heading h3,
+      .serper-credit-overview-footer p {
+        margin: 0;
+      }
+
+      .serper-credit-heading p {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+
+      .serper-credit-heading h3 {
+        margin-top: 2px;
+        color: var(--text);
+        font-size: 17px;
+        font-weight: 900;
+      }
+
+      .serper-credit-metrics {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(180px, .7fr);
+        gap: 12px;
+      }
+
+      .serper-credit-metric {
+        padding: 16px;
+        border: 1px solid rgba(148, 163, 184, .28);
+        border-radius: 9px;
+        background: rgba(255, 255, 255, .88);
+      }
+
+      .serper-credit-metric > span,
+      .serper-credit-metric > small {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .serper-credit-metric strong {
+        display: inline-block;
+        margin-top: 5px;
+        color: #0f172a;
+        font-size: clamp(27px, 3vw, 38px);
+        font-variant-numeric: tabular-nums;
+        font-weight: 900;
+        letter-spacing: -.035em;
+        line-height: 1.1;
+      }
+
+      .serper-credit-metric strong + small {
+        display: inline-block;
+        margin-left: 6px;
+      }
+
+      .serper-credit-metric .serper-credit-metric-note {
+        margin-top: 7px;
+        line-height: 1.5;
+      }
+
+      .serper-credit-progress {
+        display: grid;
+        gap: 7px;
+      }
+
+      .serper-credit-progress-track {
+        position: relative;
+        height: 14px;
+        overflow: visible;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+
+      .serper-credit-progress-fill {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: #22c55e;
+        transition: width .2s ease;
+      }
+
+      .serper-credit-overview.is-low .serper-credit-progress-fill {
+        background: #f59e0b;
+      }
+
+      .serper-credit-overview.is-empty .serper-credit-progress-fill {
+        background: #ef4444;
+      }
+
+      .serper-credit-overview.is-unknown .serper-credit-progress-fill {
+        width: 100% !important;
+        opacity: .32;
+        background: #94a3b8;
+      }
+
+      .serper-credit-threshold-marker {
+        position: absolute;
+        top: -5px;
+        bottom: -5px;
+        width: 2px;
+        border-radius: 999px;
+        background: #b45309;
+        transform: translateX(-1px);
+      }
+
+      .serper-credit-progress-labels {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .serper-credit-progress-labels span:nth-child(2) {
+        color: #92400e;
+      }
+
+      .serper-credit-progress-labels span:last-child {
+        text-align: right;
+      }
+
+      .serper-credit-overview-footer p {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.6;
+      }
+
+      .serper-credit-overview-actions {
+        flex: 0 0 auto;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      @media (max-width: 900px) {
+        .serper-credit-metrics {
+          grid-template-columns: 1fr;
+        }
+
+        .serper-credit-overview-head,
+        .serper-credit-overview-footer {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .serper-credit-overview-actions {
+          justify-content: flex-start;
+        }
       }
 
       .api-key-summary strong,
@@ -6076,6 +6326,24 @@
         flex: 0 0 auto;
       }
 
+      .serper-balance-shortcut.good {
+        border-color: var(--tone-ok-line);
+        background: var(--tone-ok-bg);
+        color: #166534;
+      }
+
+      .serper-balance-shortcut.warn {
+        border-color: var(--tone-warn-line);
+        background: var(--tone-warn-bg);
+        color: #92400e;
+      }
+
+      .serper-balance-shortcut.bad {
+        border-color: #fecaca;
+        background: #fff1f2;
+        color: #be123c;
+      }
+
       .collection-management-summary {
         display: grid;
         gap: 12px;
@@ -7234,6 +7502,12 @@
         color: var(--ink);
         font-size: 15px;
         font-weight: 900;
+      }
+
+      .admin-disclosure > summary .pill {
+        margin-left: 0;
+        color: #1d4ed8;
+        font-size: 11px;
       }
 
       .admin-disclosure > summary small {
@@ -10559,6 +10833,439 @@
           bottom: 14px;
         }
       }
+
+      /* v171-collection-focus-ui: selected focus-first collection layout. */
+      #search.section.active {
+        gap: 28px;
+      }
+
+      #search .section-header {
+        min-height: 84px;
+        padding-bottom: 22px;
+      }
+
+      #search .section-header .eyebrow,
+      #search .section-description {
+        display: none;
+      }
+
+      #search .section-header h1 {
+        font-size: clamp(28px, 2.5vw, 36px);
+        letter-spacing: -.025em;
+      }
+
+      #search .prospecting-collection-tool {
+        gap: 0;
+      }
+
+      #search .collection-command-center.simple {
+        gap: 28px;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .collection-status-strip {
+        display: grid;
+        grid-template-columns: .9fr 1.35fr .9fr;
+        min-height: 88px;
+        overflow: hidden;
+        border: 1px solid #d5dee8;
+        border-radius: 10px;
+        background: #ffffff;
+      }
+
+      .collection-status-cell {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 15px;
+        align-items: center;
+        min-width: 0;
+        min-height: 88px;
+        padding: 18px clamp(18px, 2.3vw, 30px);
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--text);
+        text-align: left;
+        white-space: normal;
+      }
+
+      .collection-status-cell + .collection-status-cell {
+        border-left: 1px solid #dbe3ec;
+      }
+
+      .collection-status-cell:hover {
+        border-color: transparent;
+        background: #f8fafc;
+        box-shadow: none;
+        transform: none;
+      }
+
+      .collection-status-cell > svg {
+        width: 23px;
+        height: 23px;
+        color: #2563eb;
+        stroke-width: 2;
+      }
+
+      .collection-status-cell > span {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .collection-status-cell small {
+        color: #475569;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .collection-status-cell strong {
+        color: #111827;
+        font-size: clamp(14px, 1.35vw, 18px);
+        font-variant-numeric: tabular-nums;
+        font-weight: 900;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+      }
+
+      .collection-status-cell.warn strong {
+        color: #92400e;
+      }
+
+      .collection-status-cell.bad strong {
+        color: #be123c;
+      }
+
+      .collection-status-progress {
+        display: block;
+        width: min(290px, 100%);
+        height: 6px;
+        margin-top: 5px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+
+      .collection-status-progress i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: #2563eb;
+      }
+
+      .collection-status-serper.warn .collection-status-progress i {
+        background: #f59e0b;
+      }
+
+      .collection-status-serper.bad .collection-status-progress i {
+        background: #ef4444;
+      }
+
+      .collection-method-picker {
+        display: grid;
+        gap: 26px;
+        padding-top: 12px;
+        border-top: 1px solid #d9e1ea;
+      }
+
+      .collection-method-heading {
+        display: grid;
+        gap: 9px;
+      }
+
+      .collection-method-heading h2 {
+        margin: 0;
+        color: #111827;
+        font-size: clamp(23px, 2vw, 29px);
+        font-weight: 900;
+        letter-spacing: -.025em;
+        line-height: 1.25;
+      }
+
+      .collection-method-heading p {
+        margin: 0;
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.6;
+      }
+
+      .collection-method-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+
+      .collection-method-card {
+        position: relative;
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: 24px;
+        min-height: 310px;
+        padding: 42px 38px 38px;
+        border: 1px solid #d5dee8;
+        border-radius: 10px;
+        background: #ffffff;
+      }
+
+      .collection-method-card.recommended {
+        border: 2px solid #2563eb;
+        background: #f8fbff;
+        box-shadow: 0 10px 30px rgba(37, 99, 235, .06);
+      }
+
+      .collection-method-badge {
+        position: absolute;
+        top: 20px;
+        left: 22px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: #e8f0ff;
+        color: #2563eb;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .collection-method-badge svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .collection-method-content {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 24px;
+        align-items: center;
+        align-self: center;
+      }
+
+      .collection-method-icon {
+        display: grid;
+        place-items: center;
+        width: 72px;
+        height: 72px;
+        border-radius: 999px;
+        background: #eef4ff;
+        color: #2563eb;
+      }
+
+      .collection-method-icon svg {
+        width: 39px;
+        height: 39px;
+        stroke-width: 1.9;
+      }
+
+      .collection-method-content h3 {
+        margin: 0;
+        color: #111827;
+        font-size: clamp(20px, 1.8vw, 25px);
+        font-weight: 900;
+        letter-spacing: -.02em;
+        line-height: 1.35;
+      }
+
+      .collection-method-content p {
+        max-width: 42ch;
+        margin: 13px 0 0;
+        color: #64748b;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.8;
+      }
+
+      .collection-method-cta {
+        justify-self: center;
+        width: min(370px, 100%);
+        min-height: 54px;
+        padding: 12px 22px;
+        border-radius: 7px;
+        font-size: 15px;
+      }
+
+      .collection-method-cta svg {
+        width: 18px;
+        height: 18px;
+        margin-left: auto;
+      }
+
+      .collection-method-cta.secondary-route {
+        border-color: #cbd5e1;
+        background: #ffffff;
+        color: #1d4ed8;
+      }
+
+      .collection-detail-settings {
+        gap: 12px;
+        padding: 24px 0 0;
+        border: 0;
+        border-top: 1px solid #d9e1ea;
+        background: transparent;
+      }
+
+      .collection-detail-settings summary {
+        padding: 14px 10px;
+        border: 0;
+        background: transparent;
+      }
+
+      .collection-detail-settings summary:hover {
+        background: #f8fafc;
+      }
+
+      .collection-detail-settings summary span {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+      }
+
+      .collection-detail-settings summary span svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .collection-detail-settings summary small {
+        margin: 7px 0 0 30px;
+        font-size: 12px;
+      }
+
+      .collection-detail-settings .collection-advanced-body {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        padding: 10px 0 0;
+      }
+
+      .collection-active-route-bar {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 18px;
+        align-items: center;
+        padding: 18px;
+        border: 1px solid #bfdbfe;
+        border-radius: 9px;
+        background: #f8fbff;
+      }
+
+      .collection-active-route-bar > div {
+        display: grid;
+        gap: 3px;
+      }
+
+      .collection-active-route-bar span,
+      .collection-active-route-bar small {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .collection-active-route-bar strong {
+        color: #111827;
+        font-size: 18px;
+      }
+
+      #collectionFormPanel[hidden],
+      #collectionSupportDetails:not([open]) {
+        display: none;
+      }
+
+      #collectionFormPanel.collection-tab-panel {
+        padding: 22px 0 0;
+        border-top: 1px solid #d9e1ea;
+        background: transparent;
+      }
+
+      #collectionSupportDetails[open] {
+        margin-top: 4px;
+      }
+
+      @media (max-width: 1100px) {
+        .collection-method-card {
+          min-height: 290px;
+          padding: 38px 26px 28px;
+        }
+
+        .collection-method-content {
+          gap: 17px;
+        }
+
+        .collection-method-icon {
+          width: 62px;
+          height: 62px;
+        }
+
+        .collection-method-icon svg {
+          width: 34px;
+          height: 34px;
+        }
+
+        .collection-detail-settings .collection-advanced-body {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 900px) {
+        .collection-status-strip,
+        .collection-method-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .collection-status-cell {
+          min-height: 70px;
+        }
+
+        .collection-status-cell + .collection-status-cell {
+          border-top: 1px solid #dbe3ec;
+          border-left: 0;
+        }
+
+        .collection-method-card {
+          min-height: 270px;
+        }
+      }
+
+      @media (max-width: 620px) {
+        #search .section-header {
+          align-items: stretch;
+        }
+
+        #search .section-header > .row {
+          width: 100%;
+        }
+
+        .collection-method-card {
+          min-height: 0;
+          padding: 52px 20px 24px;
+        }
+
+        .collection-method-content {
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+
+        .collection-method-icon {
+          width: 58px;
+          height: 58px;
+        }
+
+        .collection-method-content p {
+          line-height: 1.65;
+        }
+
+        .collection-detail-settings .collection-advanced-body,
+        .collection-active-route-bar {
+          grid-template-columns: 1fr;
+        }
+
+        .collection-detail-settings summary {
+          align-items: flex-start;
+        }
+      }
     </style>
   </head>
   <body>
@@ -10676,7 +11383,7 @@
           <div class="app-safety-strip-items">
             <span class="app-safety-chip"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>送信時間 <span class="pill info">確認中</span></span>
             <span class="app-safety-chip"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12c0 1.1.9 2 2 2h8"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/><path d="m16 19 2 2 4-4"/></svg>Gmail <span class="pill info">確認中</span></span>
-            <span class="app-safety-chip"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V5a3 3 0 0 1 6 0v3"/><path d="M8 17h8a4 4 0 0 0 4-4v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1a4 4 0 0 0 4 4Z"/></svg>Serper残量 <span class="pill info">確認中</span></span>
+            <span class="app-safety-chip"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V5a3 3 0 0 1 6 0v3"/><path d="M8 17h8a4 4 0 0 0 4-4v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1a4 4 0 0 0 4 4Z"/></svg>PC検索 <span class="pill info">確認中</span></span>
           </div>
         </section>
         <div class="main-toolbar" aria-label="運用ショートカット">
@@ -10857,8 +11564,9 @@
               <h2>リード一覧</h2>
               <div class="toolbar">
                 <label>表示件数<select id="leadLimit">
+                  <option value="50" selected>50件</option>
                   <option value="100">100件</option>
-                  <option value="500" selected>500件</option>
+                  <option value="500">500件</option>
                   <option value="1000">1000件</option>
                   <option value="2000">2000件</option>
                 </select></label>
@@ -11129,7 +11837,10 @@
               <p class="eyebrow">Manual form outreach</p>
               <h1>フォーム送信リスト</h1>
             </div>
-            <button type="button" class="primary" onclick="showTab('templates')">フォーム用テンプレート</button>
+            <div class="toolbar">
+              <button type="button" onclick="showTab('leads'); setLeadFilter('form')">営業リストで見る</button>
+              <button type="button" class="primary" onclick="showTab('templates')">フォーム用テンプレート</button>
+            </div>
           </header>
           <div class="form-outreach-toolbar">
             <div id="formOutreachSummary" class="form-outreach-summary-grid"></div>
@@ -11144,8 +11855,9 @@
                 <option value="all">すべて</option>
               </select></label>
               <label>表示件数<select id="formLimit">
+                <option value="25" selected>25件</option>
                 <option value="50">50件</option>
-                <option value="100" selected>100件</option>
+                <option value="100">100件</option>
                 <option value="300">300件</option>
               </select></label>
               <div class="list-filter-actions">
@@ -11188,8 +11900,8 @@
               <h1>営業リスト収集ツール</h1>
             </div>
             <div class="row">
-              <span class="pill" id="serperStatusPill">確認中</span>
-              <button type="button" class="button secondary icon-text-button" onclick="showTab('exclusions')"><span class="button-icon" data-ui-icon="settings"></span>除外ドメイン管理</button>
+              <span class="pill" id="serperStatusPill" hidden>確認中</span>
+              <button type="button" class="button secondary icon-text-button" onclick="openCollectionSupport('results')"><span class="button-icon" data-ui-icon="history"></span>前回の結果</button>
             </div>
           </header>
           <div class="prospecting-collection-tool">
@@ -11197,7 +11909,7 @@
           </div>
           <details id="collectionSupportDetails" class="collection-support-disclosure" ontoggle="onCollectionSupportToggle(this)">
             <summary>
-              <span><strong>結果・詳細設定を見る</strong><small>前回の進捗、検索結果、Serperキー、詳細ジョブは必要な時だけ開きます。</small></span>
+              <span><strong>結果・詳細設定を見る</strong><small>前回の進捗、検索結果、検索API、詳細ジョブは必要な時だけ開きます。</small></span>
               <span class="button-icon" data-ui-icon="chevronRight"></span>
             </summary>
             <div class="collection-support-body">
@@ -11249,16 +11961,16 @@
             </div>
           </header>
           <div class="stack">
-            <section class="panel background-guide-panel">
-              <div class="panel-head"><h2>進捗の見方</h2><span class="pill info" id="backgroundJobSummaryPill">0件</span></div>
-              <div class="panel-body">
+            <details class="admin-disclosure background-guide-panel">
+              <summary><span>進捗の見方</span><small>自動収集と既存リスト補完の違い、GASの処理単位</small><span class="pill info" id="backgroundJobSummaryPill">0件</span></summary>
+              <div class="admin-disclosure-body panel-body">
                 <div>
                   <p class="muted">自動収集で行うリスト追加・WEBサイト/メール/フォーム取得と、既存リストを補完するWEBサイト確認・メール/フォーム取得を分けて表示します。右側のカードでは直近3日間の成果を確認できます。</p>
                   <p class="muted">GASの6分制限に合わせ、処理は少量ずつ再開できます。</p>
                 </div>
                 <span class="background-guide-panel-icon" data-ui-icon="listChecks" aria-hidden="true"></span>
               </div>
-            </section>
+            </details>
             <section class="stats-grid" id="backgroundJobStats"></section>
             <section id="backgroundOverviewPanel" class="panel stack background-overview-panel"></section>
             <section class="panel">
@@ -11304,7 +12016,10 @@
               <p class="eyebrow">Email send list</p>
               <h1>メール送信リスト</h1>
             </div>
-            <button type="button" class="primary" onclick="showTab('sending')">送信プレビュー</button>
+            <div class="toolbar">
+              <button type="button" onclick="showTab('leads'); setLeadFilter('email')">営業リストで全件見る</button>
+              <button type="button" class="primary" onclick="showTab('sending')">送信プレビュー</button>
+            </div>
           </header>
           <section class="stats-grid" id="emailLeadStats"></section>
           <section class="panel">
@@ -11474,9 +12189,10 @@
             <section class="panel stack sync-rule-panel">
               <h2>同期ルール</h2>
               <p>既存データは上書きせず、空欄だけを補完します。会社名、メール、ドメインのどれかが一致する営業先は既存行を優先します。</p>
-              <pre class="code-box">POST / doPost importLeadsFromCsv
+              <pre class="code-box">POST / doPost startLeadCsvImport
 source: csv
 mode: fill_blanks
+resume: advanceQueuedJobs
 duplicate keys: email / domain / company</pre>
             </section>
             <section class="panel" style="grid-column:1/-1">
@@ -11637,22 +12353,33 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <button type="button" class="ops-action-card" onclick="installTriggers()"><span>自動運用</span><strong>定期トリガー作成</strong><small>Apps Script時間主導トリガーをセット</small></button>
             <button type="button" class="ops-action-card" onclick="createBackup()"><span>Drive</span><strong>バックアップ作成</strong><small>SpreadsheetをDriveへコピー</small></button>
           </section>
-          <div class="content-grid">
-            <section id="opsSyncImportPanel" class="panel stack sync-import-panel">
-              <div class="panel-head"><h2>営業リスト同期</h2><span class="pill good">空欄補完優先</span></div>
-            </section>
-            <section class="panel">
-              <div class="panel-head"><h2>バックグラウンド進捗</h2><span class="pill info" id="jobCountPill">0件</span></div>
-              <div class="table-wrap"><table id="jobTable"></table></div>
-            </section>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h2>送信履歴</h2><span class="pill info" id="historyCountPill">0件</span></div>
-            <div class="table-wrap"><table id="historyTable"></table></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h2>同期ログ</h2><span class="pill" id="syncLogCountPill">0件</span></div>
-            <div class="table-wrap"><table id="syncLogTable"></table></div>
+          <div class="admin-accordion-list ops-detail-list">
+            <details class="admin-disclosure">
+              <summary><span>営業リスト同期</span><small>CSV / JSONの取り込みは必要な時だけ開きます</small></summary>
+              <div class="admin-disclosure-body">
+                <section id="opsSyncImportPanel" class="panel stack sync-import-panel">
+                  <div class="panel-head"><h2>営業リスト同期</h2><span class="pill good">空欄補完優先</span></div>
+                </section>
+              </div>
+            </details>
+            <details class="admin-disclosure">
+              <summary><span>バックグラウンド進捗</span><small>実行中・待機中ジョブの詳細</small><span class="pill info" id="jobCountPill">0件</span></summary>
+              <div class="admin-disclosure-body">
+                <section class="panel"><div class="table-wrap"><table id="jobTable"></table></div></section>
+              </div>
+            </details>
+            <details class="admin-disclosure">
+              <summary><span>送信履歴</span><small>直近の送信結果</small><span class="pill info" id="historyCountPill">0件</span></summary>
+              <div class="admin-disclosure-body">
+                <section class="panel"><div class="table-wrap"><table id="historyTable"></table></div></section>
+              </div>
+            </details>
+            <details class="admin-disclosure">
+              <summary><span>同期ログ</span><small>取り込み・同期処理の記録</small><span class="pill" id="syncLogCountPill">0件</span></summary>
+              <div class="admin-disclosure-body">
+                <section class="panel"><div class="table-wrap"><table id="syncLogTable"></table></div></section>
+              </div>
+            </details>
           </div>
         </section>
       </main>
@@ -11718,8 +12445,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       const TOP_SHORTCUT_TABS = ['reviewLeads', 'search', 'leads', 'backgroundJobs', 'forms', 'emailLeads'];
       const RECENT_BACKGROUND_JOB_MS = 10 * 60 * 1000;
-      const INITIAL_REVIEW_LEAD_LIMIT = 100;
-      const FULL_LEAD_DEFAULT_LIMIT = 500;
+      const INITIAL_REVIEW_LEAD_LIMIT = 50;
+      const FULL_LEAD_DEFAULT_LIMIT = 100;
+      const REVIEW_SESSION_HANDLED_STORAGE_KEY = 'auto-sales-list.review-session-handled.v1';
       const HTTPS_PROTOCOL_PREFIX = 'https:' + String.fromCharCode(47, 47);
       const TEMPLATE_TEST_FIXED_EMAIL = 'yuya1998nu@gmail.com';
       const TEMPLATE_TEST_FIXED_NAME = '村松侑哉';
@@ -12049,7 +12777,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         reviewStats: {},
         reviewLoading: false,
         selectedReviewLeadId: '',
-        reviewSessionHandled: 0,
+        reviewSessionHandled: readReviewSessionHandled(),
+        reviewPendingSaves: 0,
+        reviewPendingLeadIds: [],
+        bulkLeadActionRunning: false,
         taskCenterOpen: false,
         lastCollectionRunResult: null,
         undoAction: null,
@@ -12064,6 +12795,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         formTotal: 0,
         emailLeads: [],
         emailTotal: 0,
+        emailBatchLeads: [],
+        emailBatchTotal: 0,
+        emailBatchGenre: null,
         dealLeads: [],
         dealTotal: 0,
         selectedEmailPreviewTemplateId: '',
@@ -12077,12 +12811,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         gmailIntegrationCheckResult: null,
         adminReadinessResult: null,
         schemaStatus: null,
+        analyticsData: null,
         activeCollectionTab: 'overview',
         jobResultCategory: 'all',
         jobResultRenderLimit: 60,
         selectedJobResultIds: [],
+        pendingJobResultIds: [],
         selectedProspectingProgressJobId: '',
         backgroundOverviewView: 'all',
+        repairingBackgroundJobIds: {},
         dismissedSearchResultIds: [],
         duplicateGroups: [],
         duplicateSummary: null,
@@ -12119,6 +12856,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           emailLeads: false,
           formLeads: false,
           dealLeads: false,
+          analytics: false,
         },
         dataLoading: {},
         leadLoadMode: 'review',
@@ -12129,13 +12867,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           detail: '',
         },
         searchResults: [],
+        searchResultTotal: 0,
         searchUsageLogs: [],
+        searchUsageTotal: 0,
         searchJobs: [],
+        searchJobTotal: 0,
         histories: [],
+        historyTotal: 0,
         historyFilter: 'all',
         historyQuery: '',
         jobs: [],
+        jobTotal: 0,
         syncLogs: [],
+        syncLogTotal: 0,
         tableRenderLimits: {},
         syncImport: {
           source: 'csv_upload',
@@ -12149,7 +12893,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         customFieldDefinitions: [],
         listViewSettings: [],
         leadPage: {
-          limit: 500,
+          limit: 50,
           offset: 0,
           total: 0,
         },
@@ -12162,19 +12906,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       };
 
       const TABLE_RENDER_BATCHES = Object.freeze({
-        opsHistory: 60,
-        opsJobs: 60,
-        opsSyncLogs: 60,
-        backgroundJobs: 60,
-        backgroundActivity: 60,
-        sendHistory: 80,
+        opsHistory: 25,
+        opsJobs: 25,
+        opsSyncLogs: 25,
+        backgroundJobs: 30,
+        backgroundActivity: 30,
+        sendHistory: 30,
+        emailLeads: 25,
+        excludedDomains: 40,
         analyticsDaily: 30,
         analyticsMonthly: 12,
         analyticsTemplate: 60,
         analyticsGenre: 40,
-        syncScreen: 80,
-        searchResults: 80,
-        searchUsage: 80,
+        syncScreen: 50,
+        searchResults: 40,
+        searchUsage: 40,
         errors: 60,
       });
 
@@ -12190,16 +12936,48 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const useBusy = !options || options.busy !== false;
         if (useBusy) setBusy(true);
         return new Promise((resolve, reject) => {
-          google.script.run
-            .withSuccessHandler((result) => {
-              if (useBusy) setBusy(false);
-              resolve(result);
-            })
-            .withFailureHandler((error) => {
-              if (useBusy) setBusy(false);
-              reject(error);
-            })[name](...args);
+          let finished = false;
+          const finish = () => {
+            if (finished) return false;
+            finished = true;
+            if (useBusy) setBusy(false);
+            return true;
+          };
+          try {
+            google.script.run
+              .withSuccessHandler((result) => {
+                if (!finish()) return;
+                resolve(result);
+              })
+              .withFailureHandler((error) => {
+                if (!finish()) return;
+                reject(error);
+              })[name](...args);
+          } catch (error) {
+            finish();
+            reject(error);
+          }
         });
+      }
+
+      function apiErrorText(error) {
+        if (!error) return '原因不明のエラー';
+        return error.message || error.details || String(error);
+      }
+
+      function settledPageResult(settled, label, fallbackItems, fallbackTotal, failures) {
+        if (settled && settled.status === 'fulfilled') {
+          const page = settled.value || {};
+          return {
+            items: Array.isArray(page.items) ? page.items : [],
+            total: Number(page.total || 0),
+          };
+        }
+        failures.push(`${label}: ${apiErrorText(settled && settled.reason)}`);
+        return {
+          items: Array.isArray(fallbackItems) ? fallbackItems : [],
+          total: Number(fallbackTotal || 0),
+        };
       }
 
       function setBusy(busy) {
@@ -12307,6 +13085,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         updateNavigationDisclosure(name);
         updateTopShortcutBar(name);
         updateBackgroundCenterButton(name);
+        renderBackgroundJobWidgets();
         if (changedTab) window.scrollTo(0, 0);
         ensureTabDataLoaded(name);
       }
@@ -12368,8 +13147,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const sendWindowAllowed = sendWindow.allowed !== false && sendWindow.enabled !== false;
         const sendingEnabled = mailControlEnabled && mailReady && sendWindowAllowed;
         const serperReady = Boolean(data.serperConfigured);
-        const serperRemaining = Number(data.serperMonthRemaining);
-        const serperRemainingKnown = Number.isFinite(serperRemaining);
+        const searxngReady = Boolean(data.searxngConfigured && data.searxngEnabled !== false);
+        const searchReady = searxngReady || serperReady;
+        const serperRemainingRaw = data.serperCreditRemainingValue;
+        const serperRemaining = Number(serperRemainingRaw);
+        const serperRemainingKnown = serperRemainingRaw !== '' && serperRemainingRaw !== null && serperRemainingRaw !== undefined && Number.isFinite(serperRemaining);
+        const serperCreditPercentRaw = data.serperCreditPercent;
+        const serperCreditPercent = Number(serperCreditPercentRaw);
+        const serperCreditPercentKnown = serperCreditPercentRaw !== '' && serperCreditPercentRaw !== null && serperCreditPercentRaw !== undefined && Number.isFinite(serperCreditPercent);
+        const serperCreditThreshold = Number(data.serperCreditAlertThresholdPercent || 20);
         const issues = [];
         const staleReservations = Number(data.stalePendingSendReservations || 0);
         if (staleReservations > 0) {
@@ -12443,16 +13229,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             detail: '商談登録を使う場合はCalendar承認を確認してください',
           });
         }
-        if (!serperReady) {
+        if (!searchReady) {
           issues.push({
             icon: 'plug',
-            label: 'Serper',
+            label: '検索API',
             value: '未設定',
             tone: 'warn',
-            headline: 'Serper未設定',
-            detail: '営業リスト収集を使う場合はSerper APIキーを設定してください',
+            headline: '検索プロバイダー未設定',
+            detail: '営業リスト収集を使う場合はPC検索またはSerper予備キーを設定してください',
           });
-        } else if (serperRemainingKnown && serperRemaining <= 0) {
+        } else if (!searxngReady && serperRemainingKnown && serperRemaining <= 0) {
           issues.push({
             icon: 'plug',
             label: 'Serper残量',
@@ -12460,6 +13246,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             tone: 'warn',
             headline: 'Serper残量なし',
             detail: '検索APIの残量を確認してください',
+          });
+        } else if (!searxngReady && serperCreditPercentKnown && serperCreditPercent < serperCreditThreshold) {
+          issues.push({
+            icon: 'shieldAlert',
+            label: 'Serper残量',
+            value: `${formatPercent(Math.round(serperCreditPercent * 10) / 10)}`,
+            tone: 'warn',
+            headline: 'Serperクレジットが20%未満です',
+            detail: `残り${data.serperCreditRemaining || formatNumber(serperRemaining)}です。Serperキー設定画面で残量を確認してください。`,
           });
         }
         if (!issues.length && sendingEnabled) {
@@ -12591,7 +13386,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ? await apiQuiet('getDashboardStats', { bypassCache: config.force === true })
           : await api('getDashboardStats', { bypassCache: config.force === true });
         renderDashboard(result);
-        renderAppSafetyStrip(result);
+        renderAppSafetyStrip(state.dashboard);
         renderSearchActivityPanel();
         renderCollectionCommandCenter(state.serper || {});
         renderActiveLoadedScreen();
@@ -12737,8 +13532,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             await Promise.all([
               ensureDataLoaded('templates', loadTemplates),
               ensureDataLoaded('emailLeads', loadEmailLeads),
-              ensureDataLoaded('ops', () => loadOpsData({ render: false })),
             ]);
+            try {
+              await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
+            } catch (error) {
+              console.warn('Recent send history load skipped:', apiErrorText(error));
+            }
+            try {
+              await loadEmailBatchCandidates();
+            } catch (error) {
+              console.warn('Email batch candidate load skipped:', error && error.message ? error.message : error);
+            }
             renderSendingScreen();
             renderEmailPreviewPanel();
             renderTemplateTestRecipientPanel();
@@ -12758,11 +13562,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             return;
           }
           if (name === 'analytics') {
-            await Promise.all([
-              ensureDataLoaded('ops', () => loadOpsData({ render: false })),
-              ensureDataLoaded('emailLeads', loadEmailLeads),
-              ensureDataLoaded('dealLeads', loadDealLeads),
-            ]);
+            await ensureDataLoaded('analytics', loadAnalyticsData);
             renderAnalyticsScreen();
             return;
           }
@@ -12960,7 +13760,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderDashboard(dashboard) {
+        const source = dashboard || {};
+        const searxng = state.serper && state.serper.searxng ? state.serper.searxng : {};
+        dashboard = Object.assign({}, source, {
+          searchConfigured: source.searchConfigured !== undefined ? source.searchConfigured : Boolean(state.serper && state.serper.searchConfigured),
+          searxngConfigured: source.searxngConfigured !== undefined ? source.searxngConfigured : Boolean(searxng.configured),
+          searxngEnabled: source.searxngEnabled !== undefined ? source.searxngEnabled : searxng.enabled !== false,
+          searxngStatus: source.searxngStatus !== undefined ? source.searxngStatus : String(searxng.lastStatus || ''),
+        });
         state.dashboard = dashboard;
+        if (dashboard.analytics) state.analyticsData = dashboard.analytics;
         const stats = [
           ['リード', dashboard.leadsTotal],
           ['送信対象', dashboard.sendTargets],
@@ -13024,6 +13833,48 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <button type="button" class="${action.complete ? '' : 'primary'}" onclick="${actionCall}">${escapeHtml(action.label)}</button>
           </div>
         `;
+      }
+
+      function readReviewSessionHandled() {
+        try {
+          const stored = Number(window.sessionStorage.getItem(REVIEW_SESSION_HANDLED_STORAGE_KEY));
+          return Number.isFinite(stored) && stored >= 0 ? Math.floor(stored) : 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function setReviewSessionHandled(value) {
+        const normalized = Math.max(0, Math.floor(Number(value || 0)));
+        state.reviewSessionHandled = normalized;
+        try {
+          window.sessionStorage.setItem(REVIEW_SESSION_HANDLED_STORAGE_KEY, String(normalized));
+        } catch (error) {
+          // Storage may be unavailable in restricted browser contexts. The in-memory count still works.
+        }
+        return normalized;
+      }
+
+      function adjustReviewPendingSaves(delta) {
+        state.reviewPendingSaves = Math.max(0, Number(state.reviewPendingSaves || 0) + Number(delta || 0));
+        const target = document.getElementById('reviewSavePill');
+        if (target) {
+          target.hidden = state.reviewPendingSaves <= 0;
+          target.textContent = `保存中 ${formatNumber(state.reviewPendingSaves)}件`;
+        }
+        return state.reviewPendingSaves;
+      }
+
+      function isReviewLeadPendingSave(id) {
+        return (state.reviewPendingLeadIds || []).includes(String(id || ''));
+      }
+
+      function setReviewLeadPendingSave(id, pending) {
+        const targetId = String(id || '');
+        const ids = new Set(state.reviewPendingLeadIds || []);
+        if (pending && targetId) ids.add(targetId);
+        else ids.delete(targetId);
+        state.reviewPendingLeadIds = Array.from(ids);
       }
 
       function taskCenterCategoryCount(dashboard) {
@@ -13174,7 +14025,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['Sheets', integrations.sheets, 'DB'],
           ['Gmail', integrations.gmail, `残り ${formatNumber(dashboard.mailQuotaRemaining)}件`],
           ['Calendar', integrations.calendar, '商談作成'],
-          ['Serper', integrations.serper, dashboard.serperConfigured ? (dashboard.serperCreditRemaining || `月間残り ${formatNumber(dashboard.serperMonthRemaining)}件`) : '未設定'],
+          ['Serper', integrations.serper, dashboard.serperConfigured ? (dashboard.serperCreditRemaining || '残量確認待ち') : '未設定'],
           ['Trigger', integrations.triggers, `${formatNumber(dashboard.triggerCount)}件`],
         ];
         const okCount = apiRows.filter((item) => item[1]).length;
@@ -13196,7 +14047,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const todayTargets = dashboard.mailSendingEnabled === false ? 0 : Math.min(dashboard.sendTargets || 0, dashboard.todayRemaining || 0);
         document.getElementById('dashboardSignals').innerHTML = [
           signalCard('メール送信対象', `${formatNumber(todayTargets)}件`, dashboard.mailSendingEnabled === false ? '自動送信停止中' : `送信可能 ${formatNumber(dashboard.sendTargets)}件`, '送信リストへ', dashboard.mailSendingEnabled === false ? 'red' : 'blue', "showTab('emailLeads')", 'mail'),
-          signalCard('API連携', `${apiOk}/${apiTotal}`, dashboard.serperCreditRemaining ? `Serper残量 ${dashboard.serperCreditRemaining}` : `Serper月間残り ${formatNumber(dashboard.serperMonthRemaining)}件`, '管理へ', apiOk === apiTotal ? 'green' : 'amber', "showTab('admin')", 'api'),
+          signalCard('API連携', `${apiOk}/${apiTotal}`, dashboard.serperCreditRemaining ? `Serper残量 ${dashboard.serperCreditRemaining}${dashboard.serperCreditPercentKnown ? ` / ${formatPercent(Math.round(Number(dashboard.serperCreditPercent || 0) * 10) / 10)}` : ''}` : 'Serper残量確認待ち', '管理へ', dashboard.serperCreditLow ? 'amber' : apiOk === apiTotal ? 'green' : 'amber', "showTab('admin')", 'api'),
           signalCard('今月新規リスト', `${formatNumber(month.addedLeads || 0)}件`, `累計 ${formatNumber(dashboard.leadsTotal)}件`, '収集へ', 'green', "showTab('search')", 'search'),
           signalCard('今月返信', `${formatNumber(month.replies || 0)}件`, `返信率 ${formatPercent(month.replyRate || 0)}`, '返信を見る', 'ink', "showTab('leads'); setLeadFilter('reply')", 'reply'),
         ].join('');
@@ -13299,10 +14150,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderSearchOverview(dashboard) {
         const target = document.getElementById('searchOverview');
         if (!target) return;
+        const searxngReady = Boolean(dashboard.searxngConfigured && dashboard.searxngEnabled !== false);
         target.innerHTML = [
-          actionCard('Serper API', dashboard.serperConfigured ? '設定済み' : '未設定', dashboard.serperKeyMask || 'PropertiesService保存', dashboard.serperConfigured ? 'ok' : 'bad', "document.getElementById('serperKey').focus()", 'api'),
+          actionCard('PC検索', searxngReady ? 'メイン' : '要確認', searxngReady ? 'SearXNG 稼働設定済み' : '検索API管理を確認', searxngReady ? 'ok' : 'bad', "openCollectionSupport('serper')", 'api'),
           actionCard('本日検索', `${formatNumber(dashboard.serperToday)}件`, '日次上限なし', 'ok', "showTab('search')", 'search'),
-          actionCard('月間検索', `${formatNumber(dashboard.serperMonth)} / ${formatNumber(dashboard.serperMonthlyLimit)}`, `残り ${formatNumber(dashboard.serperMonthRemaining)}件`, dashboard.serperMonthRemaining > 0 ? 'ok' : 'warn', "showTab('search')", 'analytics'),
+          actionCard('今月の検索', `${formatNumber(dashboard.serperMonth)}件`, searxngReady ? 'SearXNGメイン' : '検索APIを確認', searxngReady ? 'ok' : 'warn', "showTab('search')", 'analytics'),
           actionCard('検索ジョブ', `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件`, `完了 ${formatNumber(dashboard.completedJobs || 0)} / 失敗 ${formatNumber(dashboard.failedJobs || 0)}`, dashboard.failedJobs > 0 ? 'bad' : 'info', "showTab('ops')", 'jobs'),
         ].join('');
       }
@@ -13699,6 +14551,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div class="review-command-meta">
               ${statusTonePill(loading ? '読み込み中' : total ? '確認待ちあり' : '確認待ちなし', loading ? 'info' : total ? 'warn' : 'good')}
               <span class="pill info">初期表示は最大${formatNumber(INITIAL_REVIEW_LEAD_LIMIT)}件</span>
+              <span id="reviewSavePill" class="pill info" ${Number(state.reviewPendingSaves || 0) > 0 ? '' : 'hidden'}>保存中 ${formatNumber(state.reviewPendingSaves || 0)}件</span>
             </div>
             <h2>${escapeHtml(commandHeading)}</h2>
             <p>${escapeHtml(commandDetail)}</p>
@@ -13762,6 +14615,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           return;
         }
         const selectedIndex = Math.max(0, leads.findIndex((lead) => lead.id === selected.id));
+        const saving = isReviewLeadPendingSave(selected.id);
         const website = selected.website_url
           ? `<a href="${escapeHtml(externalUrl(selected.website_url))}" target="_blank" rel="noopener">WEBサイトを開く</a>`
           : '<strong>未取得</strong>';
@@ -13796,11 +14650,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <div class="review-inbox-detail-field"><small>更新</small><strong>${escapeHtml(dateTimeLabel(selected.updated_at || selected.created_at) || '-')}</strong></div>
             </div>
             <div class="review-inbox-actions">
-              <button type="button" class="primary-action" onclick="reviewInboxUpdate('対応中')" aria-keyshortcuts="A" title="確認済み (A)">${legacyUiIcon('checkCircle')}確認済み</button>
+              <button type="button" class="primary-action" onclick="reviewInboxUpdate('対応中')" aria-keyshortcuts="A" title="確認済み (A)" ${saving ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}${saving ? '保存中' : '確認済み'}</button>
               <button type="button" onclick="deferReviewInboxLead()" aria-keyshortcuts="ArrowDown" title="次へ (↓)">${legacyUiIcon('arrowRight')}後で</button>
               <button type="button" onclick="openReviewLeadEditor('${escapeJsString(selected.id)}')">${legacyUiIcon('pencil')}編集</button>
-              <button type="button" class="danger" onclick="reviewInboxUpdate('送信NG')" aria-keyshortcuts="N" title="送信NG (N)">${legacyUiIcon('shieldAlert')}送信NG</button>
-              <button type="button" class="danger" onclick="reviewInboxUpdate('対応不要')">${legacyUiIcon('xCircle')}対応不要</button>
+              <button type="button" class="danger" onclick="reviewInboxUpdate('送信NG')" aria-keyshortcuts="N" title="送信NG (N)" ${saving ? 'disabled' : ''}>${legacyUiIcon('shieldAlert')}送信NG</button>
+              <button type="button" class="danger" onclick="reviewInboxUpdate('対応不要')" ${saving ? 'disabled' : ''}>${legacyUiIcon('xCircle')}対応不要</button>
             </div>
           </article>
         `;
@@ -13830,7 +14684,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function reviewInboxUpdate(status) {
         const selected = selectedReviewLead();
         if (!selected) return;
-        updateReviewLeadStatus(selected.id, status, { skipConfirm: true, allowUndo: true });
+        return updateReviewLeadStatus(selected.id, status, { skipConfirm: true, allowUndo: true });
       }
 
       function handleAppKeyboardShortcuts(event) {
@@ -13846,9 +14700,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           event.preventDefault();
           deferReviewInboxLead(-1);
         } else if (key === 'a') {
+          if (event.repeat) return;
           event.preventDefault();
           reviewInboxUpdate('対応中');
         } else if (key === 'n') {
+          if (event.repeat) return;
           event.preventDefault();
           reviewInboxUpdate('送信NG');
         } else if (key === 'escape') {
@@ -13891,11 +14747,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderReviewLeadActions(lead) {
         const id = escapeJsString(lead.id);
+        const saving = isReviewLeadPendingSave(lead.id);
         return `
           <span class="review-action-row">
-            <button type="button" class="table-link-button primary-row-action" onclick="updateReviewLeadStatus('${id}', '対応中')">確認済み</button>
+            <button type="button" class="table-link-button primary-row-action" onclick="updateReviewLeadStatus('${id}', '対応中')" ${saving ? 'disabled' : ''}>${saving ? '保存中' : '確認済み'}</button>
             <button type="button" class="table-link-button" onclick="openReviewLeadEditor('${id}')">編集</button>
-            <button type="button" class="table-link-button danger-row-action" onclick="updateReviewLeadStatus('${id}', '対応不要')">対応不要</button>
+            <button type="button" class="table-link-button danger-row-action" onclick="updateReviewLeadStatus('${id}', '対応不要')" ${saving ? 'disabled' : ''}>対応不要</button>
           </span>
         `;
       }
@@ -13935,8 +14792,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         window.setTimeout(() => editLead(id), 80);
       }
 
-      async function updateReviewLeadStatus(id, status, options) {
+      function updateReviewLeadStatus(id, status, options) {
         const config = options || {};
+        if (isReviewLeadPendingSave(id)) {
+          message('この営業先は保存中です', 'error');
+          return Promise.resolve(false);
+        }
         const lead = findLeadByIdClient(id);
         if (!lead) {
           message('確認待ちリードが見つかりませんでした', 'error');
@@ -13946,22 +14807,115 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const suffix = status === '対応中' ? '（GAS版では「対応中」として保存します）' : '';
         if (!config.skipConfirm && !confirm(`${lead.facility_name || lead.company_name || 'このリード'}を${label}にしますか。${suffix}`)) return;
         const reviewIndex = Math.max(0, (state.reviewLeads || []).findIndex((item) => item.id === id));
-        const snapshot = Object.assign({}, lead);
-        const previousStatus = lead.status || '未対応';
-        try {
-          await api('updateLead', id, { status });
-          applyReviewLeadLocalStatus(id, status);
-          state.reviewSessionHandled = Number(state.reviewSessionHandled || 0) + 1;
-          renderDailyFocusPanel();
-          message(`${label}に更新しました`, 'ok');
-          if (config.allowUndo !== false) {
-            showUndoAction(`${lead.facility_name || lead.company_name || '営業先'}を${label}に更新しました`, async () => {
-              await api('updateLead', id, { status: previousStatus });
-              restoreReviewLeadLocal(snapshot, reviewIndex);
-            });
-          }
-        } catch (error) {
-          message(error.message || String(error), 'error');
+        const mutation = {
+          id,
+          label,
+          previousStatus: lead.status || '未対応',
+          reviewIndex,
+          rolledBack: false,
+          snapshot: Object.assign({}, lead),
+          status,
+        };
+
+        setReviewLeadPendingSave(id, true);
+        applyReviewLeadLocalStatus(id, status);
+        setReviewSessionHandled(Number(state.reviewSessionHandled || 0) + 1);
+        renderDailyFocusPanel();
+        message(`${label}にしました`, 'ok');
+
+        adjustReviewPendingSaves(1);
+        const savePromise = apiQuiet('updateReviewLeadDecision', id, {
+          mode: 'decision',
+          expected_status: mutation.previousStatus,
+          status,
+        })
+          .then((result) => {
+            if (result && result.conflict) {
+              if (mutation.undoAction && state.undoAction === mutation.undoAction) closeUndoAction();
+              reconcileReviewMutationWithServer(mutation, result.lead || null);
+              message(result.message || '別の処理で状態が更新されたため上書きしませんでした', 'error');
+              return false;
+            }
+            mergeAuthoritativeLeadIntoClientLists(result && result.lead);
+            return true;
+          })
+          .catch(async (error) => {
+            if (mutation.undoAction && state.undoAction === mutation.undoAction) closeUndoAction();
+            rollbackReviewMutation(mutation, { select: false });
+            message(`${label}を保存できなかったため確認待ちに戻しました: ${error.message || error}`, 'error');
+            try {
+              await loadReviewLeadMenu({ quiet: true });
+            } catch (_) {
+              // Keep the local rollback when an authoritative refresh is also unavailable.
+            }
+            return false;
+          })
+          .finally(() => {
+            setReviewLeadPendingSave(id, false);
+            adjustReviewPendingSaves(-1);
+          });
+
+        if (config.allowUndo !== false) {
+          mutation.undoAction = async () => {
+            const saved = await savePromise;
+            if (!saved) return;
+            if (isReviewLeadPendingSave(id)) return;
+            setReviewLeadPendingSave(id, true);
+            adjustReviewPendingSaves(1);
+            try {
+              const result = await apiQuiet('updateReviewLeadDecision', id, {
+                mode: 'undo',
+                expected_status: status,
+                status: mutation.previousStatus,
+              });
+              if (result && result.conflict) {
+                reconcileReviewMutationWithServer(mutation, result.lead || null, { keepHandled: true });
+                message(result.message || '状態が変わったため取り消しませんでした', 'error');
+                return;
+              }
+              rollbackReviewMutation(mutation, { select: true });
+              mergeAuthoritativeLeadIntoClientLists(result && result.lead);
+            } finally {
+              setReviewLeadPendingSave(id, false);
+              adjustReviewPendingSaves(-1);
+            }
+          };
+          showUndoAction(`${lead.facility_name || lead.company_name || '営業先'}を${label}に更新しました`, mutation.undoAction);
+        }
+        return savePromise;
+      }
+
+      function rollbackReviewMutation(mutation, options) {
+        if (!mutation || mutation.rolledBack) return false;
+        mutation.rolledBack = true;
+        restoreReviewLeadLocal(mutation.snapshot, mutation.reviewIndex, options);
+        return true;
+      }
+
+      function mergeAuthoritativeLeadIntoClientLists(lead) {
+        if (!lead || !lead.id) return;
+        ['leads', 'reviewLeads', 'emailLeads', 'formLeads', 'dealLeads'].forEach((key) => {
+          state[key] = (state[key] || []).map((item) => item && item.id === lead.id ? Object.assign({}, lead) : item);
+        });
+      }
+
+      function reconcileReviewMutationWithServer(mutation, lead, options) {
+        if (!mutation) return;
+        const config = options || {};
+        if (config.keepHandled && lead && !isReviewPendingLead(lead)) {
+          mutation.rolledBack = true;
+          mergeAuthoritativeLeadIntoClientLists(lead);
+          applyReviewLeadLocalStatus(lead.id, lead.status || '');
+          return;
+        }
+        rollbackReviewMutation(mutation, { select: false });
+        if (!lead || !lead.id) return;
+        mergeAuthoritativeLeadIntoClientLists(lead);
+        if (!isReviewPendingLead(lead)) {
+          applyReviewLeadLocalStatus(lead.id, lead.status || '');
+        } else {
+          renderReviewLeadsScreen();
+          renderLeads();
         }
       }
 
@@ -13988,15 +14942,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderLeads();
       }
 
-      function restoreReviewLeadLocal(snapshot, index) {
+      function restoreReviewLeadLocal(snapshot, index, options) {
         if (!snapshot || !snapshot.id) return;
+        const config = options || {};
         const current = (state.reviewLeads || []).filter((lead) => lead.id !== snapshot.id);
         const insertAt = Math.min(Math.max(Number(index || 0), 0), current.length);
         current.splice(insertAt, 0, Object.assign({}, snapshot));
         state.reviewLeads = current;
         state.reviewTotal = Number(state.reviewTotal || 0) + 1;
-        state.selectedReviewLeadId = snapshot.id;
-        state.reviewSessionHandled = Math.max(0, Number(state.reviewSessionHandled || 0) - 1);
+        if (config.select !== false || !state.selectedReviewLeadId) state.selectedReviewLeadId = snapshot.id;
+        setReviewSessionHandled(Number(state.reviewSessionHandled || 0) - 1);
         let restoredInLeadList = false;
         state.leads = (state.leads || []).map((lead) => {
           if (lead.id !== snapshot.id) return lead;
@@ -14036,7 +14991,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
         const filterValue = loadOptions.filter || document.getElementById('leadQuickFilter').value;
         updateLeadLoadModeFromFilter(loadOptions.mode || (filterValue === 'review' ? 'review' : filterValue === 'all' ? 'all' : 'filtered'));
-        state.leadPage.limit = Number(document.getElementById('leadLimit').value || 500);
+        state.leadPage.limit = Number(document.getElementById('leadLimit').value || 50);
         const request = {
           search: document.getElementById('leadSearch').value,
           status: document.getElementById('leadStatus').value,
@@ -14069,6 +15024,32 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.emailLeads = result.items || [];
         state.emailTotal = result.total || 0;
         state.dataLoaded.emailLeads = true;
+      }
+
+      function selectedEmailPreviewTemplate() {
+        const mailTemplates = (state.templates || []).filter((template) => template.template_type !== 'form');
+        if (!mailTemplates.length) return null;
+        if (!state.selectedEmailPreviewTemplateId || !mailTemplates.some((template) => template.id === state.selectedEmailPreviewTemplateId)) {
+          const production = mailTemplates.find(isProductionTemplate);
+          state.selectedEmailPreviewTemplateId = (production || mailTemplates[0]).id;
+        }
+        return mailTemplates.find((template) => template.id === state.selectedEmailPreviewTemplateId) || mailTemplates[0];
+      }
+
+      async function loadEmailBatchCandidates(templateId) {
+        if (templateId) state.selectedEmailPreviewTemplateId = templateId;
+        const template = selectedEmailPreviewTemplate();
+        if (!template) {
+          state.emailBatchLeads = [];
+          state.emailBatchTotal = 0;
+          state.emailBatchGenre = null;
+          return;
+        }
+        const genre = String(template.genre || '').trim();
+        const result = await apiQuiet('listEmailSendCandidates', { genre, limit: 100 });
+        state.emailBatchLeads = result.items || [];
+        state.emailBatchTotal = Number(result.total || 0);
+        state.emailBatchGenre = genre;
       }
 
       async function loadDealLeads() {
@@ -14337,9 +15318,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           <div class="bulk-action-controls">
             <div class="bulk-primary-actions" aria-label="よく使う操作">
-              <button type="button" class="compact-button" onclick="selectReviewPendingLeads()" ${reviewIds.length === 0 ? 'disabled' : ''}>確認待ちを選択</button>
-              <button type="button" class="primary compact-button" onclick="bulkUpdateSelectedLeads({ status: '対応中' }, '確認済み')" ${selectedReviewCount === 0 ? 'disabled' : ''}>確認済みにする</button>
-              <button type="button" class="danger compact-button" onclick="bulkUpdateSelectedLeads({ status: '対応不要' }, '対応不要')" ${selected.length === 0 ? 'disabled' : ''}>除外削除</button>
+              <button type="button" class="compact-button" onclick="selectReviewPendingLeads()" ${reviewIds.length === 0 || state.bulkLeadActionRunning ? 'disabled' : ''}>確認待ちを選択</button>
+              <button type="button" class="primary compact-button" onclick="bulkUpdateSelectedLeads({ status: '対応中' }, '確認済み')" ${selectedReviewCount === 0 || state.bulkLeadActionRunning ? 'disabled' : ''}>${state.bulkLeadActionRunning ? '更新中' : '確認済みにする'}</button>
+              <button type="button" class="danger compact-button" onclick="bulkUpdateSelectedLeads({ status: '対応不要' }, '対応不要')" ${selected.length === 0 || state.bulkLeadActionRunning ? 'disabled' : ''}>除外削除</button>
               <button type="button" class="compact-button" onclick="selectLeadsByFilter('website')" ${selectedWebsiteCount === 0 && state.leads.filter((lead) => lead.website_url).length === 0 ? 'disabled' : ''}>リンク切れ抽出</button>
             </div>
             <span class="bulk-action-divider" aria-hidden="true"></span>
@@ -14484,7 +15465,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderLeadPager() {
         const total = state.leadPage.total || 0;
-        const limit = state.leadPage.limit || 500;
+        const limit = state.leadPage.limit || 50;
         const offset = state.leadPage.offset || 0;
         const start = total === 0 ? 0 : offset + 1;
         const end = Math.min(offset + state.leads.length, total);
@@ -14576,6 +15557,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function bulkUpdateSelectedLeads(patch, label) {
+        if (state.bulkLeadActionRunning) {
+          message('一括更新はすでに実行中です', 'error');
+          return;
+        }
         const selected = getSelectedVisibleLeads();
         if (selected.length === 0) {
           message('営業先を選択してください', 'error');
@@ -14584,26 +15569,58 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const actionLabel = label || '更新';
         const suffix = patch && patch.status === '対応中' ? '（GAS版では確認済みを「対応中」として保存します）' : '';
         if (!confirm(`${selected.length}件を${actionLabel}に更新しますか。${suffix}`)) return;
-        const snapshots = selected.map((lead) => ({ id: lead.id, status: lead.status || '未対応' }));
+        const reviewDecisionStatuses = ['対応中', '送信NG', '対応不要'];
+        const isStatusOnlyPatch = patch && Object.keys(patch).length === 1 && reviewDecisionStatuses.includes(String(patch.status || ''));
+        const snapshots = selected.map((lead) => ({
+          id: lead.id,
+          status: lead.status || '未対応',
+          nextStatus: String((patch && patch.status) || ''),
+          reviewDecision: isStatusOnlyPatch && isReviewPendingLead(lead),
+        }));
         const succeededIds = [];
         let success = 0;
         let failed = 0;
-        for (const lead of selected) {
-          try {
-            await api('updateLead', lead.id, patch);
-            success += 1;
-            succeededIds.push(lead.id);
-          } catch (error) {
-            failed += 1;
+        let conflicts = 0;
+        state.bulkLeadActionRunning = true;
+        renderLeads();
+        try {
+          for (const lead of selected) {
+            try {
+              const snapshot = snapshots.find((item) => item.id === lead.id);
+              const result = snapshot.reviewDecision
+                ? await apiQuiet('updateReviewLeadDecision', lead.id, {
+                  mode: 'decision', expected_status: snapshot.status, status: snapshot.nextStatus,
+                })
+                : await apiQuiet('updateLead', lead.id, patch);
+              if (snapshot.reviewDecision && result && result.conflict) {
+                failed += 1;
+                conflicts += 1;
+                continue;
+              }
+              success += 1;
+              succeededIds.push(lead.id);
+            } catch (error) {
+              failed += 1;
+            }
           }
+        } finally {
+          state.bulkLeadActionRunning = false;
         }
         state.selectedLeadIds = [];
-        message(`${actionLabel}: 更新 ${formatNumber(success)}件 / 失敗 ${formatNumber(failed)}件`, failed ? 'error' : 'ok');
+        const conflictText = conflicts ? ` / 競合 ${formatNumber(conflicts)}件（上書きなし）` : '';
+        message(`${actionLabel}: 更新 ${formatNumber(success)}件 / 失敗 ${formatNumber(failed)}件${conflictText}`, failed ? 'error' : 'ok');
         await refreshAll();
         if (success > 0) {
           showUndoAction(`${formatNumber(success)}件を${actionLabel}に更新しました`, async () => {
             for (const snapshot of snapshots.filter((item) => succeededIds.includes(item.id))) {
-              await api('updateLead', snapshot.id, { status: snapshot.status });
+              if (snapshot.reviewDecision) {
+                const result = await api('updateReviewLeadDecision', snapshot.id, {
+                  mode: 'undo', expected_status: snapshot.nextStatus, status: snapshot.status,
+                });
+                if (result && result.conflict) continue;
+              } else {
+                await api('updateLead', snapshot.id, { status: snapshot.status });
+              }
             }
             await refreshAll();
           });
@@ -14623,10 +15640,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return null;
       }
 
+      async function loadAnalyticsData() {
+        const needsFreshDashboard = !state.dashboard || !state.dashboard.analytics;
+        const result = await loadDashboardStats({ quiet: true, force: needsFreshDashboard });
+        state.analyticsData = (result && result.analytics) || (state.dashboard && state.dashboard.analytics) || null;
+        if (!state.analyticsData) throw new Error('分析データを取得できませんでした。再読み込みしてください。');
+        state.dataLoaded.analytics = true;
+        return state.analyticsData;
+      }
+
       async function queueLeadSearch(id) {
         const lead = findLeadByIdClient(id);
         if (!lead) return;
-        if (!confirm(`${lead.facility_name || lead.company_name || 'このリード'}の公式サイトをSerperで再探索しますか。`)) return;
+        if (!confirm(`${lead.facility_name || lead.company_name || 'このリード'}の公式サイトを検索プロバイダーで再探索しますか。`)) return;
         try {
           const result = await api('runSmallSearchJob', {
             job_type: 'lead_official_site',
@@ -14655,7 +15681,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           lead.last_sent_at,
           lead.address,
         ])).map((values) => values.map(csvValue).join(','));
-        const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const date = appDateKey().replace(/-/g, '');
         downloadText(`sales-leads-${date}.csv`, lines.join('\n'));
       }
 
@@ -15672,13 +16698,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           if (result && result.ok === false) {
             state.templateActionDialog.message = `テスト送信に失敗しました: ${result.errorMessage || 'Gmail送信エラー'}`;
             state.templateActionDialog.messageKind = 'error';
-            message(state.templateActionDialog.message, 'error');
+          } else if (result && result.warning) {
+            state.templateActionDialog.message = `テスト送信は完了しましたが、記録に警告があります: ${result.warning}`;
+            state.templateActionDialog.messageKind = 'error';
           } else {
             state.templateActionDialog.message = `${template.name} をテスト送信しました。問題なければ本番ONにできます。`;
             state.templateActionDialog.messageKind = 'success';
-            message(state.templateActionDialog.message, 'ok');
           }
           await refreshAll();
+          message(state.templateActionDialog.message, state.templateActionDialog.messageKind === 'success' ? 'ok' : 'error');
         } catch (error) {
           state.templateActionDialog.message = error.message || String(error);
           state.templateActionDialog.messageKind = 'error';
@@ -15980,8 +17008,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             send_type: document.getElementById('leadSendType').value,
             sender_name: document.getElementById('leadSenderName').value,
           });
-          message(result.ok ? 'メール送信を記録しました' : `メール送信に失敗しました: ${result.errorMessage}`, result.ok ? 'ok' : 'error');
           await refreshAll();
+          const warning = String(result.warning || '').trim();
+          message(
+            result.ok
+              ? (warning ? `メール送信は完了しましたが、記録に警告があります: ${warning}` : 'メール送信を記録しました')
+              : `メール送信に失敗しました: ${result.errorMessage || 'Gmail送信エラー'}`,
+            result.ok && !warning ? 'ok' : 'error'
+          );
         } catch (error) {
           message(error.message || String(error), 'error');
         }
@@ -16088,14 +17122,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function loadMasters() {
-        const [ng, excluded] = await Promise.all([
-          api('listNgMasters', { limit: 300 }),
-          api('listExcludedDomains', { limit: 300, includeInactive: true }),
+        const settled = await Promise.allSettled([
+          api('listNgMasters', { limit: 1000 }),
+          api('listExcludedDomains', { limit: 1000, includeInactive: true }),
         ]);
-        state.ngMasters = ng.items || [];
-        state.excludedDomains = excluded.items || [];
-        state.dataLoaded.masters = true;
+        const failures = [];
+        const ng = settledPageResult(settled[0], '送信NG', state.ngMasters, state.ngMasters.length, failures);
+        const excluded = settledPageResult(settled[1], '除外ドメイン', state.excludedDomains, state.excludedDomains.length, failures);
+        state.ngMasters = ng.items;
+        state.excludedDomains = excluded.items;
+        state.dataLoaded.masters = failures.length === 0;
         renderMasters();
+        if (failures.length) throw new Error(`除外設定の一部を更新できませんでした。${failures.join(' / ')}`);
       }
 
       function renderMasters() {
@@ -16159,7 +17197,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (searchTarget && searchTarget.value !== state.excludedDomainQuery) searchTarget.value = state.excludedDomainQuery || '';
         if (statusTarget && statusTarget.value !== statusFilter) statusTarget.value = statusFilter;
         const emptyText = domains.length === 0 ? '除外ドメインはまだ登録されていません' : '条件に一致する除外ドメインはありません';
-        const rows = filtered.length ? filtered.map((item) => {
+        const headers = ['ドメイン', '除外理由', '状態', '更新', '操作'];
+        const rows = filtered.length ? limitedTableRows(headers, filtered, 'excludedDomains', 'renderExcludedDomainManager', (item) => {
           const id = String(item.id || '');
           const active = isActiveClient(item);
           const toggleLabel = active ? '停止' : '有効化';
@@ -16171,8 +17210,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ['更新', escapeHtml(dateTimeLabel(item.updated_at || item.created_at) || '-')],
             ['操作', `<span class="excluded-domain-actions"><button type="button" class="table-link-button" onclick="editExcludedDomain('${escapeJsString(id)}')">${legacyUiIcon('pencil')}編集</button><button type="button" class="table-link-button ${active ? 'danger' : ''}" onclick="${toggleAction}('${escapeJsString(id)}')">${active ? legacyUiIcon('trash2') : legacyUiIcon('checkCircle')}${toggleLabel}</button></span>`],
           ]);
-        }).join('') : `<tr><td data-column="" colspan="5" class="data-table-empty-cell"><span>${escapeHtml(emptyText)}</span></td></tr>`;
-        document.getElementById('excludedTable').innerHTML = table(['ドメイン', '除外理由', '状態', '更新', '操作'], rows);
+        }) : `<tr><td data-column="" colspan="5" class="data-table-empty-cell"><span>${escapeHtml(emptyText)}</span></td></tr>`;
+        document.getElementById('excludedTable').innerHTML = table(headers, rows);
         renderExcludedDomainFormState();
       }
 
@@ -16211,6 +17250,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function filterExcludedDomains() {
         state.excludedDomainQuery = document.getElementById('excludedDomainSearch')?.value || '';
         state.excludedDomainStatusFilter = document.getElementById('excludedDomainStatus')?.value || 'active';
+        resetTableRenderLimit('excludedDomains');
         renderExcludedDomainManager();
       }
 
@@ -16320,7 +17360,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             search: document.getElementById('formSearch').value,
             filter: 'form_all',
             formStatus: document.getElementById('formStatusFilter').value,
-            limit: Number(document.getElementById('formLimit').value || 100),
+            limit: Number(document.getElementById('formLimit').value || 25),
             offset: 0,
           });
           state.formLeads = result.items || [];
@@ -16344,7 +17384,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function clearFormFilters() {
         document.getElementById('formSearch').value = '';
         document.getElementById('formStatusFilter').value = 'active';
-        document.getElementById('formLimit').value = '100';
+        document.getElementById('formLimit').value = '25';
         loadFormLeads();
       }
 
@@ -16704,7 +17744,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           await Promise.all([loadFormLeads(), loadLeads()]);
         } catch (error) {
           message(error && error.message ? error.message : 'フォーム送信済みの更新に失敗しました', 'error');
-          throw error;
+          return false;
         } finally {
           state.formUpdatingLeadId = '';
           renderFormLeads(state.formTotal);
@@ -16720,7 +17760,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           await Promise.all([loadFormLeads(), loadLeads()]);
         } catch (error) {
           message(error && error.message ? error.message : 'フォーム送信済み解除に失敗しました', 'error');
-          throw error;
+          return false;
         } finally {
           state.formUpdatingLeadId = '';
           renderFormLeads(state.formTotal);
@@ -16731,9 +17771,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.serper = info || {};
         const pill = document.getElementById('serperStatusPill');
         if (pill) {
-          pill.className = `pill ${info.configured ? 'good' : 'warn'}`;
-          pill.textContent = info.configured ? `Serper設定済み ${info.key_mask || ''}` : 'Serper未設定';
-          pill.hidden = Boolean(info.configured);
+          const searxng = info.searxng || {};
+          const searchReady = Boolean(info.searchConfigured || (searxng.configured && searxng.enabled !== false));
+          pill.className = `pill ${searchReady ? 'good' : 'warn'}`;
+          pill.textContent = searchReady ? 'PC検索をメインで使用' : '検索API未設定';
+          pill.hidden = searchReady;
         }
         renderSerperKeyManager(info || {});
         renderSearchActivityPanel();
@@ -16752,25 +17794,22 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         };
         const keys = Array.isArray(data.keys) ? data.keys : [];
         const lastTest = state.serperLastTest;
+        const searxng = data.searxng || {};
+        const primaryReady = Boolean(searxng.configured && searxng.enabled !== false);
+        const primaryLabel = !searxng.configured ? 'PC検索 未設定' : searxng.enabled === false ? 'PC検索 無効' : searxng.lastStatus === '稼働中' ? 'PC検索 稼働中' : 'PC検索 設定済み';
         target.innerHTML = `
           <div class="section-title-row">
             <div>
-              <h2>Serper APIキー管理</h2>
-              <p class="muted">メインキーを優先して使います。キー本体はPropertiesServiceに保存し、画面にはマスクだけ表示します。</p>
+              <h2>検索API管理</h2>
+              <p class="muted">PC上のSearXNGをメインで使い、PC検索を利用できない時だけSerperを予備として試します。認証情報はPropertiesServiceに保存します。</p>
             </div>
-            <span class="pill ${escapeHtml(credit.tone === 'ok' ? 'good' : credit.tone === 'bad' ? 'bad' : 'warn')}">${escapeHtml(credit.label || '確認中')}</span>
+            <span class="pill ${primaryReady ? 'good' : 'warn'}">${escapeHtml(primaryLabel)}</span>
           </div>
-          ${data.configured ? '' : renderSerperSetupGuide()}
-          <div class="api-key-summary">
-            ${legacyUiIcon(credit.ready ? 'checkCircle' : 'shieldAlert')}
-            <div>
-              <strong>${escapeHtml(credit.ready ? 'Serper利用可能' : 'Serper未設定')}</strong>
-              <span>${escapeHtml(credit.detail || '')}${lastTest ? ` / 検索テスト ${escapeHtml(formatNumber(lastTest.resultCount || 0))}件 ${escapeHtml(dateTimeLabel(lastTest.checkedAt) || '')}` : ''}</span>
-            </div>
-            <div class="serper-key-actions">
-              <button type="button" class="icon-text-button" onclick="refreshSerperKeyManager()">${legacyUiIcon('refreshCw')}残量確認</button>
-              <button type="button" class="icon-text-button" onclick="testSerper()">${legacyUiIcon('searchCheck')}検索APIテスト</button>
-            </div>
+          ${renderSearxngFallback(data.searxng || {})}
+          ${data.configured || primaryReady ? '' : renderSerperSetupGuide()}
+          ${renderSerperCreditOverview(data, keys, lastTest)}
+          <div class="section-title-row">
+            <div><h3>Serper（予備）</h3><p class="muted">PC検索を利用できない場合だけ使用します。</p></div>
           </div>
           <form class="api-key-form" onsubmit="saveSerper(event)">
             <label>役割<select id="serperKeyRole">
@@ -16783,9 +17822,110 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <button type="submit" class="primary">追加</button>
           </form>
           <div id="serperKeyManagerMessage" class="message"></div>
+          <p class="muted">残クレジットはSerperの残高を表示します。残量率はSerperが総量を返す場合はその値、返さない場合は同じAPIキーの最大観測残量を共通基準にした参考値です。20%未満で警告します。</p>
           <div class="api-key-list">
             ${keys.length ? keys.map(renderSerperKeyItem).join('') : '<p class="muted">Serper APIキーはまだ登録されていません。</p>'}
           </div>
+        `;
+      }
+
+      function renderSearxngFallback(info) {
+        const data = info || {};
+        const configured = Boolean(data.configured);
+        const enabled = data.enabled !== false;
+        const online = data.lastStatus === '稼働中';
+        const statusLabel = !configured ? '未設定' : !enabled ? '無効' : online ? 'PC検索 稼働中' : data.lastStatus || '確認待ち';
+        const statusTone = online ? 'good' : configured && enabled ? 'warn' : 'info';
+        const checkedLabel = data.lastCheckedAt ? dateTimeLabel(data.lastCheckedAt) : '未確認';
+        const resultLabel = data.lastResultCount !== '' && data.lastResultCount !== undefined ? `${formatNumber(data.lastResultCount)}件` : '-';
+        return `
+          <section class="setup-guide" aria-label="PC検索メイン">
+            <div class="section-title-row">
+              <div>
+                <h2>PC検索（メイン）</h2>
+                <p class="muted">PC稼働中はSearXNGを最初に使います。Serperへの検索リクエストは通常発生しません。</p>
+              </div>
+              <span class="pill ${statusTone}">${escapeHtml(statusLabel)}</span>
+            </div>
+            <form class="api-key-form" onsubmit="saveSearxngFallback(event)">
+              <label>公開URL<input id="searxngBaseUrl" type="url" value="${escapeHtml(data.baseUrl || '')}" placeholder="例: trycloudflare.com の公開URL" required></label>
+              <label>アクセストークン<input id="searxngAccessToken" type="password" autocomplete="off" placeholder="${configured ? '変更しない場合は空欄' : 'PC側と同じトークン'}"></label>
+              <label class="check-row"><input id="searxngEnabled" type="checkbox" ${enabled ? 'checked' : ''}><span>PC検索を有効</span></label>
+              <button type="submit" class="primary">設定を保存</button>
+              <button type="button" onclick="testSearxngFallback()">接続テスト</button>
+            </form>
+            <div id="searxngMessage" class="message"></div>
+            <p class="muted">最終確認: ${escapeHtml(checkedLabel)} / 結果: ${escapeHtml(resultLabel)} / トークン: ${escapeHtml(data.tokenMask || '未設定')}</p>
+            ${data.lastError ? `<p class="error-text">${escapeHtml(data.lastError)}</p>` : ''}
+            <p class="muted">PC停止中は利用できません。Quick Tunnelの公開URLはPC側から自動同期されます。</p>
+          </section>
+        `;
+      }
+
+      function renderSerperCreditOverview(data, keys, lastTest) {
+        const limits = data && data.limits ? data.limits : {};
+        const remainingKnown = limits.remainingValue !== '' && limits.remainingValue !== undefined && limits.remainingValue !== null && Number.isFinite(Number(limits.remainingValue));
+        const totalKnown = limits.totalValue !== '' && limits.totalValue !== undefined && limits.totalValue !== null && Number.isFinite(Number(limits.totalValue));
+        const percentKnown = limits.percentKnown === true && limits.remainingPercent !== '' && limits.remainingPercent !== undefined && limits.remainingPercent !== null && Number.isFinite(Number(limits.remainingPercent));
+        const remaining = remainingKnown ? Math.max(0, Number(limits.remainingValue)) : 0;
+        const total = totalKnown ? Math.max(0, Number(limits.totalValue)) : 0;
+        const percent = percentKnown ? Math.max(0, Math.min(100, Number(limits.remainingPercent))) : 0;
+        const threshold = Number.isFinite(Number(limits.alertThresholdPercent)) ? Math.max(0, Math.min(100, Number(limits.alertThresholdPercent))) : 20;
+        const empty = remainingKnown && remaining <= 0;
+        const low = !empty && percentKnown && percent < threshold;
+        const tone = !data.configured || !remainingKnown || !percentKnown ? 'unknown' : empty ? 'empty' : low ? 'low' : 'ok';
+        const statusLabel = !data.configured ? 'APIキー未設定' : empty ? '残量なし' : low ? `残量${formatPercent(threshold)}未満` : percentKnown ? '残量は十分です' : '残量を確認してください';
+        const statusTone = empty ? 'bad' : low || !data.configured || !percentKnown ? 'warn' : 'good';
+        const activeKey = keys.find((item) => item && item.role === 'main' && item.active !== false) || keys.find((item) => item && item.active !== false) || null;
+        const totalSource = activeKey ? String(activeKey.credit_total_source || '') : '';
+        const checkedAt = activeKey && activeKey.last_checked_at ? dateTimeLabel(activeKey.last_checked_at) : '';
+        const remainingLabel = remainingKnown ? formatNumber(remaining) : '未取得';
+        const percentLabel = percentKnown ? formatPercent(Math.round(percent * 10) / 10) : '未算出';
+        const basisLabel = totalKnown && total > 0
+          ? (totalSource === 'api'
+            ? `Serper提供の総量 ${formatNumber(total)} credits基準`
+            : `最大観測残量 ${formatNumber(total)} credits基準の参考値`)
+          : 'Serperから総量を取得後に残量率を表示';
+        const testLabel = lastTest ? ` / 検索テスト ${formatNumber(lastTest.resultCount || 0)}件 ${dateTimeLabel(lastTest.checkedAt) || ''}` : '';
+        const progressAttributes = percentKnown
+          ? `role="progressbar" aria-label="Serper残量率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${escapeHtml(Math.round(percent * 10) / 10)}"`
+          : 'role="img" aria-label="Serper残量率は未算出です"';
+        return `
+          <section class="serper-credit-overview is-${tone}" aria-label="Serper残量">
+            <div class="serper-credit-overview-head">
+              <div class="serper-credit-heading">
+                ${legacyUiIcon(data.configured ? 'shieldCheck' : 'shieldAlert')}
+                <div><p>Backup search provider</p><h3>Serper残量（予備）</h3></div>
+              </div>
+              <span class="pill ${statusTone}">${escapeHtml(statusLabel)}</span>
+            </div>
+            <div class="serper-credit-metrics">
+              <div class="serper-credit-metric">
+                <span>残クレジット</span>
+                <strong>${escapeHtml(remainingLabel)}</strong>${remainingKnown ? '<small>credits</small>' : ''}
+                <small class="serper-credit-metric-note">${remainingKnown ? '現在利用できる検索クレジット' : '「残量を最新に更新」で取得します'}</small>
+              </div>
+              <div class="serper-credit-metric">
+                <span>残量率</span>
+                <strong>${escapeHtml(percentLabel)}</strong>
+                <small class="serper-credit-metric-note">${escapeHtml(totalSource === 'api' ? `${formatPercent(threshold)}未満になると警告` : '総量未提供のため参考値')}</small>
+              </div>
+            </div>
+            <div class="serper-credit-progress">
+              <div class="serper-credit-progress-track" ${progressAttributes}>
+                <span class="serper-credit-progress-fill" style="width:${percentKnown ? percent : 0}%"></span>
+                <span class="serper-credit-threshold-marker" style="left:${threshold}%" aria-hidden="true"></span>
+              </div>
+              <div class="serper-credit-progress-labels"><span>0%</span><span>警告ライン ${escapeHtml(formatPercent(threshold))}</span><span>100%</span></div>
+            </div>
+            <div class="serper-credit-overview-footer">
+              <p>最終確認: ${escapeHtml(checkedAt || '未確認')} / ${escapeHtml(basisLabel)}${escapeHtml(testLabel)}</p>
+              <div class="serper-credit-overview-actions">
+                <button type="button" class="icon-text-button" onclick="refreshSerperKeyManager()">${legacyUiIcon('refreshCw')}残量を最新に更新</button>
+                <button type="button" class="icon-text-button" onclick="testSerper()">${legacyUiIcon('searchCheck')}検索APIテスト</button>
+              </div>
+            </div>
+          </section>
         `;
       }
 
@@ -16812,7 +17952,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderSerperKeyItem(item) {
         const id = escapeJsString(item.id || '');
         const readonly = item.readonly === true;
-        const statusTone = item.last_status === '利用可能' ? 'good' : item.last_status === 'エラー' || item.last_status === '残量なし' ? 'warn' : 'info';
+        const statusTone = item.last_status === '利用可能' ? 'good' : item.last_status === 'エラー' || item.last_status === '残量なし' || item.last_status === '残量20%未満' ? 'warn' : 'info';
         const searchTone = item.last_search_status === '成功' ? 'good' : item.last_search_status === '失敗' ? 'warn' : 'info';
         const remainingLabel = item.last_remaining || (item.last_status === 'エラー' ? '取得失敗' : '-');
         return `
@@ -16820,7 +17960,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div>
               <strong><span class="api-key-icon" aria-hidden="true">${item.role === 'main' ? 'M' : 'S'}</span>${escapeHtml(item.name || 'Serperキー')}</strong>
               <span>${escapeHtml(item.role === 'main' ? 'メイン' : 'サブ')} / ${escapeHtml(item.key_mask || '****')} / ${escapeHtml(item.source === 'env' ? 'PropertiesService' : 'WEB管理')}</span>
-              <small>残量確認: ${escapeHtml(dateTimeLabel(item.last_checked_at) || '-')} / Serper残量: ${escapeHtml(remainingLabel)}</small>
+              <small>残量確認: ${escapeHtml(dateTimeLabel(item.last_checked_at) || '-')} / Serper残量: ${escapeHtml(remainingLabel)}${item.last_remaining_percent !== '' && item.last_remaining_percent !== undefined ? ` / ${escapeHtml(formatPercent(Math.round(Number(item.last_remaining_percent) * 10) / 10))}` : ''}</small>
               <small>検索テスト: ${escapeHtml(item.last_search_status || '未確認')} / ${escapeHtml(dateTimeLabel(item.last_search_test_at) || '-')} / 結果: ${escapeHtml(item.last_search_result_count || '-')}件</small>
               ${item.last_error ? `<small class="error-text">${escapeHtml(item.last_error)}</small>` : ''}
               ${item.last_search_error ? `<small class="error-text">${escapeHtml(item.last_search_error)}</small>` : ''}
@@ -16856,6 +17996,25 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (result.manager) state.serper = result.manager;
         renderSerperKeyManager(state.serper);
         message(`Serper OK: ${result.resultCount}件`, 'ok');
+      }
+
+      async function saveSearxngFallback(event) {
+        event.preventDefault();
+        const result = await api('saveSearxngConfig', {
+          baseUrl: document.getElementById('searxngBaseUrl').value,
+          accessToken: document.getElementById('searxngAccessToken').value,
+          enabled: document.getElementById('searxngEnabled').checked,
+        });
+        state.serper = result || state.serper;
+        renderSerperKeyManager(state.serper);
+        message((result && result.message) || 'PC検索メイン設定を保存しました', 'ok');
+      }
+
+      async function testSearxngFallback() {
+        const result = await api('testSearxngConnection');
+        if (result.manager) state.serper = result.manager;
+        renderSerperKeyManager(state.serper);
+        message(`PC検索 OK: ${result.resultCount}件`, 'ok');
       }
 
       async function refreshSerperKeyManager() {
@@ -16905,26 +18064,34 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function loadSearchResults() {
-        const [results, usage, jobs] = await Promise.all([
+        const settled = await Promise.allSettled([
           api('listSheetRecords', 'search_results', { limit: 100, includeInactive: true }),
           api('listSheetRecords', 'search_usage_logs', { limit: 100, includeInactive: true }),
           api('listSheetRecords', 'search_jobs', { limit: 100, includeInactive: true }),
         ]);
-        state.searchResults = results.items || [];
-        state.searchUsageLogs = usage.items || [];
-        state.searchJobs = jobs.items || [];
-        state.dataLoaded.search = true;
+        const failures = [];
+        const results = settledPageResult(settled[0], '検索結果', state.searchResults, state.searchResultTotal, failures);
+        const usage = settledPageResult(settled[1], '検索利用履歴', state.searchUsageLogs, state.searchUsageTotal, failures);
+        const jobs = settledPageResult(settled[2], '検索ジョブ', state.searchJobs, state.searchJobTotal, failures);
+        state.searchResults = results.items;
+        state.searchResultTotal = results.total;
+        state.searchUsageLogs = usage.items;
+        state.searchUsageTotal = usage.total;
+        state.searchJobs = jobs.items;
+        state.searchJobTotal = jobs.total;
+        state.dataLoaded.search = failures.length === 0;
         renderSearchTables();
         renderSearchActivityPanel();
         renderProspectingProgressDashboard();
         renderCollectionCommandCenter(state.serper || {});
+        if (failures.length) throw new Error(`検索関連データの一部を更新できませんでした。${failures.join(' / ')}`);
       }
 
       function renderSearchTables() {
         const resultHeaders = ['種類', 'タイトル', 'URL', '根拠', '作成'];
         const usageHeaders = ['日時', '用途', '検索語', '件数', '状態'];
-        document.getElementById('searchResultCountPill').textContent = `${formatNumber(state.searchResults.length)}件`;
-        document.getElementById('searchUsageCountPill').textContent = `${formatNumber(state.searchUsageLogs.length)}件`;
+        document.getElementById('searchResultCountPill').textContent = `最新${formatNumber(state.searchResults.length)} / 全${formatNumber(state.searchResultTotal)}件`;
+        document.getElementById('searchUsageCountPill').textContent = `最新${formatNumber(state.searchUsageLogs.length)} / 全${formatNumber(state.searchUsageTotal)}件`;
         document.getElementById('searchResultsTable').innerHTML = table(resultHeaders, limitedTableRows(resultHeaders, state.searchResults, 'searchResults', 'renderSearchTables', (item) => row([
           ['種類', statusPill(item.result_type || '検索結果')],
           ['タイトル', escapeHtml(item.title || '-')],
@@ -17363,11 +18530,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const visible = visibleJobResultRows(rows);
         const renderLimit = Math.max(1, Number(state.jobResultRenderLimit || 60));
         const rendered = visible.slice(0, renderLimit);
-        const selectable = rendered.filter((item) => item.id);
+        const selectable = rendered.filter(isJobResultReviewActionable);
         const selected = state.selectedJobResultIds.filter((id) => selectable.some((item) => item.id === id));
-        const activeEmailRows = visible.filter((item) => item.id && item.categories.includes('email') && item.email);
-        const allEmailRows = rows.filter((item) => item.id && item.categories.includes('email') && item.email);
-        const allUrlRows = rows.filter((item) => item.id && item.category === 'url' && item.website_url);
+        const activeEmailRows = visible.filter((item) => isJobResultReviewActionable(item) && item.categories.includes('email') && item.email);
+        const allEmailRows = rows.filter((item) => isJobResultReviewActionable(item) && item.categories.includes('email') && item.email);
+        const allUrlRows = rows.filter((item) => isJobResultReviewActionable(item) && item.category === 'url' && item.website_url);
         state.selectedJobResultIds = selected;
         target.innerHTML = `
           <div class="section-title-row">
@@ -17407,12 +18574,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return (state.searchResults || [])
           .filter((item) => !state.dismissedSearchResultIds.includes(item.id))
           .map(normalizeJobResultRow)
-          .filter((item) => !item.review_status || item.review_status === 'unconfirmed');
+          .filter((item) => !item.review_status || item.review_status === 'unconfirmed' || item.review_status === 'adding');
       }
 
       function visibleJobResultRows(rows) {
         const source = Array.isArray(rows) ? rows : jobResultRowsForReview();
         return state.jobResultCategory === 'all' ? source : source.filter((item) => item.categories.includes(state.jobResultCategory));
+      }
+
+      function isJobResultReviewActionable(item) {
+        return Boolean(item && item.id && item.review_status !== 'adding' && !state.pendingJobResultIds.includes(item.id));
       }
 
       function normalizeJobResultRow(item) {
@@ -17457,6 +18628,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderJobResultCard(item) {
         const selected = state.selectedJobResultIds.includes(item.id);
+        const pending = state.pendingJobResultIds.includes(item.id);
+        const adding = item.review_status === 'adding';
         const editable = !item.lead_id;
         return `
           <article class="job-result-card ${escapeHtml(item.category)}">
@@ -17475,12 +18648,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div class="job-result-meta"><span>更新: ${escapeHtml(dateTimeLabel(item.updated_at) || '-')}</span><span>状態: ${escapeHtml(item.status || '-')}</span></div>
             ${item.message ? `<p class="job-result-message">${escapeHtml(item.message)}</p>` : ''}
             <div class="job-result-actions">
-              <label class="table-checkbox"><input type="checkbox" ${selected ? 'checked' : ''} onchange="toggleJobResultSelection('${escapeJsString(item.id)}')">選択</label>
+              <label class="table-checkbox"><input type="checkbox" ${selected ? 'checked' : ''} ${pending || adding ? 'disabled' : ''} onchange="toggleJobResultSelection('${escapeJsString(item.id)}')">選択</label>
               <span class="pill ${escapeHtml(jobResultReviewTone(item.review_status))}">${escapeHtml(jobResultReviewLabel(item.review_status))}</span>
               ${item.lead_id ? `<button type="button" class="table-link-button" onclick="editLead('${escapeJsString(item.lead_id)}')">${legacyUiIcon('squarePen')}詳細/編集</button>` : '<span class="muted">営業先未作成</span>'}
-              ${item.lead_id ? `<button type="button" class="table-link-button primary-action" onclick="confirmJobResult('${escapeJsString(item.id)}')">${legacyUiIcon('checkCircle')}確認済みにする</button>` : `<button type="button" class="table-link-button primary-action" onclick="addJobResultLead('${escapeJsString(item.id)}')">${legacyUiIcon('listPlus')}営業リストに追加</button>`}
-              <button type="button" class="table-danger-button" onclick="excludeJobResult('${escapeJsString(item.id)}')">${legacyUiIcon('xCircle')}除外</button>
-              ${item.lead_id ? '' : `<button type="button" class="table-link-button" onclick="dismissJobResult('${escapeJsString(item.id)}')">${legacyUiIcon('checkCircle')}確認済みにする</button>`}
+              ${item.lead_id ? `<button type="button" class="table-link-button primary-action" ${pending || adding ? 'disabled' : ''} onclick="confirmJobResult('${escapeJsString(item.id)}')">${legacyUiIcon('checkCircle')}確認済みにする</button>` : `<button type="button" class="table-link-button primary-action" ${pending ? 'disabled' : ''} onclick="addJobResultLead('${escapeJsString(item.id)}')">${legacyUiIcon('listPlus')}${pending ? '追加中…' : adding ? '追加を再開' : '営業リストに追加'}</button>`}
+              <button type="button" class="table-danger-button" ${pending || adding ? 'disabled' : ''} onclick="excludeJobResult('${escapeJsString(item.id)}')">${legacyUiIcon('xCircle')}除外</button>
+              ${item.lead_id ? '' : `<button type="button" class="table-link-button" ${pending || adding ? 'disabled' : ''} onclick="dismissJobResult('${escapeJsString(item.id)}')">${legacyUiIcon('checkCircle')}確認済みにする</button>`}
             </div>
           </article>
         `;
@@ -17509,7 +18682,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function toggleAllVisibleJobResults(checked) {
         const renderLimit = Math.max(1, Number(state.jobResultRenderLimit || 60));
-        const visibleIds = visibleJobResultRows().slice(0, renderLimit).map((item) => item.id).filter(Boolean);
+        const visibleIds = visibleJobResultRows().slice(0, renderLimit).filter(isJobResultReviewActionable).map((item) => item.id);
         if (checked) {
           state.selectedJobResultIds = Array.from(new Set(state.selectedJobResultIds.concat(visibleIds)));
         } else {
@@ -17519,69 +18692,101 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function confirmJobResult(id) {
-        await reviewJobResultIds([id], 'confirm');
-        message('検索結果を確認済みにしました', 'ok');
+        const outcome = await reviewJobResultIds([id], 'confirm');
+        showJobResultReviewOutcome('検索結果を確認済みにしました', outcome);
       }
 
       async function dismissJobResult(id) {
-        await reviewJobResultIds([id], 'dismiss');
-        message('検索結果を確認済みにしました', 'ok');
+        const outcome = await reviewJobResultIds([id], 'dismiss');
+        showJobResultReviewOutcome('検索結果を確認済みにしました', outcome);
       }
 
       async function excludeJobResult(id) {
-        await reviewJobResultIds([id], 'exclude');
-        message('検索結果を除外しました', 'ok');
+        const outcome = await reviewJobResultIds([id], 'exclude');
+        showJobResultReviewOutcome('検索結果を除外しました', outcome);
       }
 
       async function reviewSelectedJobResults(action) {
-        const ids = state.selectedJobResultIds.slice();
+        const actionableIds = new Set(jobResultRowsForReview().filter(isJobResultReviewActionable).map((item) => item.id));
+        const ids = state.selectedJobResultIds.filter((id) => actionableIds.has(id));
         if (!ids.length) return;
-        const status = await reviewJobResultIds(ids, action);
-        message(`検索結果レビュー: ${formatNumber(ids.length)}件を${status === 'excluded' ? '除外' : '確認済み'}にしました`, 'ok');
+        const outcome = await reviewJobResultIds(ids, action);
+        showJobResultReviewOutcome(`検索結果レビュー: ${formatNumber(outcome.reviewed)}件を${outcome.status === 'excluded' ? '除外' : '確認済み'}にしました`, outcome);
       }
 
       async function markVisibleJobResultsReviewed() {
         const renderLimit = Math.max(1, Number(state.jobResultRenderLimit || 60));
-        const ids = visibleJobResultRows().slice(0, renderLimit).map((item) => item.id).filter(Boolean);
+        const ids = visibleJobResultRows().slice(0, renderLimit).filter(isJobResultReviewActionable).map((item) => item.id);
         if (!ids.length) return;
-        await reviewJobResultIds(ids, 'dismiss');
-        message(`検索結果レビュー: ${formatNumber(ids.length)}件を確認済みにしました`, 'ok');
+        const outcome = await reviewJobResultIds(ids, 'dismiss');
+        showJobResultReviewOutcome(`検索結果レビュー: ${formatNumber(outcome.reviewed)}件を確認済みにしました`, outcome);
       }
 
       async function reviewVisibleEmailJobResults() {
         const ids = visibleJobResultRows()
-          .filter((item) => item.id && item.categories.includes('email') && item.email)
+          .filter((item) => isJobResultReviewActionable(item) && item.categories.includes('email') && item.email)
           .map((item) => item.id);
         if (!ids.length) return;
-        await reviewJobResultIds(ids, 'confirm');
-        message(`メール取得結果: ${formatNumber(ids.length)}件を確認済みにしました`, 'ok');
+        const outcome = await reviewJobResultIds(ids, 'confirm');
+        showJobResultReviewOutcome(`メール取得結果: ${formatNumber(outcome.reviewed)}件を確認済みにしました`, outcome);
       }
 
       async function reviewAllEmailJobResults() {
         const ids = jobResultRowsForReview()
-          .filter((item) => item.id && item.categories.includes('email') && item.email)
+          .filter((item) => isJobResultReviewActionable(item) && item.categories.includes('email') && item.email)
           .map((item) => item.id);
         if (!ids.length) return;
-        await reviewJobResultIds(ids, 'confirm');
-        message(`メール取得結果: ${formatNumber(ids.length)}件を全件確認済みにしました`, 'ok');
+        const outcome = await reviewJobResultIds(ids, 'confirm');
+        showJobResultReviewOutcome(`メール取得結果: ${formatNumber(outcome.reviewed)}件を全件確認済みにしました`, outcome);
       }
 
       async function reviewAllUrlJobResults() {
         const ids = jobResultRowsForReview()
-          .filter((item) => item.id && item.category === 'url' && item.website_url)
+          .filter((item) => isJobResultReviewActionable(item) && item.category === 'url' && item.website_url)
           .map((item) => item.id);
         if (!ids.length) return;
-        await reviewJobResultIds(ids, 'confirm');
-        message(`WEBサイトURL結果: ${formatNumber(ids.length)}件を全件確認済みにしました`, 'ok');
+        const outcome = await reviewJobResultIds(ids, 'confirm');
+        showJobResultReviewOutcome(`WEBサイトURL結果: ${formatNumber(outcome.reviewed)}件を全件確認済みにしました`, outcome);
       }
 
       async function reviewJobResultIds(ids, action) {
         const safeIds = Array.from(new Set((ids || []).filter(Boolean)));
-        if (!safeIds.length) return 'dismissed';
-        await api('reviewSearchResults', { ids: safeIds, action });
+        if (!safeIds.length) return { status: 'dismissed', reviewed: 0, conflicts: 0, missing: 0 };
+        const result = await api('reviewSearchResults', { ids: safeIds, action });
         const status = action === 'confirm' ? 'confirmed' : action === 'exclude' ? 'excluded' : 'dismissed';
-        markJobResultLocallyReviewed(safeIds, status);
-        return status;
+        const reviewedIds = (result.items || []).map((item) => item && item.id).filter(Boolean);
+        const conflicts = Array.isArray(result.conflicts) ? result.conflicts : [];
+        const missingIds = Array.isArray(result.missing) ? result.missing : [];
+        const conflictById = new Map(conflicts.filter((item) => item && item.id && item.record).map((item) => [item.id, item.record]));
+        state.searchResults = (state.searchResults || []).map((item) => conflictById.has(item.id) ? Object.assign({}, conflictById.get(item.id)) : item);
+        conflicts.forEach((item) => {
+          if (item && item.id && item.status && item.status !== 'unconfirmed' && !state.dismissedSearchResultIds.includes(item.id)) {
+            state.dismissedSearchResultIds.push(item.id);
+          }
+        });
+        missingIds.forEach((id) => {
+          if (!state.dismissedSearchResultIds.includes(id)) state.dismissedSearchResultIds.push(id);
+        });
+        state.selectedJobResultIds = state.selectedJobResultIds.filter((id) => !safeIds.includes(id));
+        if (reviewedIds.length) markJobResultLocallyReviewed(reviewedIds, status);
+        else renderJobResultsReviewPanel();
+        return {
+          status,
+          reviewed: reviewedIds.length,
+          conflicts: conflicts.length,
+          missing: missingIds.length,
+        };
+      }
+
+      function showJobResultReviewOutcome(successText, outcome) {
+        const result = outcome || { conflicts: 0, missing: 0 };
+        const skipped = Number(result.conflicts || 0) + Number(result.missing || 0);
+        if (!Number(result.reviewed || 0) && skipped) {
+          message(`${formatNumber(skipped)}件は別処理で更新済みのため上書きしませんでした`, 'error');
+          return;
+        }
+        const suffix = skipped ? ` / ${formatNumber(skipped)}件は別処理で更新済みのため上書きなし` : '';
+        message(`${successText}${suffix}`, skipped ? 'error' : 'ok');
       }
 
       function markJobResultLocallyReviewed(ids, status) {
@@ -17598,6 +18803,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function addJobResultLead(id) {
+        if (state.pendingJobResultIds.includes(id)) return;
         const item = (state.searchResults || []).map(normalizeJobResultRow).find((row) => row.id === id);
         if (!item) return;
         const emailInput = document.getElementById(`jobResultEmail_${id}`);
@@ -17608,19 +18814,32 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           message('メール、フォームURL、WEBサイトURLのいずれかが必要です', 'error');
           return;
         }
-        const result = await api('addSearchResultToLead', id, {
-          email,
-          form_url: formUrl,
-          website_url: item.website_url,
-          company_name: item.company_name || item.title,
-          facility_name: item.title,
-          snippet: item.message,
-        });
-        state.searchResults = (state.searchResults || []).map((record) => record.id === id ? Object.assign({}, record, {
+        state.pendingJobResultIds.push(id);
+        renderJobResultsReviewPanel();
+        let result;
+        try {
+          result = await api('addSearchResultToLead', id, {
+            email,
+            form_url: formUrl,
+            website_url: item.website_url,
+            company_name: item.company_name || item.title,
+            facility_name: item.title,
+            snippet: item.message,
+          });
+        } catch (error) {
+          try {
+            await loadSearchResults();
+          } catch (refreshError) {
+            console.warn('Search result refresh after add failure skipped:', refreshError);
+          }
+          message(String(error && error.message || error || '営業リストへ追加できませんでした'), 'error');
+          return;
+        } finally {
+          state.pendingJobResultIds = state.pendingJobResultIds.filter((pendingId) => pendingId !== id);
+          renderJobResultsReviewPanel();
+        }
+        state.searchResults = (state.searchResults || []).map((record) => record.id === id ? Object.assign({}, record, result.result || {}, {
           lead_id: result.lead.id,
-          review_status: 'added',
-          review_action: 'add_lead',
-          reviewed_at: new Date().toISOString(),
         }) : record);
         if (!state.dismissedSearchResultIds.includes(id)) state.dismissedSearchResultIds.push(id);
         renderJobResultsReviewPanel();
@@ -17652,6 +18871,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function jobResultReviewLabel(status) {
         return {
           added: '追加済み',
+          adding: '追加処理中',
           confirmed: '確認済み',
           dismissed: '非表示',
           duplicate: '重複',
@@ -17688,7 +18908,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderCollectionCommandCenter(info) {
         state.serper = info || state.serper || {};
         const dashboard = state.dashboard || {};
-        const searchReady = Boolean(state.serper.configured);
+        const searxng = state.serper.searxng || {};
+        const searchReady = Boolean(state.serper.searchConfigured || (searxng.configured && searxng.enabled !== false));
         const target = document.getElementById('collectionCommandCenter');
         if (!target) return;
         const autoSettings = getAutoCollectionSettings();
@@ -17701,57 +18922,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const addedCount = Number(dashboard.prospectingAddedCount || dashboard.serperToday || 0);
         const duplicateCount = Number(dashboard.prospectingDuplicateCount || 0);
         const excludedCount = Number(dashboard.prospectingExcludedCount || 0);
-        const resumeAfter = String(dashboard.prospectingResumeAfter || '').trim();
+        const isOverview = activeTab === 'overview';
         target.innerHTML = `
-          <div class="collection-simple-head">
-            <div class="collection-simple-head-copy">
-              <span>営業リスト収集</span>
-              <strong>収集管理</strong>
-              <p>収集方法は2つだけです。キーワードを組み合わせるか、まとめサイトURLから施設を拾います。</p>
-              <small>Serper ${searchReady ? (state.serper.key_mask || '設定済み') : '未設定'} / ジャンル ${formatNumber((state.genres || []).length)}件</small>
-            </div>
-            <div class="collection-simple-links">
-              <button type="button" class="mini-button" onclick="showTab('reviewLeads')">${legacyUiIcon('clipboard')}確認待ち</button>
-              <button type="button" class="mini-button" onclick="openCollectionSupport('serper')">${legacyUiIcon('keyRound')}Serperキー</button>
-              <button type="button" class="mini-button" onclick="showTab('exclusions')">${legacyUiIcon('settings')}除外ドメイン</button>
-            </div>
-          </div>
-          ${resumeAfter ? `
-            <div class="collection-resume-notice" role="status">
-              ${legacyUiIcon('timerReset')}
-              <div>
-                <strong>Serperの月間上限に達したため待機中です</strong>
-                <small>${escapeHtml(dateTimeLabel(resumeAfter))}以降に、現在の${formatNumber(Number(dashboard.prospectingResumeOffset || 0) + 1)}施設目から自動再開します。</small>
-              </div>
-              <button type="button" class="mini-button" onclick="showTab('backgroundJobs')">進捗を見る</button>
-            </div>
-          ` : ''}
-          <div class="collection-management-summary collection-step-management">
-            <div class="collection-focus-panel">
-              <div class="collection-focus-copy">
-                ${legacyUiIcon(activeTab === 'overview' ? 'listChecks' : collectionActionIcon(activeTab))}
-                <div>
-                  <span>収集ルート</span>
-                  <strong>${escapeHtml(collectionManagementTitle(activeTab, searchReady))}</strong>
-                  <small>${escapeHtml(collectionManagementDescription(activeTab, searchReady, enabledRuleCount, enabledSourceCount))}</small>
-                  <div class="collection-focus-meta">
-                    ${searchReady ? '' : '<em>Serper 未設定</em>'}
-                    <em>確認待ち ${formatNumber(reviewTargets)}件</em>
-                    <em>自動収集 ${autoSettings.enabled ? 'ON' : 'OFF'}</em>
-                  </div>
-                </div>
-              </div>
-              <div class="collection-focus-actions">
-                ${collectionPrimaryAction(activeTab, searchReady)}
-                <button type="button" onclick="openCollectionSupport('results')">${legacyUiIcon('listChecks')}前回の結果</button>
-              </div>
-            </div>
-          </div>
-          <details class="collection-advanced-actions"${methodsOpen}>
+          ${renderCollectionStatusStrip(searxng, reviewTargets, autoSettings)}
+          ${isOverview ? renderCollectionMethodPicker(searchReady) : renderCollectionActiveRoute(activeTab, searchReady, enabledRuleCount, enabledSourceCount)}
+          <details class="collection-advanced-actions collection-detail-settings"${methodsOpen}>
             <summary>
               <div>
-                <span>補助機能・詳細設定</span>
-                <small>自動収集、CSV取り込み、ログ確認、Serperキーは必要な時だけ開きます。</small>
+                <span>${legacyUiIcon('settings')}詳細設定</span>
+                <small>CSV取り込み、ログ確認、検索API、除外設定、自動収集設定など</small>
               </div>
               ${legacyUiIcon('chevronRight')}
             </summary>
@@ -17759,17 +18938,111 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               ${collectionSecondaryAction('自動収集設定', '定期実行の条件を管理', 'automation')}
               ${collectionSecondaryAction('CSV取り込み', '手元の一覧をまとめて追加', 'file')}
               ${collectionSupportAction('収集ログ', '前回結果とジョブ進捗を確認', 'results', 'listChecks')}
-              ${collectionSupportAction('Serperキー', '検索APIキーと残量を確認', 'serper', 'keyRound')}
+              ${collectionSupportAction('検索API', 'SearXNGメインとSerper予備を確認', 'serper', 'keyRound')}
+              <button type="button" class="collection-secondary-action" onclick="showTab('exclusions')">${legacyUiIcon('shieldAlert')}<span><strong>除外ドメイン</strong><small>収集しないサイトを管理</small></span>${legacyUiIcon('chevronRight')}</button>
             </div>
           </details>
-          <div id="collectionFormPanel" class="collection-tab-panel" role="tabpanel">
-            ${renderCollectionTabPanel(activeTab, searchReady, dashboard)}
+          <div id="collectionFormPanel" class="collection-tab-panel" role="tabpanel" ${isOverview ? 'hidden' : ''}>
+            ${isOverview ? '' : renderCollectionTabPanel(activeTab, searchReady, dashboard)}
           </div>
         `;
       }
 
+      function renderCollectionStatusStrip(searxngInfo, reviewTargets, autoSettings) {
+        const search = searxngInfo || {};
+        const searchEnabled = Boolean(search.configured && search.enabled !== false);
+        const searchOnline = searchEnabled && search.lastStatus === '稼働中';
+        const searchLabel = !search.configured ? '未設定' : search.enabled === false ? '無効' : searchOnline ? '稼働中' : '設定済み';
+        const searchTone = searchOnline ? 'good' : searchEnabled ? 'info' : 'warn';
+        return `
+          <section class="collection-status-strip" aria-label="収集ステータス">
+            <button type="button" class="collection-status-cell" onclick="showTab('reviewLeads')">
+              ${legacyUiIcon('clipboard')}
+              <span><small>確認待ち</small><strong>${formatNumber(reviewTargets)}件</strong></span>
+            </button>
+            <button type="button" class="collection-status-cell collection-status-serper ${escapeHtml(searchTone)}" onclick="openCollectionSupport('serper')">
+              ${legacyUiIcon('searchCheck')}
+              <span>
+                <small>PC検索</small>
+                <strong>${escapeHtml(searchLabel)}</strong>
+                <span class="collection-status-progress" aria-label="SearXNGをメインで使用"><i style="width:${searchEnabled ? 100 : 0}%"></i></span>
+              </span>
+            </button>
+            <button type="button" class="collection-status-cell" onclick="setCollectionTab('automation')">
+              ${legacyUiIcon('power')}
+              <span><small>自動収集</small><strong>${autoSettings && autoSettings.enabled ? 'ON' : 'OFF'}</strong></span>
+            </button>
+          </section>
+        `;
+      }
+
+      function renderCollectionMethodPicker(searchReady) {
+        return `
+          <section class="collection-method-picker" aria-labelledby="collectionMethodTitle">
+            <div class="collection-method-heading">
+              <h2 id="collectionMethodTitle">収集方法を選ぶ</h2>
+              <p>はじめての方は「キーワードから探す」がおすすめです。</p>
+            </div>
+            <div class="collection-method-grid">
+              <article class="collection-method-card recommended">
+                <span class="collection-method-badge">${legacyUiIcon('checkCircle')}おすすめ</span>
+                <div class="collection-method-content">
+                  <span class="collection-method-icon">${legacyUiIcon('search')}</span>
+                  <div>
+                    <h3>キーワードから探す</h3>
+                    <p>業種・サービス・地域などのキーワードを入力して、該当する企業を自動で検索・収集します。</p>
+                  </div>
+                </div>
+                ${searchReady
+                  ? `<button type="button" class="button blue collection-method-cta" onclick="setCollectionTab('keyword')">キーワードを入力して検索する${legacyUiIcon('chevronRight')}</button>`
+                  : `<button type="button" class="button blue collection-method-cta" onclick="openCollectionSupport('serper')">検索APIを設定する${legacyUiIcon('chevronRight')}</button>`}
+              </article>
+              <article class="collection-method-card">
+                <div class="collection-method-content">
+                  <span class="collection-method-icon">${legacyUiIcon('globe2')}</span>
+                  <div>
+                    <h3>まとめサイトURLから取り込む</h3>
+                    <p>企業や施設の一覧が掲載されているまとめサイトのURLを指定して、営業先情報を取り込みます。</p>
+                  </div>
+                </div>
+                <button type="button" class="button collection-method-cta secondary-route" onclick="setCollectionTab('sourcePage')">まとめサイトURLを入力する${legacyUiIcon('chevronRight')}</button>
+              </article>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderCollectionActiveRoute(activeTab, searchReady, enabledRuleCount, enabledSourceCount) {
+        return `
+          <section class="collection-active-route-bar">
+            <button type="button" class="button secondary" onclick="setCollectionTab('overview')">${legacyUiIcon('arrowLeft')}収集方法へ戻る</button>
+            <div>
+              <span>選択中の収集方法</span>
+              <strong>${escapeHtml(collectionManagementTitle(activeTab, searchReady))}</strong>
+              <small>${escapeHtml(collectionManagementDescription(activeTab, searchReady, enabledRuleCount, enabledSourceCount))}</small>
+            </div>
+          </section>
+        `;
+      }
+
+      function collectionSerperBalanceSummary(info) {
+        const data = info || {};
+        const limits = data.limits || {};
+        const remainingKnown = limits.remainingValue !== '' && limits.remainingValue !== undefined && limits.remainingValue !== null && Number.isFinite(Number(limits.remainingValue));
+        const percentKnown = limits.percentKnown === true && limits.remainingPercent !== '' && limits.remainingPercent !== undefined && limits.remainingPercent !== null && Number.isFinite(Number(limits.remainingPercent));
+        const threshold = Number.isFinite(Number(limits.alertThresholdPercent)) ? Number(limits.alertThresholdPercent) : 20;
+        const remaining = remainingKnown ? Math.max(0, Number(limits.remainingValue)) : 0;
+        const percent = percentKnown ? Math.max(0, Math.min(100, Number(limits.remainingPercent))) : 0;
+        if (!data.configured) return { label: '未設定', percent: 0, tone: 'warn' };
+        if (!remainingKnown) return { label: '未取得', percent: 0, tone: 'warn' };
+        const label = `${formatNumber(remaining)} credits${percentKnown ? ` / ${formatPercent(Math.round(percent * 10) / 10)}` : ''}`;
+        if (remaining <= 0) return { label, percent, tone: 'bad' };
+        if (percentKnown && percent < threshold) return { label, percent, tone: 'warn' };
+        return { label, percent, tone: percentKnown ? 'good' : 'warn' };
+      }
+
       function collectionManagementTitle(tab, searchReady) {
-        if (!searchReady) return 'Serperキーを設定すると検索収集を始められます';
+        if (!searchReady) return '検索APIを設定すると検索収集を始められます';
         if (tab === 'area') return '地域から営業先を探す';
         if (tab === 'automation') return '自動収集を設定する';
         if (tab === 'sourcePage') return 'サイト収集型で営業先を増やす';
@@ -17779,11 +19052,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function collectionManagementDescription(tab, searchReady, enabledRuleCount, enabledSourceCount) {
-        if (!searchReady) return 'キーワード型と、公式URLが見つからないサイト収集型ではSerperキーを使います。キー未設定でも公式URLからの直接抽出は実行できます。';
+        if (!searchReady) return 'キーワード型と、公式URLが見つからないサイト収集型ではPC検索またはSerper予備を使います。未設定でも公式URLからの直接抽出は実行できます。';
         if (tab === 'area') return 'おすすめの入口です。ジャンル、エリア、件数だけ決めて小さく実行します。';
         if (tab === 'automation') return `現在の優先ジャンルは${formatNumber(enabledRuleCount)}件です。ONにする前に対象エリアと検索語数を確認します。`;
-        if (tab === 'sourcePage') return `監視サイトは${formatNumber(enabledSourceCount)}件有効です。まとめサイトから施設名とURLを抽出し、必要な時だけSerperで公式URLを補完します。`;
-        if (tab === 'keyword') return 'キーワード、エリア、補助語を掛け合わせて検索語を作り、Serperで候補を増やします。';
+        if (tab === 'sourcePage') return `監視サイトは${formatNumber(enabledSourceCount)}件有効です。まとめサイトから施設名とURLを抽出し、必要な時だけSearXNGで公式URLを補完します。`;
+        if (tab === 'keyword') return 'キーワード、エリア、補助語を掛け合わせて検索語を作り、SearXNGで候補を増やします。';
         if (tab === 'file') return 'CSV貼り付けで既存リストを追加します。重複保護は初期状態で有効です。';
         return '迷ったらキーワード型から小さく始めてください。まとめサイトがある場合はサイト収集型が早いです。';
       }
@@ -17801,7 +19074,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function collectionPrimaryAction(tab, searchReady) {
         if (!searchReady) {
-          return `<button type="button" class="primary" onclick="openCollectionSupport('serper')">${legacyUiIcon('keyRound')}Serperキー設定</button>`;
+          return `<button type="button" class="primary" onclick="openCollectionSupport('serper')">${legacyUiIcon('keyRound')}検索API設定</button>`;
         }
         if (!tab || tab === 'overview') {
           return `<button type="button" class="primary" onclick="setCollectionTab('keyword')">${legacyUiIcon('search')}キーワード型を開く</button>`;
@@ -17872,7 +19145,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 <h3>収集方法を選ぶ</h3>
                 <p>見る場所を2つに絞りました。検索語を作るか、まとめサイトURLを起点にします。</p>
               </div>
-              ${searchReady ? '' : '<span class="pill warn">Serper未設定</span>'}
+              ${searchReady ? '' : '<span class="pill warn">検索API未設定</span>'}
             </div>
             <div class="collection-overview-grid collection-two-route-grid">
               <div class="collection-overview-card collection-route-card">
@@ -17883,7 +19156,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 <div class="collection-route-steps">
                   <span>キーワード登録</span>
                   <span>エリアと組み合わせ</span>
-                  <span>Serper検索</span>
+                  <span>SearXNG検索</span>
                 </div>
                 <button type="button" class="mini-button primary" onclick="setCollectionTab('keyword')" ${searchReady ? '' : 'disabled'}>キーワード型を開く</button>
               </div>
@@ -17938,7 +19211,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 ${preview.length ? preview.map((query, index) => `<span><em>${formatNumber(index + 1)}</em><strong>${escapeHtml(query)}</strong></span>`).join('') : '<span><strong>優先ジャンルを入力してください</strong></span>'}
               </div>
               <div class="settings-status-grid">
-                ${adminStatusItemMarkup({ icon: 'searchCheck', label: '日次上限', ready: true, detail: '制限なし', status: 'Serper' })}
+                ${adminStatusItemMarkup({ icon: 'searchCheck', label: 'メイン検索', ready: searchReady, detail: 'PC稼働中はAPI料金なし', status: 'SearXNG' })}
                 ${adminStatusItemMarkup({ icon: 'serverCog', label: 'GAS制限', ready: true, detail: '6分以内に分割', status: 'jobs', tone: 'info' })}
               </div>
             </aside>
@@ -17958,7 +19231,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 <h3>Step 3: 地域から営業先を探す</h3>
                 <p class="muted">ジャンル、エリア、今回追加する上限だけ指定します。最初は5件程度で小さく実行してください。</p>
               </div>
-              ${searchReady ? '' : '<span class="pill warn">Serper未設定</span>'}
+              ${searchReady ? '' : '<span class="pill warn">検索API未設定</span>'}
             </div>
             <form class="collection-panel-grid" onsubmit="submitCollectionAreaSearch(event)">
               <div class="grid">
@@ -17991,7 +19264,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                 <h3>キーワード型収集</h3>
                 <p class="muted">キーワード、エリア、補助語を掛け合わせて検索語を作ります。まずは数件だけ実行して、確認待ちに追加します。</p>
               </div>
-              ${searchReady ? '' : '<span class="pill warn">Serper未設定</span>'}
+              ${searchReady ? '' : '<span class="pill warn">検索API未設定</span>'}
             </div>
             ${presetMarkup}
             <form class="collection-panel-grid" onsubmit="submitCollectionKeywordSearch(event)">
@@ -18267,7 +19540,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return `
           <strong>実行前の概算</strong>
           <div class="collection-estimate-grid">
-            <span><small>Serper検索</small><strong>${formatNumber(searches)}回</strong></span>
+            <span><small>SearXNG検索</small><strong>${formatNumber(searches)}回</strong></span>
             <span><small>最大候補</small><strong>${formatNumber(candidates)}件</strong></span>
             <span><small>処理時間目安</small><strong>${estimatedMinutes ? `約${formatNumber(estimatedMinutes)}分` : '-'}</strong></span>
           </div>
@@ -18452,12 +19725,23 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         event.preventDefault();
         const csvText = document.getElementById('collectionCsvText').value;
         const allowDuplicate = document.getElementById('collectionCsvAllowDuplicate').checked;
-        const result = await api('importLeadsFromCsv', csvText, {
+        const result = await queueLeadCsvImport(csvText, {
           allow_duplicate: allowDuplicate,
           source: 'collection_file',
         });
-        message(`ファイル収集: 追加 ${result.added} / スキップ ${result.skipped}`, result.errors.length ? 'error' : 'ok');
+        const continuation = result.completed ? '' : ' / 残りはバックグラウンドで継続';
+        message(`ファイル収集: 処理 ${formatNumber(result.processed || 0)} / ${formatNumber(result.total || 0)}件${continuation}`, Number(result.errors || 0) ? 'error' : 'ok');
         await refreshAll();
+      }
+
+      async function queueLeadCsvImport(csvText, options) {
+        const job = await api('startLeadCsvImport', csvText, options || {});
+        const result = await api('advanceLeadCsvImportJob', job.id, { maxItems: 25, runtimeBudgetMs: 90000 });
+        return Object.assign({}, result, {
+          reusedJob: job.reused === true,
+          duplicatePrevented: job.duplicatePrevented === true,
+          triggerWarning: job.triggerWarning || '',
+        });
       }
 
       async function submitSourcePageSearch(event) {
@@ -18531,7 +19815,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const addedText = Number(result.updatedLeads || 0) ? ` / 追加 ${formatNumber(result.updatedLeads)}件` : '';
         const remainingText = Number(result.remaining || 0) ? ` / 残り ${formatNumber(result.remaining)}チャンク` : '';
         const suffix = result.completed ? '' : '。残りはバックグラウンド進捗で継続します';
-        message(`${label}: ${formatNumber(result.processed || 0)}チャンク処理${addedText}${remainingText}${suffix}`, result.errors && result.errors.length ? 'error' : 'ok');
+        const reuseText = result.reusedJob ? ' / 同じ実行中ジョブを再利用' : '';
+        const triggerText = result.triggerWarning ? ` / ${result.triggerWarning}` : '';
+        message(`${label}: ${formatNumber(result.processed || 0)}チャンク処理${addedText}${remainingText}${reuseText}${suffix}${triggerText}`, result.errors && result.errors.length ? 'error' : 'ok');
         await refreshAll();
         renderTaskCenter();
         await reloadCollectionSupportIfOpen();
@@ -18540,18 +19826,32 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function loadOpsData(options) {
         const config = options || {};
         const request = config.quiet ? apiQuiet : api;
-        const [histories, syncLogs, jobs, searchJobs] = await Promise.all([
+        const settled = await Promise.allSettled([
           request('listSheetRecords', 'send_histories', { limit: 100, includeInactive: true }),
           request('listSheetRecords', 'sync_logs', { limit: 100, includeInactive: true }),
           request('listSheetRecords', 'jobs', { limit: 100, includeInactive: true }),
           request('listSheetRecords', 'search_jobs', { limit: 100, includeInactive: true }),
         ]);
-        state.histories = histories.items || [];
-        state.syncLogs = syncLogs.items || [];
-        state.jobs = (jobs.items || []).concat(searchJobs.items || []);
-        state.dataLoaded.ops = true;
+        const failures = [];
+        const histories = settledPageResult(settled[0], '送信履歴', state.histories, state.historyTotal, failures);
+        const syncLogs = settledPageResult(settled[1], '同期ログ', state.syncLogs, state.syncLogTotal, failures);
+        const currentJobs = (state.jobs || []).filter((job) => String(job.__sourceSheet || '') !== 'search_jobs');
+        const currentSearchJobs = (state.jobs || []).filter((job) => String(job.__sourceSheet || '') === 'search_jobs');
+        const jobs = settledPageResult(settled[2], 'バックグラウンドジョブ', currentJobs, Math.max(0, state.jobTotal - state.searchJobTotal), failures);
+        const searchJobs = settledPageResult(settled[3], '検索ジョブ', currentSearchJobs, state.searchJobTotal, failures);
+        state.histories = histories.items;
+        state.historyTotal = histories.total;
+        state.syncLogs = syncLogs.items;
+        state.syncLogTotal = syncLogs.total;
+        state.jobs = jobs.items.map((job) => Object.assign({ __sourceSheet: 'jobs' }, job))
+          .concat(searchJobs.items.map((job) => Object.assign({ __sourceSheet: 'search_jobs' }, job)));
+        state.searchJobTotal = searchJobs.total;
+        state.jobTotal = jobs.total + searchJobs.total;
+        state.dataLoaded.ops = failures.length === 0;
         renderTaskCenter();
         if (config.render !== false) renderOpsPanels();
+        else renderActiveLoadedScreen();
+        if (failures.length) throw new Error(`運用データの一部を更新できませんでした。${failures.join(' / ')}`);
       }
 
       async function loadHistories() {
@@ -18572,6 +19872,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderBackgroundJobWidgets() {
         const stack = document.getElementById('backgroundToastStack');
         if (!stack) return;
+        stack.classList.toggle('compact', !['backgroundJobs', 'backgroundActivity', 'search'].includes(currentTab));
         const visibleJobs = backgroundWidgetJobs();
         stack.innerHTML = visibleJobs.slice(0, 4).map((job) => renderBackgroundToast(job)).join('');
       }
@@ -18598,9 +19899,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const processed = progress.processed;
         const total = progress.total;
         const cursor = parseJsonObjectClient(job.cursor_json);
-        const resumeAfter = String(cursor.resumeAfter || cursor.resume_after || '').trim();
-        const quotaCode = String(cursor.quotaCode || cursor.quota_code || '').trim();
-        const quotaWaiting = Boolean(quotaCode === 'SERPER_MONTHLY_LIMIT' && resumeAfter && new Date(resumeAfter).getTime() > Date.now());
         const timeValue = job.updated_at || job.finished_at || job.created_at || job.started_at || '';
         const timeMs = new Date(timeValue).getTime();
         return {
@@ -18615,13 +19913,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           active: ['queued', 'running'].includes(status),
           processed,
           total,
-          resumeAfter,
-          quotaCode,
-          quotaWaiting,
+          resumeAfter: '',
+          quotaCode: '',
+          quotaWaiting: false,
           percent: total ? Math.min(100, Math.round((processed / total) * 100)) : (status === 'completed' ? 100 : 8),
-          message: quotaWaiting
-            ? `${dateTimeLabel(resumeAfter)}までSerper月間上限待機中。保存済み位置から自動再開します。`
-            : backgroundJobMessage(job, status, processed, total),
+          message: backgroundJobMessage(job, status, processed, total),
           meta: backgroundJobMeta(job),
           foundResults: backgroundJobFoundResults(job),
           timeMs: Number.isFinite(timeMs) ? timeMs : 0,
@@ -18835,7 +20131,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!job) return false;
         if (job.status === 'failed') return true;
         if (job.quotaWaiting) return false;
-        return job.active && backgroundUpdatedMinutes(job) >= 3;
+        return job.active && backgroundUpdatedMinutes(job) >= 15;
       }
 
       function backgroundMatchesView(job, view) {
@@ -18915,15 +20211,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function backgroundHealthMarkup(job) {
         if (!job.active) return '';
-        if (job.quotaWaiting) {
-          return `<div class="background-health-chip"><strong>上限リセット待ち</strong><span>${escapeHtml(dateTimeLabel(job.resumeAfter))}以降に自動再開します</span></div>`;
-        }
         const minutes = backgroundUpdatedMinutes(job);
-        if (minutes >= 10) {
-          return '<div class="background-health-chip danger"><strong>更新停止の可能性</strong><span>直近の進捗更新から' + formatNumber(minutes) + '分経過しています</span></div>';
+        if (minutes >= 25) {
+          const repairing = Boolean(state.repairingBackgroundJobIds[job.id]);
+          return '<div class="background-health-chip danger"><strong>更新停止の可能性</strong><span>直近の進捗更新から' + formatNumber(minutes) + '分経過しています</span>' +
+            '<button type="button" class="mini-button background-repair-button" ' + (repairing ? 'disabled' : '') + ' onclick="repairBackgroundJob(\'' + escapeJsString(job.id) + '\')">' + (repairing ? '復旧中…' : '自動復旧して再開') + '</button></div>';
         }
-        if (minutes >= 3) {
-          return '<div class="background-health-chip warn"><strong>更新待ち</strong><span>処理中ですが進捗更新が少し遅れています</span></div>';
+        if (minutes >= 15) {
+          return '<div class="background-health-chip warn"><strong>次回実行待ち</strong><span>10分間隔の再開処理を待っています</span></div>';
         }
         return '<div class="background-health-chip"><strong>正常に更新中</strong><span>直近の進捗更新があります</span></div>';
       }
@@ -19192,7 +20487,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const readyItems = [
           { icon: 'database', label: 'Google Sheets DB', ready: true, detail: `${formatNumber(dashboard.leadsTotal || 0)}件` },
           { icon: 'mailCheck', label: 'Gmail送信枠', ready: (dashboard.todayRemaining || 0) > 0, detail: `本日残り ${formatNumber(dashboard.todayRemaining || 0)}件` },
-          { icon: 'searchCheck', label: 'Serper API', ready: Boolean(dashboard.serperConfigured), detail: dashboard.serperKeyMask || '未設定' },
+          { icon: 'searchCheck', label: '検索API', ready: Boolean(dashboard.searchConfigured), detail: dashboard.searxngConfigured ? 'SearXNGメイン' : (dashboard.serperKeyMask || '未設定') },
           { icon: 'checkCircle', label: '本番テンプレート', ready: (dashboard.productionTemplates || 0) > 0, detail: `${formatNumber(dashboard.productionTemplates || 0)}件` },
           { icon: 'clipboard', label: 'フォーム対象', ready: (dashboard.formTargets || 0) > 0, detail: `${formatNumber(dashboard.formTargets || 0)}件` },
           { icon: 'serverCog', label: 'ジョブ待ち', ready: ((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0)) === 0, detail: `${formatNumber((dashboard.queuedJobs || 0) + (dashboard.runningJobs || 0))}件` },
@@ -19215,7 +20510,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderHistoryTable() {
         const histories = state.histories || [];
         const headers = ['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名'];
-        document.getElementById('historyCountPill').textContent = `${formatNumber(histories.length)}件`;
+        document.getElementById('historyCountPill').textContent = `最新${formatNumber(histories.length)} / 全${formatNumber(state.historyTotal)}件`;
         document.getElementById('historyTable').innerHTML = table(headers, limitedTableRows(headers, histories, 'opsHistory', 'renderHistoryTable', (item) => row([
           ['送信日時', `<span class="history-date-cell"><strong>${escapeHtml(dateTimeLabel(item.sent_at || item.created_at) || '-')}</strong><small>日本時間</small></span>`],
           ['結果', renderHistoryResultCell(item)],
@@ -19231,7 +20526,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderJobTable() {
         const jobs = state.jobs || [];
         const headers = ['作成', '種類', '状態', '進捗', 'エラー'];
-        document.getElementById('jobCountPill').textContent = `${formatNumber(jobs.length)}件`;
+        document.getElementById('jobCountPill').textContent = `最新${formatNumber(jobs.length)} / 全${formatNumber(state.jobTotal)}件`;
         document.getElementById('jobTable').innerHTML = table(headers, limitedTableRows(headers, jobs, 'opsJobs', 'renderJobTable', (job) => row([
           ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
           ['種類', escapeHtml(job.job_type || job.type || '-')],
@@ -19244,7 +20539,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderSyncLogTable() {
         const logs = state.syncLogs || [];
         const headers = ['日時', 'ソース', '追加', '補完', '重複', 'エラー', '詳細'];
-        document.getElementById('syncLogCountPill').textContent = `${formatNumber(logs.length)}件`;
+        document.getElementById('syncLogCountPill').textContent = `最新${formatNumber(logs.length)} / 全${formatNumber(state.syncLogTotal)}件`;
         document.getElementById('syncLogTable').innerHTML = table(headers, limitedTableRows(headers, logs, 'opsSyncLogs', 'renderSyncLogTable', (log) => row([
           ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
           ['ソース', escapeHtml(log.source || log.log_type || '-')],
@@ -19304,7 +20599,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const jobs = state.jobs || [];
         const queued = jobs.filter((job) => ['queued', 'running', '処理中', '待機中'].includes(String(job.status || '').toLowerCase())).length;
         const failed = jobs.filter((job) => /failed|error|失敗|エラー/i.test(String(job.status || job.last_error || job.error_message || ''))).length;
-        document.getElementById('backgroundJobSummaryPill').textContent = `${formatNumber(jobs.length)}件`;
+        document.getElementById('backgroundJobSummaryPill').textContent = `最新${formatNumber(jobs.length)} / 全${formatNumber(state.jobTotal)}件`;
         document.getElementById('backgroundJobStats').innerHTML = [
           statCard('ジョブ総数', `${formatNumber(jobs.length)}件`, 'search_jobs / jobs', 'blue'),
           statCard('待機/実行中', `${formatNumber(queued)}件`, 'advanceQueuedJobsで再開', queued > 0 ? 'amber' : 'green'),
@@ -19313,7 +20608,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         ].join('');
         renderLegacyBackgroundOverview('backgroundOverviewPanel');
         const headers = ['作成', '種類', '状態', '進捗', '次の処理', 'エラー', '操作'];
-        document.getElementById('backgroundJobCountPill').textContent = `${formatNumber(jobs.length)}件`;
+        document.getElementById('backgroundJobCountPill').textContent = `最新${formatNumber(jobs.length)} / 全${formatNumber(state.jobTotal)}件`;
         document.getElementById('backgroundJobTable').innerHTML = table(headers, limitedTableRows(headers, jobs, 'backgroundJobs', 'renderBackgroundJobsScreen', (job) => row([
           ['作成', escapeHtml(dateTimeLabel(job.created_at) || '-')],
           ['種類', escapeHtml(job.job_type || job.type || '-')],
@@ -19331,8 +20626,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           const result = await api('advanceSearchJob', jobId, { maxItems: 1 });
           if (result.busy) {
             message('このジョブは別の処理で実行中です。完了後に自動で続きから再開します。', 'ok');
-          } else if (result.pausedForQuota) {
-            message(`Serper利用上限のため一時待機しました。${result.resumeAfter ? `${dateTimeLabel(result.resumeAfter)}以降に` : '上限リセット後に'}同じ施設から自動再開します。`, 'ok');
           } else if (result.pausedForRuntime) {
             message(`最大処理時間の前に途中位置を保存しました。処理済み ${formatNumber(result.processedCandidates || 0)}件、続きは次回再開します。`, 'ok');
           } else {
@@ -19355,12 +20648,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function backgroundSearchJobNextRunLabel(job) {
-        const cursor = parseJsonObjectClient(job && job.cursor_json);
-        const resumeAfter = String(cursor.resumeAfter || cursor.resume_after || '').trim();
-        const quotaCode = String(cursor.quotaCode || cursor.quota_code || '').trim();
-        if (quotaCode === 'SERPER_MONTHLY_LIMIT' && resumeAfter && new Date(resumeAfter).getTime() > Date.now()) {
-          return `<strong>${escapeHtml(dateTimeLabel(resumeAfter))}</strong><small class="muted">上限リセット後に自動再開</small>`;
-        }
         return escapeHtml(dateTimeLabel((job && (job.next_run_at || job.updated_at)) || '') || '-');
       }
 
@@ -19423,14 +20710,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderEmailLeadsScreen() {
         const leads = state.emailLeads || [];
+        const headers = ['会社', '屋号', 'ジャンル', 'メール', '送信区分', 'ステータス', '送信回数', '最新送信日', '履歴'];
+        const renderedCount = Math.min(tableRenderLimit('emailLeads'), leads.length);
         const initial = leads.filter((lead) => !lead.last_sent_at).length;
         document.getElementById('emailLeadStats').innerHTML = [
           statCard('メール送信対象', `${formatNumber(state.emailTotal)}件`, '送信可能な営業先', 'blue'),
-          statCard('初回対象', `${formatNumber(initial)}件`, '表示中100件から算出', 'green'),
+          statCard('初回対象', `${formatNumber(initial)}件`, `取得済み${formatNumber(leads.length)}件から算出`, 'green'),
           statCard('本日残り', `${formatNumber((state.dashboard || {}).todayRemaining || 0)}件`, 'Gmail送信枠', 'amber'),
         ].join('');
-        document.getElementById('emailLeadCountPill').textContent = `${formatNumber(state.emailTotal)}件`;
-        document.getElementById('emailLeadTable').innerHTML = table(['会社', '屋号', 'ジャンル', 'メール', '送信区分', 'ステータス', '送信回数', '最新送信日', '履歴'], leads.map((lead) => row([
+        document.getElementById('emailLeadCountPill').textContent = `表示 ${formatNumber(renderedCount)} / ${formatNumber(state.emailTotal)}件`;
+        document.getElementById('emailLeadTable').innerHTML = table(headers, limitedTableRows(headers, leads, 'emailLeads', 'renderEmailLeadsScreen', (lead) => row([
           ['会社', `<strong>${escapeHtml(lead.company_name || '-')}</strong>`],
           ['屋号', escapeHtml(lead.facility_name || '-')],
           ['ジャンル', escapeHtml(lead.genre || '-')],
@@ -19440,7 +20729,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['送信回数', `${formatNumber(lead.send_count || 0)}回`],
           ['最新送信日', escapeHtml(dateLabel(lead.last_sent_at) || '-')],
           ['履歴', `<button type="button" class="table-link-button" onclick="editLead('${escapeJsString(lead.id)}')">履歴を見る</button>`],
-        ])).join(''));
+        ])));
       }
 
       function renderSendingScreen() {
@@ -19571,11 +20860,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           `;
           return;
         }
-        if (!state.selectedEmailPreviewTemplateId || !mailTemplates.some((template) => template.id === state.selectedEmailPreviewTemplateId)) {
-          const production = mailTemplates.find(isProductionTemplate);
-          state.selectedEmailPreviewTemplateId = (production || mailTemplates[0]).id;
-        }
-        const selectedTemplate = mailTemplates.find((template) => template.id === state.selectedEmailPreviewTemplateId) || mailTemplates[0];
+        const selectedTemplate = selectedEmailPreviewTemplate();
         const matchedLeads = getTemplateMatchedEmailLeads(selectedTemplate);
         if (!state.selectedEmailPreviewLeadId || !matchedLeads.some((lead) => lead.id === state.selectedEmailPreviewLeadId)) {
           const nextLead = matchedLeads.find((lead) => lead.email) || matchedLeads[0];
@@ -19625,28 +20910,36 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <p class="muted">選択中テンプレートと同じジャンルの対象へ順番に送信します。GAS版では実行前に確認を挟み、1日の送信上限を守ります。</p>
             </div>
             <div class="send-check-grid">
-              <span><small>対象候補</small><strong>${formatNumber(batchTargets.length)}件</strong></span>
+              <span><small>対象候補</small><strong>${formatNumber(emailBatchCandidateTotal(selectedTemplate, batchTargets))}件</strong></span>
               <span><small>今回送信</small><strong>${formatNumber(batchCount)}件</strong></span>
               <span><small>本日残り</small><strong>${formatNumber(dashboard.todayRemaining || 0)}件</strong></span>
             </div>
             <button type="button" class="button" onclick="openEmailBatchConfirm()" ${batchCount <= 0 || batchBlockReason ? 'disabled' : ''}>${legacyUiIcon('send')}対象リストを確認して自動送信</button>
             ${batchBlockReason ? `<p class="muted">自動送信できない理由: ${escapeHtml(batchBlockReason)}</p>` : ''}
           </div>
-          ${state.emailBatchConfirmOpen ? renderEmailBatchConfirmDialog(selectedTemplate, batchSendTargets, batchTargets.length, batchLimit, batchBlockReason) : ''}
+          ${state.emailBatchConfirmOpen ? renderEmailBatchConfirmDialog(selectedTemplate, batchSendTargets, emailBatchCandidateTotal(selectedTemplate, batchTargets), batchLimit, batchBlockReason) : ''}
         `;
       }
 
       function getTemplateMatchedEmailLeads(template) {
-        const leads = state.emailLeads || [];
+        const genre = String((template && template.genre) || '').trim();
+        const hasMatchingBatchLoad = state.emailBatchGenre !== null && state.emailBatchGenre === genre;
+        const leads = hasMatchingBatchLoad ? (state.emailBatchLeads || []) : (state.emailLeads || []);
         if (!template || !template.genre) return leads;
         return leads.filter((lead) => lead.genre === template.genre);
+      }
+
+      function emailBatchCandidateTotal(template, fallbackTargets) {
+        const genre = String((template && template.genre) || '').trim();
+        if (state.emailBatchGenre !== null && state.emailBatchGenre === genre) return Number(state.emailBatchTotal || 0);
+        return (fallbackTargets || []).length;
       }
 
       function getEmailPreviewBatchTargets(template) {
         if (!template) return [];
         const templateGenre = String(template.genre || '').trim();
         const seenEmails = new Set();
-        return (state.emailLeads || [])
+        return getTemplateMatchedEmailLeads(template)
           .filter((lead) => {
             if (!canEmailLead(lead)) return false;
             if (templateGenre && String(lead.genre || '').trim() !== templateGenre) return false;
@@ -19831,10 +21124,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return String(text || '').replace(/\s+/g, ' ').trim();
       }
 
-      function setEmailPreviewTemplate(id) {
+      async function setEmailPreviewTemplate(id) {
         state.selectedEmailPreviewTemplateId = id;
         state.selectedEmailPreviewLeadId = '';
         state.emailBatchConfirmOpen = false;
+        state.emailBatchGenre = null;
+        renderEmailPreviewPanel();
+        try {
+          await loadEmailBatchCandidates(id);
+        } catch (error) {
+          message(error && error.message ? error.message : 'メール送信候補を取得できませんでした', 'error');
+        }
         renderEmailPreviewPanel();
       }
 
@@ -19964,9 +21264,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           return;
         }
         if (!confirm(`${lead.company_name || lead.facility_name || lead.email}へプレビュー内容で1件送信しますか。`)) return;
-        const result = await api('sendLeadEmail', leadId, templateId, { send_type: '初回メール', sender_name: '営業担当' });
-        message(result.ok ? 'メール送信を記録しました' : `メール送信に失敗しました: ${result.errorMessage}`, result.ok ? 'ok' : 'error');
-        await refreshAll();
+        try {
+          const result = await api('sendLeadEmail', leadId, templateId, { send_type: '初回メール', sender_name: '営業担当' });
+          await refreshAll();
+          const warning = String(result.warning || '').trim();
+          message(
+            result.ok
+              ? (warning ? `メール送信は完了しましたが、記録に警告があります: ${warning}` : 'メール送信を記録しました')
+              : `メール送信に失敗しました: ${result.errorMessage || 'Gmail送信エラー'}`,
+            result.ok && !warning ? 'ok' : 'error'
+          );
+        } catch (error) {
+          message(`メール送信に失敗しました: ${apiErrorText(error)}`, 'error');
+        }
       }
 
       function openEmailBatchConfirm() {
@@ -20017,17 +21327,30 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderEmailPreviewPanel();
         let success = 0;
         let failed = 0;
+        let detail = '';
         try {
           const result = await api('sendLeadEmailBatch', sendTargets.map((lead) => lead.id), template.id, { send_type: '初回メール', sender_name: '営業担当' });
           success = Number(result.success || 0);
           failed = Number(result.failed || 0);
+          const issues = (result.results || [])
+            .filter((item) => !item.ok || item.warning)
+            .map((item) => item.errorMessage || item.warning)
+            .filter(Boolean);
+          if (issues.length) detail = ` / ${issues.slice(0, 3).join(' / ')}${issues.length > 3 ? ` / ほか${formatNumber(issues.length - 3)}件` : ''}`;
         } catch (error) {
           failed = sendTargets.length;
+          detail = ` / ${apiErrorText(error)}`;
+        } finally {
+          state.emailBatchSending = false;
+          state.emailBatchConfirmOpen = false;
+          renderEmailPreviewPanel();
         }
-        state.emailBatchSending = false;
-        state.emailBatchConfirmOpen = false;
-        message(`自動送信: 成功 ${formatNumber(success)}件 / 失敗 ${formatNumber(failed)}件`, failed ? 'error' : 'ok');
-        await refreshAll();
+        try {
+          await refreshAll();
+        } catch (refreshError) {
+          detail += ` / 最新情報の再取得失敗: ${apiErrorText(refreshError)}`;
+        }
+        message(`自動送信: 成功 ${formatNumber(success)}件 / 失敗 ${formatNumber(failed)}件${detail}`, failed || detail ? 'error' : 'ok');
       }
 
       function renderTemplateTestRecipientPanel() {
@@ -20069,7 +21392,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const today = histories.filter((history) => isTodayClientDate(history.sent_at || history.created_at)).length;
         const filtering = state.historyFilter !== 'all' || Boolean(String(state.historyQuery || '').trim());
         document.getElementById('historyStats').innerHTML = [
-          statCard('履歴総数', `${formatNumber(histories.length)}件`, '最新100件', 'blue'),
+          statCard('履歴総数', `${formatNumber(state.historyTotal)}件`, `最新${formatNumber(histories.length)}件を集計`, 'blue'),
           statCard('本番送信', `${formatNumber(histories.length - test)}件`, '初回/フォロー', 'green'),
           statCard('成功', `${formatNumber(success)}件`, 'send_result=成功', 'green'),
           statCard('結果確認中', `${formatNumber(pending)}件`, '30分超は要確認', pending > 0 ? 'amber' : 'green'),
@@ -20079,7 +21402,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderHistoryFilterPanel();
         const headers = ['送信日時', '結果', '種別', '送信先', '営業先', 'ジャンル', 'テンプレート', '件名', '本文/Gmail'];
         const renderedCount = Math.min(tableRenderLimit('sendHistory'), visible.length);
-        document.getElementById('sendHistoryScreenCaption').textContent = `送信日時は日本時間で表示しています。表示 ${formatNumber(renderedCount)}件 / 絞り込み ${formatNumber(visible.length)}件 / 最新${formatNumber(histories.length)}件`;
+        document.getElementById('sendHistoryScreenCaption').textContent = `送信日時は日本時間で表示しています。表示 ${formatNumber(renderedCount)}件 / 絞り込み ${formatNumber(visible.length)}件 / 最新${formatNumber(histories.length)}件（全${formatNumber(state.historyTotal)}件）`;
         document.getElementById('sendHistoryTodayPill').outerHTML = `<span class="pill info" id="sendHistoryTodayPill">本日 ${formatNumber(today)}件</span>`;
         document.getElementById('sendHistoryScreenPill').outerHTML = `<span class="pill ${filtering ? 'warn' : 'info'}" id="sendHistoryScreenPill">${filtering ? '絞り込み中' : `${formatNumber(visible.length)}件`}</span>`;
         document.getElementById('sendHistoryScreenTable').innerHTML = table(headers, limitedTableRows(headers, visible, 'sendHistory', 'renderHistoriesScreen', (item) => row([
@@ -20203,8 +21526,33 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return dateLabel(date.toISOString()) === dateLabel(new Date().toISOString());
       }
 
-      function exportFilteredSendHistoriesCsv() {
-        const histories = filteredSendHistories();
+      async function exportFilteredSendHistoriesCsv() {
+        let allHistories = [];
+        setBusy(true);
+        try {
+          let offset = 0;
+          let total = Math.max(0, Number(state.historyTotal || 0));
+          const limit = 1000;
+          do {
+            const page = await apiQuiet('listSheetRecords', 'send_histories', { limit, offset, includeInactive: true });
+            const items = Array.isArray(page && page.items) ? page.items : [];
+            total = Math.max(0, Number((page && page.total) || total));
+            allHistories = allHistories.concat(items);
+            offset += items.length;
+            message(`送信履歴CSVを準備中: ${formatNumber(offset)} / ${formatNumber(total)}件`, 'ok');
+            if (!items.length) break;
+          } while (offset < total);
+        } catch (error) {
+          message(`送信履歴CSVを作成できませんでした: ${apiErrorText(error)}`, 'error');
+          return;
+        } finally {
+          setBusy(false);
+        }
+        const query = String(state.historyQuery || '').trim().toLowerCase();
+        const filter = state.historyFilter || 'all';
+        const histories = allHistories
+          .filter((history) => historyMatchesFilter(history, filter))
+          .filter((history) => historyMatchesQuery(history, query));
         const headers = ['ID', '送信日時', '送信種別', '送信結果', '宛先メールアドレス', '会社名', '屋号', 'ジャンル', '使用テンプレートID', '使用テンプレート名', '件名', '本文', 'エラー内容', 'GmailメッセージID', 'GmailスレッドID', '送信者名', '営業リストID'];
         const rows = histories.map((history) => [
           history.id,
@@ -20226,9 +21574,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           history.lead_id,
         ]);
         const csv = [headers].concat(rows).map((values) => values.map(csvValue).join(',')).join('\n');
-        const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const date = appDateKey().replace(/-/g, '');
         downloadText(`send-histories-${date}.csv`, '\uFEFF' + csv);
-        message(`送信履歴CSVを出力しました: ${formatNumber(histories.length)}件`, 'ok');
+        message(`送信履歴CSVを全件から出力しました: ${formatNumber(histories.length)}件`, 'ok');
       }
 
       function renderDealsScreen() {
@@ -20373,6 +21721,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function buildClientAnalyticsData() {
+        if (state.analyticsData) return state.analyticsData;
         const dashboard = state.dashboard || {};
         const leads = uniqueAnalyticsLeads();
         const leadById = new Map(leads.filter((lead) => lead.id).map((lead) => [lead.id, lead]));
@@ -20491,10 +21840,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           current.addedLeads += 1;
           groups.set(source.key, current);
         });
-        if (!groups.size && Number(totalFromDashboard || 0) > 0) {
-          return [{ addedLeads: Number(totalFromDashboard || 0), label: '営業リスト追加', share: 100, sourceKey: 'dashboard' }];
+        const loadedTotal = Array.from(groups.values()).reduce((sum, item) => sum + item.addedLeads, 0);
+        const dashboardTotal = Math.max(0, Number(totalFromDashboard || 0));
+        if (dashboardTotal > loadedTotal) {
+          groups.set('unloaded', {
+            addedLeads: dashboardTotal - loadedTotal,
+            label: '未読込・その他',
+            sourceKey: 'unloaded',
+          });
         }
-        const total = Array.from(groups.values()).reduce((sum, item) => sum + item.addedLeads, 0) || Number(totalFromDashboard || 0);
+        const total = Math.max(dashboardTotal, loadedTotal);
         return Array.from(groups.values()).map((item) => Object.assign({}, item, {
           share: total > 0 ? Math.round((item.addedLeads / total) * 1000) / 10 : 0,
         })).sort((left, right) => right.addedLeads - left.addedLeads);
@@ -20603,7 +21958,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function hasAnalyticsReplySignal(lead) {
-        return normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり' || hasAnalyticsDealProgress(lead) || isAnalyticsSendNgLead(lead);
+        return normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり' || hasAnalyticsDealProgress(lead);
       }
 
       function hasAnalyticsDealProgress(lead) {
@@ -20649,24 +22004,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function analyticsDayKey(value) {
         if (!value) return '';
-        const date = new Date(value);
-        if (!Number.isFinite(date.getTime())) return String(value).slice(0, 10);
-        return date.toISOString().slice(0, 10);
+        return appDateKey(value);
       }
 
       function analyticsMonthKey(value) {
         if (!value) return '';
-        const date = new Date(value);
-        if (!Number.isFinite(date.getTime())) return String(value).slice(0, 7);
-        return date.toISOString().slice(0, 7);
+        return appDateKey(value).slice(0, 7);
       }
 
       function recentAnalyticsDayKeys(count) {
         const keys = [];
-        const today = new Date();
+        const parts = appDateKey().split('-').map(Number);
+        const today = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
         for (let i = count - 1; i >= 0; i -= 1) {
           const date = new Date(today);
-          date.setDate(today.getDate() - i);
+          date.setUTCDate(today.getUTCDate() - i);
           keys.push(date.toISOString().slice(0, 10));
         }
         return keys;
@@ -20947,15 +22299,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const result = state.syncImport.result;
         if (error) return `<div class="sync-error-preview"><strong>同期エラー</strong><p>${escapeHtml(error)}</p></div>`;
         if (!result) return '';
-        const errorRows = result.errors || [];
+        const errorRows = Array.isArray(result.errors) ? result.errors : [];
+        const errorCount = errorRows.length || Number(result.errors || result.error_count || 0);
         return `
           <div class="sync-complete-box">
-            <strong>同期が完了しました</strong>
+            <strong>${result.completed ? '同期が完了しました' : '同期をバックグラウンドで継続しています'}</strong>
             <div class="sync-result">
               <span>追加 <strong>${formatNumber(result.added || result.added_count || 0)}</strong></span>
               <span>補完 <strong>${formatNumber(result.filled || result.filled_count || 0)}</strong></span>
               <span>重複スキップ <strong>${formatNumber(result.skipped || result.duplicate_skip_count || 0)}</strong></span>
-              <span>エラー <strong>${formatNumber(errorRows.length || result.error_count || 0)}</strong></span>
+              <span>エラー <strong>${formatNumber(errorCount)}</strong></span>
             </div>
             <div class="sync-next-actions">
               <button type="button" class="mini-button" onclick="showTab('leads')">営業リストで確認</button>
@@ -21070,9 +22423,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           parseSyncInput(state.syncImport.rawInput);
           renderSyncImportPreviews();
           const csvText = syncInputForImport();
-          const result = await api('importLeadsFromCsv', csvText, { source: state.syncImport.source || 'csv_upload' });
+          const result = await queueLeadCsvImport(csvText, { source: state.syncImport.source || 'csv_upload' });
           state.syncImport.result = result;
-          message(`CSV: 追加 ${formatNumber(result.added || 0)} / スキップ ${formatNumber(result.skipped || 0)}`, result.errors && result.errors.length ? 'error' : 'ok');
+          const continuation = result.completed ? '' : ' / 残りはバックグラウンドで継続';
+          message(`CSV: 追加 ${formatNumber(result.added || 0)} / 補完 ${formatNumber(result.filled || 0)} / 重複 ${formatNumber(result.skipped || 0)}${continuation}`, Number(result.errors || 0) ? 'error' : 'ok');
           await refreshAll();
           renderSyncImportPanels();
         } catch (error) {
@@ -21086,7 +22440,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderLegacySyncImportPanel('syncImportPanel', 'mainSync', { compact: false });
         const logs = state.syncLogs || [];
         const headers = ['日時', 'ソース', '追加', '補完', '重複', 'エラー', '詳細'];
-        document.getElementById('syncScreenPill').textContent = `${formatNumber(logs.length)}件`;
+        document.getElementById('syncScreenPill').textContent = `最新${formatNumber(logs.length)} / 全${formatNumber(state.syncLogTotal)}件`;
         document.getElementById('syncScreenTable').innerHTML = table(headers, limitedTableRows(headers, logs, 'syncScreen', 'renderSyncScreen', (log) => row([
           ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
           ['ソース', escapeHtml(log.source || log.log_type || '-')],
@@ -21292,7 +22646,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div class="section-title-row">
               <div>
                 <h3>誤判定の一括修正</h3>
-                <p class="muted">自動返信・配信エラーだけで「返信あり」になった営業先を探し、送信済みまたは未対応へ戻します。</p>
+                <p class="muted">自動返信・配信エラーだけで「返信あり」になった営業先を探し、送信済みまたは確認済みの状態へ戻します。</p>
               </div>
               <div class="reply-fix-actions">
                 <button type="button" class="button secondary" onclick="scanReplyFalsePositives()">${legacyUiIcon('refreshCw')}候補を確認</button>
@@ -21334,6 +22688,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div><span>候補</span><strong>${formatNumber(candidates.length)}</strong></div>
             <div><span>戻した件数</span><strong>${formatNumber(result.updated || 0)}</strong></div>
             <div><span>エラー</span><strong>${formatNumber((result.errors || []).length)}</strong></div>
+            <div><span>未確認の残り</span><strong>${formatNumber(result.remaining || 0)}</strong></div>
           </div>
           ${candidates.length ? `<div class="reply-fix-candidate-list">${candidates.slice(0, compact ? 3 : 6).map((candidate) => `
             <article>
@@ -22285,7 +23640,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function getErrorDetailRows() {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = appDateKey();
         const logs = (state.syncLogs || []).filter((log) => ['error', 'warn'].includes(String(log.level || '').toLowerCase()));
         const todayLogs = logs.filter((log) => String(log.created_at || '').slice(0, 10) === today);
         return { logs, todayLogs };
@@ -22568,7 +23923,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['本番テンプレート', productionInitialTemplates.length > 0, `初回メール ${formatNumber(productionInitialTemplates.length)}件`],
           ['営業リスト送信候補', emailCandidates.length > 0, `${formatNumber(emailCandidates.length)}件`],
           ['本番送信候補', initialTargets.length > 0, `${formatNumber(initialTargets.length)}件`],
-          ['Serper API', Boolean(dashboard.serperConfigured), dashboard.serperKeyMask || 'PropertiesService未設定'],
+          ['検索API', Boolean(dashboard.searchConfigured), dashboard.searxngConfigured ? 'SearXNGメイン' : (dashboard.serperKeyMask || '未設定')],
           ['時間主導トリガー', Boolean(dashboard.triggerCount), `${formatNumber(dashboard.triggerCount || 0)}件`],
           ['Gmail返信自動チェック', Boolean(replyCheck.enabled), replyCheck.enabled ? `最大 ${formatNumber(replyCheck.maxThreads || 200)}スレッド` : 'OFF'],
           ['Calendar連携', integrations.calendar !== false, calendarAuto.enabled ? '自動登録ON' : '手動登録モード'],
@@ -22606,7 +23961,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             stale: runningMailJobs.some((job) => backgroundUpdatedMinutes(normalizeBackgroundJob(job)) >= 10),
           },
           serperCredit: {
-            detail: dashboard.serperConfigured ? (dashboard.serperCreditRemaining || `月間残り ${formatNumber(dashboard.serperMonthRemaining || 0)}件`) : '未設定',
+            detail: dashboard.serperConfigured ? (dashboard.serperCreditRemaining || '残量確認待ち') : '未設定',
             label: dashboard.serperConfigured ? '利用可能' : '未設定',
             tone: dashboard.serperConfigured ? 'ok' : 'warn',
           },
@@ -22753,13 +24108,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.replyFalsePositiveResult = result;
         renderGmailReplyCheckPanel('gmailReplyCheckPanel');
         renderGmailReplyCheckPanel('adminGmailReplyCheckPanel', { compact: true });
-        message(`誤判定候補: ${formatNumber((result.candidates || []).length)}件`, (result.errors || []).length ? 'error' : 'ok');
+        const remainingText = result.remaining ? ` / 未確認 ${formatNumber(result.remaining)}件` : '';
+        message(`誤判定候補: ${formatNumber((result.candidates || []).length)}件${remainingText}`, (result.errors || []).length ? 'error' : 'ok');
       }
 
       async function restoreReplyFalsePositives() {
         const result = await api('restoreReplyFalsePositiveCandidates', { limit: 200 });
         state.replyFalsePositiveResult = result;
-        message(`誤判定候補を${formatNumber(result.updated || 0)}件戻しました`, (result.errors || []).length ? 'error' : 'ok');
+        const remainingText = result.remaining ? ` / 未確認 ${formatNumber(result.remaining)}件` : '';
+        message(`誤判定候補を${formatNumber(result.updated || 0)}件戻しました${remainingText}`, (result.errors || []).length ? 'error' : 'ok');
         await refreshAll();
       }
 
@@ -22768,6 +24125,26 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const suffix = result.stoppedForRuntime ? ` / 最大処理時間前に保存・残り${formatNumber(result.remainingJobs || 0)}件` : '';
         message(`ジョブ処理: ${result.jobs.length}件${suffix}`, result.errors && result.errors.length ? 'error' : 'ok');
         await refreshAll();
+      }
+
+      async function repairBackgroundJob(jobId) {
+        const id = String(jobId || '').trim();
+        if (!id || state.repairingBackgroundJobIds[id]) return;
+        state.repairingBackgroundJobIds[id] = true;
+        renderLegacyBackgroundOverview('backgroundOverviewPanel');
+        renderLegacyBackgroundOverview('opsBackgroundOverviewPanel', { compact: true });
+        try {
+          message('定期トリガーと保存済み進捗を確認し、現在位置から再開しています。', 'ok');
+          const result = await api('repairBackgroundJobs', { jobId: id, runtimeBudgetMs: 120000 });
+          const recovered = (result.recoveredSearchJobs || []).length;
+          const run = result.runResult || {};
+          const processed = Number(run.processedCandidates || run.processed || 0);
+          const warning = result.triggerWarning ? ` / ${result.triggerWarning}` : '';
+          message(`バックグラウンド処理を復旧しました: ロック解除 ${formatNumber(recovered)}件 / 今回 ${formatNumber(processed)}件処理${warning}`, result.triggerWarning ? 'error' : 'ok');
+        } finally {
+          delete state.repairingBackgroundJobIds[id];
+          await refreshAll();
+        }
       }
 
       async function installTriggers() {
@@ -22781,15 +24158,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (result.url) {
           window.open(result.url, '_blank', 'noopener');
         }
-      }
-
-      async function importCsv(event) {
-        event.preventDefault();
-        const textarea = event.currentTarget ? event.currentTarget.querySelector('textarea') : null;
-        const csvText = textarea ? textarea.value : document.getElementById('csvText').value;
-        const result = await api('importLeadsFromCsv', csvText, { source: 'csv' });
-        message(`CSV: 追加 ${result.added} / スキップ ${result.skipped}`, result.errors.length ? 'error' : 'ok');
-        await refreshAll();
       }
 
       function tableRenderLimit(key) {
@@ -22837,6 +24205,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           renderBackgroundJobsScreen,
           renderBackgroundActivityScreen,
           renderHistoriesScreen,
+          renderEmailLeadsScreen,
+          renderExcludedDomainManager,
           renderAnalyticsScreen,
           renderSyncScreen,
           renderSearchTables,
@@ -22971,7 +24341,23 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           year: 'numeric',
           month: '2-digit',
           day: '2-digit',
+          timeZone: 'Asia/Tokyo',
         });
+      }
+
+      function appDateKey(value) {
+        const date = value ? new Date(value) : new Date();
+        if (!Number.isFinite(date.getTime())) return String(value || '').slice(0, 10);
+        const parts = new Intl.DateTimeFormat('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          timeZone: 'Asia/Tokyo',
+        }).formatToParts(date).reduce((result, part) => {
+          result[part.type] = part.value;
+          return result;
+        }, {});
+        return `${parts.year}-${parts.month}-${parts.day}`;
       }
 
       function dateTimeLabel(value) {
@@ -22984,6 +24370,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           day: '2-digit',
           hour: '2-digit',
           minute: '2-digit',
+          timeZone: 'Asia/Tokyo',
         });
       }
 
@@ -23033,6 +24420,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#39;');
       }
+
+      window.addEventListener('unhandledrejection', (event) => {
+        const errorText = apiErrorText(event && event.reason);
+        console.error('Unhandled app operation:', event && event.reason);
+        message(`処理を完了できませんでした: ${errorText}`, 'error');
+      });
+      window.addEventListener('error', (event) => {
+        if (!event || !event.error) return;
+        console.error('Unhandled app error:', event.error);
+        message(`画面処理でエラーが発生しました: ${apiErrorText(event.error)}`, 'error');
+      });
 
       hydrateLegacyNavigationIcons();
       hydrateLegacyUtilityIcons();

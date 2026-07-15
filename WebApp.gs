@@ -54,8 +54,10 @@ function dispatchPostAction_(action, data) {
   if (action === 'getAppInfo') return getAppInfo();
   if (action === 'getSchemaStatus') return getSchemaStatus();
   if (action === 'listLeads') return listLeads(data);
+  if (action === 'listEmailSendCandidates') return listEmailSendCandidates(data);
   if (action === 'createLead') return createLead(data);
   if (action === 'updateLead') return updateLead(data.id, data.patch || data);
+  if (action === 'updateReviewLeadDecision') return updateReviewLeadDecision(data.id || data.leadId || data.lead_id, data.options || data.decision || data);
   if (action === 'deleteLead') return deleteLead(data.id, data.options || {});
   if (action === 'listLeadDuplicateCandidates') return listLeadDuplicateCandidates(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'markLeadFormSent') return markLeadFormSent(data.leadId || data.lead_id || data.id, data.options || data);
@@ -86,6 +88,9 @@ function dispatchPostAction_(action, data) {
   if (action === 'updateSerperApiKeyEntry') return updateSerperApiKeyEntry(data.id, data.patch || data);
   if (action === 'deleteSerperApiKeyEntry') return deleteSerperApiKeyEntry(data.id);
   if (action === 'testSerperApiKey') return testSerperApiKey();
+  if (action === 'getSearxngConfig') return getSearxngConfig();
+  if (action === 'saveSearxngConfig') return saveSearxngConfig(data);
+  if (action === 'testSearxngConnection') return testSearxngConnection();
   if (action === 'runSmallSearchJob') return runSmallSearchJob(data);
   if (action === 'advanceSearchJob') return advanceSearchJob(data.jobId || data.job_id || data.id, data.options || data);
   if (action === 'addSearchResultToLead') return addSearchResultToLead(data.resultId || data.result_id || data.id, data.options || data);
@@ -99,8 +104,12 @@ function dispatchPostAction_(action, data) {
   if (action === 'listReplyFalsePositiveCandidates') return listReplyFalsePositiveCandidates(data);
   if (action === 'restoreReplyFalsePositiveCandidates') return restoreReplyFalsePositiveCandidates(data);
   if (action === 'createCalendarEventForLead') return createCalendarEventForLead(data.leadId || data.lead_id, data.event || data.options || data);
-  if (action === 'importLeadsFromCsv') return importLeadsFromCsv(data.csvText || data.csv_text || data.text, data.options || {});
+  if (action === 'importLeadsFromCsv') return importLeadsFromCsv(data.csvText || data.csv_text || data.text, data.options || data);
+  if (action === 'startLeadCsvImport') return startLeadCsvImport(data.csvText || data.csv_text || data.text, data.options || data);
+  if (action === 'advanceLeadCsvImportJob') return advanceLeadCsvImportJob(data.jobId || data.job_id || data.id, data.options || data);
   if (action === 'advanceQueuedJobs') return advanceQueuedJobs(data);
+  if (action === 'getBackgroundWorkerHealth') return getBackgroundWorkerHealth();
+  if (action === 'repairBackgroundJobs') return repairBackgroundJobs(data);
   if (action === 'installDefaultTriggers') return installDefaultTriggers();
   if (action === 'createSpreadsheetBackup') return createSpreadsheetBackup();
   if (action === 'setSettingValue') return setSettingValue(data.key, data.value, data.valueType || data.value_type, data.description);
@@ -132,10 +141,11 @@ const GMAIL_INTEGRATION_SCOPES = Object.freeze([
 
 function getInitialData() {
   const appInfo = getAppInfo();
+  const serperInfo = getStartupSerperInfo_();
   return {
     app: appInfo,
     enums: getClientEnums_(),
-    dashboard: getStartupDashboardStats_(),
+    dashboard: mergeStartupSerperIntoDashboard_(getStartupDashboardStats_(), serperInfo),
     genres: [],
     genreMasters: [],
     reasons: [],
@@ -143,8 +153,32 @@ function getInitialData() {
     customFieldDefinitions: [],
     listViewSettings: [],
     schemaStatus: null,
-    serper: getStartupSerperInfo_(),
+    serper: serperInfo,
   };
+}
+
+function mergeStartupSerperIntoDashboard_(dashboard, serperInfo) {
+  const source = dashboard && typeof dashboard === 'object' ? dashboard : {};
+  const serper = serperInfo && typeof serperInfo === 'object' ? serperInfo : {};
+  return Object.assign({}, source, {
+    serperConfigured: serper.configured === true,
+    searchConfigured: serper.searchConfigured === true,
+    searxngConfigured: Boolean(serper.searxng && serper.searxng.configured === true),
+    searxngEnabled: Boolean(serper.searxng && serper.searxng.enabled !== false),
+    searxngStatus: String(serper.searxng && serper.searxng.lastStatus || ''),
+    serperKeyMask: String(serper.key_mask || ''),
+    serperUnlimited: true,
+    serperCreditRemaining: String(serper.creditRemaining || ''),
+    serperCreditRemainingValue: serper.creditRemainingValue === '' || serper.creditRemainingValue === undefined ? '' : Number(serper.creditRemainingValue),
+    serperCreditTotal: serper.creditTotal === '' || serper.creditTotal === undefined ? '' : Number(serper.creditTotal),
+    serperCreditPercent: serper.creditPercent === '' || serper.creditPercent === undefined ? '' : Number(serper.creditPercent),
+    serperCreditPercentKnown: serper.creditPercentKnown === true,
+    serperCreditLow: serper.creditLow === true,
+    serperCreditAlertThresholdPercent: SERPER_LOW_CREDIT_THRESHOLD_PERCENT,
+    integrations: Object.assign({}, source.integrations || {}, {
+      serper: serper.configured === true,
+    }),
+  });
 }
 
 function getStartupDashboardStats_() {
@@ -153,10 +187,10 @@ function getStartupDashboardStats_() {
 
 function getReferenceData() {
   return {
-    genres: listSheetRecords('genres', { limit: 200 }).items,
-    genreMasters: listGenres({ limit: 500, includeInactive: true }).items,
-    reasons: listReasons({ limit: 500, includeInactive: true }).items,
-    settings: listSheetRecords('settings', { limit: 200, includeInactive: true }).items,
+    genres: readAllSheetRecordsByName_('genres'),
+    genreMasters: readAllSheetRecordsByName_('genres', { includeInactive: true }).map(normalizeGenreRecord_),
+    reasons: readAllSheetRecordsByName_('reasons', { includeInactive: true }).map(normalizeReasonRecord_),
+    settings: readAllSheetRecordsByName_('settings', { includeInactive: true }),
     customFieldDefinitions: listCustomFieldDefinitions({ includeInactive: true }).items,
     listViewSettings: listListViewSettings({}).items,
     schemaStatus: getSchemaStatus(),
@@ -278,9 +312,10 @@ function getDashboardStats(options) {
   }
 
   const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'));
-  const templates = listSheetRecords('email_templates', { limit: 1000 }).items;
-  const searchJobs = listSheetRecords('search_jobs', { limit: 1000, includeInactive: true }).items;
-  const syncLogs = listSheetRecords('sync_logs', { limit: 1000, includeInactive: true }).items;
+  const templates = readAllSheetRecordsByName_('email_templates');
+  const searchJobs = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true });
+  const syncLogs = readAllSheetRecordsByName_('sync_logs', { includeInactive: true, includeArchived: true });
+  const searchUsageLogs = readAllSheetRecordsByName_('search_usage_logs', { includeInactive: true, includeArchived: true });
   const today = todayText_();
   const month = today.slice(0, 7);
   const sendHistories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
@@ -288,18 +323,18 @@ function getDashboardStats(options) {
   const sendTrackingMismatchCount = countLeadSendTrackingMismatches_(leads, sendHistories);
   const sentToday = countSuccessfulProductionSends_(sendHistories, today);
   const sentMonth = countSuccessfulProductionSends_(sendHistories, month);
-  const serperToday = getSerperUsageCount_({ day: today });
-  const serperMonth = getSerperUsageCount_({ month: month });
+  const serperToday = getSerperUsageCount_({ day: today }, searchUsageLogs);
+  const serperMonth = getSerperUsageCount_({ month: month }, searchUsageLogs);
   const masterContext = buildMasterBlockContext_();
   const listStats = buildLeadListStats_(leads, masterContext, '');
   const sendWindow = buildSendWindowStatus_();
   const dailyMailLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
-  const serperMonthlyLimit = Number(getSettingValue_('serper_monthly_search_limit', 1000));
   const mailQuota = getMailQuotaStatus_(dailyMailLimit);
   const mailSendingControl = getMailSendingControl_();
   const todayRemaining = Math.max(0, Math.min(dailyMailLimit - sentToday, mailQuota.remaining));
   const todayEmailTargets = mailSendingControl.enabled ? Math.min(listStats.sendable, todayRemaining) : 0;
   const serperInfo = getSerperApiKeyInfo();
+  const serperLimits = serperInfo.limits || {};
   const triggerCount = getProjectTriggerCount_();
   const gasUsage = buildConsumerGasUsageStatus_({
     mailQuotaRemaining: mailQuota.remaining,
@@ -316,9 +351,6 @@ function getDashboardStats(options) {
   const activeSearchJobs = searchJobs.filter(function (job) {
     return job.status === 'queued' || job.status === 'running';
   });
-  const prospectingResumeAfter = getNextSearchJobResumeAt_(activeSearchJobs);
-  const prospectingResumeOffset = getSearchJobResumeOffset_(activeSearchJobs, prospectingResumeAfter);
-  const quotaWaiting = Boolean(prospectingResumeAfter);
   const failedSearchJobs = searchJobs.filter(function (job) {
     return job.status === 'failed';
   });
@@ -377,10 +409,14 @@ function getDashboardStats(options) {
     sendWindow: sendWindow,
     serperConfigured: serperInfo.configured,
     serperKeyMask: serperInfo.key_mask,
-    serperDailyUnlimited: true,
-    serperMonthlyLimit: serperMonthlyLimit,
-    serperMonthRemaining: Math.max(0, serperMonthlyLimit - serperMonth),
-    serperCreditRemaining: String((serperInfo.limits && serperInfo.limits.actualRemaining) || ''),
+    serperUnlimited: true,
+    serperCreditRemaining: String(serperLimits.actualRemaining || ''),
+    serperCreditRemainingValue: serperLimits.remainingValue === '' || serperLimits.remainingValue === undefined ? '' : Number(serperLimits.remainingValue),
+    serperCreditTotal: serperLimits.totalValue === '' || serperLimits.totalValue === undefined ? '' : Number(serperLimits.totalValue),
+    serperCreditPercent: serperLimits.remainingPercent === '' || serperLimits.remainingPercent === undefined ? '' : Number(serperLimits.remainingPercent),
+    serperCreditPercentKnown: serperLimits.percentKnown === true,
+    serperCreditLow: serperLimits.lowCredit === true,
+    serperCreditAlertThresholdPercent: Number(serperLimits.alertThresholdPercent || SERPER_LOW_CREDIT_THRESHOLD_PERCENT),
     queuedJobs: searchJobs.filter(function (job) { return job.status === 'queued'; }).length,
     runningJobs: searchJobs.filter(function (job) { return job.status === 'running'; }).length,
     failedJobs: failedSearchJobs.length,
@@ -389,15 +425,13 @@ function getDashboardStats(options) {
     prospectingAddedCount: sumNumericFields_(syncLogs, ['added_count', 'added']),
     prospectingDuplicateCount: sumNumericFields_(syncLogs, ['duplicate_skip_count', 'skipped']),
     prospectingExcludedCount: sumNumericFields_(syncLogs, ['excluded_count', 'protected_skip_count']),
-    prospectingLabel: quotaWaiting ? '上限待機中' : activeSearchJobs.length ? '実行中' : '待機中',
-    prospectingTone: failedSearchJobs.length ? 'bad' : quotaWaiting ? 'warn' : activeSearchJobs.length ? 'info' : 'ok',
-    prospectingReason: quotaWaiting
-      ? 'Serper月間上限のリセット後に、保存済みの施設位置から自動再開します。'
-      : activeSearchJobs.length
-        ? '営業リスト収集ジョブを処理中です'
-        : '現在は待機中です。必要に応じて収集ツールから実行できます。',
-    prospectingResumeAfter: prospectingResumeAfter,
-    prospectingResumeOffset: prospectingResumeOffset,
+    prospectingLabel: activeSearchJobs.length ? '実行中' : '待機中',
+    prospectingTone: failedSearchJobs.length ? 'bad' : activeSearchJobs.length ? 'info' : 'ok',
+    prospectingReason: activeSearchJobs.length
+      ? '営業リスト収集ジョブを処理中です'
+      : '現在は待機中です。必要に応じて収集ツールから実行できます。',
+    prospectingResumeAfter: '',
+    prospectingResumeOffset: 0,
     prospectingDetail: 'GAS版では search_jobs / sync_logs から直近成果を集計します。',
     integrations: {
       sheets: true,
@@ -409,6 +443,7 @@ function getDashboardStats(options) {
     triggerCount: triggerCount,
     gasUsage: gasUsage,
     thisMonth: thisMonth,
+    analytics: buildAnalyticsSnapshot_(leads, sendHistories, today),
     byStatus: byStatus,
     byGenre: byGenre,
     updatedAt: nowIso_(),
@@ -419,40 +454,336 @@ function getDashboardStats(options) {
   return stats;
 }
 
-function getNextSearchJobResumeAt_(jobs, nowMs) {
-  const currentMs = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
-  return (Array.isArray(jobs) ? jobs : []).map(function (job) {
-    if (!job || (job.status !== 'queued' && job.status !== 'running')) return '';
-    try {
-      const cursor = JSON.parse(job.cursor_json || '{}');
-      if (String(cursor.quotaCode || cursor.quota_code || '').trim() !== 'SERPER_MONTHLY_LIMIT') return '';
-      const resumeAfter = String(cursor.resumeAfter || cursor.resume_after || '').trim();
-      return resumeAfter && new Date(resumeAfter).getTime() > currentMs ? resumeAfter : '';
-    } catch (error) {
-      return '';
-    }
-  }).filter(Boolean).sort()[0] || '';
-}
+function buildAnalyticsSnapshot_(leadRecords, historyRecords, todayKey) {
+  const leads = (Array.isArray(leadRecords) ? leadRecords : []).filter(function (lead) {
+    return !isArchivedLead_(lead) && String(lead.status || '') !== 'アーカイブ';
+  });
+  const histories = Array.isArray(historyRecords) ? historyRecords : [];
+  const productionSends = histories.filter(isSuccessfulProductionSendHistory_);
+  const productionAttempts = histories.filter(function (history) {
+    return String(history.send_type || '').indexOf('テスト') === -1 && String(history.send_result || '') !== '送信中';
+  });
+  const leadById = {};
+  const leadByEmail = {};
+  leads.forEach(function (lead) {
+    if (lead.id) leadById[String(lead.id)] = lead;
+    const email = String(lead.email || '').trim().toLowerCase();
+    if (email && !leadByEmail[email]) leadByEmail[email] = lead;
+  });
 
-function getSearchJobResumeOffset_(jobs, resumeAfter) {
-  const targetResumeAfter = String(resumeAfter || '').trim();
-  if (!targetResumeAfter) return 0;
-  const target = (Array.isArray(jobs) ? jobs : []).find(function (job) {
-    try {
-      const cursor = JSON.parse((job && job.cursor_json) || '{}');
-      return String(cursor.quotaCode || cursor.quota_code || '').trim() === 'SERPER_MONTHLY_LIMIT'
-        && String(cursor.resumeAfter || cursor.resume_after || '').trim() === targetResumeAfter;
-    } catch (error) {
-      return false;
+  const dayKeys = recentAnalyticsDayKeys_(todayKey, 30);
+  const monthKeys = recentAnalyticsMonthKeys_(todayKey, 6);
+  const dayRowsByKey = {};
+  dayKeys.forEach(function (key) {
+    dayRowsByKey[key] = { key: key, label: key.slice(5).replace('-', '/'), addedLeads: 0, sent: 0 };
+  });
+  const monthRowsByKey = {};
+  monthKeys.forEach(function (key) {
+    monthRowsByKey[key] = {
+      key: key,
+      label: analyticsMonthLabel_(key),
+      addedLeads: 0,
+      sent: 0,
+      replies: 0,
+      sendNg: 0,
+      deals: 0,
+      contracts: 0,
+      lost: 0,
+    };
+  });
+
+  const currentMonthKey = String(todayKey || todayText_()).slice(0, 7);
+  const sourceRowsByKey = {};
+  const genreRowsByKey = {};
+  leads.forEach(function (lead) {
+    const createdDay = String(lead.created_at || '').slice(0, 10);
+    const createdMonth = createdDay.slice(0, 7);
+    const updatedMonth = String(lead.updated_at || lead.created_at || '').slice(0, 7);
+    if (dayRowsByKey[createdDay]) dayRowsByKey[createdDay].addedLeads += 1;
+    if (monthRowsByKey[createdMonth]) monthRowsByKey[createdMonth].addedLeads += 1;
+    if (monthRowsByKey[updatedMonth]) {
+      if (hasAnalyticsReplySignal_(lead)) monthRowsByKey[updatedMonth].replies += 1;
+      if (isAnalyticsSendNgLead_(lead)) monthRowsByKey[updatedMonth].sendNg += 1;
+      if (hasAnalyticsDealProgress_(lead)) monthRowsByKey[updatedMonth].deals += 1;
+      if (isAnalyticsContractLead_(lead)) monthRowsByKey[updatedMonth].contracts += 1;
+      if (isAnalyticsLostLead_(lead)) monthRowsByKey[updatedMonth].lost += 1;
+    }
+    if (createdMonth === currentMonthKey) {
+      const source = analyticsLeadSource_(lead);
+      const sourceRow = sourceRowsByKey[source.key] || { sourceKey: source.key, label: source.label, addedLeads: 0 };
+      sourceRow.addedLeads += 1;
+      sourceRowsByKey[source.key] = sourceRow;
+    }
+
+    const genre = String(lead.genre || '未設定');
+    const genreRow = genreRowsByKey[genre] || {
+      genre: genre,
+      leads: 0,
+      sent: 0,
+      replies: 0,
+      sendNg: 0,
+      deals: 0,
+      contracts: 0,
+      lost: 0,
+    };
+    genreRow.leads += 1;
+    if (hasAnalyticsReplySignal_(lead)) genreRow.replies += 1;
+    if (isAnalyticsSendNgLead_(lead)) genreRow.sendNg += 1;
+    if (hasAnalyticsDealProgress_(lead)) genreRow.deals += 1;
+    if (isAnalyticsContractLead_(lead)) genreRow.contracts += 1;
+    if (isAnalyticsLostLead_(lead)) genreRow.lost += 1;
+    genreRowsByKey[genre] = genreRow;
+  });
+
+  const latestTemplateByLead = {};
+  productionSends.forEach(function (history) {
+    const sentDay = String(history.sent_at || history.created_at || '').slice(0, 10);
+    const sentMonth = sentDay.slice(0, 7);
+    if (dayRowsByKey[sentDay]) dayRowsByKey[sentDay].sent += 1;
+    if (monthRowsByKey[sentMonth]) monthRowsByKey[sentMonth].sent += 1;
+    const lead = history.lead_id ? leadById[String(history.lead_id)] : null;
+    const genre = String(history.genre || (lead && lead.genre) || '未設定');
+    const genreRow = genreRowsByKey[genre] || {
+      genre: genre,
+      leads: 0,
+      sent: 0,
+      replies: 0,
+      sendNg: 0,
+      deals: 0,
+      contracts: 0,
+      lost: 0,
+    };
+    genreRow.sent += 1;
+    genreRowsByKey[genre] = genreRow;
+
+    const leadId = String(history.lead_id || '');
+    if (leadId) {
+      const sentAt = String(history.sent_at || history.created_at || '');
+      const current = latestTemplateByLead[leadId];
+      if (!current || sentAt >= current.sentAt) {
+        latestTemplateByLead[leadId] = { key: analyticsTemplateKey_(history), sentAt: sentAt };
+      }
     }
   });
-  if (!target) return 0;
-  try {
-    const cursor = JSON.parse(target.cursor_json || '{}');
-    return Math.max(Number(cursor.offset) || 0, 0);
-  } catch (error) {
-    return 0;
+
+  const templateRowsByKey = {};
+  productionSends.forEach(function (history, index) {
+    const key = analyticsTemplateKey_(history);
+    const leadId = String(history.lead_id || '');
+    const lead = leadId ? leadById[leadId] : null;
+    const genre = String(history.genre || (lead && lead.genre) || '未設定');
+    const row = templateRowsByKey[key] || {
+      templateId: history.template_id || '',
+      templateName: history.template_name || 'テンプレート未記録',
+      subject: compactAnalyticsText_(history.subject || '') || '-',
+      bodyPreview: compactAnalyticsText_(history.body || '').slice(0, 120) || '-',
+      genre: genre,
+      sent: 0,
+      replies: 0,
+      sendNg: 0,
+      deals: 0,
+      contracts: 0,
+      lost: 0,
+      latestSentAt: history.sent_at || history.created_at || '',
+      countedLeadKeys: {},
+    };
+    if (row.genre !== genre) row.genre = '複数ジャンル';
+    if (String(history.sent_at || history.created_at || '') > String(row.latestSentAt || '')) {
+      row.latestSentAt = history.sent_at || history.created_at || row.latestSentAt;
+    }
+    const leadKey = leadId || ('history:' + String(history.id || index));
+    if (!row.countedLeadKeys[leadKey]) {
+      row.countedLeadKeys[leadKey] = true;
+      row.sent += 1;
+      const attributed = leadId && latestTemplateByLead[leadId] && latestTemplateByLead[leadId].key === key;
+      if (lead && attributed) {
+        if (hasAnalyticsReplySignal_(lead)) row.replies += 1;
+        if (isAnalyticsSendNgLead_(lead)) row.sendNg += 1;
+        if (hasAnalyticsDealProgress_(lead)) row.deals += 1;
+        if (isAnalyticsContractLead_(lead)) row.contracts += 1;
+        if (isAnalyticsLostLead_(lead)) row.lost += 1;
+      }
+    }
+    templateRowsByKey[key] = row;
+  });
+
+  const monthlyRows = monthKeys.map(function (key) {
+    const row = monthRowsByKey[key];
+    row.replyRate = analyticsRate_(row.replies, row.sent);
+    row.dealRate = analyticsRate_(row.deals, row.replies);
+    row.contractRate = analyticsRate_(row.contracts, row.deals);
+    return row;
+  });
+  const currentMonth = Object.assign({}, monthRowsByKey[currentMonthKey] || {
+    key: currentMonthKey,
+    label: analyticsMonthLabel_(currentMonthKey),
+    addedLeads: 0,
+    sent: 0,
+    replies: 0,
+    sendNg: 0,
+    deals: 0,
+    contracts: 0,
+    lost: 0,
+  });
+  currentMonth.replyRate = analyticsRate_(currentMonth.replies, currentMonth.sent);
+  currentMonth.dealRate = analyticsRate_(currentMonth.deals, currentMonth.replies);
+  currentMonth.contractRate = analyticsRate_(currentMonth.contracts, currentMonth.deals);
+
+  const replies = leads.filter(hasAnalyticsReplySignal_).length;
+  const deals = leads.filter(hasAnalyticsDealProgress_).length;
+  const contracts = leads.filter(isAnalyticsContractLead_).length;
+  const lost = leads.filter(isAnalyticsLostLead_).length;
+  const sendNg = leads.filter(isAnalyticsSendNgLead_).length;
+  const sendSuccesses = productionSends.length;
+  const sendTotal = productionAttempts.length;
+  const sentRecipientKeys = {};
+  productionSends.forEach(function (history, index) {
+    const historyEmail = String(history.to_email || '').trim().toLowerCase();
+    const matchedLead = history.lead_id ? leadById[String(history.lead_id)] : leadByEmail[historyEmail];
+    const key = matchedLead && matchedLead.id
+      ? 'lead:' + String(matchedLead.id)
+      : historyEmail
+        ? 'email:' + historyEmail
+        : 'history:' + String(history.id || index);
+    sentRecipientKeys[key] = true;
+  });
+  const repliedRecipientCount = Object.keys(sentRecipientKeys).filter(function (key) {
+    if (key.indexOf('lead:') !== 0) return false;
+    const lead = leadById[key.slice(5)];
+    return lead && hasAnalyticsReplySignal_(lead);
+  }).length;
+  const sourceRows = Object.keys(sourceRowsByKey).map(function (key) {
+    const row = sourceRowsByKey[key];
+    return Object.assign({}, row, { share: analyticsRate_(row.addedLeads, currentMonth.addedLeads) });
+  }).sort(function (left, right) { return right.addedLeads - left.addedLeads; });
+  const genreRows = Object.keys(genreRowsByKey).map(function (key) {
+    const row = genreRowsByKey[key];
+    return Object.assign({}, row, {
+      replyRate: analyticsRate_(row.replies, row.sent),
+      dealRate: analyticsRate_(row.deals, row.replies),
+      contractRate: analyticsRate_(row.contracts, row.deals),
+    });
+  }).sort(function (left, right) {
+    return right.sent - left.sent || right.leads - left.leads;
+  }).slice(0, 20);
+  const templateRows = Object.keys(templateRowsByKey).map(function (key) {
+    const row = templateRowsByKey[key];
+    const result = Object.assign({}, row, { replyRate: analyticsRate_(row.replies, row.sent) });
+    delete result.countedLeadKeys;
+    return result;
+  }).sort(function (left, right) {
+    return right.sent - left.sent || right.replyRate - left.replyRate;
+  }).slice(0, 20);
+
+  return {
+    generatedAt: nowIso_(),
+    currentMonth: currentMonth,
+    currentMonthLeadSourceRows: sourceRows,
+    dailyRows: dayKeys.map(function (key) { return dayRowsByKey[key]; }),
+    monthlyRows: monthlyRows,
+    funnel: {
+      leads: leads.length,
+      sent: sendSuccesses,
+      replies: replies,
+      deals: deals,
+      contracts: contracts,
+      lost: lost,
+      sendNg: sendNg,
+      replyRate: analyticsRate_(replies, sendSuccesses),
+      dealRateFromReplies: analyticsRate_(deals, replies),
+      contractRateFromDeals: analyticsRate_(contracts, deals),
+    },
+    funnelSteps: [
+      { icon: 'barChart3', label: '営業リスト', value: leads.length },
+      { icon: 'send', label: '送信成功', value: sendSuccesses },
+      { icon: 'reply', label: '返信・反応', value: replies, metric: formatAnalyticsPercent_(analyticsRate_(replies, sendSuccesses)) },
+      { icon: 'calendarCheck', label: '商談', value: deals, metric: formatAnalyticsPercent_(analyticsRate_(deals, replies)) },
+      { icon: 'checkCircle', label: '成約', value: contracts, metric: formatAnalyticsPercent_(analyticsRate_(contracts, deals)) },
+    ],
+    genreRows: genreRows,
+    templateRows: templateRows,
+    quality: {
+      sendSuccesses: sendSuccesses,
+      sendFailures: Math.max(0, sendTotal - sendSuccesses),
+      sendTotal: sendTotal,
+      sendSuccessRate: analyticsRate_(sendSuccesses, sendTotal),
+      noReply: Math.max(0, Object.keys(sentRecipientKeys).length - repliedRecipientCount),
+      lost: lost,
+      sendNg: sendNg,
+      sendNgRate: analyticsRate_(sendNg, leads.length),
+    },
+  };
+}
+
+function recentAnalyticsDayKeys_(todayKey, count) {
+  const parts = String(todayKey || todayText_()).slice(0, 10).split('-').map(Number);
+  const base = Date.UTC(parts[0], Math.max(0, parts[1] - 1), parts[2] || 1);
+  const keys = [];
+  for (let offset = Math.max(1, Number(count) || 1) - 1; offset >= 0; offset -= 1) {
+    keys.push(new Date(base - offset * 86400000).toISOString().slice(0, 10));
   }
+  return keys;
+}
+
+function recentAnalyticsMonthKeys_(todayKey, count) {
+  const parts = String(todayKey || todayText_()).slice(0, 7).split('-').map(Number);
+  const keys = [];
+  for (let offset = Math.max(1, Number(count) || 1) - 1; offset >= 0; offset -= 1) {
+    const date = new Date(Date.UTC(parts[0], Math.max(0, parts[1] - 1) - offset, 1));
+    keys.push(date.toISOString().slice(0, 7));
+  }
+  return keys;
+}
+
+function analyticsMonthLabel_(key) {
+  const parts = String(key || '').split('-');
+  return parts.length === 2 ? String(Number(parts[0])) + '年' + String(Number(parts[1])) + '月' : String(key || '今月');
+}
+
+function analyticsRate_(numerator, denominator) {
+  const bottom = Number(denominator || 0);
+  return bottom > 0 ? Math.round((Number(numerator || 0) / bottom) * 1000) / 10 : 0;
+}
+
+function formatAnalyticsPercent_(value) {
+  return String(Number(value || 0).toFixed(1)).replace(/\.0$/, '') + '%';
+}
+
+function compactAnalyticsText_(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function analyticsTemplateKey_(history) {
+  return String(history.template_id || '') || ((history.template_name || 'テンプレート未記録') + '::' + compactAnalyticsText_(history.subject || '').slice(0, 200));
+}
+
+function analyticsLeadSource_(lead) {
+  const text = String(lead.source || lead.source_type || '').toLowerCase();
+  if (/serper|search|prospect|source_page|collection/.test(text)) return { key: 'prospecting', label: '営業リスト収集' };
+  if (/csv|sync|import/.test(text)) return { key: 'sync', label: 'CSV/同期' };
+  if (/manual|手動/.test(text)) return { key: 'manual', label: '手動追加' };
+  if (/form/.test(text)) return { key: 'form', label: 'フォーム営業' };
+  return { key: 'unknown', label: '未設定' };
+}
+
+function hasAnalyticsReplySignal_(lead) {
+  return normalizeBooleanLike_(lead.reply_checked) || String(lead.status || '') === '返信あり' || hasAnalyticsDealProgress_(lead);
+}
+
+function hasAnalyticsDealProgress_(lead) {
+  return Boolean(lead.deal_status && String(lead.deal_status) !== '未設定') || ['商談予定', '商談済み', '受注', '失注'].indexOf(String(lead.status || '')) !== -1;
+}
+
+function isAnalyticsContractLead_(lead) {
+  return String(lead.deal_status || '') === '受注' || String(lead.status || '') === '受注';
+}
+
+function isAnalyticsLostLead_(lead) {
+  return String(lead.deal_status || '') === '失注' || String(lead.status || '') === '失注';
+}
+
+function isAnalyticsSendNgLead_(lead) {
+  return normalizeBooleanLike_(lead.send_ng) || String(lead.status || '') === '送信NG';
 }
 
 function buildStartupDashboardPlaceholder_() {
@@ -463,7 +794,6 @@ function buildStartupDashboardPlaceholder_() {
     updatedAt: null,
   };
   const dailyMailLimit = 80;
-  const serperMonthlyLimit = 1000;
   const serperInfo = getStartupSerperInfo_();
   const timezone = Session.getScriptTimeZone() || 'Asia/Tokyo';
   const currentTime = Utilities.formatDate(new Date(), timezone, 'HH:mm');
@@ -512,10 +842,14 @@ function buildStartupDashboardPlaceholder_() {
     sendWindow: sendWindow,
     serperConfigured: serperInfo.configured,
     serperKeyMask: serperInfo.key_mask,
-    serperDailyUnlimited: true,
-    serperMonthlyLimit: serperMonthlyLimit,
-    serperMonthRemaining: serperMonthlyLimit,
+    serperUnlimited: true,
     serperCreditRemaining: String(serperInfo.creditRemaining || ''),
+    serperCreditRemainingValue: serperInfo.creditRemainingValue,
+    serperCreditTotal: serperInfo.creditTotal,
+    serperCreditPercent: serperInfo.creditPercent,
+    serperCreditPercentKnown: serperInfo.creditPercentKnown,
+    serperCreditLow: serperInfo.creditLow,
+    serperCreditAlertThresholdPercent: SERPER_LOW_CREDIT_THRESHOLD_PERCENT,
     queuedJobs: 0,
     runningJobs: 0,
     failedJobs: 0,
@@ -562,19 +896,51 @@ function buildStartupDashboardPlaceholder_() {
 }
 
 function getStartupSerperInfo_() {
-  const records = readSerperApiKeyRecords_();
+  const records = harmonizeSerperCreditRecords_(readSerperApiKeyRecords_());
   const selected = selectPrimarySerperApiKeyRecord_(records);
   const legacyKey = String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SERPER_API_KEY) || '').trim();
   const key = selected && selected.key ? String(selected.key || '').trim() : legacyKey;
+  const creditStatus = buildSerperCreditStatusFromRecord_(selected);
+  const configured = Boolean(key);
+  const searxng = getSearxngConfigInfo_();
+  const searchConfigured = configured || (searxng.configured && searxng.enabled);
+  const remainingLabel = creditStatus.remainingLabel;
   return {
-    configured: Boolean(key),
+    configured: configured,
+    searchConfigured: searchConfigured,
+    searxng: searxng,
     key_mask: key ? maskSecret_(key) : '',
-    monthlyLimit: 1000,
-    dailyUnlimited: true,
+    unlimited: true,
     todayUsed: 0,
     monthUsed: 0,
-    monthRemaining: 1000,
-    creditRemaining: String((selected && selected.last_remaining) || ''),
+    creditRemaining: creditStatus.remainingLabel,
+    creditRemainingValue: creditStatus.remainingValue,
+    creditTotal: creditStatus.totalValue,
+    creditPercent: creditStatus.remainingPercent,
+    creditPercentKnown: creditStatus.percentKnown,
+    creditLow: creditStatus.lowCredit,
+    credit: {
+      detail: configured
+        ? (remainingLabel
+          ? 'Serper残量 ' + remainingLabel + (creditStatus.percentKnown ? ' / ' + Math.round(creditStatus.remainingPercent * 10) / 10 + '%（20%未満で警告）' : ' / 残量率の基準を確認中')
+          : 'Serper残量の確認待ち')
+        : 'Serper APIキーをPropertiesServiceへ保存してください。',
+      label: configured ? (creditStatus.lowCredit ? 'Serper残量20%未満' : 'Serper利用可能') : 'Serper未設定',
+      ready: configured,
+      tone: configured ? (creditStatus.lowCredit ? 'warn' : 'ok') : 'warn',
+    },
+    limits: {
+      unlimited: true,
+      alertThresholdPercent: SERPER_LOW_CREDIT_THRESHOLD_PERCENT,
+      todayUsed: 0,
+      monthUsed: 0,
+      actualRemaining: remainingLabel,
+      remainingValue: creditStatus.remainingValue,
+      totalValue: creditStatus.totalValue,
+      remainingPercent: creditStatus.remainingPercent,
+      percentKnown: creditStatus.percentKnown,
+      lowCredit: creditStatus.lowCredit,
+    },
     keys: records.map(sanitizeSerperApiKeyRecord_),
     activeKeyId: selected ? selected.id : (legacyKey ? 'legacy-main' : ''),
     startupPlaceholder: true,
@@ -633,9 +999,11 @@ function monthText_() {
 function readDashboardStatsCache_(options) {
   const query = options && typeof options === 'object' ? options : {};
   try {
-    const cached = CacheService.getScriptCache().get('dashboard_stats_v4');
+    const cached = CacheService.getScriptCache().get('dashboard_stats_v5');
     if (!cached) {
-      return query.allowPersisted === false ? null : readDashboardStatsSheetCache_(query);
+      return query.allowPersisted !== false && query.allowStale === true
+        ? readDashboardStatsSheetCache_(query)
+        : null;
     }
 
     const parsed = JSON.parse(cached);
@@ -643,26 +1011,32 @@ function readDashboardStatsCache_(options) {
     return parsed;
   } catch (error) {
     console.warn('Dashboard cache read skipped: ' + error.message);
-    return query.allowPersisted === false ? null : readDashboardStatsSheetCache_(query);
+    return query.allowPersisted !== false && query.allowStale === true
+      ? readDashboardStatsSheetCache_(query)
+      : null;
   }
 }
 
 function writeDashboardStatsCache_(stats) {
   try {
-    CacheService.getScriptCache().put('dashboard_stats_v4', JSON.stringify(stats), 600);
-    upsertDashboardCacheSheet_(stats);
+    CacheService.getScriptCache().put('dashboard_stats_v5', JSON.stringify(stats), 600);
   } catch (error) {
-    console.warn('Dashboard cache write skipped: ' + error.message);
+    console.warn('Dashboard runtime cache write skipped: ' + error.message);
+  }
+  try {
+    withScriptLock_('writeDashboardStatsCache', function () {
+      upsertDashboardCacheSheet_(stats);
+    }, { waitMs: 10000 });
+  } catch (error) {
+    console.warn('Dashboard sheet cache write skipped: ' + error.message);
   }
 }
 
 function readDashboardStatsSheetCache_(options) {
   try {
     const query = options && typeof options === 'object' ? options : {};
-    const records = listSheetRecords('dashboard_cache', { limit: 100, includeInactive: true }).items;
-    const cached = records.find(function (record) {
-      return record.cache_key === 'dashboard_stats_v4';
-    });
+    const records = readAllSheetRecordsByName_('dashboard_cache', { includeInactive: true, includeArchived: true });
+    const cached = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5');
     if (!cached || !cached.value_json) {
       return null;
     }
@@ -683,13 +1057,12 @@ function readDashboardStatsSheetCache_(options) {
 }
 
 function upsertDashboardCacheSheet_(stats) {
-  const records = listSheetRecords('dashboard_cache', { limit: 100, includeInactive: true }).items;
-  const existing = records.find(function (record) {
-    return record.cache_key === 'dashboard_stats_v4';
-  });
+  const records = readAllSheetRecordsByName_('dashboard_cache', { includeInactive: true, includeArchived: true });
+  const existing = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5') ||
+    findLatestDashboardCacheRecord_(records, 'dashboard_stats_v4');
   const expiresAt = Utilities.formatDate(new Date(Date.now() + 30 * 60 * 1000), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX");
   const payload = {
-    cache_key: 'dashboard_stats_v4',
+    cache_key: 'dashboard_stats_v5',
     value_json: JSON.stringify(stats),
     expires_at: expiresAt,
   };
@@ -699,6 +1072,14 @@ function upsertDashboardCacheSheet_(stats) {
   } else {
     appendSheetRecord_('dashboard_cache', payload);
   }
+}
+
+function findLatestDashboardCacheRecord_(records, cacheKey) {
+  return (Array.isArray(records) ? records : []).filter(function (record) {
+    return String(record.cache_key || '') === String(cacheKey || '');
+  }).sort(function (left, right) {
+    return String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
+  })[0] || null;
 }
 
 function buildSendWindowStatus_() {

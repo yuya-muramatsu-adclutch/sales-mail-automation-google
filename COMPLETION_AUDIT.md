@@ -1,13 +1,21 @@
 # 完成監査メモ
 
-最終更新: 2026-07-13
+最終更新: 2026-07-15
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @168 / code v168: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @195 / code v195: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260713_apps_script_full_workflow_v168_mobile_width_fix`
+- Code version: `20260715_apps_script_full_workflow_v195_background_self_healing`
+
+## v195 バックグラウンド処理の自動復旧
+
+- 15分以上更新されない実行中ジョブの古いロックを解除し、保存済みカーソルから自動再開。
+- 同じ候補で3回連続して実行が中断された場合、その候補だけを退避して後続処理を継続。
+- まとめサイト処理の一時エラー時に候補カーソルを保持し、先頭へ巻き戻らないよう改善。
+- 進捗画面に「自動復旧して再開」を追加し、定期トリガーの修復と即時再開を一操作に統合。
+- 10分間隔の分割実行に合わせて停止判定を調整し、3分経過時の誤警告を解消。
 
 ## v168 運用フロー改善
 
