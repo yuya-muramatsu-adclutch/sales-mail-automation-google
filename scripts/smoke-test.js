@@ -1080,7 +1080,13 @@ const reviewDecisionContext = vm.createContext({ console });
 files.forEach((file) => {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), reviewDecisionContext, { filename: file });
 });
-let reviewDecisionLead = { id: 'review-1', status: '未対応', source: 'source_page', send_ng: false };
+let reviewDecisionLead = {
+  id: 'review-1',
+  status: '未対応',
+  source: 'source_page',
+  website_url: 'https://review.example/',
+  send_ng: false,
+};
 let reviewDecisionWrites = 0;
 reviewDecisionContext.withScriptLock_ = (operation, callback, options) => {
   assert.strictEqual(operation, 'updateReviewLeadDecision');
@@ -1154,24 +1160,27 @@ assert.deepStrictEqual(lockSleepCalls, [10, 20]);
 assert.strictEqual(lockRetryContext.isScriptLockTimeoutError_(new Error('Exception: ロックのタイムアウト: 別のプロセスがロックを保持しています。')), true);
 assert.strictEqual(lockRetryContext.isScriptLockTimeoutError_(new Error('Lock timed out waiting for another process')), true);
 
-const sourceLockContext = vm.createContext({ console });
+const sourceLockContext = vm.createContext({ console, URL });
 files.forEach((file) => {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sourceLockContext, { filename: file });
 });
 let sourceResultWrites = 0;
+let sourceCreateCalls = 0;
 sourceLockContext.findExistingSourcePageLead_ = () => null;
 sourceLockContext.getSerperApiKey_ = () => '';
 sourceLockContext.hasSearchJobRuntimeAvailable_ = () => true;
 sourceLockContext.appendSourcePageResult_ = () => { sourceResultWrites += 1; };
+sourceLockContext.fetchProspectingHtml_ = (url) => ({ url, html: '<html></html>' });
 sourceLockContext.createLeadWithLockOptions_ = (_input, options) => {
+  sourceCreateCalls += 1;
   assert.strictEqual(options.waitMs, 5000);
   assert.strictEqual(options.attempts, 1);
   throw sourceLockContext.createScriptLockTimeoutError_('createLead', 1, 1);
 };
 const deferredSourceLead = sourceLockContext.processSourcePageCandidate_(
-  { facility_name: 'ロック競合テスト', source_id: 'source-lock-test', create_without_official: true },
+  { facility_name: 'ロック競合テスト', source_id: 'source-lock-test', official_url: 'https://camp.example/' },
   {},
-  { create_unresolved_leads: true, use_serper_fallback: false },
+  { use_serper_fallback: false },
   'job-lock-test',
   0,
   {}
@@ -1180,6 +1189,20 @@ assert.strictEqual(deferredSourceLead.created, false);
 assert.strictEqual(deferredSourceLead.deferred, true);
 assert.strictEqual(deferredSourceLead.lockContention, true);
 assert.strictEqual(sourceResultWrites, 0, 'lock contention must keep the candidate cursor for retry');
+assert.strictEqual(sourceCreateCalls, 1);
+const unresolvedSourceLead = sourceLockContext.processSourcePageCandidate_(
+  { facility_name: '公式サイトなし', source_id: 'source-unresolved-test', create_without_official: true },
+  {},
+  { create_unresolved_leads: true, use_serper_fallback: false },
+  'job-unresolved-test',
+  0,
+  {}
+);
+assert.strictEqual(unresolvedSourceLead.created, false);
+assert.strictEqual(unresolvedSourceLead.unresolved, true);
+assert.strictEqual(unresolvedSourceLead.excludedFromReview, true);
+assert.strictEqual(sourceCreateCalls, 1, 'an unresolved candidate must never create a review lead');
+assert.strictEqual(sourceResultWrites, 1, 'an unresolved candidate should remain in search results for audit');
 assert.strictEqual(sourceLockContext.resolveSourcePageGenre_(
   { source_preset: 'nap_camp' },
   { genre: '介護' },
@@ -1201,6 +1224,37 @@ const normalizedNapInput = sourceLockContext.normalizeSearchJobInput_({
 assert.strictEqual(normalizedNapInput.site_preset, 'nap_camp');
 assert.strictEqual(normalizedNapInput.genre, 'キャンプ');
 assert.strictEqual(normalizedNapInput.items[0].genre, 'キャンプ');
+assert.strictEqual(normalizedNapInput.create_unresolved_leads, false);
+
+assert.strictEqual(sourceLockContext.isLeadReviewPending_({
+  source: 'source_page', status: '未対応', website_url: '', email: '', form_url: '',
+}), false);
+assert.strictEqual(sourceLockContext.isLeadReviewPending_({
+  source: 'source_page', status: '未対応', website_url: 'https://camp.example/', email: '', form_url: '',
+}), true);
+assert.strictEqual(sourceLockContext.isLikelyOfficialCandidateUrl_('https://camp-go.com/camps/example', ''), false);
+assert.strictEqual(sourceLockContext.isLikelyOfficialCandidateUrl_('https://facility.example/', ''), true);
+const selectedOfficial = sourceLockContext.selectLeadSearchResult_([
+  { title: '施設まとめ', link: 'https://camp-go.com/camps/example', snippet: '一覧' },
+  { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora.example/', snippet: '星空キャンプ場' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedOfficial.url, 'https://hoshizora.example/');
+const contactPages = {
+  'https://camp.example/': '<a href="/privacy">プライバシー</a><a href="/contact">お問い合わせ</a>',
+  'https://camp.example/contact': '<div class="wpcf7">お問い合わせ</div><p>sales (at) camp (dot) example</p><form><input type="email"><textarea name="message"></textarea></form>',
+};
+sourceLockContext.fetchProspectingHtml_ = (url) => ({ url, html: contactPages[url] || '' });
+const discoveredContact = sourceLockContext.extractContactFromOfficialPage_('https://camp.example/');
+assert.strictEqual(discoveredContact.formUrl, 'https://camp.example/contact');
+assert.strictEqual(discoveredContact.email, 'sales@camp.example');
+assert.deepStrictEqual(Array.from(discoveredContact.checkedUrls), ['https://camp.example/', 'https://camp.example/contact']);
+const falsePositivePages = {
+  'https://guide.example/': '<a href="/guide">お問い合わせ・利用案内</a>',
+  'https://guide.example/guide': '<p>お問い合わせはお電話で</p><form action="/search"><input type="text" name="q"></form>',
+};
+sourceLockContext.fetchProspectingHtml_ = (url) => ({ url, html: falsePositivePages[url] || '' });
+const rejectedFalsePositive = sourceLockContext.extractContactFromOfficialPage_('https://guide.example/');
+assert.strictEqual(rejectedFalsePositive.formUrl, '', 'a guide page with only a search form is not a contact form');
 const normalizedNapPayload = sourceLockContext.normalizeNapCampJobGenrePayload_({
   job_type: 'source_page',
   site_preset: 'nap_camp',
@@ -1336,16 +1390,36 @@ const skippedSearchMerge = searchMergeContext.updateLeadFromSearchResult_(
 );
 assert.strictEqual(skippedSearchMerge.updated, false);
 assert.strictEqual(searchMergePatch, null);
+searchMergeLead = {
+  id: 'merge-lead', status: '未対応', website_url: 'https://verified.example', form_url: '', email: '',
+};
+searchMergePatch = null;
+const emailOnlySearchMerge = searchMergeContext.updateLeadFromSearchResult_(
+  { id: 'merge-lead' },
+  {
+    website_url: 'https://verified.example',
+    email: 'info@verified.example',
+    form_url: '',
+    url: 'https://verified.example/contact-info',
+    contact_verified: true,
+  },
+  'lead_form_url'
+);
+assert.strictEqual(emailOnlySearchMerge.updated, true);
+assert.strictEqual(searchMergeLead.email, 'info@verified.example');
+assert.strictEqual(searchMergeLead.form_url, '', 'verified email-only discovery must not invent a form URL');
+assert.strictEqual(searchMergeLead.status, '未対応');
 
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260715_apps_script_full_workflow_v197_nap_camp_genre_repair'));
+assert(codeSource.includes('20260716_apps_script_full_workflow_v201_contact_quality'));
 assert(codeSource.includes("'filled_count'"));
 assert(codeSource.includes('function createLeadLocked_'));
 assert(codeSource.includes('function findActiveLeadBySourceReference_'));
 assert(codeSource.includes('function listEmailSendCandidates'));
 assert(codeSource.includes('function updateReviewLeadDecision'));
+assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
 assert(codeSource.includes("withScriptLock_('saveSerperApiKey'"));
 const spreadsheetBindingStart = codeSource.indexOf('function getOrCreateSpreadsheet_');
 const spreadsheetBindingEnd = codeSource.indexOf('\nfunction ', spreadsheetBindingStart + 10);
@@ -1394,6 +1468,8 @@ assert(serperSource.includes("{ waitMs: 5000, attempts: 1 }"));
 assert(serperSource.includes('lockContention: true'));
 assert(serperSource.includes("const NAP_CAMP_GENRE = 'キャンプ'"));
 assert(serperSource.includes('function repairNapCampGenres'));
+assert(serperSource.includes('function rankContactPageLinks_'));
+assert(serperSource.includes('excludedFromReview: true'));
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 assert(webAppSource.includes("readAllSheetRecordsByName_('search_jobs'"));
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
@@ -1402,6 +1478,7 @@ assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
 assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
 assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHistories, today)'));
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
+assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 assert(!indexSource.includes('function importCsv(event)'));
 assert(indexSource.includes('finish();\n            reject(error);'));
@@ -1470,4 +1547,4 @@ assert(serperSource.includes("payload.job_type === 'source_page' ? String(progre
 assert(indexSource.includes('自動復旧して再開'));
 assert(indexSource.includes("api('repairBackgroundJobs'"));
 
-console.log('v197 audit regression tests passed.');
+console.log('v201 audit regression tests passed.');

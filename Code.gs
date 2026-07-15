@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260715_apps_script_full_workflow_v197_nap_camp_genre_repair';
+const APP_VERSION = '20260716_apps_script_full_workflow_v201_contact_quality';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -810,7 +810,140 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
 function isLeadReviewPending_(lead) {
   return Boolean(lead) &&
     String(lead.status || '') === '未対応' &&
+    isReviewLeadSource_(lead) &&
+    hasLeadReviewDestination_(lead);
+}
+
+function isReviewLeadSource_(lead) {
+  return Boolean(lead) &&
     ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(lead.source || '')) !== -1;
+}
+
+function hasLeadReviewDestination_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  return Boolean(
+    String(source.website_url || '').trim() ||
+    isValidEmailAddress_(source.email) ||
+    String(source.form_url || '').trim()
+  );
+}
+
+function repairReviewLeadsWithoutContact(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const dryRun = input.dryRun !== false && input.dry_run !== false;
+  const startRow = Math.max(Number(input.startRow || input.start_row) || 2, 2);
+  const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 20000, 1), 20000);
+  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 500, 1), 2000);
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
+  const headers = getHeaders_(sheet);
+  const requiredHeaders = [
+    'source',
+    'status',
+    'website_url',
+    'email',
+    'form_url',
+    'form_status',
+    'next_send_at',
+    'no_action_reason',
+    'no_action_memo',
+    'updated_at',
+  ];
+  requiredHeaders.forEach(function (header) {
+    if (headers.indexOf(header) === -1) throw new Error('leadsシートに' + header + '列が必要です。');
+  });
+
+  const lastRow = sheet.getLastRow();
+  if (startRow > lastRow) {
+    return {
+      ok: true,
+      dryRun: dryRun,
+      startRow: startRow,
+      nextRow: startRow,
+      lastRow: lastRow,
+      scanned: 0,
+      eligible: 0,
+      matched: 0,
+      updated: 0,
+      done: true,
+    };
+  }
+
+  const rowCount = Math.min(scanLimit, lastRow - startRow + 1);
+  const values = sheet.getRange(startRow, 1, rowCount, headers.length).getValues();
+  const indexes = {};
+  requiredHeaders.forEach(function (header) { indexes[header] = headers.indexOf(header); });
+  const targetRows = [];
+  let eligible = 0;
+  let lastScannedRow = startRow - 1;
+  for (let index = 0; index < values.length; index += 1) {
+    const rowNumber = startRow + index;
+    lastScannedRow = rowNumber;
+    const lead = {
+      source: values[index][indexes.source],
+      status: values[index][indexes.status],
+      website_url: values[index][indexes.website_url],
+      email: values[index][indexes.email],
+      form_url: values[index][indexes.form_url],
+    };
+    if (!isReviewLeadSource_(lead) || String(lead.status || '') !== '未対応') continue;
+    eligible += 1;
+    if (hasLeadReviewDestination_(lead)) continue;
+    targetRows.push(rowNumber);
+    if (targetRows.length >= maxUpdates) break;
+  }
+
+  const baseResult = {
+    ok: true,
+    dryRun: dryRun,
+    startRow: startRow,
+    nextRow: lastScannedRow + 1,
+    lastRow: lastRow,
+    scanned: Math.max(lastScannedRow - startRow + 1, 0),
+    eligible: eligible,
+    matched: targetRows.length,
+    updated: 0,
+    done: lastScannedRow >= lastRow,
+  };
+  if (dryRun || !targetRows.length) return baseResult;
+
+  return withScriptLock_('repairReviewLeadsWithoutContact', function () {
+    const verifyCount = Math.max(lastScannedRow - startRow + 1, 0);
+    const currentValues = sheet.getRange(startRow, 1, verifyCount, headers.length).getValues();
+    const verifiedRows = [];
+    for (let index = 0; index < currentValues.length; index += 1) {
+      if (verifiedRows.length >= maxUpdates) break;
+      const lead = {
+        source: currentValues[index][indexes.source],
+        status: currentValues[index][indexes.status],
+        website_url: currentValues[index][indexes.website_url],
+        email: currentValues[index][indexes.email],
+        form_url: currentValues[index][indexes.form_url],
+      };
+      if (!isReviewLeadSource_(lead) || String(lead.status || '') !== '未対応' || hasLeadReviewDestination_(lead)) continue;
+      verifiedRows.push(startRow + index);
+    }
+
+    if (verifiedRows.length) {
+      const setColumnValue = function (header, value) {
+        const columnA1 = columnNumberToA1_(indexes[header] + 1);
+        sheet.getRangeList(verifiedRows.map(function (rowNumber) {
+          return columnA1 + rowNumber;
+        })).setValue(value);
+      };
+      setColumnValue('status', '対応不要');
+      setColumnValue('form_status', '対応不要');
+      setColumnValue('next_send_at', '');
+      setColumnValue('no_action_reason', '問い合わせ不可');
+      setColumnValue('no_action_memo', 'WEBサイト・メール・フォーム未取得のため自動除外');
+      setColumnValue('updated_at', nowIso_());
+      clearRuntimeCaches_('leads');
+      SpreadsheetApp.flush();
+    }
+
+    return Object.assign({}, baseResult, {
+      updated: verifiedRows.length,
+    });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function matchesFormStatusFilter_(lead, formStatus) {

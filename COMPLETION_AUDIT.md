@@ -1,13 +1,31 @@
 # 完成監査メモ
 
-最終更新: 2026-07-15
+最終更新: 2026-07-16
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @197 / code v197: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @200 / production code v200: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260715_apps_script_full_workflow_v197_nap_camp_genre_repair`
+- Apps Script HEAD / repository code: `20260716_apps_script_full_workflow_v201_contact_quality`
+- v201本番反映の残作業: Apps Scriptのプロジェクト履歴で未使用の旧版を1件削除し、固定Web appを再デプロイする。版削除はApps Script API非対応のためIDE操作が必要。
+
+## v201 連絡先誤検知の追加防止（HEAD反映済み・本番反映待ち）
+
+- フォーム検索では過去キャッシュをそのまま採用せず、実ページでフォーム要素を確認する。
+- メールだけ取得できた場合に、参照ページをフォームURLとして誤登録しない。
+- 実サイト `sanukimannopark.jp/camp/guide` が検索フォームしか持たないことを確認し、問い合わせフォーム扱いしない回帰テストを追加。
+- Apps Script HEADではv201を確認済み。本番版作成時に200版上限へ到達したため、固定Web appは@200のまま。
+
+## v200 連絡手段なし候補の確認待ち除外
+
+- WEBサイト・有効なメール・フォームがすべて空の候補は、確認待ち判定から除外。
+- まとめサイト収集では、旧ジョブが未解決候補作成フラグを持っていても、公式サイト未特定ならリードを作成しないサーバー側の安全策を追加。
+- 公式サイト探索で、なっぷ、camp-go、campla、campiii、はちのす、香川県観光DBなどの一覧サイトを公式サイト候補から除外。
+- 連絡先探索をトップページだけでなく優先度付き問い合わせページまで最大3ページに拡張し、外部フォーム、埋め込みフォーム、主要フォームプラグイン、難読化メールに対応。
+- 本番確認待ち5,513件のうち、WEBサイト・メール・フォームがすべて空だった1,898件を特定。
+- Spreadsheetバックアップ `Auto Sales List App DB_backup_20260716_002721` を作成後、対象1,898件を `対応不要`（理由: `問い合わせ不可`）へ500件ずつ整理。
+- 整理後の全行ドライランで対象0件、確認待ち3,615件、連絡手段なし0件を確認。
 
 ## v197 なっぷ収集のジャンル誤分類修正
 

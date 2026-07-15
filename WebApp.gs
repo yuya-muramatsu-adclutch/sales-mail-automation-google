@@ -111,6 +111,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'getBackgroundWorkerHealth') return getBackgroundWorkerHealth();
   if (action === 'repairBackgroundJobs') return repairBackgroundJobs(data);
   if (action === 'repairNapCampGenres') return repairNapCampGenres(data);
+  if (action === 'repairReviewLeadsWithoutContact') return repairReviewLeadsWithoutContact(data);
   if (action === 'installDefaultTriggers') return installDefaultTriggers();
   if (action === 'createSpreadsheetBackup') return createSpreadsheetBackup();
   if (action === 'setSettingValue') return setSettingValue(data.key, data.value, data.valueType || data.value_type, data.description);
