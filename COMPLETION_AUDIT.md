@@ -5,9 +5,17 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @195 / code v195: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @196 / code v196: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260715_apps_script_full_workflow_v195_background_self_healing`
+- Code version: `20260715_apps_script_full_workflow_v196_lock_contention_recovery`
+
+## v196 確認操作のロック競合回復
+
+- 確認待ちで連続操作しても保存APIを1件ずつ送るクライアントキューを追加し、数十〜数百件の同時実行を防止。
+- 送信NG・確認済み・対応不要の保存は、短いロック待機を分割して再試行し、一時競合だけ画面側でも1回再送。
+- まとめサイト収集はロック競合時に5秒で操作へ譲り、候補を失敗扱いせず同じカーソルから再開。
+- ロック未取得時に `releaseLock()` を呼ばないよう共通ロック処理を修正。
+- ローカル回帰テスト、Web app @196、コードバージョン、バックグラウンドトリガー1件・古いジョブ0件を確認。
 
 ## v195 バックグラウンド処理の自動復旧
 

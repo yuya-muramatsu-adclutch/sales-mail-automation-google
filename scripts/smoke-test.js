@@ -1084,7 +1084,9 @@ let reviewDecisionLead = { id: 'review-1', status: '未対応', source: 'source_
 let reviewDecisionWrites = 0;
 reviewDecisionContext.withScriptLock_ = (operation, callback, options) => {
   assert.strictEqual(operation, 'updateReviewLeadDecision');
-  assert.strictEqual(options.waitMs, 90000);
+  assert.strictEqual(options.waitMs, 6000);
+  assert.strictEqual(options.attempts, 5);
+  assert.strictEqual(options.retryDelayMs, 400);
   return callback();
 };
 reviewDecisionContext.getLeadById = () => Object.assign({}, reviewDecisionLead);
@@ -1122,6 +1124,62 @@ assert.strictEqual(reviewDecisionLead.status, '未対応');
 assert.throws(() => reviewDecisionContext.updateReviewLeadDecision('review-1', {
   mode: 'decision', expected_status: '未対応', status: '返信あり',
 }), /選べない更新内容/);
+
+const lockRetryContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), lockRetryContext, { filename: 'Code.gs' });
+let lockTryCount = 0;
+let lockReleaseCount = 0;
+const lockSleepCalls = [];
+lockRetryContext.LockService = {
+  getScriptLock: () => ({
+    tryLock: (waitMs) => {
+      assert.strictEqual(waitMs, 1000);
+      lockTryCount += 1;
+      return lockTryCount >= 3;
+    },
+    releaseLock: () => { lockReleaseCount += 1; },
+  }),
+};
+lockRetryContext.Utilities = { sleep: (waitMs) => { lockSleepCalls.push(waitMs); } };
+lockRetryContext.logError_ = () => { throw new Error('successful retry must not be logged'); };
+const lockRetryResult = lockRetryContext.withScriptLock_('lockRetryTest', () => 'acquired', {
+  waitMs: 1000,
+  attempts: 3,
+  retryDelayMs: 10,
+});
+assert.strictEqual(lockRetryResult, 'acquired');
+assert.strictEqual(lockTryCount, 3);
+assert.strictEqual(lockReleaseCount, 1, 'only an acquired lock may be released');
+assert.deepStrictEqual(lockSleepCalls, [10, 20]);
+assert.strictEqual(lockRetryContext.isScriptLockTimeoutError_(new Error('Exception: ロックのタイムアウト: 別のプロセスがロックを保持しています。')), true);
+assert.strictEqual(lockRetryContext.isScriptLockTimeoutError_(new Error('Lock timed out waiting for another process')), true);
+
+const sourceLockContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sourceLockContext, { filename: file });
+});
+let sourceResultWrites = 0;
+sourceLockContext.findExistingSourcePageLead_ = () => null;
+sourceLockContext.getSerperApiKey_ = () => '';
+sourceLockContext.hasSearchJobRuntimeAvailable_ = () => true;
+sourceLockContext.appendSourcePageResult_ = () => { sourceResultWrites += 1; };
+sourceLockContext.createLeadWithLockOptions_ = (_input, options) => {
+  assert.strictEqual(options.waitMs, 5000);
+  assert.strictEqual(options.attempts, 1);
+  throw sourceLockContext.createScriptLockTimeoutError_('createLead', 1, 1);
+};
+const deferredSourceLead = sourceLockContext.processSourcePageCandidate_(
+  { facility_name: 'ロック競合テスト', source_id: 'source-lock-test', create_without_official: true },
+  {},
+  { create_unresolved_leads: true, use_serper_fallback: false },
+  'job-lock-test',
+  0,
+  {}
+);
+assert.strictEqual(deferredSourceLead.created, false);
+assert.strictEqual(deferredSourceLead.deferred, true);
+assert.strictEqual(deferredSourceLead.lockContention, true);
+assert.strictEqual(sourceResultWrites, 0, 'lock contention must keep the candidate cursor for retry');
 
 const searchReviewContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -1249,7 +1307,7 @@ assert.strictEqual(searchMergePatch, null);
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260715_apps_script_full_workflow_v195_background_self_healing'));
+assert(codeSource.includes('20260715_apps_script_full_workflow_v196_lock_contention_recovery'));
 assert(codeSource.includes("'filled_count'"));
 assert(codeSource.includes('function createLeadLocked_'));
 assert(codeSource.includes('function findActiveLeadBySourceReference_'));
@@ -1299,6 +1357,8 @@ assert(serperSource.includes("withScriptLock_('updateLeadFromSearchResult'"));
 assert(serperSource.includes("withScriptLock_('recordSerperActiveKeyTestResult'"));
 assert(serperSource.includes("withScriptLock_('recordSerperActiveKeyCreditResult'"));
 assert(serperSource.includes("withScriptLock_('saveSearxngConfig'"));
+assert(serperSource.includes("{ waitMs: 5000, attempts: 1 }"));
+assert(serperSource.includes('lockContention: true'));
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 assert(webAppSource.includes("readAllSheetRecordsByName_('search_jobs'"));
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
@@ -1313,6 +1373,10 @@ assert(indexSource.includes("apiQuiet('listEmailSendCandidates', { genre, limit:
 assert(indexSource.includes("api('startLeadCsvImport', csvText, options || {})"));
 assert(indexSource.includes("api('advanceLeadCsvImportJob', job.id, { maxItems: 25, runtimeBudgetMs: 90000 })"));
 assert(indexSource.includes("apiQuiet('updateReviewLeadDecision'"));
+assert(indexSource.includes('function saveReviewLeadDecisionWithRetry'));
+assert(indexSource.includes('function isLockTimeoutApiError'));
+assert(indexSource.includes('function enqueueReviewLeadDecisionSave'));
+assert(indexSource.includes('reviewLeadSaveQueue = task.then'));
 assert(indexSource.includes('reviewPendingLeadIds'));
 assert(indexSource.includes('pendingJobResultIds'));
 assert(indexSource.includes("item.review_status === 'unconfirmed' || item.review_status === 'adding'"));
@@ -1367,4 +1431,4 @@ assert(serperSource.includes("payload.job_type === 'source_page' ? String(progre
 assert(indexSource.includes('自動復旧して再開'));
 assert(indexSource.includes("api('repairBackgroundJobs'"));
 
-console.log('v195 audit regression tests passed.');
+console.log('v196 audit regression tests passed.');

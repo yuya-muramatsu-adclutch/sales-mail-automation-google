@@ -1564,7 +1564,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
   let errorMessage = '';
   if (!hasSearchJobRuntimeAvailable_(runtimeContext, 10000)) return { created: false, deferred: true };
   try {
-    lead = createLead({
+    lead = createLeadWithLockOptions_({
       source: 'source_page',
       source_id: sourceId,
       external_id: candidate.detail_url || candidate.url || sourceUrl,
@@ -1588,9 +1588,12 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
         serper: serperResult,
         contact_error: contact.errorMessage || '',
       }),
-    });
+    }, { waitMs: 5000, attempts: 1 });
     addLeadToSourcePageIndex_(leadIndex, lead);
   } catch (error) {
+    if (isScriptLockTimeoutError_(error)) {
+      return { created: false, deferred: true, lockContention: true };
+    }
     errorMessage = error.message || String(error);
     reviewStatus = error.code === 'DUPLICATE_LEAD' || /^Duplicate lead exists/.test(errorMessage) ? 'duplicate' : 'dismissed';
   }

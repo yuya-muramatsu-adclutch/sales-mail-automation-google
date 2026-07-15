@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260715_apps_script_full_workflow_v195_background_self_healing';
+const APP_VERSION = '20260715_apps_script_full_workflow_v196_lock_contention_recovery';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -614,9 +614,13 @@ function getSchemaStatus() {
 }
 
 function createLead(input) {
+  return createLeadWithLockOptions_(input, null);
+}
+
+function createLeadWithLockOptions_(input, lockOptions) {
   return withScriptLock_('createLead', function () {
     return createLeadLocked_(input);
-  });
+  }, lockOptions);
 }
 
 function createLeadLocked_(input) {
@@ -895,7 +899,7 @@ function updateReviewLeadDecision(id, input) {
       previous_status: expectedStatus,
       status: nextStatus,
     };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function buildReviewLeadConflict_(lead, message) {
@@ -2035,23 +2039,66 @@ function requireId_(id) {
 function withScriptLock_(operation, callback, options) {
   const lockOptions = options && typeof options === 'object' ? options : {};
   const waitMs = Math.min(Math.max(Number(lockOptions.waitMs) || 30000, 1000), 300000);
-  const lock = LockService.getScriptLock();
+  const attempts = Math.min(Math.max(Number(lockOptions.attempts) || 1, 1), 10);
+  const retryDelayMs = Math.min(Math.max(Number(lockOptions.retryDelayMs) || 250, 0), 5000);
+  let lastError = null;
 
-  try {
-    lock.waitLock(waitMs);
-    return callback();
-  } catch (error) {
-    if (!isExpectedOperationError_(error)) {
-      logError_(operation, error, {});
-    }
-    throw error;
-  } finally {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const lock = LockService.getScriptLock();
+    let acquired = false;
     try {
-      lock.releaseLock();
-    } catch (releaseError) {
-      console.warn('Lock release skipped: ' + releaseError.message);
+      if (typeof lock.tryLock === 'function') {
+        acquired = lock.tryLock(waitMs);
+        if (!acquired) {
+          throw createScriptLockTimeoutError_(operation, attempt, attempts);
+        }
+      } else {
+        lock.waitLock(waitMs);
+        acquired = true;
+      }
+      return callback();
+    } catch (error) {
+      lastError = error;
+      const retryable = !acquired && isScriptLockTimeoutError_(error) && attempt < attempts;
+      if (!retryable) {
+        if (!isExpectedOperationError_(error)) {
+          logError_(operation, error, { lock_attempt: attempt, lock_attempts: attempts });
+        }
+        throw error;
+      }
+    } finally {
+      if (acquired) {
+        try {
+          lock.releaseLock();
+        } catch (releaseError) {
+          console.warn('Lock release skipped: ' + releaseError.message);
+        }
+      }
+    }
+
+    if (retryDelayMs > 0) {
+      Utilities.sleep(retryDelayMs * attempt);
     }
   }
+
+  throw lastError || createScriptLockTimeoutError_(operation, attempts, attempts);
+}
+
+function createScriptLockTimeoutError_(operation, attempt, attempts) {
+  const error = new Error('ロックのタイムアウト: 別の処理が実行中です。しばらく待って自動再試行してください。');
+  error.code = 'SCRIPT_LOCK_TIMEOUT';
+  error.retryable = true;
+  error.operation = String(operation || 'unknown');
+  error.lock_attempt = Number(attempt) || 1;
+  error.lock_attempts = Number(attempts) || 1;
+  return error;
+}
+
+function isScriptLockTimeoutError_(error) {
+  if (!error) return false;
+  if (String(error.code || '') === 'SCRIPT_LOCK_TIMEOUT') return true;
+  const message = String(error.message || error.details || error || '');
+  return /ロック[^\n]*(タイムアウト|取得でき)|lock[^\n]*(timed?\s*out|timeout|acquir)|another process[^\n]*lock|別のプロセス[^\n]*ロック/i.test(message);
 }
 
 function createExpectedOperationError_(message, code) {

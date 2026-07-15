@@ -12965,6 +12965,36 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return error.message || error.details || String(error);
       }
 
+      function isLockTimeoutApiError(error) {
+        const text = apiErrorText(error);
+        return /SCRIPT_LOCK_TIMEOUT|ロック[^\n]*(タイムアウト|取得でき)|lock[^\n]*(timed?\s*out|timeout|acquir)|another process[^\n]*lock|別のプロセス[^\n]*ロック/i.test(text);
+      }
+
+      let reviewLeadSaveQueue = Promise.resolve();
+
+      async function saveReviewLeadDecisionWithRetry(id, input) {
+        let lastError = null;
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+          try {
+            return await apiQuiet('updateReviewLeadDecision', id, input);
+          } catch (error) {
+            lastError = error;
+            if (!isLockTimeoutApiError(error) || attempt >= 2) throw error;
+            await new Promise((resolve) => window.setTimeout(resolve, 700));
+          }
+        }
+        throw lastError || new Error('確認結果を保存できませんでした。');
+      }
+
+      function enqueueReviewLeadDecisionSave(id, input) {
+        const task = reviewLeadSaveQueue.then(
+          () => saveReviewLeadDecisionWithRetry(id, input),
+          () => saveReviewLeadDecisionWithRetry(id, input)
+        );
+        reviewLeadSaveQueue = task.then(() => undefined, () => undefined);
+        return task;
+      }
+
       function settledPageResult(settled, label, fallbackItems, fallbackTotal, failures) {
         if (settled && settled.status === 'fulfilled') {
           const page = settled.value || {};
@@ -14824,7 +14854,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         message(`${label}にしました`, 'ok');
 
         adjustReviewPendingSaves(1);
-        const savePromise = apiQuiet('updateReviewLeadDecision', id, {
+        const savePromise = enqueueReviewLeadDecisionSave(id, {
           mode: 'decision',
           expected_status: mutation.previousStatus,
           status,
@@ -14863,7 +14893,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             setReviewLeadPendingSave(id, true);
             adjustReviewPendingSaves(1);
             try {
-              const result = await apiQuiet('updateReviewLeadDecision', id, {
+              const result = await enqueueReviewLeadDecisionSave(id, {
                 mode: 'undo',
                 expected_status: status,
                 status: mutation.previousStatus,
@@ -15588,7 +15618,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             try {
               const snapshot = snapshots.find((item) => item.id === lead.id);
               const result = snapshot.reviewDecision
-                ? await apiQuiet('updateReviewLeadDecision', lead.id, {
+                ? await enqueueReviewLeadDecisionSave(lead.id, {
                   mode: 'decision', expected_status: snapshot.status, status: snapshot.nextStatus,
                 })
                 : await apiQuiet('updateLead', lead.id, patch);
@@ -15614,7 +15644,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           showUndoAction(`${formatNumber(success)}件を${actionLabel}に更新しました`, async () => {
             for (const snapshot of snapshots.filter((item) => succeededIds.includes(item.id))) {
               if (snapshot.reviewDecision) {
-                const result = await api('updateReviewLeadDecision', snapshot.id, {
+                const result = await enqueueReviewLeadDecisionSave(snapshot.id, {
                   mode: 'undo', expected_status: snapshot.nextStatus, status: snapshot.status,
                 });
                 if (result && result.conflict) continue;
