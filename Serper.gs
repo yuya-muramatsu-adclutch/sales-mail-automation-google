@@ -1,6 +1,7 @@
 const SERPER_SEARCH_ENDPOINT = 'https://google.serper.dev/search';
 const NAP_CAMP_LIST_URL = 'https://www.nap-camp.com/list';
 const NAP_CAMP_SITEMAP_URL = 'https://www.nap-camp.com/sitemap-dynamic-campsite.xml';
+const NAP_CAMP_GENRE = 'キャンプ';
 const SERPER_CREDIT_ENDPOINTS = Object.freeze([
   'https://google.serper.dev/account',
   'https://google.serper.dev/credits',
@@ -921,7 +922,17 @@ function normalizeSearchJobInput_(input) {
     throw new Error('Invalid search job type: ' + jobType);
   }
 
-  const builtItems = buildSearchJobItems_(source, jobType);
+  const sourceUrls = jobType === 'source_page'
+    ? parseSearchJobLines_(source.sourceUrls || source.source_urls || source.sourceUrl || source.source_url || source.url)
+    : [];
+  const firstSourceUrl = sourceUrls.length ? normalizeUrl_(sourceUrls[0]) : '';
+  const sitePreset = jobType === 'source_page'
+    ? String(source.site_preset || source.sitePreset || detectSourcePagePreset_(firstSourceUrl) || '').trim()
+    : '';
+  const normalizedSource = sitePreset === 'nap_camp'
+    ? Object.assign({}, source, { genre: NAP_CAMP_GENRE })
+    : source;
+  const builtItems = buildSearchJobItems_(normalizedSource, jobType);
   const crawlAll = jobType === 'source_page' && isSourcePageCrawlAllInput_(source);
   const maxJobLimit = crawlAll ? 1000 : 100;
   const defaultJobLimit = crawlAll ? builtItems.length : 20;
@@ -932,13 +943,6 @@ function normalizeSearchJobInput_(input) {
     throw new Error('Search job has no items.');
   }
 
-  const sourceUrls = jobType === 'source_page'
-    ? parseSearchJobLines_(source.sourceUrls || source.source_urls || source.sourceUrl || source.source_url || source.url)
-    : [];
-  const firstSourceUrl = sourceUrls.length ? normalizeUrl_(sourceUrls[0]) : '';
-  const sitePreset = jobType === 'source_page'
-    ? String(source.site_preset || source.sitePreset || detectSourcePagePreset_(firstSourceUrl) || '').trim()
-    : '';
   const resultLimitMax = crawlAll ? 20 : 20;
   const totalCandidates = crawlAll && sitePreset === 'nap_camp'
     ? Math.max(Number(items[0] && items[0].total_candidates) || 0, 0)
@@ -954,7 +958,7 @@ function normalizeSearchJobInput_(input) {
     crawl_all: crawlAll,
     site_preset: sitePreset,
     source_url: firstSourceUrl,
-    genre: String(source.genre || '').trim(),
+    genre: sitePreset === 'nap_camp' ? NAP_CAMP_GENRE : String(source.genre || '').trim(),
     label: String(source.label || source.name || '').trim(),
     total_candidates: totalCandidates,
     created_at: nowIso_(),
@@ -1006,7 +1010,7 @@ function buildSearchJobItems_(source, jobType) {
     return allItems.map(function (item) {
       return {
         source_url: item.source_url,
-        genre: item.genre || genre,
+        genre: item.site_preset === 'nap_camp' ? NAP_CAMP_GENRE : (item.genre || genre),
         label: item.label || label,
         site_preset: item.site_preset || '',
         crawl_all: Boolean(item.crawl_all),
@@ -1047,6 +1051,7 @@ function buildNapCampSourcePageItems_(url, source) {
   return [{
     source_url: sourceUrl,
     site_preset: 'nap_camp',
+    genre: NAP_CAMP_GENRE,
     crawl_all: true,
     offset: 0,
     max_items: candidates.length,
@@ -1430,11 +1435,188 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
   return summary;
 }
 
+function resolveSourcePageGenre_(candidate, item, payload) {
+  const preset = String(
+    (candidate && candidate.source_preset) ||
+    (item && item.site_preset) ||
+    (payload && payload.site_preset) ||
+    ''
+  ).trim();
+  if (preset === 'nap_camp') return NAP_CAMP_GENRE;
+  return String((item && item.genre) || (payload && payload.genre) || '').trim();
+}
+
+function isNapCampSourcePageLead_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  return String(source.source || '').trim() === 'source_page' &&
+    /^nap_camp:/i.test(String(source.source_id || '').trim());
+}
+
+function normalizeNapCampJobGenrePayload_(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const items = Array.isArray(source.items) ? source.items : [];
+  const topLevelNap = String(source.site_preset || '') === 'nap_camp';
+  const hasNapItem = items.some(function (item) {
+    return String(item && item.site_preset || '') === 'nap_camp';
+  });
+  if (!topLevelNap && !hasNapItem) return { changed: false, payload: source };
+
+  let changed = false;
+  const normalized = Object.assign({}, source);
+  if (topLevelNap && String(normalized.genre || '') !== NAP_CAMP_GENRE) {
+    normalized.genre = NAP_CAMP_GENRE;
+    changed = true;
+  }
+  normalized.items = items.map(function (item) {
+    const nextItem = item && typeof item === 'object' ? Object.assign({}, item) : {};
+    if (String(nextItem.site_preset || '') === 'nap_camp' && String(nextItem.genre || '') !== NAP_CAMP_GENRE) {
+      nextItem.genre = NAP_CAMP_GENRE;
+      changed = true;
+    }
+    return nextItem;
+  });
+  return { changed: changed, payload: normalized };
+}
+
+function findNapCampJobGenreRepairCandidates_() {
+  return readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).map(function (job) {
+    if (['queued', 'running'].indexOf(String(job.status || '')) === -1) return null;
+    let payload = {};
+    try {
+      payload = JSON.parse(String(job.query_json || '{}'));
+    } catch (error) {
+      return null;
+    }
+    const normalized = normalizeNapCampJobGenrePayload_(payload);
+    return normalized.changed ? { job: job, payload: normalized.payload } : null;
+  }).filter(Boolean);
+}
+
+function repairNapCampGenres(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const dryRun = input.dryRun !== false && input.dry_run !== false;
+  const startRow = Math.max(Number(input.startRow || input.start_row) || 2, 2);
+  const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 2000, 1), 20000);
+  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 250, 1), 5000);
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
+  const headers = getHeaders_(sheet);
+  const sourceColumn = headers.indexOf('source');
+  const sourceIdColumn = headers.indexOf('source_id');
+  const genreColumn = headers.indexOf('genre');
+  if (sourceColumn === -1 || sourceIdColumn === -1 || genreColumn === -1) {
+    throw new Error('leadsシートにsource、source_id、genre列が必要です。');
+  }
+
+  const lastRow = sheet.getLastRow();
+  if (startRow > lastRow) {
+    return {
+      ok: true,
+      dryRun: dryRun,
+      startRow: startRow,
+      nextRow: startRow,
+      lastRow: lastRow,
+      scanned: 0,
+      eligible: 0,
+      matched: 0,
+      updated: 0,
+      jobsMatched: findNapCampJobGenreRepairCandidates_().length,
+      jobsUpdated: 0,
+      done: true,
+    };
+  }
+
+  const rowCount = Math.min(scanLimit, lastRow - startRow + 1);
+  const sourceValues = sheet.getRange(startRow, sourceColumn + 1, rowCount, 1).getValues();
+  const sourceIdValues = sheet.getRange(startRow, sourceIdColumn + 1, rowCount, 1).getValues();
+  const genreValues = sheet.getRange(startRow, genreColumn + 1, rowCount, 1).getValues();
+  const targetRows = [];
+  let eligible = 0;
+  let lastScannedRow = startRow - 1;
+  for (let index = 0; index < rowCount; index += 1) {
+    const rowNumber = startRow + index;
+    lastScannedRow = rowNumber;
+    const lead = {
+      source: sourceValues[index][0],
+      source_id: sourceIdValues[index][0],
+    };
+    if (!isNapCampSourcePageLead_(lead)) continue;
+    eligible += 1;
+    if (String(genreValues[index][0] || '').trim() === NAP_CAMP_GENRE) continue;
+    targetRows.push(rowNumber);
+    if (targetRows.length >= maxUpdates) break;
+  }
+
+  const jobCandidates = findNapCampJobGenreRepairCandidates_();
+  const baseResult = {
+    ok: true,
+    dryRun: dryRun,
+    startRow: startRow,
+    nextRow: lastScannedRow + 1,
+    lastRow: lastRow,
+    scanned: Math.max(lastScannedRow - startRow + 1, 0),
+    eligible: eligible,
+    matched: targetRows.length,
+    updated: 0,
+    jobsMatched: jobCandidates.length,
+    jobsUpdated: 0,
+    done: lastScannedRow >= lastRow,
+  };
+  if (dryRun) return baseResult;
+
+  return withScriptLock_('repairNapCampGenres', function () {
+    const verifyCount = Math.max(lastScannedRow - startRow + 1, 0);
+    const currentSourceValues = sheet.getRange(startRow, sourceColumn + 1, verifyCount, 1).getValues();
+    const currentSourceIdValues = sheet.getRange(startRow, sourceIdColumn + 1, verifyCount, 1).getValues();
+    const currentGenreValues = sheet.getRange(startRow, genreColumn + 1, verifyCount, 1).getValues();
+    const verifiedRows = [];
+    for (let index = 0; index < verifyCount; index += 1) {
+      if (verifiedRows.length >= maxUpdates) break;
+      if (!isNapCampSourcePageLead_({
+        source: currentSourceValues[index][0],
+        source_id: currentSourceIdValues[index][0],
+      })) continue;
+      if (String(currentGenreValues[index][0] || '').trim() === NAP_CAMP_GENRE) continue;
+      verifiedRows.push(startRow + index);
+    }
+
+    if (verifiedRows.length) {
+      const genreColumnA1 = columnNumberToA1_(genreColumn + 1);
+      sheet.getRangeList(verifiedRows.map(function (rowNumber) {
+        return genreColumnA1 + rowNumber;
+      })).setValue(NAP_CAMP_GENRE);
+      clearRuntimeCaches_('leads');
+    }
+
+    const currentJobCandidates = findNapCampJobGenreRepairCandidates_();
+    currentJobCandidates.forEach(function (candidate) {
+      updateSheetRecord_('search_jobs', candidate.job.id, {
+        query_json: safeJsonStringify_(candidate.payload),
+      });
+    });
+    SpreadsheetApp.flush();
+    return Object.assign({}, baseResult, {
+      updated: verifiedRows.length,
+      jobsUpdated: currentJobCandidates.length,
+    });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+}
+
+function columnNumberToA1_(columnNumber) {
+  let value = Math.max(Number(columnNumber) || 1, 1);
+  let text = '';
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    text = String.fromCharCode(65 + remainder) + text;
+    value = Math.floor((value - 1) / 26);
+  }
+  return text;
+}
+
 function processSourcePageCandidate_(candidate, item, payload, jobId, index, runtimeContext) {
   const sourceUrl = normalizeUrl_(item.source_url || item.url || payload.source_url || candidate.source_url || '');
   const sourceDomain = normalizeDomain_(sourceUrl);
   const sitePreset = String(candidate.source_preset || item.site_preset || payload.site_preset || '').trim();
-  const genre = String(item.genre || payload.genre || '').trim();
+  const genre = resolveSourcePageGenre_(candidate, item, payload);
   const facilityName = String(candidate.facility_name || candidate.text || '').trim() ||
     deriveSearchResultCompanyName_(candidate.official_url || candidate.detail_url || sourceUrl);
   let officialUrl = candidate.official_url || '';

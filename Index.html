@@ -12449,6 +12449,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       const FULL_LEAD_DEFAULT_LIMIT = 100;
       const REVIEW_SESSION_HANDLED_STORAGE_KEY = 'auto-sales-list.review-session-handled.v1';
       const HTTPS_PROTOCOL_PREFIX = 'https:' + String.fromCharCode(47, 47);
+      const NAP_CAMP_GENRE_NAME = 'キャンプ';
       const TEMPLATE_TEST_FIXED_EMAIL = 'yuya1998nu@gmail.com';
       const TEMPLATE_TEST_FIXED_NAME = '村松侑哉';
       let routeProgressTimer = null;
@@ -19368,8 +19369,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                   <button type="button" class="mini-button primary" onclick="setNapCampSourcePreset()">なっぷ全件をセット</button>
                   <span class="pill info">登録済み施設は自動除外</span>
                 </div>
-                <label style="grid-column:1/-1">まとめサイトURL<textarea id="sourcePageUrls" rows="3" required oninput="updateSourcePageEstimate()" placeholder="${HTTPS_PROTOCOL_PREFIX}www.nap-camp.com/list"></textarea></label>
-                <label>追加ジャンル<select id="sourcePageGenre">${collectionGenreOptions(firstGenreName())}</select></label>
+                <label style="grid-column:1/-1">まとめサイトURL<textarea id="sourcePageUrls" rows="3" required oninput="syncSourcePageGenreWithUrl(); updateSourcePageEstimate()" placeholder="${HTTPS_PROTOCOL_PREFIX}www.nap-camp.com/list"></textarea></label>
+                <label>追加ジャンル<select id="sourcePageGenre">${collectionGenreOptions(sourcePageDefaultGenre())}</select><small class="field-hint">なっぷのURLは「キャンプ」に自動固定されます</small></label>
                 <label>1回の処理件数<input id="sourcePageMaxItems" type="number" min="1" max="20" value="10" oninput="updateSourcePageEstimate()"><small class="field-hint">全件収集時はこの件数ずつ分割して進みます</small></label>
                 <label style="grid-column:1/-1">監視ラベル<input id="sourcePageLabel" placeholder="関東グランピング一覧"></label>
                 <label class="check-row" style="grid-column:1/-1"><input id="sourcePageCrawlAll" type="checkbox" onchange="updateSourcePageEstimate()"><span>サイト内の施設を全件候補として分割収集する</span></label>
@@ -19434,6 +19435,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return ((state.genres || [])[0] || {}).name || '介護施設';
       }
 
+      function sourcePageDefaultGenre() {
+        const campGenre = (state.genres || []).find((genre) => genre && genre.name === NAP_CAMP_GENRE_NAME);
+        return campGenre ? campGenre.name : firstGenreName();
+      }
+
       function collectionGenreOptions(selectedName) {
         const genres = state.genres || [];
         if (!genres.length) return '<option value="">ジャンルなし</option>';
@@ -19457,9 +19463,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (crawlAllInput) crawlAllInput.checked = true;
         if (fallbackInput) fallbackInput.checked = true;
         if (genreInput) {
-          const hasCamp = Array.from(genreInput.options || []).some((option) => option.value === 'キャンプ場');
-          if (!hasCamp) genreInput.add(new Option('キャンプ場', 'キャンプ場'));
-          genreInput.value = 'キャンプ場';
+          const hasCamp = Array.from(genreInput.options || []).some((option) => option.value === NAP_CAMP_GENRE_NAME);
+          if (!hasCamp) genreInput.add(new Option(NAP_CAMP_GENRE_NAME, NAP_CAMP_GENRE_NAME));
+          genreInput.value = NAP_CAMP_GENRE_NAME;
         }
         updateSourcePageEstimate();
         message('なっぷ全件収集の条件をセットしました', 'ok');
@@ -19481,6 +19487,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function updateSourcePageEstimate() {
+        syncSourcePageGenreWithUrl();
         const target = document.getElementById('sourcePageEstimate');
         if (!target) return;
         target.innerHTML = renderSourcePageEstimateMarkup(
@@ -19489,6 +19496,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           Boolean(document.getElementById('sourcePageCrawlAll')?.checked),
           Boolean(document.getElementById('sourcePageUseSerperFallback')?.checked),
         );
+      }
+
+      function syncSourcePageGenreWithUrl() {
+        const urls = parseCollectionLines(document.getElementById('sourcePageUrls')?.value || '');
+        if (!urls.some((url) => /nap-camp\.com/i.test(url))) return false;
+        const genreInput = document.getElementById('sourcePageGenre');
+        if (!genreInput) return true;
+        const hasCamp = Array.from(genreInput.options || []).some((option) => option.value === NAP_CAMP_GENRE_NAME);
+        if (!hasCamp) genreInput.add(new Option(NAP_CAMP_GENRE_NAME, NAP_CAMP_GENRE_NAME));
+        genreInput.value = NAP_CAMP_GENRE_NAME;
+        return true;
       }
 
       function buildCollectionQueryPreview(genre, regionsText, suffixesText) {
@@ -19781,11 +19799,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           message('まとめサイトURLを入力してください', 'error');
           return;
         }
-        const genre = document.getElementById('sourcePageGenre').value;
         const label = document.getElementById('sourcePageLabel').value || compactUrl(urls[0]);
         const perRun = Math.min(Math.max(Number(document.getElementById('sourcePageMaxItems').value || 10), 1), 20);
         const crawlAll = Boolean(document.getElementById('sourcePageCrawlAll')?.checked);
         const isNapCamp = urls.some((url) => /nap-camp\.com/i.test(url));
+        const genre = isNapCamp ? NAP_CAMP_GENRE_NAME : document.getElementById('sourcePageGenre').value;
         await runCollectionSearchJob({
           job_type: 'source_page',
           genre,
@@ -19809,14 +19827,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           return;
         }
         const settings = getSourcePageCollectionSettings();
-        const genre = document.getElementById('sourcePageGenre').value;
+        const isNapCamp = /nap-camp\.com/i.test(url);
+        const genre = isNapCamp ? NAP_CAMP_GENRE_NAME : document.getElementById('sourcePageGenre').value;
         const nextSite = {
           enabled: true,
           genre,
           id: `site-${Date.now()}`,
           label: document.getElementById('sourcePageLabel').value || compactUrl(url),
           crawlAll: Boolean(document.getElementById('sourcePageCrawlAll')?.checked),
-          sitePreset: /nap-camp\.com/i.test(url) ? 'nap_camp' : '',
+          sitePreset: isNapCamp ? 'nap_camp' : '',
           updatedAt: new Date().toISOString(),
           url,
         };

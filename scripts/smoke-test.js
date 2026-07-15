@@ -1180,6 +1180,39 @@ assert.strictEqual(deferredSourceLead.created, false);
 assert.strictEqual(deferredSourceLead.deferred, true);
 assert.strictEqual(deferredSourceLead.lockContention, true);
 assert.strictEqual(sourceResultWrites, 0, 'lock contention must keep the candidate cursor for retry');
+assert.strictEqual(sourceLockContext.resolveSourcePageGenre_(
+  { source_preset: 'nap_camp' },
+  { genre: '介護' },
+  { genre: '介護' }
+), 'キャンプ');
+assert.strictEqual(sourceLockContext.resolveSourcePageGenre_(
+  {},
+  { genre: '温泉旅館' },
+  { genre: '介護' }
+), '温泉旅館');
+assert.strictEqual(sourceLockContext.isNapCampSourcePageLead_({ source: 'source_page', source_id: 'nap_camp:tokyo:123' }), true);
+assert.strictEqual(sourceLockContext.isNapCampSourcePageLead_({ source: 'prospecting', source_id: 'nap_camp:tokyo:123' }), false);
+sourceLockContext.nowIso_ = () => '2026-07-15T12:00:00+09:00';
+const normalizedNapInput = sourceLockContext.normalizeSearchJobInput_({
+  job_type: 'source_page',
+  sourceUrl: 'https://www.nap-camp.com/list',
+  genre: '介護',
+});
+assert.strictEqual(normalizedNapInput.site_preset, 'nap_camp');
+assert.strictEqual(normalizedNapInput.genre, 'キャンプ');
+assert.strictEqual(normalizedNapInput.items[0].genre, 'キャンプ');
+const normalizedNapPayload = sourceLockContext.normalizeNapCampJobGenrePayload_({
+  job_type: 'source_page',
+  site_preset: 'nap_camp',
+  genre: '介護',
+  items: [{ site_preset: 'nap_camp', genre: '介護' }],
+});
+assert.strictEqual(normalizedNapPayload.changed, true);
+assert.strictEqual(normalizedNapPayload.payload.genre, 'キャンプ');
+assert.strictEqual(normalizedNapPayload.payload.items[0].genre, 'キャンプ');
+assert.strictEqual(sourceLockContext.columnNumberToA1_(1), 'A');
+assert.strictEqual(sourceLockContext.columnNumberToA1_(26), 'Z');
+assert.strictEqual(sourceLockContext.columnNumberToA1_(27), 'AA');
 
 const searchReviewContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -1307,7 +1340,7 @@ assert.strictEqual(searchMergePatch, null);
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260715_apps_script_full_workflow_v196_lock_contention_recovery'));
+assert(codeSource.includes('20260715_apps_script_full_workflow_v197_nap_camp_genre_repair'));
 assert(codeSource.includes("'filled_count'"));
 assert(codeSource.includes('function createLeadLocked_'));
 assert(codeSource.includes('function findActiveLeadBySourceReference_'));
@@ -1359,6 +1392,8 @@ assert(serperSource.includes("withScriptLock_('recordSerperActiveKeyCreditResult
 assert(serperSource.includes("withScriptLock_('saveSearxngConfig'"));
 assert(serperSource.includes("{ waitMs: 5000, attempts: 1 }"));
 assert(serperSource.includes('lockContention: true'));
+assert(serperSource.includes("const NAP_CAMP_GENRE = 'キャンプ'"));
+assert(serperSource.includes('function repairNapCampGenres'));
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 assert(webAppSource.includes("readAllSheetRecordsByName_('search_jobs'"));
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
@@ -1366,6 +1401,7 @@ assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboar
 assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
 assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
 assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHistories, today)'));
+assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 assert(!indexSource.includes('function importCsv(event)'));
 assert(indexSource.includes('finish();\n            reject(error);'));
@@ -1377,6 +1413,9 @@ assert(indexSource.includes('function saveReviewLeadDecisionWithRetry'));
 assert(indexSource.includes('function isLockTimeoutApiError'));
 assert(indexSource.includes('function enqueueReviewLeadDecisionSave'));
 assert(indexSource.includes('reviewLeadSaveQueue = task.then'));
+assert(indexSource.includes("const NAP_CAMP_GENRE_NAME = 'キャンプ'"));
+assert(indexSource.includes('function syncSourcePageGenreWithUrl'));
+assert(indexSource.includes('function sourcePageDefaultGenre'));
 assert(indexSource.includes('reviewPendingLeadIds'));
 assert(indexSource.includes('pendingJobResultIds'));
 assert(indexSource.includes("item.review_status === 'unconfirmed' || item.review_status === 'adding'"));
@@ -1431,4 +1470,4 @@ assert(serperSource.includes("payload.job_type === 'source_page' ? String(progre
 assert(indexSource.includes('自動復旧して再開'));
 assert(indexSource.includes("api('repairBackgroundJobs'"));
 
-console.log('v196 audit regression tests passed.');
+console.log('v197 audit regression tests passed.');

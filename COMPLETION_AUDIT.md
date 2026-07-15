@@ -5,9 +5,17 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @196 / code v196: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @197 / code v197: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Code version: `20260715_apps_script_full_workflow_v196_lock_contention_recovery`
+- Code version: `20260715_apps_script_full_workflow_v197_nap_camp_genre_repair`
+
+## v197 なっぷ収集のジャンル誤分類修正
+
+- なっぷURL・`nap_camp`プリセット・リード作成直前の3段階で、ジャンルを既存マスターの `キャンプ` に固定。
+- サイト収集画面の初期選択と「なっぷ全件をセット」を `キャンプ` に統一し、URL入力時にも自動補正。
+- 本番ドライランで、なっぷ由来4,629件中1,140件が `介護` と判定されることを確認。
+- Spreadsheetバックアップ `Auto Sales List App DB_backup_20260716_000425` を作成後、対象1,140件と実行中ジョブ1件だけを補正。
+- 補正後の全行ドライランで誤分類0件、画像対象の `星の砂キャンプ場` が `キャンプ` になったことを確認。
 
 ## v196 確認操作のロック競合回復
 

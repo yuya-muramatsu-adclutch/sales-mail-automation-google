@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260715_apps_script_full_workflow_v196_lock_contention_recovery';
+const APP_VERSION = '20260715_apps_script_full_workflow_v197_nap_camp_genre_repair';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
