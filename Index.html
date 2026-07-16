@@ -7010,6 +7010,110 @@
         font-weight: 900;
       }
 
+      .source-page-monitor-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .source-page-monitor-summary span {
+        display: grid;
+        gap: 2px;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+      }
+
+      .source-page-monitor-summary small {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .source-page-monitor-summary strong {
+        color: var(--ink);
+        font-size: 14px;
+      }
+
+      .source-page-monitor-list.detailed {
+        max-height: 520px;
+        overflow: auto;
+        padding-right: 2px;
+      }
+
+      .source-page-monitor-item {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fff;
+      }
+
+      .source-page-monitor-item.good { border-color: #bbf7d0; background: #f0fdf4; }
+      .source-page-monitor-item.info { border-color: #bfdbfe; background: #eff6ff; }
+      .source-page-monitor-item.warn { border-color: #fde68a; background: #fffbeb; }
+      .source-page-monitor-item.bad { border-color: #fecaca; background: #fef2f2; }
+
+      .source-page-monitor-head,
+      .source-page-monitor-meta,
+      .source-page-monitor-title-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      .source-page-monitor-title {
+        display: grid;
+        min-width: 0;
+        gap: 2px;
+        color: var(--ink);
+        text-decoration: none;
+      }
+
+      .source-page-monitor-title strong,
+      .source-page-monitor-title small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .source-page-monitor-title small,
+      .source-page-monitor-meta {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .source-page-monitor-progress {
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+
+      .source-page-monitor-progress i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--blue);
+      }
+
+      .source-page-monitor-item.good .source-page-monitor-progress i { background: #16a34a; }
+      .source-page-monitor-item.warn .source-page-monitor-progress i { background: #d97706; }
+      .source-page-monitor-item.bad .source-page-monitor-progress i { background: #dc2626; }
+
+      .source-page-monitor-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .source-page-monitor-heading h3 { margin: 0; }
+
       .collection-run-button {
         justify-self: start;
       }
@@ -12851,6 +12955,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           templates: false,
           masters: false,
           search: false,
+          sourcePageSites: false,
           reviewLeads: false,
           ops: false,
           gmailAuth: false,
@@ -12873,6 +12978,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         searchUsageTotal: 0,
         searchJobs: [],
         searchJobTotal: 0,
+        sourcePageSiteStatusSummary: {
+          total: 0,
+          completed: 0,
+          running: 0,
+          attention: 0,
+          notStarted: 0,
+          items: [],
+        },
         histories: [],
         historyTotal: 0,
         historyFilter: 'all',
@@ -13542,6 +13655,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           }
           if (name === 'search') {
             renderCollectionCommandCenter(state.serper || {});
+            if (state.activeCollectionTab === 'sourcePage') {
+              await ensureDataLoaded('sourcePageSites', () => loadSourcePageSiteStatuses({ quiet: true }));
+            }
             return;
           }
           if (['backgroundJobs', 'backgroundActivity', 'ops', 'errors', 'sync', 'histories'].includes(name)) {
@@ -13638,6 +13754,29 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!details || !details.open) return;
         state.dataLoaded.search = false;
         await ensureDataLoaded('search', loadSearchResults);
+      }
+
+      async function loadSourcePageSiteStatuses(options) {
+        const config = options || {};
+        const request = config.quiet ? apiQuiet : api;
+        const result = await request('listSourcePageSiteStatuses');
+        state.sourcePageSiteStatusSummary = Object.assign({
+          total: 0,
+          completed: 0,
+          running: 0,
+          attention: 0,
+          notStarted: 0,
+          items: [],
+        }, result || {});
+        state.dataLoaded.sourcePageSites = true;
+        if (state.activeCollectionTab === 'sourcePage') renderCollectionCommandCenter(state.serper || {});
+        return state.sourcePageSiteStatusSummary;
+      }
+
+      async function refreshSourcePageSiteStatuses() {
+        state.dataLoaded.sourcePageSites = false;
+        await ensureDataLoaded('sourcePageSites', () => loadSourcePageSiteStatuses());
+        message('保存済みURLの調査状況を更新しました', 'ok');
       }
 
       async function onGmailDisclosureToggle(details, group) {
@@ -19128,6 +19267,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function setCollectionTab(tab) {
         state.activeCollectionTab = tab || 'overview';
         renderCollectionCommandCenter(state.serper || {});
+        if (state.activeCollectionTab === 'sourcePage') {
+          ensureDataLoaded('sourcePageSites', () => loadSourcePageSiteStatuses({ quiet: true })).catch((error) => {
+            console.warn('Source page site status load skipped:', error && error.message ? error.message : error);
+          });
+        }
         if (state.activeCollectionTab !== 'overview') {
           setTimeout(() => {
             const panel = document.getElementById('collectionFormPanel');
@@ -19351,6 +19495,86 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         `;
       }
 
+      function sourcePageSiteStatusItem(site) {
+        const source = site || {};
+        const items = Array.isArray(state.sourcePageSiteStatusSummary?.items) ? state.sourcePageSiteStatusSummary.items : [];
+        const found = items.find((item) => (source.id && item.id === source.id) || (source.url && item.url === source.url));
+        if (found) return found;
+        return {
+          id: source.id || '',
+          label: source.label || compactUrl(source.url),
+          url: source.url || '',
+          genre: source.genre || source.genreName || '',
+          crawlAll: source.crawlAll === true || source.crawl_all === true,
+          statusKey: 'loading',
+          statusLabel: state.dataLoaded.sourcePageSites ? '未実行' : '状況確認中',
+          tone: '',
+          completed: false,
+          processed: 0,
+          total: 0,
+          percent: 0,
+          completedAt: '',
+          updatedAt: '',
+          savedAt: source.updatedAt || source.updated_at || '',
+          lastError: '',
+        };
+      }
+
+      function sourcePageSiteToneClass(value) {
+        const tone = String(value || '');
+        return ['good', 'info', 'warn', 'bad'].includes(tone) ? tone : '';
+      }
+
+      function renderSourcePageSiteMonitor(sites) {
+        const source = Array.isArray(sites) ? sites : [];
+        if (!source.length) {
+          return '<div class="source-page-monitor-list"><span><strong>まだ保存されていません</strong><em>URLを保存してください</em></span></div>';
+        }
+        const summary = state.sourcePageSiteStatusSummary || {};
+        const loaded = state.dataLoaded.sourcePageSites === true;
+        const summaryMarkup = `
+          <div class="source-page-monitor-summary" aria-label="保存済みURLの調査状況">
+            <span><small>全件調査完了</small><strong>${loaded ? `${formatNumber(summary.completed || 0)} / ${formatNumber(summary.total || source.length)}` : '確認中'}</strong></span>
+            <span><small>調査中</small><strong>${loaded ? `${formatNumber(summary.running || 0)}件` : '-'}</strong></span>
+            <span><small>注意・未実行</small><strong>${loaded ? `${formatNumber(Number(summary.attention || 0) + Number(summary.notStarted || 0))}件` : '-'}</strong></span>
+          </div>
+        `;
+        const rows = source.map((site) => {
+          const item = sourcePageSiteStatusItem(site);
+          const tone = sourcePageSiteToneClass(item.tone);
+          const processed = Math.max(Number(item.processed || 0) || 0, 0);
+          const total = Math.max(Number(item.total || 0) || 0, 0);
+          const percent = Math.max(0, Math.min(100, Number(item.percent || 0) || 0));
+          const progressLabel = total > 0
+            ? `${formatNumber(processed)} / ${formatNumber(total)}件 (${formatNumber(percent)}%)`
+            : (item.completed ? '調査完了' : '処理件数は開始後に表示');
+          const timeValue = item.completedAt || item.updatedAt || item.savedAt;
+          const timeLabel = item.completedAt ? '完了' : (item.updatedAt ? '更新' : '登録');
+          return `
+            <article class="source-page-monitor-item ${escapeHtml(tone)}">
+              <div class="source-page-monitor-head">
+                <a class="source-page-monitor-title" href="${escapeHtml(externalUrl(item.url || site.url))}" target="_blank" rel="noopener">
+                  <strong>${escapeHtml(item.label || site.label || compactUrl(item.url || site.url))}</strong>
+                  <small>${escapeHtml(compactUrl(item.url || site.url))}</small>
+                </a>
+                <span class="pill ${escapeHtml(tone)}">${escapeHtml(item.statusLabel || '未実行')}</span>
+              </div>
+              <div class="source-page-monitor-progress" aria-label="${escapeHtml(progressLabel)}"><i style="width:${percent}%"></i></div>
+              <div class="source-page-monitor-meta">
+                <span>${escapeHtml(item.genre || site.genre || site.genreName || '-')} / ${item.crawlAll ? '全件調査' : '登録URL調査'}</span>
+                <span>${escapeHtml(progressLabel)}</span>
+              </div>
+              <div class="source-page-monitor-meta">
+                <span>${timeValue ? `${escapeHtml(timeLabel)} ${escapeHtml(dateLabel(timeValue) || '-')}` : 'まだ調査していません'}</span>
+                ${item.jobId ? `<span>ID ${escapeHtml(String(item.jobId).slice(0, 8))}</span>` : ''}
+              </div>
+              ${item.lastError ? `<small class="error-text">注意: ${escapeHtml(item.lastError)}</small>` : ''}
+            </article>
+          `;
+        }).join('');
+        return `${summaryMarkup}<div class="source-page-monitor-list detailed">${rows}</div>`;
+      }
+
       function renderSourcePageCollectionPanel(searchReady) {
         const settings = getSourcePageCollectionSettings();
         const sites = Array.isArray(settings.sites) ? settings.sites : [];
@@ -19392,10 +19616,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
                   <span>初回は1チャンクだけ処理し、残りはバックグラウンド進捗と10分ごとの自動実行で続きます。</span>
                 </div>
                 <div id="sourcePageEstimate" class="collection-estimate">${renderSourcePageEstimateMarkup('', 10, false, searchReady)}</div>
-                <h3>保存済みURL</h3>
-                <div class="source-page-monitor-list">
-                  ${sites.length ? sites.slice(0, 6).map((site) => `<span><strong>${escapeHtml(site.label || compactUrl(site.url))}</strong><em>${escapeHtml(site.genre || site.genreName || '-')}</em></span>`).join('') : '<span><strong>まだ保存されていません</strong><em>URLを保存してください</em></span>'}
+                <div class="source-page-monitor-heading">
+                  <h3>保存済みURL</h3>
+                  <button type="button" class="mini-button" onclick="refreshSourcePageSiteStatuses()">${legacyUiIcon('refreshCw')}状況を更新</button>
                 </div>
+                ${renderSourcePageSiteMonitor(sites)}
               </aside>
             </form>
           </section>
@@ -19847,7 +20072,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!saved) return;
         state.settings = (state.settings || []).filter((setting) => setting.key !== 'source_page_prospecting');
         state.settings.push(saved);
+        state.dataLoaded.sourcePageSites = false;
         renderCollectionCommandCenter(state.serper || {});
+        await ensureDataLoaded('sourcePageSites', () => loadSourcePageSiteStatuses({ quiet: true }));
       }
 
       async function runCollectionSearchJob(payload, label) {

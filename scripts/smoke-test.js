@@ -1413,7 +1413,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260716_apps_script_full_workflow_v201_contact_quality'));
+assert(codeSource.includes('20260717_apps_script_full_workflow_v202_source_site_status'));
 assert(codeSource.includes("'filled_count'"));
 assert(codeSource.includes('function createLeadLocked_'));
 assert(codeSource.includes('function findActiveLeadBySourceReference_'));
@@ -1546,5 +1546,63 @@ assert(operationsSource.includes('function recoverStaleSearchJobs_'));
 assert(serperSource.includes("payload.job_type === 'source_page' ? String(progressRecord.cursor_json || job.cursor_json || '') : ''"));
 assert(indexSource.includes('自動復旧して再開'));
 assert(indexSource.includes("api('repairBackgroundJobs'"));
+assert(serperSource.includes('function listSourcePageSiteStatuses'));
+assert(indexSource.includes("request('listSourcePageSiteStatuses'"));
+assert(indexSource.includes('全件調査完了'));
 
-console.log('v201 audit regression tests passed.');
+const sourcePageStatusContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sourcePageStatusContext, { filename: file });
+});
+sourcePageStatusContext.nowIso_ = () => '2026-07-17T00:00:00.000Z';
+sourcePageStatusContext.getSettingValue_ = () => ({
+  sites: [
+    { id: 'nap', label: 'なっぷ', url: 'https://www.nap-camp.com/', genre: 'キャンプ', crawlAll: true },
+    { id: 'running', label: '調査中サイト', url: 'https://example.com/list/', genre: 'キャンプ', crawlAll: true },
+  ],
+});
+sourcePageStatusContext.readAllSheetRecordsByName_ = () => [
+  {
+    id: 'completed-job',
+    job_type: 'source_page',
+    status: 'completed',
+    query_json: JSON.stringify({
+      source_url: 'https://www.nap-camp.com/',
+      crawl_all: true,
+      total_candidates: 5872,
+      items: [{ source_url: 'https://www.nap-camp.com/', crawl_all: true, total_candidates: 5872 }],
+    }),
+    total_count: 1,
+    processed_count: 1,
+    finished_at: '2026-07-16T07:10:13+09:00',
+    updated_at: '2026-07-16T07:10:15+09:00',
+  },
+  {
+    id: 'running-job',
+    job_type: 'source_page',
+    status: 'running',
+    query_json: JSON.stringify({
+      source_url: 'https://example.com/list',
+      crawl_all: true,
+      total_candidates: 1000,
+      items: [{ source_url: 'https://example.com/list', crawl_all: true, total_candidates: 1000 }],
+    }),
+    cursor_json: JSON.stringify({ offset: 124 }),
+    total_count: 1,
+    processed_count: 0,
+    updated_at: '2026-07-17T00:00:00+09:00',
+  },
+];
+const sourcePageStatuses = JSON.parse(JSON.stringify(sourcePageStatusContext.listSourcePageSiteStatuses()));
+assert.strictEqual(sourcePageStatuses.total, 2);
+assert.strictEqual(sourcePageStatuses.completed, 1);
+assert.strictEqual(sourcePageStatuses.running, 1);
+assert.strictEqual(sourcePageStatuses.items[0].statusLabel, '全件調査完了');
+assert.strictEqual(sourcePageStatuses.items[0].processed, 5872);
+assert.strictEqual(sourcePageStatuses.items[0].total, 5872);
+assert.strictEqual(sourcePageStatuses.items[0].percent, 100);
+assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
+assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
+assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
+
+console.log('v202 audit regression tests passed.');

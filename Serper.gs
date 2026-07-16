@@ -1901,6 +1901,211 @@ function normalizeSourcePageComparableUrl_(url) {
     .toLowerCase();
 }
 
+function parseSourcePageJobPayloadForStatus_(job) {
+  try {
+    const parsed = JSON.parse(String(job && job.query_json || '{}'));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function sourcePageJobMatchesSavedUrl_(payload, comparableUrl) {
+  const target = String(comparableUrl || '');
+  if (!target) return false;
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const urls = [source.source_url, source.sourceUrl];
+  const sourceUrls = Array.isArray(source.source_urls)
+    ? source.source_urls
+    : (Array.isArray(source.sourceUrls) ? source.sourceUrls : []);
+  sourceUrls.forEach(function (url) { urls.push(url); });
+  (Array.isArray(source.items) ? source.items : []).forEach(function (item) {
+    const value = item && typeof item === 'object' ? item : {};
+    urls.push(value.source_url || value.sourceUrl || value.url || '');
+  });
+  return urls.some(function (url) {
+    return normalizeSourcePageComparableUrl_(url) === target;
+  });
+}
+
+function sourcePageJobIsFullCrawl_(payload, comparableUrl) {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  if (source.crawl_all === true || source.crawlAll === true || String(source.crawl_all || source.crawlAll || '').toLowerCase() === 'true') {
+    return true;
+  }
+  const target = String(comparableUrl || '');
+  return (Array.isArray(source.items) ? source.items : []).some(function (item) {
+    const value = item && typeof item === 'object' ? item : {};
+    const itemUrl = normalizeSourcePageComparableUrl_(value.source_url || value.sourceUrl || value.url || '');
+    const crawlAll = value.crawl_all === true || value.crawlAll === true || String(value.crawl_all || value.crawlAll || '').toLowerCase() === 'true';
+    return crawlAll && (!target || itemUrl === target);
+  });
+}
+
+function sourcePageJobFacilityTotal_(job, payload, comparableUrl) {
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const target = String(comparableUrl || '');
+  const matchedItem = (Array.isArray(source.items) ? source.items : []).find(function (item) {
+    const value = item && typeof item === 'object' ? item : {};
+    return normalizeSourcePageComparableUrl_(value.source_url || value.sourceUrl || value.url || '') === target;
+  }) || {};
+  const candidates = [
+    matchedItem.total_candidates,
+    matchedItem.totalCandidates,
+    source.total_candidates,
+    source.totalCandidates,
+    job && job.total_count,
+  ];
+  for (let index = 0; index < candidates.length; index += 1) {
+    const numeric = Number(candidates[index]);
+    if (Number.isFinite(numeric) && numeric > 0) return Math.floor(numeric);
+  }
+  return 0;
+}
+
+function sourcePageJobStatusTimestamp_(job) {
+  const value = String(job && (job.updated_at || job.finished_at || job.started_at || job.created_at) || '');
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function buildSourcePageSiteStatus_(site, searchJobs) {
+  const savedSite = site && typeof site === 'object' ? site : {};
+  const comparableUrl = normalizeSourcePageComparableUrl_(savedSite.url || '');
+  const matching = (searchJobs || []).map(function (entry) {
+    if (entry && entry.job && entry.payload) return entry;
+    return {
+      job: entry,
+      payload: parseSourcePageJobPayloadForStatus_(entry),
+    };
+  }).filter(function (entry) {
+    return String(entry.job.job_type || '') === 'source_page' && sourcePageJobMatchesSavedUrl_(entry.payload, comparableUrl);
+  }).sort(function (a, b) {
+    return sourcePageJobStatusTimestamp_(b.job) - sourcePageJobStatusTimestamp_(a.job);
+  });
+
+  const active = matching.find(function (entry) {
+    return ['queued', 'running'].indexOf(String(entry.job.status || '')) !== -1;
+  });
+  const wantsFullCrawl = savedSite.crawlAll === true || savedSite.crawl_all === true || String(savedSite.crawlAll || savedSite.crawl_all || '').toLowerCase() === 'true';
+  const latestFullCrawl = wantsFullCrawl ? matching.find(function (entry) {
+    return sourcePageJobIsFullCrawl_(entry.payload, comparableUrl);
+  }) : null;
+  const selected = active || latestFullCrawl || matching[0] || null;
+
+  const base = {
+    id: String(savedSite.id || ''),
+    label: String(savedSite.label || savedSite.url || ''),
+    url: String(savedSite.url || ''),
+    genre: String(savedSite.genre || savedSite.genreName || ''),
+    enabled: savedSite.enabled !== false,
+    crawlAll: wantsFullCrawl,
+    sitePreset: String(savedSite.sitePreset || savedSite.site_preset || ''),
+    savedAt: String(savedSite.updatedAt || savedSite.updated_at || ''),
+    jobId: '',
+    jobStatus: '',
+    statusKey: 'not_started',
+    statusLabel: '未実行',
+    tone: 'muted',
+    completed: false,
+    processed: 0,
+    total: 0,
+    percent: 0,
+    completedAt: '',
+    updatedAt: '',
+    lastError: '',
+  };
+  if (!selected) return base;
+
+  const job = selected.job;
+  const payload = selected.payload;
+  const jobStatus = String(job.status || '').toLowerCase();
+  const fullCrawl = sourcePageJobIsFullCrawl_(payload, comparableUrl);
+  const total = sourcePageJobFacilityTotal_(job, payload, comparableUrl);
+  let cursor = {};
+  try {
+    cursor = JSON.parse(String(job.cursor_json || '{}')) || {};
+  } catch (error) {
+    cursor = {};
+  }
+  const cursorOffset = Math.max(Number(cursor.offset || 0) || 0, 0);
+  let processed = fullCrawl && total > 0
+    ? (jobStatus === 'completed' ? total : Math.min(cursorOffset, total))
+    : Math.max(Number(job.processed_count || 0) || 0, 0);
+  if (total > 0) processed = Math.min(processed, total);
+  const errorCount = Math.max(Number(job.error_count || 0) || 0, 0);
+  const lastError = String(job.last_error || '').trim();
+  const hasAttention = errorCount > 0 || Boolean(lastError);
+  const completedAt = String(job.finished_at || (jobStatus === 'completed' ? job.updated_at : '') || '');
+  let statusKey = jobStatus || 'attention';
+  let statusLabel = '確認が必要';
+  let tone = 'warn';
+  let completed = false;
+
+  if (jobStatus === 'queued' || jobStatus === 'running') {
+    statusKey = 'running';
+    statusLabel = matching.some(function (entry) { return String(entry.job.status || '') === 'completed'; }) ? '再調査中' : '調査中';
+    tone = 'info';
+  } else if (jobStatus === 'completed' && wantsFullCrawl && !fullCrawl) {
+    statusKey = 'partial_completed';
+    statusLabel = '一部調査完了';
+    tone = 'warn';
+  } else if (jobStatus === 'completed') {
+    completed = true;
+    statusKey = hasAttention ? 'completed_attention' : 'completed';
+    statusLabel = fullCrawl ? '全件調査完了' : '登録URL調査完了';
+    if (hasAttention) statusLabel += '（注意あり）';
+    tone = hasAttention ? 'warn' : 'good';
+  } else if (jobStatus === 'failed' || jobStatus === 'cancelled' || jobStatus === 'canceled') {
+    statusKey = 'failed';
+    statusLabel = jobStatus === 'failed' ? '調査失敗' : '調査中止';
+    tone = 'bad';
+  }
+
+  const percent = total > 0
+    ? Math.max(0, Math.min(100, Math.round((processed / total) * 100)))
+    : (completed ? 100 : 0);
+  return Object.assign(base, {
+    jobId: String(job.id || ''),
+    jobStatus: jobStatus,
+    statusKey: statusKey,
+    statusLabel: statusLabel,
+    tone: tone,
+    completed: completed,
+    processed: processed,
+    total: total,
+    percent: percent,
+    completedAt: completedAt,
+    updatedAt: String(job.updated_at || job.last_heartbeat_at || job.created_at || ''),
+    lastError: lastError,
+  });
+}
+
+function listSourcePageSiteStatuses() {
+  const setting = getSettingValue_('source_page_prospecting', { sites: [] }) || {};
+  const sites = Array.isArray(setting.sites) ? setting.sites.filter(function (site) {
+    return site && site.url;
+  }) : [];
+  const searchJobs = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true });
+  const parsedSearchJobs = searchJobs.map(function (job) {
+    return { job: job, payload: parseSourcePageJobPayloadForStatus_(job) };
+  });
+  const items = sites.map(function (site) {
+    return buildSourcePageSiteStatus_(site, parsedSearchJobs);
+  });
+  return {
+    total: items.length,
+    completed: items.filter(function (item) { return item.completed; }).length,
+    running: items.filter(function (item) { return item.statusKey === 'running'; }).length,
+    attention: items.filter(function (item) {
+      return ['completed_attention', 'partial_completed', 'failed', 'attention'].indexOf(item.statusKey) !== -1;
+    }).length,
+    notStarted: items.filter(function (item) { return item.statusKey === 'not_started'; }).length,
+    generatedAt: nowIso_(),
+    items: items,
+  };
+}
+
 function appendSourcePageResult_(jobId, result) {
   return appendSheetRecord_('search_results', {
     job_id: jobId || '',
