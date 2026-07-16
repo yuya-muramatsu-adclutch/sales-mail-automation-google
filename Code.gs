@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260717_apps_script_full_workflow_v204_full_auto_mail_trigger';
+const APP_VERSION = '20260717_apps_script_full_workflow_v205_has_contact_email_filter';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -798,6 +798,7 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   const deal = dealStatus !== '未設定' || DEAL_STATUSES.indexOf(status) !== -1;
 
   if (value === 'email') return isEmailSendTarget_(lead, masterContext);
+  if (value === 'has_email') return isValidEmailAddress_(lead.email);
   if (value === 'form') return isFormSendTarget_(lead, masterContext);
   if (value === 'form_all') return isFormOutreachLead_(lead);
   if (value === 'excluded') return sendNg || SEND_EXCLUDED_STATUSES.indexOf(status) !== -1;
@@ -2090,7 +2091,7 @@ function normalizeListOptions_(options) {
   const filter = String(input.filter || 'all').trim() || 'all';
   const formStatus = String(input.formStatus || input.form_status || '').trim();
   const sort = String(input.sort || 'updated_desc').trim() || 'updated_desc';
-  const allowedFilters = ['all', 'email', 'form', 'form_all', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'];
+  const allowedFilters = ['all', 'email', 'has_email', 'form', 'form_all', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'];
   const allowedSorts = ['updated_desc', 'created_desc', 'company_asc', 'status_asc', 'last_sent_desc'];
 
   if (status && LEAD_STATUSES.indexOf(status) === -1) {

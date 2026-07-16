@@ -934,6 +934,8 @@ candidateContext.ensureSheet_ = () => ({});
 candidateContext.buildMasterBlockContext_ = () => ({});
 candidateContext.isArchivedLead_ = (lead) => Boolean(lead.archived_at);
 candidateContext.isEmailSendTarget_ = (lead) => Boolean(lead.sendable);
+candidateContext.isValidEmailAddress_ = (email) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email || ''));
+candidateContext.normalizeBooleanLike_ = (value) => value === true;
 candidateContext.readSheetRecords_ = () => [
   { id: 'other-genre', email: 'other@example.com', genre: '医療', sendable: true, updated_at: '2026-07-15T00:04:00Z' },
   { id: 'duplicate-old', email: 'same@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-07-15T00:01:00Z' },
@@ -944,6 +946,9 @@ candidateContext.readSheetRecords_ = () => [
 const emailCandidates = candidateContext.listEmailSendCandidates({ genre: 'キャンプ', limit: 100 });
 assert.strictEqual(emailCandidates.total, 2);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(emailCandidates.items.map((lead) => lead.id))), ['duplicate-new', 'unique']);
+assert.strictEqual(candidateContext.matchesLeadListFilter_({ email: 'contact@example.com' }, 'has_email', {}), true);
+assert.strictEqual(candidateContext.matchesLeadListFilter_({ email: 'not-an-email' }, 'has_email', {}), false);
+assert.strictEqual(candidateContext.normalizeListOptions_({ filter: 'has_email' }).filter, 'has_email');
 
 const scheduledCandidateContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), scheduledCandidateContext, { filename: 'Code.gs' });
@@ -1520,7 +1525,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260717_apps_script_full_workflow_v204_full_auto_mail_trigger'));
+assert(codeSource.includes('20260717_apps_script_full_workflow_v205_has_contact_email_filter'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
 assert(codeSource.includes("'filled_count'"));
@@ -1718,4 +1723,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v204 full automatic mail regression tests passed.');
+console.log('v205 contact email filter regression tests passed.');

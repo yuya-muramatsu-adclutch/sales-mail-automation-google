@@ -11611,6 +11611,7 @@
             <label>検索<input id="leadSearch" type="search" placeholder="会社名、屋号、メール、URL"></label>
             <label>ビュー<select id="leadQuickFilter">
               <option value="all">すべて</option>
+              <option value="has_email">連絡先メールあり</option>
               <option value="email">メール対象</option>
               <option value="form">フォーム対象</option>
               <option value="review">確認待ち</option>
@@ -12639,6 +12640,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           label: '作業',
           views: [
             ['all', 'すべて'],
+            ['has_email', '連絡先メールあり'],
             ['email', 'メール対象'],
             ['form', 'フォーム対象'],
             ['review', '確認待ち'],
