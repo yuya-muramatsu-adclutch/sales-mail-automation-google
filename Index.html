@@ -11738,7 +11738,7 @@
                       <option value="初回メール">初回メール</option>
                       <option value="2ヶ月後メール">2ヶ月後メール</option>
                     </select></label>
-                    <label>送信者名<input id="leadSenderName"></label>
+                    <label>送信者名<input id="leadSenderName" value="【Ad Clutch】村松 侑哉"></label>
                     <button type="submit" class="blue">送信</button>
                   </form>
                 </div>
@@ -11778,7 +11778,7 @@
           <section id="templateSenderBanner" class="template-sender-banner">
             <div>
               <span>Gmail送信時の差出人名</span>
-              <strong id="templateSenderName">営業担当</strong>
+              <strong id="templateSenderName">【Ad Clutch】村松 侑哉</strong>
             </div>
             <small class="muted template-sender-note">初回メール・テスト送信に反映</small>
           </section>
@@ -12556,6 +12556,20 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       const NAP_CAMP_GENRE_NAME = 'キャンプ';
       const TEMPLATE_TEST_FIXED_EMAIL = 'yuya1998nu@gmail.com';
       const TEMPLATE_TEST_FIXED_NAME = '村松侑哉';
+      const DEFAULT_GMAIL_SENDER_NAME = '【Ad Clutch】村松 侑哉';
+
+      function gmailSenderNameClient() {
+        const configured = String(getClientSetting('gmail_sender_name', DEFAULT_GMAIL_SENDER_NAME) || '').trim();
+        return configured || DEFAULT_GMAIL_SENDER_NAME;
+      }
+
+      function syncGmailSenderNameUi() {
+        const senderName = gmailSenderNameClient();
+        const templateSender = document.getElementById('templateSenderName');
+        if (templateSender) templateSender.textContent = senderName;
+        const leadSender = document.getElementById('leadSenderName');
+        if (leadSender && !String(leadSender.value || '').trim()) leadSender.value = senderName;
+      }
       let routeProgressTimer = null;
       let leadLoadProgressTimer = null;
       let messageClearTimer = null;
@@ -13468,6 +13482,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.app = initial.app;
           state.enums = initial.enums;
           state.settings = initial.settings || [];
+          syncGmailSenderNameUi();
           state.genreMasters = initial.genreMasters || initial.genres || [];
           state.reasons = initial.reasons || [];
           state.customFieldDefinitions = initial.customFieldDefinitions || [];
@@ -13547,6 +13562,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.genreMasters = result.genreMasters || result.genres || [];
         state.reasons = result.reasons || [];
         state.settings = result.settings || [];
+        syncGmailSenderNameUi();
         state.customFieldDefinitions = result.customFieldDefinitions || [];
         state.listViewSettings = result.listViewSettings || [];
         state.schemaStatus = result.schemaStatus || null;
@@ -15877,6 +15893,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('leadAddress').value = lead.address || '';
         document.getElementById('leadContact').value = lead.contact_name || '';
         document.getElementById('leadNotes').value = lead.notes || '';
+        document.getElementById('leadSenderName').value = gmailSenderNameClient();
         document.getElementById('meetingStart').value = toDatetimeLocalValue(lead.meeting_start_at);
         document.getElementById('meetingEnd').value = toDatetimeLocalValue(lead.meeting_end_at);
         document.getElementById('meetingLocation').value = lead.address || '';
@@ -15901,6 +15918,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('leadSendForm').reset();
         document.getElementById('leadCalendarForm').reset();
         document.getElementById('leadId').value = '';
+        document.getElementById('leadSenderName').value = gmailSenderNameClient();
         renderLeadStatusControlPanel(null);
         renderLeadCalendarMeta(null);
         renderLeadHistoryPanel(null, [], false);
@@ -16592,6 +16610,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderTemplates() {
+        syncGmailSenderNameUi();
         renderTemplateSafetyPanel();
         const rows = state.templates.map((template) => row([
           ['名称', `<strong>${escapeHtml(template.name)}</strong><br><small class="muted">${escapeHtml(template.subject || '')}</small>`],
@@ -17796,8 +17815,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           'フォームURL': lead?.form_url || '',
           address: lead?.address || '',
           '住所': lead?.address || '',
-          sender_name: document.getElementById('leadSenderName') ? document.getElementById('leadSenderName').value || '営業担当' : '営業担当',
-          '差出人名': document.getElementById('leadSenderName') ? document.getElementById('leadSenderName').value || '営業担当' : '営業担当',
+          sender_name: document.getElementById('leadSenderName') ? document.getElementById('leadSenderName').value || gmailSenderNameClient() : gmailSenderNameClient(),
+          '差出人名': document.getElementById('leadSenderName') ? document.getElementById('leadSenderName').value || gmailSenderNameClient() : gmailSenderNameClient(),
         };
         Object.keys(customFields || {}).forEach((key) => {
           if (values[key] === undefined) values[key] = customFields[key];
@@ -21541,7 +21560,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
         if (!confirm(`${lead.company_name || lead.facility_name || lead.email}へプレビュー内容で1件送信しますか。`)) return;
         try {
-          const result = await api('sendLeadEmail', leadId, templateId, { send_type: '初回メール', sender_name: '営業担当' });
+          const result = await api('sendLeadEmail', leadId, templateId, { send_type: '初回メール', sender_name: gmailSenderNameClient() });
           await refreshAll();
           const warning = String(result.warning || '').trim();
           message(
@@ -21605,7 +21624,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         let failed = 0;
         let detail = '';
         try {
-          const result = await api('sendLeadEmailBatch', sendTargets.map((lead) => lead.id), template.id, { send_type: '初回メール', sender_name: '営業担当' });
+          const result = await api('sendLeadEmailBatch', sendTargets.map((lead) => lead.id), template.id, { send_type: '初回メール', sender_name: gmailSenderNameClient() });
           success = Number(result.success || 0);
           failed = Number(result.failed || 0);
           const issues = (result.results || [])
@@ -22869,7 +22888,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div><span>最新テスト</span><strong>${escapeHtml(latest ? dateTimeLabel(latest.sent_at || latest.created_at) || '-' : '-')}</strong><small>${escapeHtml(latest ? latest.template_name || latest.subject || '-' : 'まだテスト送信がありません')}</small></div>
             <div><span>成功</span><strong>${formatNumber(success)}</strong><span class="pill ${success ? 'good' : ''}">${success ? 'OK' : '未実施'}</span></div>
             <div><span>失敗</span><strong>${formatNumber(failed)}</strong><span class="pill ${failed ? 'bad' : 'good'}">${failed ? '要確認' : 'なし'}</span></div>
-            <div><span>最新宛先</span><strong>${escapeHtml(latest ? latest.to_email || '-' : '-')}</strong><small>${escapeHtml(latest ? latest.sender_name || '営業担当' : 'テンプレート画面から実行')}</small></div>
+            <div><span>最新宛先</span><strong>${escapeHtml(latest ? latest.to_email || '-' : '-')}</strong><small>${escapeHtml(latest ? latest.sender_name || gmailSenderNameClient() : 'テンプレート画面から実行')}</small></div>
           </div>
           ${histories.length ? `
             <div class="table-wrap">
@@ -23024,7 +23043,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <div class="api-key-summary">
             ${legacyUiIcon('mailCheck')}
             <div>
-              <strong>差出人名: 営業担当</strong>
+              <strong>差出人名: ${escapeHtml(gmailSenderNameClient())}</strong>
               <span>現在の参照元: Apps Script承認 + PropertiesService。秘密項目はシート/HTMLへ出しません。</span>
             </div>
             ${auth.authorizationUrl ? `<a class="button-link primary" href="${escapeHtml(auth.authorizationUrl)}" target="_blank" rel="noopener">${legacyUiIcon('keyRound')}Google認可</a>` : `<button type="button" class="icon-text-button" onclick="refreshGmailAuthorizationStatus()">${legacyUiIcon('refreshCw')}承認確認</button>`}

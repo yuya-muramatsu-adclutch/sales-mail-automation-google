@@ -1,6 +1,19 @@
 const TEMPLATE_TEST_FIXED_EMAIL_ = 'yuya1998nu@gmail.com';
 const TEMPLATE_TEST_FIXED_NAME_ = '村松侑哉';
 const PRODUCTION_SEND_RESERVED_RESULT_ = '送信中';
+const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉';
+
+function getDefaultGmailSenderName_() {
+  const configured = String(getSettingValue_('gmail_sender_name', DEFAULT_GMAIL_SENDER_NAME_) || '').trim();
+  return (configured || DEFAULT_GMAIL_SENDER_NAME_).slice(0, 100);
+}
+
+function resolveGmailSenderName_(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const requested = String(source.sender_name || source.senderName || '').trim();
+  if (!requested || requested === '営業担当') return getDefaultGmailSenderName_();
+  return requested.slice(0, 100);
+}
 
 function getEmailSendTargetBlockReason_(lead, masterContext) {
   if (!lead || isArchivedLead_(lead)) return '営業対象外のため送信できません。';
@@ -117,7 +130,7 @@ function prepareLeadEmailSend_(leadId, templateId, input, requireSendWindow) {
     safety: context.mailSendSafety,
   });
 
-  const senderName = input.sender_name || input.senderName || '';
+  const senderName = resolveGmailSenderName_(input);
   const sendType = input.send_type || input.sendType || '初回メール';
   const rendered = renderTemplateForLead_(template, lead, {
     sender_name: senderName,
@@ -447,14 +460,14 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
     contact_name: TEMPLATE_TEST_FIXED_NAME_,
     email: fixedToEmail,
   });
+  const senderName = resolveGmailSenderName_(sampleLead);
   const rendered = renderTemplateForLead_(template, sampleLead, {
-    sender_name: sampleLead.sender_name || sampleLead.senderName || '営業担当',
-    '差出人名': sampleLead.sender_name || sampleLead.senderName || '営業担当',
+    sender_name: senderName,
+    '差出人名': senderName,
   });
 
   const sentAt = nowIso_();
   const subject = '[テスト] ' + rendered.subject;
-  const senderName = sampleLead.sender_name || sampleLead.senderName || '営業担当';
   const reservation = withScriptLock_('sendTestEmail:prepare', function () {
     assertEmailSendLimitAvailable_();
     return appendSheetRecord_('send_histories', {

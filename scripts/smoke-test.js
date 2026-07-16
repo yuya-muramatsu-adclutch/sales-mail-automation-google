@@ -64,6 +64,7 @@ unlockedMailContext.withScriptLock_ = (operation, callback, options) => {
     unlockedMailDepth -= 1;
   }
 };
+unlockedMailContext.getSettingValue_ = (_key, fallback) => fallback;
 unlockedMailContext.assertProductionMailDeliveryAllowed_ = () => { deliveryCheckDepths.push(unlockedMailDepth); };
 unlockedMailContext.getLeadById = () => ({ id: 'lead-unlocked', email: 'safe@example.net', genre: 'キャンプ', send_count: 0 });
 unlockedMailContext.findSheetRecordById_ = () => ({ id: 'template-unlocked', template_type: 'initial', is_production: true, active: true, genre: 'キャンプ', subject: 'Subject', body: 'Body' });
@@ -78,7 +79,10 @@ unlockedMailContext.nowIso_ = () => '2026-07-15T01:00:00.000Z';
 unlockedMailContext.todayText_ = () => '2026-07-15';
 unlockedMailContext.appendSheetRecord_ = (_sheet, record) => Object.assign({ id: 'reservation-unlocked' }, record);
 unlockedMailContext.MailApp = {
-  sendEmail: () => { assert.strictEqual(unlockedMailDepth, 0, 'MailApp.sendEmail must run outside the script lock'); },
+  sendEmail: (payload) => {
+    assert.strictEqual(unlockedMailDepth, 0, 'MailApp.sendEmail must run outside the script lock');
+    assert.strictEqual(payload.name, '【Ad Clutch】村松 侑哉');
+  },
 };
 unlockedMailContext.updateSheetRecord_ = (_sheet, _id, patch) => {
   assert.strictEqual(unlockedMailDepth, 1);
@@ -190,6 +194,11 @@ assert.strictEqual(pagedActiveRecords.items.length, 1000);
 assert.strictEqual(context.readAllSheetRecordsByName_('ng_masters', { includeInactive: true }).length, 1002);
 const usageFixture = Array.from({ length: 1002 }, () => ({ created_at: '2026-07-15T00:00:00.000Z', credits: 1 }));
 assert.strictEqual(context.getSerperUsageCount_({ day: '2026-07-15' }, usageFixture), 1002);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(context.normalizeSettingForSave_('gmail_sender_name', ' 【Ad Clutch】村松 侑哉 ', 'string'))),
+  { key: 'gmail_sender_name', value: '【Ad Clutch】村松 侑哉', valueType: 'string' }
+);
+assert.throws(() => context.normalizeSettingForSave_('gmail_sender_name', '', 'string'), /is required/);
 
 let dashboardCacheUpdate = null;
 context.readAllSheetRecordsByName_ = () => [
@@ -1056,6 +1065,9 @@ testMailContext.withScriptLock_ = (operation, callback, options) => {
   }
 };
 testMailContext.findSheetRecordById_ = () => ({ id: 'template-test', name: 'Test', subject: 'Subject', body: 'Body' });
+testMailContext.getSettingValue_ = (_key, fallback) => fallback;
+assert.strictEqual(testMailContext.resolveGmailSenderName_({}), '【Ad Clutch】村松 侑哉');
+assert.strictEqual(testMailContext.resolveGmailSenderName_({ sender_name: '営業担当' }), '【Ad Clutch】村松 侑哉');
 testMailContext.isValidEmailAddress_ = () => true;
 testMailContext.renderTemplateForLead_ = () => ({ subject: 'Subject', body: 'Body', htmlBody: '<p>Body</p>' });
 testMailContext.nowIso_ = () => '2026-07-15T12:00:00+09:00';
@@ -1063,9 +1075,13 @@ testMailContext.assertEmailSendLimitAvailable_ = () => { assert.strictEqual(test
 testMailContext.appendSheetRecord_ = (_sheet, record) => {
   assert.strictEqual(testMailLockDepth, 1);
   assert.strictEqual(record.send_result, '送信中');
+  assert.strictEqual(record.sender_name, '【Ad Clutch】村松 侑哉');
   return Object.assign({ id: 'test-reservation' }, record);
 };
-testMailContext.MailApp = { sendEmail: () => { assert.strictEqual(testMailLockDepth, 0); } };
+testMailContext.MailApp = { sendEmail: (payload) => {
+  assert.strictEqual(testMailLockDepth, 0);
+  assert.strictEqual(payload.name, '【Ad Clutch】村松 侑哉');
+} };
 testMailContext.updateSheetRecord_ = (_sheet, _id, patch) => {
   assert.strictEqual(testMailLockDepth, 1);
   return Object.assign({ id: 'updated' }, patch);
@@ -1413,7 +1429,9 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260717_apps_script_full_workflow_v202_source_site_status'));
+assert(codeSource.includes('20260717_apps_script_full_workflow_v203_gmail_sender_name'));
+assert(codeSource.includes("key: 'gmail_sender_name'"));
+assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
 assert(codeSource.includes("'filled_count'"));
 assert(codeSource.includes('function createLeadLocked_'));
 assert(codeSource.includes('function findActiveLeadBySourceReference_'));
@@ -1549,6 +1567,7 @@ assert(indexSource.includes("api('repairBackgroundJobs'"));
 assert(serperSource.includes('function listSourcePageSiteStatuses'));
 assert(indexSource.includes("request('listSourcePageSiteStatuses'"));
 assert(indexSource.includes('全件調査完了'));
+assert(indexSource.includes("const DEFAULT_GMAIL_SENDER_NAME = '【Ad Clutch】村松 侑哉'"));
 
 const sourcePageStatusContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -1605,4 +1624,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v202 audit regression tests passed.');
+console.log('v203 audit regression tests passed.');

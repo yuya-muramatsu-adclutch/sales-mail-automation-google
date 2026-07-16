@@ -199,6 +199,9 @@ function setSettingValue(key, value, valueType, description) {
 
 function normalizeSettingForSave_(key, value, valueType) {
   const settingKey = String(key || '').trim();
+  const stringRules = {
+    gmail_sender_name: { maxLength: 100 },
+  };
   const numberRules = {
     gmail_daily_send_limit: { min: 1, max: 80 },
     email_batch_send_limit: { min: 1, max: 20 },
@@ -213,6 +216,14 @@ function normalizeSettingForSave_(key, value, valueType) {
     'source_page_prospecting',
     'email_discovery',
   ];
+  if (stringRules[settingKey]) {
+    const textValue = String(value || '').trim();
+    const rule = stringRules[settingKey];
+    if (!textValue) throw new Error(settingKey + ' is required.');
+    if (textValue.length > rule.maxLength) throw new Error(settingKey + ' must be ' + rule.maxLength + ' characters or fewer.');
+    if (valueType && String(valueType) !== 'string') throw new Error(settingKey + ' must use string value_type.');
+    return { key: settingKey, value: textValue, valueType: 'string' };
+  }
   if (numberRules[settingKey]) {
     const numberValue = Number(value);
     const rule = numberRules[settingKey];

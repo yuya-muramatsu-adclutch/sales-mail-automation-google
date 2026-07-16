@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260717_apps_script_full_workflow_v202_source_site_status';
+const APP_VERSION = '20260717_apps_script_full_workflow_v203_gmail_sender_name';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -358,6 +358,12 @@ const DEFAULT_REASONS = Object.freeze([
 ]);
 
 const DEFAULT_SETTINGS = Object.freeze([
+  {
+    key: 'gmail_sender_name',
+    value: '【Ad Clutch】村松 侑哉',
+    value_type: 'string',
+    description: 'Display name used for Gmail messages sent by this app.',
+  },
   {
     key: 'gmail_daily_send_limit',
     value: '80',
