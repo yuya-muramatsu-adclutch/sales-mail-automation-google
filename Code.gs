@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260717_apps_script_full_workflow_v203_gmail_sender_name';
+const APP_VERSION = '20260717_apps_script_full_workflow_v204_full_auto_mail_trigger';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -543,7 +543,7 @@ function getSchemaStatus() {
       key: 'settings-core',
       label: 'settings 運用設定キー',
       sheet: 'settings',
-      settingKeys: ['gmail_daily_send_limit', 'email_batch_send_limit', 'email_send_window', 'mail_sending_control', 'gmail_reply_check', 'calendar_auto_create', 'batch_runtime_budget_ms'],
+      settingKeys: ['gmail_sender_name', 'gmail_daily_send_limit', 'email_batch_send_limit', 'email_send_window', 'mail_sending_control', 'gmail_reply_check', 'calendar_auto_create', 'batch_runtime_budget_ms'],
     },
   ];
   const checks = schemaChecks.map(function (check) {

@@ -1811,6 +1811,22 @@ function ensureReplyCheckTrigger_() {
   });
 }
 
+function ensureAutomaticMailTrigger_() {
+  return ensureSingleProjectTrigger_('runScheduledEmailBatch', function () {
+    return ScriptApp.newTrigger('runScheduledEmailBatch').timeBased().everyMinutes(10).create();
+  });
+}
+
+function getProjectTriggerHandlerCount_(handler) {
+  try {
+    return ScriptApp.getProjectTriggers().filter(function (trigger) {
+      return trigger.getHandlerFunction() === handler;
+    }).length;
+  } catch (error) {
+    return 0;
+  }
+}
+
 function ensureSingleProjectTrigger_(handler, createTrigger) {
   const existing = ScriptApp.getProjectTriggers();
   const matches = existing.filter(function (trigger) {
@@ -1834,7 +1850,8 @@ function ensureSingleProjectTrigger_(handler, createTrigger) {
 
 function installDefaultTriggers() {
   return withScriptLock_('installDefaultTriggers', function () {
-    const ensured = [ensureBackgroundJobTrigger_(), ensureReplyCheckTrigger_()];
+    const ensured = [ensureBackgroundJobTrigger_(), ensureReplyCheckTrigger_(), ensureAutomaticMailTrigger_()];
+    clearRuntimeCaches_('triggers');
     return {
       ok: true,
       ensured: ensured,

@@ -339,6 +339,7 @@ function getDashboardStats(options) {
   const serperInfo = getSerperApiKeyInfo();
   const serperLimits = serperInfo.limits || {};
   const triggerCount = getProjectTriggerCount_();
+  const automaticMailTriggerCount = getProjectTriggerHandlerCount_('runScheduledEmailBatch');
   const gasUsage = buildConsumerGasUsageStatus_({
     mailQuotaRemaining: mailQuota.remaining,
     sentToday: sentToday,
@@ -396,6 +397,10 @@ function getDashboardStats(options) {
     lost: listStats.lost,
     reviewTargets: listStats.reviewPending,
     sentToday: sentToday,
+    pendingSendReservations: pendingSendReservations.count,
+    stalePendingSendReservations: pendingSendReservations.staleCount,
+    oldestPendingSendReservationAt: pendingSendReservations.oldestAt,
+    sendTrackingMismatchCount: sendTrackingMismatchCount,
     serperToday: serperToday,
     serperMonth: serperMonth,
     productionTemplates: templates.filter(function (template) { return normalizeBooleanLike_(template.is_production); }).length,
@@ -444,6 +449,8 @@ function getDashboardStats(options) {
       triggers: triggerCount > 0,
     },
     triggerCount: triggerCount,
+    automaticMailTriggerCount: automaticMailTriggerCount,
+    automaticMailTriggerInstalled: automaticMailTriggerCount > 0,
     gasUsage: gasUsage,
     thisMonth: thisMonth,
     analytics: buildAnalyticsSnapshot_(leads, sendHistories, today),
@@ -873,6 +880,8 @@ function buildStartupDashboardPlaceholder_() {
       triggers: triggerCount > 0,
     },
     triggerCount: triggerCount,
+    automaticMailTriggerCount: 0,
+    automaticMailTriggerInstalled: false,
     gasUsage: buildConsumerGasUsageStatus_({
       mailQuotaRemaining: 100,
       sentToday: 0,

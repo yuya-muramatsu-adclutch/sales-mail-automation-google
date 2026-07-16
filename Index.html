@@ -13315,6 +13315,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const serperCreditPercentKnown = serperCreditPercentRaw !== '' && serperCreditPercentRaw !== null && serperCreditPercentRaw !== undefined && Number.isFinite(serperCreditPercent);
         const serperCreditThreshold = Number(data.serperCreditAlertThresholdPercent || 20);
         const issues = [];
+        if (!data.startupPlaceholder && mailControlEnabled && data.automaticMailTriggerInstalled !== true) {
+          issues.push({
+            icon: 'timerReset',
+            label: '完全自動送信',
+            value: '未設定',
+            tone: 'bad',
+            headline: '自動送信トリガーがありません',
+            detail: '管理画面の「定期トリガー作成」を実行してください。',
+          });
+        }
         const staleReservations = Number(data.stalePendingSendReservations || 0);
         if (staleReservations > 0) {
           issues.push({
@@ -20735,7 +20745,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           { icon: 'mailCheck', label: 'Gmail', ready: integrations.gmail !== false, detail: `残り ${formatNumber(dashboard.mailQuotaRemaining || 0)}件`, status: integrations.gmail !== false ? 'OK' : '未設定' },
           { icon: 'calendarCheck', label: 'Calendar', ready: integrations.calendar !== false, detail: '商談作成', status: integrations.calendar !== false ? 'OK' : '未設定' },
           { icon: 'searchCheck', label: 'Serper', ready: Boolean(dashboard.serperConfigured), detail: dashboard.serperKeyMask || '未設定', status: dashboard.serperConfigured ? 'OK' : '未設定' },
-          { icon: 'shieldCheck', label: '時間主導トリガー', ready: Boolean(dashboard.triggerCount), detail: `${formatNumber(dashboard.triggerCount || 0)}件`, status: dashboard.triggerCount ? 'OK' : '未設定' },
+          { icon: 'shieldCheck', label: '時間主導トリガー', ready: dashboard.automaticMailTriggerInstalled === true, detail: `全${formatNumber(dashboard.triggerCount || 0)}件 / 自動送信${formatNumber(dashboard.automaticMailTriggerCount || 0)}件`, status: dashboard.automaticMailTriggerInstalled === true ? '完全自動' : '未設定' },
           { icon: 'clock3', label: '送信時間', ready: sendWindow.enabled !== false, detail: sendWindowDetail, status: sendWindow.enabled === false ? '制限OFF' : 'ON' },
           { icon: 'settings', label: 'Calendar自動登録', ready: Boolean(calendarAuto.enabled), detail: calendarAuto.enabled ? 'ON' : 'OFF', status: calendarAuto.enabled ? 'ON' : 'OFF', tone: calendarAuto.enabled ? 'good' : 'info' },
           { icon: 'mailCheck', label: '返信自動チェック', ready: Boolean(replyCheck.enabled), detail: replyCheck.enabled ? `ON / 最大${formatNumber(replyCheck.maxThreads || 200)}スレッド` : 'OFF', status: replyCheck.enabled ? 'ON' : 'OFF', tone: replyCheck.enabled ? 'good' : 'info' },
@@ -23115,7 +23125,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <details class="admin-inner-disclosure">
               <summary><span>自動送信時間</span><small>${sendWindow.enabled !== false ? 'ON' : 'OFF'}</small></summary>
               <div class="admin-detail-body">
-                ${automationCardHeader('clock3', '自動送信時間', '手動の1件送信ではなく、まとめ送信時の安全窓です。', `<span class="pill ${sendWindow.enabled !== false ? 'good' : 'warn'}">${sendWindow.enabled !== false ? 'ON' : 'OFF'}</span>`)}
+                ${automationCardHeader('clock3', '自動送信時間', '完全自動送信トリガーが10分ごとに確認し、この時間帯だけ送信します。', `<span class="pill ${sendWindow.enabled !== false ? 'good' : 'warn'}">${sendWindow.enabled !== false ? 'ON' : 'OFF'}</span>`)}
                 <label class="check-row"><input id="adminSendWindowEnabled" type="checkbox" ${sendWindow.enabled !== false ? 'checked' : ''}><span>この時間帯だけ自動送信を許可する</span></label>
                 <div class="setting-inline-controls">
                   <label>開始<input id="adminSendWindowStart" type="time" value="${escapeHtml(sendWindow.start || '07:00')}"></label>
@@ -24219,7 +24229,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['営業リスト送信候補', emailCandidates.length > 0, `${formatNumber(emailCandidates.length)}件`],
           ['本番送信候補', initialTargets.length > 0, `${formatNumber(initialTargets.length)}件`],
           ['検索API', Boolean(dashboard.searchConfigured), dashboard.searxngConfigured ? 'SearXNGメイン' : (dashboard.serperKeyMask || '未設定')],
-          ['時間主導トリガー', Boolean(dashboard.triggerCount), `${formatNumber(dashboard.triggerCount || 0)}件`],
+          ['完全自動送信トリガー', dashboard.automaticMailTriggerInstalled === true, `全${formatNumber(dashboard.triggerCount || 0)}件 / 自動送信${formatNumber(dashboard.automaticMailTriggerCount || 0)}件`],
           ['Gmail返信自動チェック', Boolean(replyCheck.enabled), replyCheck.enabled ? `最大 ${formatNumber(replyCheck.maxThreads || 200)}スレッド` : 'OFF'],
           ['Calendar連携', integrations.calendar !== false, calendarAuto.enabled ? '自動登録ON' : '手動登録モード'],
           ['失敗ジョブ', (dashboard.failedJobs || 0) === 0, `${formatNumber(dashboard.failedJobs || 0)}件`],
@@ -24444,7 +24454,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function installTriggers() {
         const result = await api('installDefaultTriggers');
-        message(`トリガー: ${result.triggers.length}件`, 'ok');
+        message(`トリガー: ${result.triggers.length}件 / 完全自動送信を有効化しました`, 'ok');
+        await refreshAll();
       }
 
       async function createBackup() {

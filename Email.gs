@@ -114,6 +114,375 @@ function sendLeadEmailBatch(leadIds, templateId, options) {
   };
 }
 
+function runScheduledEmailBatch(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const control = getMailSendingControl_();
+  if (!control.enabled) {
+    return buildScheduledEmailSkipResult_('mail_disabled', control.reason || '自動送信停止中です。');
+  }
+
+  const sendWindow = buildSendWindowStatus_();
+  if (sendWindow.enabled === false) {
+    return buildScheduledEmailSkipResult_('send_window_disabled', '完全自動送信では送信時間帯の設定が必要です。');
+  }
+  if (sendWindow.allowed === false) {
+    return buildScheduledEmailSkipResult_('outside_send_window', '自動送信時間外です: ' + sendWindow.label);
+  }
+
+  const claimed = claimScheduledEmailJob_();
+  if (claimed.busy) {
+    return buildScheduledEmailSkipResult_('already_running', '別の完全自動送信処理が実行中です。', {
+      jobId: claimed.job && claimed.job.id || '',
+    });
+  }
+
+  const job = claimed.job;
+  try {
+    const plan = buildScheduledEmailBatchPlan_(input);
+    if (plan.blockReason) {
+      finalizeScheduledEmailJob_(job.id, {
+        status: 'completed',
+        total: 0,
+        processed: 0,
+        success: 0,
+        failed: 0,
+        blocked: 0,
+        message: plan.blockReason,
+      });
+      return buildScheduledEmailSkipResult_(plan.blockCode || 'no_targets', plan.blockReason, {
+        jobId: job.id,
+        plan: sanitizeScheduledEmailPlan_(plan),
+      });
+    }
+
+    const results = [];
+    let success = 0;
+    let failed = 0;
+    let blocked = 0;
+    plan.groups.forEach(function (group) {
+      try {
+        const batch = sendLeadEmailBatch(group.leadIds, group.templateId, {
+          send_type: '初回メール',
+          sender_name: getDefaultGmailSenderName_(),
+          source: 'automatic_email_trigger',
+        });
+        success += Number(batch.success || 0);
+        failed += Number(batch.failed || 0);
+        blocked += Number(batch.blocked || 0);
+        Array.prototype.push.apply(results, batch.results || []);
+      } catch (error) {
+        const expected = isExpectedOperationError_(error);
+        failed += group.leadIds.length;
+        if (expected) blocked += group.leadIds.length;
+        group.leadIds.forEach(function (leadId) {
+          results.push({
+            ok: false,
+            blocked: expected,
+            leadId: leadId,
+            errorMessage: error.message || String(error),
+          });
+        });
+      }
+      heartbeatScheduledEmailJob_(job.id, success + failed, plan.selectedCount);
+    });
+
+    const issueMessages = results.filter(function (result) {
+      return !result.ok || result.warning;
+    }).map(function (result) {
+      return result.errorMessage || result.warning;
+    }).filter(Boolean);
+    const status = success === 0 && failed > 0 ? 'failed' : 'completed';
+    const message = '完全自動送信: 成功 ' + success + '件 / 失敗 ' + failed + '件 / 対象外 ' + blocked + '件';
+    finalizeScheduledEmailJob_(job.id, {
+      status: status,
+      total: plan.selectedCount,
+      processed: success + failed,
+      success: success,
+      failed: failed,
+      blocked: blocked,
+      message: message,
+      lastError: issueMessages.slice(0, 5).join(' / '),
+    });
+    clearRuntimeCaches_('dashboard_stats');
+    return {
+      ok: failed === 0,
+      skipped: false,
+      jobId: job.id,
+      total: plan.selectedCount,
+      success: success,
+      failed: failed,
+      blocked: blocked,
+      groups: sanitizeScheduledEmailPlan_(plan).groups,
+      message: message,
+    };
+  } catch (error) {
+    finalizeScheduledEmailJob_(job.id, {
+      status: 'failed',
+      total: 0,
+      processed: 0,
+      success: 0,
+      failed: 1,
+      blocked: 0,
+      message: '完全自動送信の実行に失敗しました。',
+      lastError: error.message || String(error),
+    });
+    logError_('runScheduledEmailBatch', error, {
+      target_sheet: 'jobs',
+      target_id: job.id,
+    });
+    throw error;
+  }
+}
+
+function buildScheduledEmailSkipResult_(reason, message, extra) {
+  return Object.assign({
+    ok: true,
+    skipped: true,
+    reason: String(reason || 'skipped'),
+    message: String(message || ''),
+  }, extra || {});
+}
+
+function buildScheduledEmailBatchPlan_(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  const pendingStatus = buildPendingSendReservationStatus_(histories);
+  if (pendingStatus.staleCount > 0) {
+    return {
+      blockCode: 'stale_send_reservations',
+      blockReason: '30分以上「送信中」の履歴が' + pendingStatus.staleCount + '件あるため、完全自動送信を停止しました。',
+      selectedCount: 0,
+      groups: [],
+    };
+  }
+
+  const safety = buildMailSendSafetyContext_(histories);
+  const dailyLimit = Math.min(Math.max(Number(getSettingValue_('gmail_daily_send_limit', 80)) || 80, 1), 100);
+  const batchLimit = Math.min(Math.max(Number(getSettingValue_('email_batch_send_limit', 20)) || 20, 1), 100);
+  const requestedLimit = Math.min(Math.max(Number(input.maxItems || input.max_items) || batchLimit, 1), batchLimit);
+  const mailQuota = MailApp.getRemainingDailyQuota ? Math.max(0, Number(MailApp.getRemainingDailyQuota()) || 0) : dailyLimit;
+  const dailyRemaining = Math.max(0, dailyLimit - Number(safety.successfulCountToday || 0) - Number(safety.reservedCountToday || 0));
+  const availableSlots = Math.min(requestedLimit, dailyRemaining, mailQuota);
+  if (availableSlots <= 0) {
+    return {
+      blockCode: 'daily_limit_reached',
+      blockReason: '本日のメール送信上限に達しています。',
+      selectedCount: 0,
+      dailyRemaining: dailyRemaining,
+      mailQuota: mailQuota,
+      groups: [],
+    };
+  }
+
+  const masterContext = {
+    ngMasters: readAllActiveSheetRecords_('ng_masters'),
+    excludedDomains: readAllActiveSheetRecords_('excluded_domains'),
+    mailSendSafety: safety,
+  };
+  const templates = readAllActiveSheetRecords_('email_templates').filter(function (template) {
+    return String(template.template_type || '') === 'initial' &&
+      normalizeBooleanLike_(template.is_production) &&
+      String(template.genre || '').trim() &&
+      !getTemplateGenreContentMismatchReason_(template);
+  });
+  if (!templates.length) {
+    return {
+      blockCode: 'no_production_templates',
+      blockReason: '本番ONの初回メールテンプレートがありません。',
+      selectedCount: 0,
+      dailyRemaining: dailyRemaining,
+      mailQuota: mailQuota,
+      groups: [],
+    };
+  }
+
+  const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'));
+  const selection = selectScheduledEmailCandidates_(leads, templates, masterContext, availableSlots);
+  if (!selection.selected.length) {
+    return {
+      blockCode: 'no_sendable_targets',
+      blockReason: '本番テンプレートとジャンルが一致する未送信の営業先がありません。',
+      selectedCount: 0,
+      dailyRemaining: dailyRemaining,
+      mailQuota: mailQuota,
+      groups: [],
+    };
+  }
+
+  return {
+    blockCode: '',
+    blockReason: '',
+    selectedCount: selection.selected.length,
+    dailyRemaining: dailyRemaining,
+    mailQuota: mailQuota,
+    batchLimit: batchLimit,
+    groups: selection.groups,
+  };
+}
+
+function selectScheduledEmailCandidates_(leads, templates, masterContext, limit) {
+  const templateByGenre = {};
+  const genreOrder = [];
+  (Array.isArray(templates) ? templates : []).forEach(function (template) {
+    const genre = String(template.genre || '').trim();
+    if (!genre || templateByGenre[genre]) return;
+    templateByGenre[genre] = template;
+    genreOrder.push(genre);
+  });
+
+  const candidates = (Array.isArray(leads) ? leads : []).filter(function (lead) {
+    const genre = String(lead.genre || '').trim();
+    return Boolean(templateByGenre[genre]) && !isArchivedLead_(lead) && isEmailSendTarget_(lead, masterContext);
+  });
+  sortLeads_(candidates, 'updated_desc');
+
+  const queues = {};
+  genreOrder.forEach(function (genre) { queues[genre] = []; });
+  const seenEmails = {};
+  candidates.forEach(function (lead) {
+    const email = normalizeEmailForSendSafety_(lead.email);
+    if (!email || seenEmails[email]) return;
+    seenEmails[email] = true;
+    queues[String(lead.genre || '').trim()].push(lead);
+  });
+
+  const selected = [];
+  const safeLimit = Math.max(0, Number(limit) || 0);
+  while (selected.length < safeLimit) {
+    let added = false;
+    genreOrder.forEach(function (genre) {
+      if (selected.length >= safeLimit || !queues[genre].length) return;
+      selected.push({ lead: queues[genre].shift(), template: templateByGenre[genre] });
+      added = true;
+    });
+    if (!added) break;
+  }
+
+  const groupByTemplate = {};
+  selected.forEach(function (item) {
+    const templateId = String(item.template.id || '').trim();
+    if (!groupByTemplate[templateId]) {
+      groupByTemplate[templateId] = {
+        templateId: templateId,
+        templateName: String(item.template.name || ''),
+        genre: String(item.template.genre || ''),
+        leadIds: [],
+      };
+    }
+    groupByTemplate[templateId].leadIds.push(item.lead.id);
+  });
+
+  return {
+    selected: selected,
+    groups: genreOrder.map(function (genre) {
+      const template = templateByGenre[genre];
+      return template && groupByTemplate[String(template.id || '').trim()];
+    }).filter(Boolean),
+  };
+}
+
+function sanitizeScheduledEmailPlan_(plan) {
+  const source = plan && typeof plan === 'object' ? plan : {};
+  return {
+    selectedCount: Number(source.selectedCount || 0),
+    dailyRemaining: Number(source.dailyRemaining || 0),
+    mailQuota: Number(source.mailQuota || 0),
+    groups: (source.groups || []).map(function (group) {
+      return {
+        templateId: String(group.templateId || ''),
+        templateName: String(group.templateName || ''),
+        genre: String(group.genre || ''),
+        count: (group.leadIds || []).length,
+      };
+    }),
+  };
+}
+
+function claimScheduledEmailJob_() {
+  return withScriptLock_('claimScheduledEmailJob', function () {
+    const jobs = readAllSheetRecordsByName_('jobs', { includeInactive: true, includeArchived: true });
+    const now = Date.now();
+    const running = jobs.filter(function (job) {
+      return String(job.job_type || '') === 'automatic_email_send' && String(job.status || '') === 'running';
+    }).sort(function (left, right) {
+      return String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
+    });
+    const active = running.find(function (job) {
+      const timestamp = new Date(job.last_heartbeat_at || job.updated_at || job.started_at || job.created_at || 0).getTime();
+      return Number.isFinite(timestamp) && now - timestamp < 10 * 60 * 1000;
+    });
+    if (active) return { busy: true, job: active };
+
+    running.forEach(function (job) {
+      updateSheetRecord_('jobs', job.id, {
+        status: 'failed',
+        last_error: '前回の完全自動送信が10分以上更新されなかったため終了しました。',
+        finished_at: nowIso_(),
+      });
+    });
+
+    const startedAt = nowIso_();
+    return {
+      busy: false,
+      job: appendSheetRecord_('jobs', {
+        job_type: 'automatic_email_send',
+        status: 'running',
+        request_key: 'automatic_email_send:' + todayText_() + ':' + startedAt,
+        source: 'time_trigger',
+        payload_json: safeJsonStringify_({ sendType: 'initial', automatic: true }),
+        cursor_json: '',
+        total_count: 0,
+        processed_count: 0,
+        added_count: 0,
+        filled_count: 0,
+        duplicate_skip_count: 0,
+        excluded_count: 0,
+        error_count: 0,
+        found_results_json: '',
+        current_query: '完全自動送信の対象を確認中',
+        last_error: '',
+        lock_token: '',
+        locked_at: startedAt,
+        last_heartbeat_at: startedAt,
+        attempt_count: 1,
+        started_at: startedAt,
+        finished_at: '',
+      }),
+    };
+  }, { waitMs: 30000 });
+}
+
+function heartbeatScheduledEmailJob_(jobId, processed, total) {
+  return withScriptLock_('heartbeatScheduledEmailJob', function () {
+    return updateSheetRecord_('jobs', jobId, {
+      total_count: Number(total || 0),
+      processed_count: Number(processed || 0),
+      current_query: '完全自動送信 ' + Number(processed || 0) + ' / ' + Number(total || 0) + '件',
+      last_heartbeat_at: nowIso_(),
+    });
+  }, { waitMs: 30000 });
+}
+
+function finalizeScheduledEmailJob_(jobId, summary) {
+  const source = summary && typeof summary === 'object' ? summary : {};
+  return withScriptLock_('finalizeScheduledEmailJob', function () {
+    return updateSheetRecord_('jobs', jobId, {
+      status: String(source.status || 'completed'),
+      total_count: Number(source.total || 0),
+      processed_count: Number(source.processed || 0),
+      added_count: Number(source.success || 0),
+      excluded_count: Number(source.blocked || 0),
+      error_count: Number(source.failed || 0),
+      current_query: String(source.message || '完全自動送信が完了しました。'),
+      last_error: String(source.lastError || '').slice(0, 5000),
+      last_heartbeat_at: nowIso_(),
+      finished_at: nowIso_(),
+      lock_token: '',
+      locked_at: '',
+    });
+  }, { waitMs: 30000 });
+}
+
 function prepareLeadEmailSend_(leadId, templateId, input, requireSendWindow) {
   assertProductionMailDeliveryAllowed_(requireSendWindow === true);
   const lead = getLeadById(leadId);
@@ -255,8 +624,10 @@ function assertProductionMailDeliveryAllowed_(requireSendWindow) {
   }
 }
 
-function buildMailSendSafetyContext_() {
-  const histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+function buildMailSendSafetyContext_(historyRecords) {
+  const histories = Array.isArray(historyRecords)
+    ? historyRecords
+    : readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
   const today = todayText_();
   const sentLeadIds = {};
   const sentEmails = {};

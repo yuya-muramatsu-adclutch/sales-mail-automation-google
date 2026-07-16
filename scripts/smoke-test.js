@@ -945,6 +945,97 @@ const emailCandidates = candidateContext.listEmailSendCandidates({ genre: 'キ�
 assert.strictEqual(emailCandidates.total, 2);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(emailCandidates.items.map((lead) => lead.id))), ['duplicate-new', 'unique']);
 
+const scheduledCandidateContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), scheduledCandidateContext, { filename: 'Code.gs' });
+vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), scheduledCandidateContext, { filename: 'Email.gs' });
+scheduledCandidateContext.isArchivedLead_ = (lead) => Boolean(lead.archived_at);
+scheduledCandidateContext.isEmailSendTarget_ = (lead) => Boolean(lead.sendable);
+const scheduledSelection = scheduledCandidateContext.selectScheduledEmailCandidates_([
+  { id: 'camp-old', email: 'camp-old@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-07-17T00:01:00Z' },
+  { id: 'care-new', email: 'care@example.com', genre: '介護', sendable: true, updated_at: '2026-07-17T00:04:00Z' },
+  { id: 'camp-new', email: 'camp-new@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-07-17T00:03:00Z' },
+  { id: 'camp-duplicate', email: 'CAMP-NEW@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-07-17T00:02:00Z' },
+  { id: 'unsupported', email: 'medical@example.com', genre: '医療', sendable: true, updated_at: '2026-07-17T00:05:00Z' },
+], [
+  { id: 'template-camp', name: 'キャンプ初回', genre: 'キャンプ' },
+  { id: 'template-care', name: '介護初回', genre: '介護' },
+], {}, 3);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(scheduledSelection.selected.map((item) => item.lead.id))),
+  ['camp-new', 'care-new', 'camp-old'],
+  'automatic sending should round-robin production template genres and deduplicate email addresses'
+);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(scheduledSelection.groups.map((group) => [group.templateId, group.leadIds.length]))),
+  [['template-camp', 2], ['template-care', 1]]
+);
+
+const scheduledRunContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), scheduledRunContext, { filename: 'Code.gs' });
+vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), scheduledRunContext, { filename: 'Email.gs' });
+let scheduledClaimCount = 0;
+let scheduledHeartbeat = null;
+let scheduledFinal = null;
+scheduledRunContext.getMailSendingControl_ = () => ({ enabled: true, reason: '' });
+scheduledRunContext.buildSendWindowStatus_ = () => ({ enabled: true, allowed: true, label: '07:00-08:00' });
+scheduledRunContext.claimScheduledEmailJob_ = () => { scheduledClaimCount += 1; return { busy: false, job: { id: 'automatic-job' } }; };
+scheduledRunContext.buildScheduledEmailBatchPlan_ = () => ({
+  selectedCount: 2,
+  dailyRemaining: 80,
+  mailQuota: 94,
+  groups: [{ templateId: 'template-camp', templateName: 'キャンプ初回', genre: 'キャンプ', leadIds: ['lead-1', 'lead-2'] }],
+});
+scheduledRunContext.sendLeadEmailBatch = (ids, templateId, options) => {
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(ids)), ['lead-1', 'lead-2']);
+  assert.strictEqual(templateId, 'template-camp');
+  assert.strictEqual(options.source, 'automatic_email_trigger');
+  return { success: 2, failed: 0, blocked: 0, results: ids.map((id) => ({ ok: true, leadId: id })) };
+};
+scheduledRunContext.getDefaultGmailSenderName_ = () => '【Ad Clutch】村松 侑哉';
+scheduledRunContext.heartbeatScheduledEmailJob_ = (jobId, processed, total) => { scheduledHeartbeat = { jobId, processed, total }; };
+scheduledRunContext.finalizeScheduledEmailJob_ = (jobId, summary) => { scheduledFinal = { jobId, summary }; };
+scheduledRunContext.clearRuntimeCaches_ = () => {};
+scheduledRunContext.isExpectedOperationError_ = () => false;
+scheduledRunContext.logError_ = () => {};
+const scheduledRun = scheduledRunContext.runScheduledEmailBatch({});
+assert.strictEqual(scheduledRun.success, 2);
+assert.strictEqual(scheduledRun.failed, 0);
+assert.strictEqual(scheduledClaimCount, 1);
+assert.deepStrictEqual(scheduledHeartbeat, { jobId: 'automatic-job', processed: 2, total: 2 });
+assert.strictEqual(scheduledFinal.summary.status, 'completed');
+
+scheduledRunContext.buildSendWindowStatus_ = () => ({ enabled: true, allowed: false, label: '07:00-08:00' });
+const scheduledOutsideWindow = scheduledRunContext.runScheduledEmailBatch({});
+assert.strictEqual(scheduledOutsideWindow.skipped, true);
+assert.strictEqual(scheduledOutsideWindow.reason, 'outside_send_window');
+assert.strictEqual(scheduledClaimCount, 1, 'outside-window trigger checks must not create a send job');
+
+const triggerContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8'), triggerContext, { filename: 'Operations.gs' });
+const installedTriggers = [];
+let automaticMailCadence = 0;
+triggerContext.withScriptLock_ = (_operation, callback) => callback();
+triggerContext.clearRuntimeCaches_ = () => {};
+triggerContext.ScriptApp = {
+  getProjectTriggers: () => installedTriggers,
+  deleteTrigger: (trigger) => installedTriggers.splice(installedTriggers.indexOf(trigger), 1),
+  newTrigger: (handler) => ({
+    timeBased: () => ({
+      everyMinutes: (minutes) => ({ create: () => {
+        if (handler === 'runScheduledEmailBatch') automaticMailCadence = minutes;
+        installedTriggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK' });
+      } }),
+      everyHours: (_hours) => ({ create: () => installedTriggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK' }) }),
+    }),
+  }),
+};
+const installed = triggerContext.installDefaultTriggers();
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(installed.triggers.map((trigger) => trigger.handler).sort())),
+  ['advanceQueuedJobs', 'checkRepliesForLeads', 'runScheduledEmailBatch']
+);
+assert.strictEqual(automaticMailCadence, 10);
+
 const historyContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), historyContext, { filename: 'Code.gs' });
 vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), historyContext, { filename: 'Email.gs' });
@@ -1429,7 +1520,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260717_apps_script_full_workflow_v203_gmail_sender_name'));
+assert(codeSource.includes('20260717_apps_script_full_workflow_v204_full_auto_mail_trigger'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
 assert(codeSource.includes("'filled_count'"));
@@ -1453,6 +1544,9 @@ assert(!mastersSource.includes("listSheetRecords('email_templates', { limit: 100
 assert(emailSource.includes("const templates = readAllActiveSheetRecords_('email_templates')"));
 assert(codeSource.includes("'FORM_SEND_NOT_RECORDED'"));
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
+assert(emailSource.includes('function runScheduledEmailBatch'));
+assert(emailSource.includes("job_type: 'automatic_email_send'"));
+assert(operationsSource.includes("newTrigger('runScheduledEmailBatch').timeBased().everyMinutes(10)"));
 assert(operationsSource.includes("const guests = sendInvites ? String(source.guests || lead.email || '').trim() : ''"));
 assert(operationsSource.includes("readAllSheetRecordsByName_('search_jobs'"));
 assert(operationsSource.includes("readAllSheetRecordsByName_('reply_logs'"));
@@ -1624,4 +1718,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v203 audit regression tests passed.');
+console.log('v204 full automatic mail regression tests passed.');
