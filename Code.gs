@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260718_apps_script_full_workflow_v210_simple_lead_overview';
+const APP_VERSION = '20260719_apps_script_full_workflow_v211_split_send_ng_no_contact';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -485,7 +485,9 @@ const LEAD_LIST_STATE_GROUP_DEFINITIONS_ = Object.freeze([
   { key: 'ready', label: '送信準備', detail: '今すぐ送信・フォーム対応できる', states: ['email_sendable', 'form_sendable'] },
   { key: 'review', label: '確認待ち', detail: '内容の確認が必要', states: ['review', 'other'] },
   { key: 'active', label: '対応中', detail: '送信後・返信・商談を進行中', states: ['sent', 'reply', 'deal', 'form_in_progress'] },
-  { key: 'closed', label: '完了・除外', detail: '完了または営業対象外', states: ['won', 'lost', 'send_ng', 'no_action', 'form_completed', 'no_contact'] },
+  { key: 'no_contact', label: '連絡先なし', detail: 'メール・フォーム未取得（送信NGを除く）', states: ['no_contact'] },
+  { key: 'send_ng', label: '送信NG', detail: '今後の送信対象から除外', states: ['send_ng'] },
+  { key: 'closed', label: '完了', detail: '成約・失注・対応完了', states: ['won', 'lost', 'no_action', 'form_completed'] },
 ]);
 
 function onOpen() {
@@ -845,7 +847,7 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   if (value === 'sent') return sent;
   if (value === 'reply') return replied;
   if (value === 'deal') return deal;
-  if (value === 'no_contact') return !isValidEmailAddress_(lead.email) && !lead.form_url;
+  if (value === 'no_contact') return !sendNg && !isValidEmailAddress_(lead.email) && !lead.form_url;
   if (value === 'won') return dealStatus === '受注' || status === '受注';
   if (value === 'lost') return dealStatus === '失注' || status === '失注';
   if (value === 'review') return isLeadReviewPending_(lead);

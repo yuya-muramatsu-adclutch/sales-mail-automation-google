@@ -154,7 +154,7 @@ const leadStateFixtures = [
   { fixture: 'deal', email: 'deal@example.com', deal_status: '商談予定', status: '商談予定' },
   { fixture: 'won', email: 'won@example.com', deal_status: '受注', status: '受注' },
   { fixture: 'lost', email: 'lost@example.com', deal_status: '失注', status: '失注' },
-  { fixture: 'send_ng', email: 'ng@example.com', send_ng: true, status: '送信NG' },
+  { fixture: 'send_ng', send_ng: true, status: '送信NG' },
   { fixture: 'no_action', status: '対応不要' },
   { fixture: 'form_in_progress', form_url: 'https://form-progress.example', status: 'フォーム対応中' },
   { fixture: 'form_completed', form_url: 'https://form-complete.example', status: 'フォーム対応済み' },
@@ -168,13 +168,18 @@ assert.deepStrictEqual(leadStateGroups.map((item) => [item.key, item.count]), [
   ['ready', 2],
   ['review', 2],
   ['active', 4],
-  ['closed', 6],
+  ['no_contact', 1],
+  ['send_ng', 1],
+  ['closed', 4],
 ]);
 assert.strictEqual(leadStateGroups.reduce((sum, item) => sum + item.count, 0), leadStateFixtures.length);
 assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[7], 'state_won', {}), true);
 assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[7], 'state_lost', {}), false);
 assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[4], 'group_active', {}), true);
 assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[8], 'group_active', {}), false);
+assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[3], 'no_contact', {}), true);
+assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[9], 'no_contact', {}), false, 'send NG without contact details must not appear in no-contact results');
+assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[9], 'send_ng', {}), true);
 unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
 unlockedMailContext.ensureSheet_ = () => ({});
 unlockedMailContext.readSheetRecords_ = () => [
@@ -1607,7 +1612,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260718_apps_script_full_workflow_v210_simple_lead_overview'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v211_split_send_ng_no_contact'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1691,6 +1696,9 @@ assert(indexSource.includes('id="leadBreakdownDetails"'));
 assert(indexSource.includes('id="leadBreakdownDetailGrid"'));
 assert(indexSource.includes('class="lead-stage-filter"'));
 assert(indexSource.includes("onclick=\"setLeadFilter('${escapeJsString(item.filter)}')\""));
+assert(indexSource.includes('<option value="group_no_contact">連絡先なし</option>'));
+assert(indexSource.includes('<option value="group_send_ng">送信NG</option>'));
+assert(indexSource.includes("no_contact: (lead) => !lead.email && !lead.form_url && !normalizeBooleanLike(lead.send_ng) && String(lead.status || '') !== '送信NG'"));
 assert(!indexSource.includes('function importCsv(event)'));
 assert(indexSource.includes('finish();\n            reject(error);'));
 assert(indexSource.includes("apiQuiet('listEmailSendCandidates', { genre, limit: 100 })"));
@@ -1817,4 +1825,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v210 simple lead overview regression tests passed.');
+console.log('v211 split send NG and no-contact regression tests passed.');

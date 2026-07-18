@@ -11674,7 +11674,9 @@
                     <option value="group_ready">送信準備</option>
                     <option value="group_review">確認待ち</option>
                     <option value="group_active">対応中</option>
-                    <option value="group_closed">完了・除外</option>
+                    <option value="group_no_contact">連絡先なし</option>
+                    <option value="group_send_ng">送信NG</option>
+                    <option value="group_closed">完了</option>
                   </optgroup>
                   <optgroup label="連絡先・作業">
                     <option value="has_email">連絡先メールあり</option>
@@ -11685,7 +11687,7 @@
                     <option value="sent">送信済み</option>
                     <option value="reply">返信あり</option>
                     <option value="deal">商談あり</option>
-                    <option value="no_contact">メール/フォームなし</option>
+                    <option value="no_contact">連絡先なし（送信NGを除く）</option>
                     <option value="send_ng">送信NGだけ</option>
                     <option value="won">成約だけ</option>
                     <option value="lost">失注だけ</option>
@@ -15722,8 +15724,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           deal: 'active',
           won: 'closed',
           lost: 'closed',
-          send_ng: 'closed',
-          no_contact: 'closed',
+          send_ng: 'send_ng',
+          no_contact: 'no_contact',
           excluded: 'closed',
         };
         const selectedGroup = groups.find((item) =>
@@ -15869,7 +15871,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           email: canEmailLead,
           form: (lead) => Boolean(lead.form_url),
           website: (lead) => Boolean(lead.website_url),
-          no_contact: (lead) => !lead.email && !lead.form_url,
+          no_contact: (lead) => !lead.email && !lead.form_url && !normalizeBooleanLike(lead.send_ng) && String(lead.status || '') !== '送信NG',
         };
         const predicate = predicates[kind] || (() => false);
         const ids = state.leads.filter(predicate).map((lead) => lead.id);
