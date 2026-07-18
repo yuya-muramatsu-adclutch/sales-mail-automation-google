@@ -2,10 +2,146 @@ const TEMPLATE_TEST_FIXED_EMAIL_ = 'yuya1998nu@gmail.com';
 const TEMPLATE_TEST_FIXED_NAME_ = '村松侑哉';
 const PRODUCTION_SEND_RESERVED_RESULT_ = '送信中';
 const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉';
+const DEFAULT_GMAIL_PRIMARY_SENDER_EMAIL_ = 'yuya.adclutch@gmail.com';
 
 function getDefaultGmailSenderName_() {
   const configured = String(getSettingValue_('gmail_sender_name', DEFAULT_GMAIL_SENDER_NAME_) || '').trim();
   return (configured || DEFAULT_GMAIL_SENDER_NAME_).slice(0, 100);
+}
+
+function getConfiguredGmailSenderEmail_() {
+  return String(getSettingValue_('gmail_sender_email', '') || '').trim().toLowerCase();
+}
+
+function getGmailPrimaryEmail_() {
+  try {
+    const response = UrlFetchApp.fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+      method: 'get',
+      headers: {
+        Authorization: 'Bearer ' + ScriptApp.getOAuthToken(),
+      },
+      muteHttpExceptions: true,
+    });
+    const statusCode = Number(response.getResponseCode()) || 0;
+    if (statusCode < 200 || statusCode >= 300) return DEFAULT_GMAIL_PRIMARY_SENDER_EMAIL_;
+    const profile = JSON.parse(response.getContentText() || '{}');
+    const email = String(profile.emailAddress || '').trim().toLowerCase();
+    return isValidEmailAddress_(email) ? email : DEFAULT_GMAIL_PRIMARY_SENDER_EMAIL_;
+  } catch (error) {
+    return DEFAULT_GMAIL_PRIMARY_SENDER_EMAIL_;
+  }
+}
+
+function getGmailSendAsAddresses_() {
+  const result = {
+    primaryEmail: '',
+    aliases: [],
+    error: '',
+  };
+  try {
+    const response = UrlFetchApp.fetch('https://gmail.googleapis.com/gmail/v1/users/me/settings/sendAs', {
+      method: 'get',
+      headers: {
+        Authorization: 'Bearer ' + ScriptApp.getOAuthToken(),
+      },
+      muteHttpExceptions: true,
+    });
+    const statusCode = Number(response.getResponseCode()) || 0;
+    if (statusCode < 200 || statusCode >= 300) {
+      result.error = 'Gmail send-as API HTTP ' + statusCode;
+      return result;
+    }
+    const payload = JSON.parse(response.getContentText() || '{}');
+    (Array.isArray(payload.sendAs) ? payload.sendAs : []).forEach(function (item) {
+      const email = String(item && item.sendAsEmail || '').trim().toLowerCase();
+      if (!isValidEmailAddress_(email)) return;
+      if (item.isPrimary === true) {
+        result.primaryEmail = email;
+        return;
+      }
+      if (!item.verificationStatus || String(item.verificationStatus).toLowerCase() === 'accepted') {
+        result.aliases.push(email);
+      }
+    });
+    result.aliases = Array.from(new Set(result.aliases));
+    return result;
+  } catch (error) {
+    result.error = error.message || String(error);
+    return result;
+  }
+}
+
+function getGmailSenderIdentityStatus_(candidateEmail) {
+  const configuredEmail = candidateEmail === undefined
+    ? getConfiguredGmailSenderEmail_()
+    : String(candidateEmail || '').trim().toLowerCase();
+  const sendAs = getGmailSendAsAddresses_();
+  const primaryEmail = sendAs.primaryEmail || getGmailPrimaryEmail_();
+  const aliases = Array.from(new Set((GmailApp.getAliases() || []).concat(sendAs.aliases || []).map(function (email) {
+    return String(email || '').trim().toLowerCase();
+  }).filter(function (email) {
+    return isValidEmailAddress_(email);
+  })));
+  const availableEmails = Array.from(new Set([primaryEmail].concat(aliases).filter(function (email) {
+    return isValidEmailAddress_(email);
+  })));
+  const selectedEmail = configuredEmail || primaryEmail;
+  const available = !selectedEmail || availableEmails.indexOf(selectedEmail) !== -1;
+  return {
+    senderName: getDefaultGmailSenderName_(),
+    configuredEmail: configuredEmail,
+    selectedEmail: selectedEmail,
+    primaryEmail: primaryEmail,
+    aliases: aliases,
+    availableEmails: availableEmails,
+    available: available,
+    usesAlias: Boolean(configuredEmail && configuredEmail !== primaryEmail),
+    diagnosticError: sendAs.error || '',
+  };
+}
+
+function setGmailSenderEmail(email) {
+  const candidate = String(email || '').trim().toLowerCase();
+  if (!isValidEmailAddress_(candidate)) {
+    throw createExpectedOperationError_('有効な差出人メールアドレスを指定してください。', 'INVALID_GMAIL_SENDER_EMAIL');
+  }
+  const status = getGmailSenderIdentityStatus_(candidate);
+  if (!status.available) {
+    throw createExpectedOperationError_('指定したアドレスはGmailの送信元に登録されていません。Gmailの「名前」設定で先に追加してください。', 'GMAIL_SENDER_ALIAS_UNAVAILABLE');
+  }
+  setSettingValue('gmail_sender_email', candidate, 'string', 'Verified Gmail sender address used by this app.');
+  return getGmailSenderIdentityStatus_(candidate);
+}
+
+function sendGmailMessage_(message) {
+  const source = message && typeof message === 'object' ? message : {};
+  const configuredEmail = getConfiguredGmailSenderEmail_();
+  if (!configuredEmail) {
+    MailApp.sendEmail({
+      to: source.to,
+      subject: source.subject,
+      htmlBody: source.htmlBody,
+      body: source.body,
+      name: source.name,
+    });
+    return;
+  }
+
+  const options = {
+    htmlBody: source.htmlBody,
+    name: source.name,
+    replyTo: configuredEmail,
+  };
+  if (configuredEmail !== DEFAULT_GMAIL_PRIMARY_SENDER_EMAIL_) {
+    const aliases = (GmailApp.getAliases() || []).map(function (email) {
+      return String(email || '').trim().toLowerCase();
+    });
+    if (aliases.indexOf(configuredEmail) === -1) {
+      throw createExpectedOperationError_('設定済みの差出人アドレスがGmailで利用できません: ' + configuredEmail, 'GMAIL_SENDER_ALIAS_UNAVAILABLE');
+    }
+    options.from = configuredEmail;
+  }
+  GmailApp.sendEmail(source.to, source.subject, source.body, options);
 }
 
 function resolveGmailSenderName_(input) {
@@ -547,7 +683,7 @@ function deliverPreparedLeadEmail_(prepared) {
   let errorMessage = '';
   try {
     assertProductionMailDeliveryAllowed_(input.requireSendWindow === true);
-    MailApp.sendEmail({
+    sendGmailMessage_({
       to: lead.email,
       subject: rendered.subject,
       htmlBody: rendered.htmlBody,
@@ -864,7 +1000,7 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
   let errorMessage = '';
 
   try {
-    MailApp.sendEmail({
+    sendGmailMessage_({
       to: fixedToEmail,
       subject: subject,
       htmlBody: rendered.htmlBody,

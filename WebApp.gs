@@ -116,6 +116,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'installDefaultTriggers') return installDefaultTriggers();
   if (action === 'createSpreadsheetBackup') return createSpreadsheetBackup();
   if (action === 'setSettingValue') return setSettingValue(data.key, data.value, data.valueType || data.value_type, data.description);
+  if (action === 'setGmailSenderEmail') return setGmailSenderEmail(data.email || data.senderEmail || data.sender_email);
   if (action === 'setMailSendingControl') return setMailSendingControl(data);
   if (action === 'listCustomFieldDefinitions') return listCustomFieldDefinitions(data);
   if (action === 'saveCustomFieldDefinition') return saveCustomFieldDefinition(data);
@@ -269,6 +270,7 @@ function checkGmailIntegration() {
   try {
     const remaining = MailApp.getRemainingDailyQuota ? MailApp.getRemainingDailyQuota() : 0;
     const threads = GmailApp.search('in:anywhere newer_than:7d', 0, 1);
+    const sender = getGmailSenderIdentityStatus_();
     return {
       ok: true,
       authorization: authorization,
@@ -276,6 +278,14 @@ function checkGmailIntegration() {
       mailQuotaRemaining: Math.max(0, Number(remaining) || 0),
       gmailReadable: true,
       sampleThreadCount: threads.length,
+      senderName: sender.senderName,
+      configuredSenderEmail: sender.configuredEmail,
+      selectedSenderEmail: sender.selectedEmail,
+      primarySenderEmail: sender.primaryEmail,
+      sendAsAliases: sender.aliases,
+      availableSenderEmails: sender.availableEmails,
+      senderEmailAvailable: sender.available,
+      senderDiagnosticError: sender.diagnosticError,
       checkedAt: nowIso_(),
     };
   } catch (error) {

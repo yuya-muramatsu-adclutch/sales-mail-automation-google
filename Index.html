@@ -11778,7 +11778,7 @@
 
           <section id="templateSenderBanner" class="template-sender-banner">
             <div>
-              <span>Gmail送信時の差出人名</span>
+              <span>Gmail送信時の差出人</span>
               <strong id="templateSenderName">【Ad Clutch】村松 侑哉</strong>
             </div>
             <small class="muted template-sender-note">初回メール・テスト送信に反映</small>
@@ -12564,10 +12564,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return configured || DEFAULT_GMAIL_SENDER_NAME;
       }
 
+      function gmailSenderEmailClient() {
+        return String(getClientSetting('gmail_sender_email', '') || '').trim().toLowerCase();
+      }
+
       function syncGmailSenderNameUi() {
         const senderName = gmailSenderNameClient();
         const templateSender = document.getElementById('templateSenderName');
-        if (templateSender) templateSender.textContent = senderName;
+        const senderEmail = gmailSenderEmailClient();
+        if (templateSender) templateSender.textContent = senderEmail ? `${senderName} <${senderEmail}>` : senderName;
         const leadSender = document.getElementById('leadSenderName');
         if (leadSender && !String(leadSender.value || '').trim()) leadSender.value = senderName;
       }
@@ -23036,6 +23041,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const auth = state.gmailAuthorizationStatus || {};
         const authKnown = Boolean(state.gmailAuthorizationStatus);
         const gmailReady = authKnown && auth.required !== true && integrations.gmail !== false;
+        const check = state.gmailIntegrationCheckResult || {};
+        const configuredSenderEmail = gmailSenderEmailClient();
+        const senderEmails = Array.from(new Set((check.availableSenderEmails || []).filter(Boolean)));
+        const selectedSenderEmail = configuredSenderEmail || check.selectedSenderEmail || '';
+        const senderEmailReady = Boolean(selectedSenderEmail && check.senderEmailAvailable !== false);
         target.innerHTML = `
           <div class="section-title-row">
             <div>
@@ -23048,19 +23058,53 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ${[
               { icon: 'keyRound', label: 'OAuth Client', ready: true, detail: 'Apps Script', status: 'OK' },
               { icon: 'refreshCw', label: 'Refresh Token', ready: authKnown && auth.required !== true, detail: auth.status || '未確認', status: !authKnown ? '未確認' : auth.required === true ? '要承認' : 'OK' },
-              { icon: 'mailCheck', label: '送信元', ready: gmailReady, detail: auth.required === true ? 'Google認可リンクを開いてください' : 'Apps Script承認', status: gmailReady ? 'OK' : '要確認' },
+              { icon: 'mailCheck', label: '送信元', ready: gmailReady && senderEmailReady, detail: selectedSenderEmail || '連携テストで送信元を確認', status: senderEmailReady ? 'OK' : '要設定' },
               { icon: 'mailCheck', label: 'テスト宛先', ready: true, detail: '営業リスト指定', status: '指定' },
             ].map(adminStatusItemMarkup).join('')}
           </div>
           <div class="api-key-summary">
             ${legacyUiIcon('mailCheck')}
             <div>
-              <strong>差出人名: ${escapeHtml(gmailSenderNameClient())}</strong>
-              <span>現在の参照元: Apps Script承認 + PropertiesService。秘密項目はシート/HTMLへ出しません。</span>
+              <strong>差出人: ${escapeHtml(gmailSenderNameClient())}${selectedSenderEmail ? ` &lt;${escapeHtml(selectedSenderEmail)}&gt;` : ''}</strong>
+              <span>${configuredSenderEmail ? 'Gmailで確認済みの送信元アドレスを使用します。' : check.senderDiagnosticError ? `送信元一覧を確認できませんでした: ${escapeHtml(check.senderDiagnosticError)}` : '連携テスト後に会社アドレスを選択してください。'}</span>
             </div>
             ${auth.authorizationUrl ? `<a class="button-link primary" href="${escapeHtml(auth.authorizationUrl)}" target="_blank" rel="noopener">${legacyUiIcon('keyRound')}Google認可</a>` : `<button type="button" class="icon-text-button" onclick="refreshGmailAuthorizationStatus()">${legacyUiIcon('refreshCw')}承認確認</button>`}
           </div>
+          ${senderEmails.length ? `
+            <div class="field-grid compact">
+              <label>実際の差出人アドレス
+                <select id="gmailSenderEmailSelect">
+                  ${senderEmails.map((email) => `<option value="${escapeHtml(email)}" ${email === selectedSenderEmail ? 'selected' : ''}>${escapeHtml(email)}${email === check.primarySenderEmail ? ' (Googleアカウント)' : ' (Gmailエイリアス)'}</option>`).join('')}
+                </select>
+              </label>
+              <div class="inline-actions"><button type="button" class="button" onclick="saveGmailSenderEmail()">${legacyUiIcon('save')}差出人を保存</button></div>
+            </div>
+          ` : ''}
         `;
+      }
+
+      async function saveGmailSenderEmail() {
+        const select = document.getElementById('gmailSenderEmailSelect');
+        const email = select ? String(select.value || '').trim().toLowerCase() : '';
+        if (!email) {
+          message('先にGmail連携テストを実行して、送信元アドレスを確認してください。', 'error');
+          return;
+        }
+        try {
+          const result = await api('setGmailSenderEmail', email);
+          state.gmailIntegrationCheckResult = Object.assign({}, state.gmailIntegrationCheckResult || {}, {
+            configuredSenderEmail: result.configuredEmail,
+            selectedSenderEmail: result.selectedEmail,
+            primarySenderEmail: result.primaryEmail,
+            sendAsAliases: result.aliases,
+            availableSenderEmails: result.availableEmails,
+            senderEmailAvailable: result.available,
+          });
+          message(`差出人アドレスを ${email} に変更しました。`, 'ok');
+          await refreshAll();
+        } catch (error) {
+          message(`差出人を保存できませんでした: ${error.message || error}`, 'error');
+        }
       }
 
       function getClientSetting(key, fallback) {

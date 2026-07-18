@@ -201,6 +201,7 @@ function normalizeSettingForSave_(key, value, valueType) {
   const settingKey = String(key || '').trim();
   const stringRules = {
     gmail_sender_name: { maxLength: 100 },
+    gmail_sender_email: { maxLength: 254, format: 'email' },
   };
   const numberRules = {
     gmail_daily_send_limit: { min: 1, max: 80 },
@@ -221,6 +222,7 @@ function normalizeSettingForSave_(key, value, valueType) {
     const rule = stringRules[settingKey];
     if (!textValue) throw new Error(settingKey + ' is required.');
     if (textValue.length > rule.maxLength) throw new Error(settingKey + ' must be ' + rule.maxLength + ' characters or fewer.');
+    if (rule.format === 'email' && !isValidEmailAddress_(textValue)) throw new Error(settingKey + ' must be a valid email address.');
     if (valueType && String(valueType) !== 'string') throw new Error(settingKey + ' must use string value_type.');
     return { key: settingKey, value: textValue, valueType: 'string' };
   }

@@ -98,6 +98,44 @@ assert.strictEqual(unlockedMailResult.ok, true);
 assert.strictEqual(finalizedLeadSend, 1);
 assert.deepStrictEqual(unlockedMailOperations.map((item) => item.operation), ['prepareLeadEmailSend', 'finalizeLeadEmailSend']);
 assert.deepStrictEqual(deliveryCheckDepths, [1, 0]);
+let aliasSendPayload = null;
+unlockedMailContext.getSettingValue_ = (key, fallback) => key === 'gmail_sender_email' ? 'sales@adclutch.example' : fallback;
+unlockedMailContext.Session = { getEffectiveUser: () => ({ getEmail: () => 'owner@gmail.com' }) };
+unlockedMailContext.GmailApp = {
+  getAliases: () => ['sales@adclutch.example'],
+  sendEmail: (to, subject, body, options) => {
+    assert.strictEqual(unlockedMailDepth, 0, 'GmailApp.sendEmail must run outside the script lock');
+    aliasSendPayload = { to, subject, body, options };
+  },
+};
+unlockedMailContext.MailApp.sendEmail = () => { throw new Error('configured aliases must use GmailApp.sendEmail'); };
+unlockedMailContext.sendGmailMessage_({
+  to: 'lead@example.net',
+  subject: 'Alias subject',
+  body: 'Alias body',
+  htmlBody: '<p>Alias body</p>',
+  name: '【Ad Clutch】村松 侑哉',
+});
+assert.strictEqual(aliasSendPayload.options.from, 'sales@adclutch.example');
+assert.strictEqual(aliasSendPayload.options.replyTo, 'sales@adclutch.example');
+assert.strictEqual(aliasSendPayload.options.name, '【Ad Clutch】村松 侑哉');
+let primarySendPayload = null;
+unlockedMailContext.getSettingValue_ = (key, fallback) => key === 'gmail_sender_email' ? 'yuya.adclutch@gmail.com' : fallback;
+unlockedMailContext.GmailApp = {
+  getAliases: () => { throw new Error('primary sender must not query aliases during delivery'); },
+  sendEmail: (to, subject, body, options) => {
+    primarySendPayload = { to, subject, body, options };
+  },
+};
+unlockedMailContext.sendGmailMessage_({
+  to: 'lead@example.net',
+  subject: 'Primary subject',
+  body: 'Primary body',
+  htmlBody: '<p>Primary body</p>',
+  name: '【Ad Clutch】村松 侑哉',
+});
+assert.strictEqual(primarySendPayload.options.from, undefined);
+assert.strictEqual(primarySendPayload.options.replyTo, 'yuya.adclutch@gmail.com');
 unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
 unlockedMailContext.ensureSheet_ = () => ({});
 unlockedMailContext.readSheetRecords_ = () => [
@@ -199,6 +237,11 @@ assert.deepStrictEqual(
   { key: 'gmail_sender_name', value: '【Ad Clutch】村松 侑哉', valueType: 'string' }
 );
 assert.throws(() => context.normalizeSettingForSave_('gmail_sender_name', '', 'string'), /is required/);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(context.normalizeSettingForSave_('gmail_sender_email', ' Sales@AdClutch.Example ', 'string'))),
+  { key: 'gmail_sender_email', value: 'Sales@AdClutch.Example', valueType: 'string' }
+);
+assert.throws(() => context.normalizeSettingForSave_('gmail_sender_email', 'invalid-address', 'string'), /valid email address/);
 
 let dashboardCacheUpdate = null;
 context.readAllSheetRecordsByName_ = () => [
@@ -1525,9 +1568,13 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260717_apps_script_full_workflow_v205_has_contact_email_filter'));
+assert(codeSource.includes('20260718_apps_script_full_workflow_v208_company_sender_runtime'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
+assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
+assert(emailSource.includes("const DEFAULT_GMAIL_PRIMARY_SENDER_EMAIL_ = 'yuya.adclutch@gmail.com'"));
+assert(emailSource.includes('function getGmailSenderIdentityStatus_'));
+assert(emailSource.includes('GmailApp.sendEmail(source.to, source.subject, source.body, options)'));
 assert(codeSource.includes("'filled_count'"));
 assert(codeSource.includes('function createLeadLocked_'));
 assert(codeSource.includes('function findActiveLeadBySourceReference_'));
@@ -1723,4 +1770,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v205 contact email filter regression tests passed.');
+console.log('v208 company sender runtime regression tests passed.');

@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260717_apps_script_full_workflow_v205_has_contact_email_filter';
+const APP_VERSION = '20260718_apps_script_full_workflow_v208_company_sender_runtime';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -365,6 +365,12 @@ const DEFAULT_SETTINGS = Object.freeze([
     description: 'Display name used for Gmail messages sent by this app.',
   },
   {
+    key: 'gmail_sender_email',
+    value: '',
+    value_type: 'string',
+    description: 'Verified Gmail sender address used by this app. Blank keeps the Google account default.',
+  },
+  {
     key: 'gmail_daily_send_limit',
     value: '80',
     value_type: 'number',
@@ -543,7 +549,7 @@ function getSchemaStatus() {
       key: 'settings-core',
       label: 'settings 運用設定キー',
       sheet: 'settings',
-      settingKeys: ['gmail_sender_name', 'gmail_daily_send_limit', 'email_batch_send_limit', 'email_send_window', 'mail_sending_control', 'gmail_reply_check', 'calendar_auto_create', 'batch_runtime_budget_ms'],
+      settingKeys: ['gmail_sender_name', 'gmail_sender_email', 'gmail_daily_send_limit', 'email_batch_send_limit', 'email_send_window', 'mail_sending_control', 'gmail_reply_check', 'calendar_auto_create', 'batch_runtime_budget_ms'],
     },
   ];
   const checks = schemaChecks.map(function (check) {
