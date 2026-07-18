@@ -2688,6 +2688,45 @@
         justify-content: flex-start;
       }
 
+      .lead-simple-filter-panel {
+        grid-template-columns: minmax(280px, 1fr) minmax(180px, 240px) auto;
+      }
+
+      .lead-advanced-filter-disclosure {
+        grid-column: 1 / -1;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+      }
+
+      .lead-advanced-filter-disclosure > summary {
+        display: inline-flex;
+        align-items: center;
+        min-height: 36px;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .lead-advanced-filter-fields {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(160px, 1fr)) auto;
+        align-items: end;
+        gap: 10px;
+        padding-top: 10px;
+      }
+
+      .lead-advanced-filter-fields > label {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .lead-quick-views[hidden],
+      .filter-bar[hidden] {
+        display: none;
+      }
+
       .form-outreach-toolbar .list-filter-panel {
         grid-template-columns: minmax(260px, 1fr) minmax(170px, 220px) minmax(140px, 180px) auto;
         margin: 0;
@@ -2789,6 +2828,10 @@
         border-radius: 8px;
         background: #f8fbff;
         box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+      }
+
+      .lead-load-panel[hidden] {
+        display: none;
       }
 
       .lead-load-copy {
@@ -3005,192 +3048,143 @@
         text-align: center;
       }
 
-      .list-count-bar {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-        margin-bottom: 12px;
-      }
-
-      .list-count-bar div,
-      .lead-kpi-card {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: linear-gradient(180deg, #fff, #f8fafc);
-      }
-
-      .list-count-bar div {
-        display: grid;
-        gap: 5px;
-        min-height: 70px;
-        padding: 12px;
-      }
-
-      .list-count-bar span,
-      .lead-kpi-card span:not(.lead-kpi-icon) {
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 900;
-      }
-
-      .list-count-bar strong {
-        font-size: 24px;
-        line-height: 1;
-      }
-
-      .lead-kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
-        gap: 10px;
-        margin-bottom: 12px;
-      }
-
       .lead-breakdown-summary {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        margin: 14px 0 10px;
+        padding: 2px 0 4px;
       }
 
-      .lead-breakdown-summary > div {
+      .lead-breakdown-summary-copy {
         display: grid;
-        gap: 3px;
+        gap: 5px;
       }
 
-      .lead-breakdown-summary strong {
-        font-size: 15px;
+      .lead-breakdown-summary-title {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
       }
 
-      .lead-breakdown-summary span {
+      .lead-breakdown-summary-title strong {
+        color: var(--text);
+        font-size: 24px;
+        line-height: 1.2;
+      }
+
+      .lead-breakdown-summary-title span,
+      .lead-breakdown-summary-copy small {
         color: var(--muted);
         font-size: 12px;
         font-weight: 800;
       }
 
-      .lead-kpi-card {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 12px;
-        align-items: center;
-        min-height: 92px;
-        padding: 14px;
-        border-top-width: 4px;
-        color: inherit;
-        font: inherit;
-        text-align: left;
-        cursor: pointer;
-      }
-
-      .lead-kpi-card:hover {
-        border-color: #93c5fd;
-        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
-        transform: translateY(-1px);
-      }
-
-      .lead-kpi-card.active {
-        border-color: #2563eb;
-        background: #eff6ff;
-        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
-      }
-
-      .lead-kpi-card.zero:not(.active) {
-        opacity: 0.62;
-      }
-
-      .lead-kpi-icon {
-        display: grid;
-        place-items: center;
-        width: 42px;
-        height: 42px;
-        border-radius: 8px;
-        color: #1d4ed8;
-        background: #dbeafe;
-        font-weight: 900;
-      }
-
-      .lead-kpi-card strong {
-        display: block;
-        margin-top: 3px;
-        font-size: 24px;
-        line-height: 1;
-      }
-
-      .lead-kpi-card small {
-        display: block;
-        margin-top: 4px;
-        color: var(--muted);
-        font-size: 11px;
-        font-weight: 800;
-      }
-
-      .lead-kpi-card--reply .lead-kpi-icon,
-      .lead-kpi-card--won .lead-kpi-icon {
-        color: #047857;
-        background: #d1fae5;
-      }
-
-      .lead-kpi-card--send-ng .lead-kpi-icon {
-        color: #b91c1c;
-        background: #fee2e2;
-      }
-
-      .lead-kpi-card--deal .lead-kpi-icon {
-        color: #92400e;
-        background: #fef3c7;
-      }
-
-      .lead-kpi-card--lost .lead-kpi-icon {
-        color: #475569;
-        background: #e2e8f0;
-      }
-
-      .lead-status-legend {
+      .lead-stage-filter {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 12px;
-        padding: 10px 12px;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding: 6px;
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: 10px;
         background: #f8fafc;
       }
 
-      .lead-status-legend > span,
-      .lead-status-legend-item {
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 900;
-      }
-
-      .lead-status-legend > div {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-      }
-
-      .lead-status-legend-item {
+      .lead-stage-filter-button {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        justify-content: space-between;
+        gap: 12px;
+        flex: 1 1 150px;
+        min-height: 44px;
+        padding: 8px 12px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
         color: #334155;
+        font-size: 13px;
+        font-weight: 900;
+        cursor: pointer;
       }
 
-      .lead-status-legend-item i {
-        width: 13px;
-        height: 13px;
-        border: 1px solid #cbd5e1;
-        border-radius: 999px;
-        background: #fff;
+      .lead-stage-filter-button strong {
+        color: var(--text);
+        font-size: 16px;
       }
 
-      .lead-status-legend-item i.reply { background: #eff6ff; border-color: #bfdbfe; }
-      .lead-status-legend-item i.ng { background: #fff1f2; border-color: #fecaca; }
-      .lead-status-legend-item i.lost { background: #f1f5f9; border-color: #cbd5e1; }
-      .lead-status-legend-item i.won { background: #ecfdf5; border-color: #bbf7d0; }
-      .lead-status-legend-item i.review { background: #fffbeb; border-color: #fde68a; }
+      .lead-stage-filter-button:hover {
+        border-color: #cbd5e1;
+        background: #ffffff;
+      }
+
+      .lead-stage-filter-button.active {
+        border-color: #1f2937;
+        background: #1f2937;
+        color: #ffffff;
+      }
+
+      .lead-stage-filter-button.active strong {
+        color: #ffffff;
+      }
+
+      .lead-breakdown-details {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .lead-breakdown-details > summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 42px;
+        padding: 8px 12px;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .lead-breakdown-details > summary::after {
+        content: '必要なときだけ表示';
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .lead-breakdown-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 8px;
+        padding: 0 12px 12px;
+      }
+
+      .lead-breakdown-detail-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 38px;
+        padding: 7px 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 7px;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 800;
+        text-align: left;
+      }
+
+      .lead-breakdown-detail-button strong {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .lead-breakdown-detail-button:hover,
+      .lead-breakdown-detail-button.active {
+        border-color: #93c5fd;
+        background: #eff6ff;
+      }
 
       .lead-pagination {
         display: flex;
@@ -9526,7 +9520,8 @@
         .admin-primary-grid,
         .admin-disclosure-body,
         .review-command-panel,
-        .list-filter-panel {
+        .list-filter-panel,
+        .lead-advanced-filter-fields {
           grid-template-columns: 1fr;
         }
 
@@ -9672,6 +9667,19 @@
       @media (max-width: 720px) {
         .section-header h1 {
           font-size: 24px;
+        }
+
+        .lead-breakdown-summary {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .lead-stage-filter-button {
+          flex-basis: calc(50% - 8px);
+        }
+
+        .lead-breakdown-detail-grid {
+          grid-template-columns: 1fr;
         }
 
         .stats,
@@ -11649,56 +11657,70 @@
               <button type="button" class="primary" onclick="newLead()">手動追加</button>
             </div>
           </header>
-          <div class="filter-bar" id="genreBar"></div>
-          <div class="list-filter-panel">
+          <div class="filter-bar" id="genreBar" hidden></div>
+          <div class="list-filter-panel lead-simple-filter-panel">
             <label>検索<input id="leadSearch" type="search" placeholder="会社名、屋号、メール、URL"></label>
-            <label>ビュー<select id="leadQuickFilter">
-              <option value="all">すべて</option>
-              <option value="has_email">連絡先メールあり</option>
-              <option value="email">メール対象</option>
-              <option value="form">フォーム対象</option>
-              <option value="review">確認待ち</option>
-              <option value="unsent">未送信だけ</option>
-              <option value="sent">送信済み</option>
-              <option value="reply">返信あり</option>
-              <option value="deal">商談あり</option>
-              <option value="no_contact">メール/フォームなし</option>
-              <option value="send_ng">送信NGだけ</option>
-              <option value="won">成約だけ</option>
-              <option value="lost">失注だけ</option>
-              <optgroup label="状態内訳">
-                <option value="state_email_sendable">メール送信可能</option>
-                <option value="state_form_sendable">フォーム対応可能</option>
-                <option value="state_review">確認待ち</option>
-                <option value="state_no_contact">連絡先なし</option>
-                <option value="state_sent">メール送信済み</option>
-                <option value="state_reply">返信あり</option>
-                <option value="state_deal">商談中</option>
-                <option value="state_won">成約</option>
-                <option value="state_lost">失注</option>
-                <option value="state_send_ng">送信NG</option>
-                <option value="state_no_action">対応不要</option>
-                <option value="state_form_in_progress">フォーム対応中</option>
-                <option value="state_form_completed">フォーム対応済み</option>
-                <option value="state_other">その他・要確認</option>
-              </optgroup>
-            </select></label>
-            <label>ステータス<select id="leadStatus"></select></label>
             <label>ジャンル<select id="leadGenreFilter"></select></label>
-            <label>並び替え<select id="leadSort">
-              <option value="updated_desc">更新が新しい順</option>
-              <option value="created_desc">作成が新しい順</option>
-              <option value="company_asc">会社名順</option>
-              <option value="status_asc">ステータス順</option>
-              <option value="last_sent_desc">最終送信が新しい順</option>
-            </select></label>
             <div class="list-filter-actions">
-              <button type="button" class="button" onclick="filterLeads()"><span class="button-icon" data-ui-icon="search"></span>適用</button>
+              <button type="button" class="button primary" onclick="filterLeads()"><span class="button-icon" data-ui-icon="search"></span>検索</button>
               <button type="button" class="button secondary" onclick="clearLeadFilters()"><span class="button-icon" data-ui-icon="reset"></span>クリア</button>
             </div>
+            <details class="lead-advanced-filter-disclosure">
+              <summary>詳細条件</summary>
+              <div class="lead-advanced-filter-fields">
+                <label>詳しい絞り込み<select id="leadQuickFilter">
+                  <option value="all">すべて</option>
+                  <optgroup label="かんたん絞り込み">
+                    <option value="group_ready">送信準備</option>
+                    <option value="group_review">確認待ち</option>
+                    <option value="group_active">対応中</option>
+                    <option value="group_closed">完了・除外</option>
+                  </optgroup>
+                  <optgroup label="連絡先・作業">
+                    <option value="has_email">連絡先メールあり</option>
+                    <option value="email">メール対象</option>
+                    <option value="form">フォーム対象</option>
+                    <option value="review">確認待ち</option>
+                    <option value="unsent">未送信だけ</option>
+                    <option value="sent">送信済み</option>
+                    <option value="reply">返信あり</option>
+                    <option value="deal">商談あり</option>
+                    <option value="no_contact">メール/フォームなし</option>
+                    <option value="send_ng">送信NGだけ</option>
+                    <option value="won">成約だけ</option>
+                    <option value="lost">失注だけ</option>
+                  </optgroup>
+                  <optgroup label="詳しい状態">
+                    <option value="state_email_sendable">メール送信可能</option>
+                    <option value="state_form_sendable">フォーム対応可能</option>
+                    <option value="state_review">確認待ち</option>
+                    <option value="state_no_contact">連絡先なし</option>
+                    <option value="state_sent">メール送信済み</option>
+                    <option value="state_reply">返信あり</option>
+                    <option value="state_deal">商談中</option>
+                    <option value="state_won">成約</option>
+                    <option value="state_lost">失注</option>
+                    <option value="state_send_ng">送信NG</option>
+                    <option value="state_no_action">対応不要</option>
+                    <option value="state_form_in_progress">フォーム対応中</option>
+                    <option value="state_form_completed">フォーム対応済み</option>
+                    <option value="state_other">その他・要確認</option>
+                  </optgroup>
+                </select></label>
+                <label>ステータス<select id="leadStatus"></select></label>
+                <label>並び替え<select id="leadSort">
+                  <option value="updated_desc">更新が新しい順</option>
+                  <option value="created_desc">作成が新しい順</option>
+                  <option value="company_asc">会社名順</option>
+                  <option value="status_asc">ステータス順</option>
+                  <option value="last_sent_desc">最終送信が新しい順</option>
+                </select></label>
+                <button type="button" class="button secondary compact-button" onclick="saveCurrentLeadView()">現在の条件を保存</button>
+              </div>
+            </details>
             <span class="list-filter-panel-icon" data-ui-icon="sliders" aria-hidden="true"></span>
           </div>
-          <div class="lead-quick-views" id="leadQuickViews"></div>
+          <div class="lead-quick-views" id="leadQuickViews" hidden></div>
           <section id="leadSavedViews" class="lead-saved-views"></section>
           <section class="lead-load-panel" id="leadLoadPanel" aria-live="polite">
             <div class="lead-load-copy">
@@ -11734,17 +11756,16 @@
                   <option value="1000">1000件</option>
                   <option value="2000">2000件</option>
                 </select></label>
-                <button type="button" onclick="exportVisibleLeadsCsv()">CSV出力</button>
-                <button type="button" onclick="clearLeadFilters()">クリア</button>
-                <button type="button" class="primary" onclick="newLead()">新規</button>
               </div>
             </div>
             <div class="panel-body leads-bulk-table">
-              <div id="leadCountBar" class="list-count-bar"></div>
-              <div id="leadPager" class="lead-pagination"></div>
               <div id="leadBreakdownSummary" class="lead-breakdown-summary"></div>
-              <div id="leadKpiGrid" class="lead-kpi-grid"></div>
-              <div id="leadStatusLegend" class="lead-status-legend"></div>
+              <div id="leadKpiGrid" class="lead-stage-filter" role="group" aria-label="営業リストの状態"></div>
+              <details id="leadBreakdownDetails" class="lead-breakdown-details">
+                <summary>詳しい内訳を見る</summary>
+                <div id="leadBreakdownDetailGrid" class="lead-breakdown-detail-grid"></div>
+              </details>
+              <div id="leadPager" class="lead-pagination"></div>
               <div id="leadBulkActionBar" class="bulk-action-bar"></div>
             </div>
             <div class="table-wrap"><table id="leadTable"></table></div>
@@ -14507,6 +14528,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const target = document.getElementById('leadSavedViews');
         if (!target) return;
         const views = getLeadSavedViews();
+        if (!views.length) {
+          target.innerHTML = '';
+          return;
+        }
         target.innerHTML = `
           <span class="lead-saved-views-label">保存ビュー</span>
           ${views.map((view) => `
@@ -14688,6 +14713,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const detail = document.getElementById('leadLoadModeDetail');
         const allButtonText = document.getElementById('leadLoadAllButtonText');
         const allButton = document.getElementById('leadLoadAllButton');
+        const progressState = state.leadLoadProgress || {};
+        const percent = Math.max(0, Math.min(100, Number(progressState.percent || 0)));
+        const panel = document.getElementById('leadLoadPanel');
+        if (panel) panel.hidden = state.leadLoadMode !== 'review' && !progressState.active && percent <= 0;
         if (label && detail) {
           if (state.leadLoadMode === 'review') {
             label.textContent = '確認待ちリスト';
@@ -14709,8 +14738,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
         const progress = document.getElementById('leadLoadProgress');
         if (!progress) return;
-        const progressState = state.leadLoadProgress || {};
-        const percent = Math.max(0, Math.min(100, Number(progressState.percent || 0)));
         progress.hidden = !progressState.active && percent <= 0;
         const progressLabel = document.getElementById('leadLoadProgressLabel');
         const progressPercent = document.getElementById('leadLoadProgressPercent');
@@ -15561,6 +15588,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderLeadBulkActionBar() {
         const selected = getSelectedVisibleLeads();
+        const target = document.getElementById('leadBulkActionBar');
+        if (!selected.length) {
+          target.innerHTML = '';
+          return;
+        }
         const reviewIds = state.leads.filter(isReviewPendingLead).map((lead) => lead.id);
         const selectedReviewCount = selected.filter(isReviewPendingLead).length;
         const selectedDomainCount = selected.filter((lead) => lead.website_domain || lead.website_url || lead.email_domain).length;
@@ -15569,7 +15601,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const summaryText = selected.length > 0
           ? '選択した営業先だけ操作します。'
           : `確認待ち ${formatNumber(reviewIds.length)}件`;
-        document.getElementById('leadBulkActionBar').innerHTML = `
+        target.innerHTML = `
           <div class="bulk-action-status">
             <strong>${formatNumber(selected.length)}件選択中</strong>
             <span>${escapeHtml(summaryText)}</span>
@@ -15675,40 +15707,65 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const stats = state.leadPage.stats || {};
         const genre = document.getElementById('leadGenreFilter').value || '全ジャンル';
         const breakdown = Array.isArray(stats.breakdown) ? stats.breakdown : [];
-        const breakdownTotal = breakdown.reduce((sum, item) => sum + Number(item.count || 0), 0);
-        const nonZeroBreakdownCount = breakdown.filter((item) => Number(item.count || 0) > 0).length;
-        renderLeadReviewGuide(stats.reviewPending || 0);
-        document.getElementById('leadCountBar').innerHTML = [
-          [`${genre} 合計`, `${formatNumber(stats.totalLeadCount || 0)}件`],
-          ['現在の絞り込み', `${formatNumber(state.leadPage.total || 0)}件`],
-          ['状態区分', `${formatNumber(nonZeroBreakdownCount)}種類`],
-        ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
+        const groups = Array.isArray(stats.groups) ? stats.groups : [];
+        const visibleBreakdown = breakdown.filter((item) => Number(item.count || 0) > 0);
+        renderLeadReviewGuide(0);
         const activeFilter = document.getElementById('leadQuickFilter')?.value || 'all';
         const selectedBreakdown = breakdown.find((item) => item.filter === activeFilter);
+        const activeStateKey = activeFilter.indexOf('state_') === 0 ? activeFilter.slice('state_'.length) : '';
+        const legacyGroupMap = {
+          email: 'ready',
+          form: 'ready',
+          review: 'review',
+          sent: 'active',
+          reply: 'active',
+          deal: 'active',
+          won: 'closed',
+          lost: 'closed',
+          send_ng: 'closed',
+          no_contact: 'closed',
+          excluded: 'closed',
+        };
+        const selectedGroup = groups.find((item) =>
+          item.filter === activeFilter ||
+          (activeStateKey && Array.isArray(item.states) && item.states.includes(activeStateKey)) ||
+          item.key === legacyGroupMap[activeFilter]
+        );
+        const activeOption = Array.from(document.getElementById('leadQuickFilter')?.options || []).find((option) => option.value === activeFilter);
+        const activeLabel = selectedBreakdown?.label || (activeFilter.indexOf('group_') === 0 ? selectedGroup?.label : activeOption?.textContent) || 'すべて';
+        const filteredText = activeFilter === 'all'
+          ? '状態を選ぶと一覧を絞り込めます'
+          : `${activeLabel} ${formatNumber(state.leadPage.total || 0)}件を表示中`;
         document.getElementById('leadBreakdownSummary').innerHTML = `
-          <div>
-            <strong>${escapeHtml(genre)} ${formatNumber(stats.totalLeadCount || 0)}件の状態内訳</strong>
-            <span>${selectedBreakdown ? `${escapeHtml(selectedBreakdown.label)} ${formatNumber(selectedBreakdown.count || 0)}件に絞り込み中` : 'カードを選ぶと一覧を絞り込めます'} / 内訳合計 ${formatNumber(breakdownTotal)}件</span>
+          <div class="lead-breakdown-summary-copy">
+            <div class="lead-breakdown-summary-title">
+              <strong>${escapeHtml(genre)} ${formatNumber(stats.totalLeadCount || 0)}件</strong>
+              <span>現在 ${formatNumber(state.leadPage.total || 0)}件</span>
+            </div>
+            <small>${escapeHtml(filteredText)}</small>
           </div>
-          <button type="button" class="button secondary compact-button" onclick="setLeadFilter('all')" ${activeFilter === 'all' ? 'disabled' : ''}>すべて ${formatNumber(stats.totalLeadCount || 0)}件</button>
+          ${activeFilter === 'all' ? '' : '<button type="button" class="button secondary compact-button" onclick="setLeadFilter(\'all\')">絞り込みを解除</button>'}
         `;
-        document.getElementById('leadKpiGrid').innerHTML = breakdown.map((item) => `
-          <button type="button" class="lead-kpi-card lead-kpi-card--${escapeHtml(item.key.replace(/_/g, '-'))} ${activeFilter === item.filter ? 'active' : ''} ${Number(item.count || 0) === 0 ? 'zero' : ''}" onclick="setLeadFilter('${escapeJsString(item.filter)}')" aria-pressed="${activeFilter === item.filter ? 'true' : 'false'}">
-            <span class="lead-kpi-icon">${escapeHtml(item.icon || 'ST')}</span>
-            <div><span>${escapeHtml(item.label || 'その他')}</span><strong>${formatNumber(item.count || 0)}件</strong><small>${escapeHtml(item.detail || '')}</small></div>
+        document.getElementById('leadKpiGrid').innerHTML = [{
+          filter: 'all',
+          label: 'すべて',
+          count: stats.totalLeadCount || 0,
+          key: 'all',
+        }].concat(groups).map((item) => {
+          const isActive = item.filter === 'all' ? activeFilter === 'all' : selectedGroup?.key === item.key;
+          return `
+          <button type="button" class="lead-stage-filter-button ${isActive ? 'active' : ''}" onclick="setLeadFilter('${escapeJsString(item.filter)}')" aria-pressed="${isActive ? 'true' : 'false'}" title="${escapeHtml(item.detail || item.label)}">
+            <span>${escapeHtml(item.label)}</span><strong>${formatNumber(item.count || 0)}件</strong>
+          </button>
+        `;
+        }).join('');
+        document.getElementById('leadBreakdownDetailGrid').innerHTML = visibleBreakdown.map((item) => `
+          <button type="button" class="lead-breakdown-detail-button ${activeFilter === item.filter ? 'active' : ''}" onclick="setLeadFilter('${escapeJsString(item.filter)}')" aria-pressed="${activeFilter === item.filter ? 'true' : 'false'}">
+            <span>${escapeHtml(item.label)}</span><strong>${formatNumber(item.count || 0)}件</strong>
           </button>
         `).join('');
-        document.getElementById('leadStatusLegend').innerHTML = `
-          <span>色分け</span>
-          <div>
-            <span class="lead-status-legend-item"><i></i>通常</span>
-            <span class="lead-status-legend-item"><i class="review"></i>確認待ち</span>
-            <span class="lead-status-legend-item"><i class="reply"></i>返信あり</span>
-            <span class="lead-status-legend-item"><i class="ng"></i>送信NG</span>
-            <span class="lead-status-legend-item"><i class="lost"></i>失注</span>
-            <span class="lead-status-legend-item"><i class="won"></i>成約/商談</span>
-          </div>
-        `;
+        const detailDisclosure = document.getElementById('leadBreakdownDetails');
+        if (detailDisclosure && activeFilter.indexOf('state_') === 0) detailDisclosure.open = true;
       }
 
       function renderLeadReviewGuide(reviewCount) {

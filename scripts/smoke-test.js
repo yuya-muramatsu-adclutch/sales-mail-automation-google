@@ -163,8 +163,18 @@ const leadStateFixtures = [
 const leadStateBreakdown = JSON.parse(JSON.stringify(leadBreakdownContext.buildLeadListStateBreakdown_(leadStateFixtures, {})));
 assert.strictEqual(leadStateBreakdown.reduce((sum, item) => sum + item.count, 0), leadStateFixtures.length);
 leadStateBreakdown.forEach((item) => assert.strictEqual(item.count, 1, `${item.key} must be mutually exclusive`));
+const leadStateGroups = JSON.parse(JSON.stringify(leadBreakdownContext.buildLeadListStateGroups_(leadStateBreakdown)));
+assert.deepStrictEqual(leadStateGroups.map((item) => [item.key, item.count]), [
+  ['ready', 2],
+  ['review', 2],
+  ['active', 4],
+  ['closed', 6],
+]);
+assert.strictEqual(leadStateGroups.reduce((sum, item) => sum + item.count, 0), leadStateFixtures.length);
 assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[7], 'state_won', {}), true);
 assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[7], 'state_lost', {}), false);
+assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[4], 'group_active', {}), true);
+assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[8], 'group_active', {}), false);
 unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
 unlockedMailContext.ensureSheet_ = () => ({});
 unlockedMailContext.readSheetRecords_ = () => [
@@ -1597,7 +1607,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260718_apps_script_full_workflow_v209_lead_state_breakdown_filters'));
+assert(codeSource.includes('20260718_apps_script_full_workflow_v210_simple_lead_overview'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1612,6 +1622,7 @@ assert(codeSource.includes('function updateReviewLeadDecision'));
 assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
 assert(codeSource.includes('function classifyLeadListState_'));
 assert(codeSource.includes('function buildLeadListStateBreakdown_'));
+assert(codeSource.includes('function buildLeadListStateGroups_'));
 assert(codeSource.includes("withScriptLock_('saveSerperApiKey'"));
 const spreadsheetBindingStart = codeSource.indexOf('function getOrCreateSpreadsheet_');
 const spreadsheetBindingEnd = codeSource.indexOf('\nfunction ', spreadsheetBindingStart + 10);
@@ -1676,6 +1687,9 @@ assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 assert(indexSource.includes('id="leadBreakdownSummary"'));
+assert(indexSource.includes('id="leadBreakdownDetails"'));
+assert(indexSource.includes('id="leadBreakdownDetailGrid"'));
+assert(indexSource.includes('class="lead-stage-filter"'));
 assert(indexSource.includes("onclick=\"setLeadFilter('${escapeJsString(item.filter)}')\""));
 assert(!indexSource.includes('function importCsv(event)'));
 assert(indexSource.includes('finish();\n            reject(error);'));
@@ -1803,4 +1817,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v209 lead state breakdown filter regression tests passed.');
+console.log('v210 simple lead overview regression tests passed.');

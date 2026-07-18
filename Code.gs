@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260718_apps_script_full_workflow_v209_lead_state_breakdown_filters';
+const APP_VERSION = '20260718_apps_script_full_workflow_v210_simple_lead_overview';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -481,6 +481,12 @@ const LEAD_LIST_STATE_DEFINITIONS_ = Object.freeze([
   { key: 'form_completed', label: 'フォーム対応済み', detail: 'フォーム送信完了', icon: 'FC' },
   { key: 'other', label: 'その他・要確認', detail: '連絡先あり・送信条件外', icon: 'OT' },
 ]);
+const LEAD_LIST_STATE_GROUP_DEFINITIONS_ = Object.freeze([
+  { key: 'ready', label: '送信準備', detail: '今すぐ送信・フォーム対応できる', states: ['email_sendable', 'form_sendable'] },
+  { key: 'review', label: '確認待ち', detail: '内容の確認が必要', states: ['review', 'other'] },
+  { key: 'active', label: '対応中', detail: '送信後・返信・商談を進行中', states: ['sent', 'reply', 'deal', 'form_in_progress'] },
+  { key: 'closed', label: '完了・除外', detail: '完了または営業対象外', states: ['won', 'lost', 'send_ng', 'no_action', 'form_completed', 'no_contact'] },
+]);
 
 function onOpen() {
   try {
@@ -822,6 +828,12 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   if (value.indexOf('state_') === 0) {
     return classifyLeadListState_(lead, masterContext) === value.slice('state_'.length);
   }
+  if (value.indexOf('group_') === 0) {
+    const group = LEAD_LIST_STATE_GROUP_DEFINITIONS_.find(function (definition) {
+      return definition.key === value.slice('group_'.length);
+    });
+    return Boolean(group) && group.states.indexOf(classifyLeadListState_(lead, masterContext)) !== -1;
+  }
 
   if (value === 'email') return isEmailSendTarget_(lead, masterContext);
   if (value === 'has_email') return isValidEmailAddress_(lead.email);
@@ -880,6 +892,25 @@ function buildLeadListStateBreakdown_(rows, masterContext) {
       detail: definition.detail,
       icon: definition.icon,
       count: Number(counts[definition.key] || 0),
+    };
+  });
+}
+
+function buildLeadListStateGroups_(breakdown) {
+  const counts = (breakdown || []).reduce(function (result, item) {
+    result[item.key] = Number(item.count || 0);
+    return result;
+  }, {});
+  return LEAD_LIST_STATE_GROUP_DEFINITIONS_.map(function (definition) {
+    return {
+      key: definition.key,
+      filter: 'group_' + definition.key,
+      label: definition.label,
+      detail: definition.detail,
+      states: definition.states.slice(),
+      count: definition.states.reduce(function (sum, stateKey) {
+        return sum + Number(counts[stateKey] || 0);
+      }, 0),
     };
   });
 }
@@ -1038,6 +1069,7 @@ function buildLeadListStats_(rows, masterContext, genre) {
   });
 
   const breakdown = buildLeadListStateBreakdown_(active, masterContext);
+  const groups = buildLeadListStateGroups_(breakdown);
   return {
     totalLeadCount: active.length,
     sendable: active.filter(function (lead) { return isEmailSendTarget_(lead, masterContext); }).length,
@@ -1053,6 +1085,8 @@ function buildLeadListStats_(rows, masterContext, genre) {
     reviewPending: active.filter(function (lead) { return matchesLeadListFilter_(lead, 'review', masterContext); }).length,
     breakdown: breakdown,
     breakdownTotal: breakdown.reduce(function (sum, item) { return sum + Number(item.count || 0); }, 0),
+    groups: groups,
+    groupTotal: groups.reduce(function (sum, item) { return sum + Number(item.count || 0); }, 0),
   };
 }
 
@@ -2166,6 +2200,8 @@ function normalizeListOptions_(options) {
   const sort = String(input.sort || 'updated_desc').trim() || 'updated_desc';
   const allowedFilters = ['all', 'email', 'has_email', 'form', 'form_all', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'].concat(LEAD_LIST_STATE_DEFINITIONS_.map(function (definition) {
     return 'state_' + definition.key;
+  })).concat(LEAD_LIST_STATE_GROUP_DEFINITIONS_.map(function (definition) {
+    return 'group_' + definition.key;
   }));
   const allowedSorts = ['updated_desc', 'created_desc', 'company_asc', 'status_asc', 'last_sent_desc'];
 
