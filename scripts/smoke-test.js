@@ -136,6 +136,35 @@ unlockedMailContext.sendGmailMessage_({
 });
 assert.strictEqual(primarySendPayload.options.from, undefined);
 assert.strictEqual(primarySendPayload.options.replyTo, 'yuya.adclutch@gmail.com');
+
+const leadBreakdownContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), leadBreakdownContext, { filename: file });
+});
+leadBreakdownContext.isEmailSendTarget_ = (lead) => lead.fixture === 'email_sendable';
+leadBreakdownContext.isFormSendTarget_ = (lead) => lead.fixture === 'form_sendable';
+leadBreakdownContext.isLeadReviewPending_ = (lead) => lead.fixture === 'review';
+const leadStateFixtures = [
+  { fixture: 'email_sendable', email: 'mail@example.com', status: '未対応' },
+  { fixture: 'form_sendable', form_url: 'https://example.com/contact', status: '未対応' },
+  { fixture: 'review', website_url: 'https://review.example', status: '未対応' },
+  { fixture: 'no_contact', status: '対応中' },
+  { fixture: 'sent', email: 'sent@example.com', send_count: 1, status: '初回メール送信済み' },
+  { fixture: 'reply', email: 'reply@example.com', reply_checked: true, status: '返信あり' },
+  { fixture: 'deal', email: 'deal@example.com', deal_status: '商談予定', status: '商談予定' },
+  { fixture: 'won', email: 'won@example.com', deal_status: '受注', status: '受注' },
+  { fixture: 'lost', email: 'lost@example.com', deal_status: '失注', status: '失注' },
+  { fixture: 'send_ng', email: 'ng@example.com', send_ng: true, status: '送信NG' },
+  { fixture: 'no_action', status: '対応不要' },
+  { fixture: 'form_in_progress', form_url: 'https://form-progress.example', status: 'フォーム対応中' },
+  { fixture: 'form_completed', form_url: 'https://form-complete.example', status: 'フォーム対応済み' },
+  { fixture: 'other', email: 'held@adclutch.jp', status: '対応中' },
+];
+const leadStateBreakdown = JSON.parse(JSON.stringify(leadBreakdownContext.buildLeadListStateBreakdown_(leadStateFixtures, {})));
+assert.strictEqual(leadStateBreakdown.reduce((sum, item) => sum + item.count, 0), leadStateFixtures.length);
+leadStateBreakdown.forEach((item) => assert.strictEqual(item.count, 1, `${item.key} must be mutually exclusive`));
+assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[7], 'state_won', {}), true);
+assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[7], 'state_lost', {}), false);
 unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
 unlockedMailContext.ensureSheet_ = () => ({});
 unlockedMailContext.readSheetRecords_ = () => [
@@ -1568,7 +1597,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260718_apps_script_full_workflow_v208_company_sender_runtime'));
+assert(codeSource.includes('20260718_apps_script_full_workflow_v209_lead_state_breakdown_filters'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1581,6 +1610,8 @@ assert(codeSource.includes('function findActiveLeadBySourceReference_'));
 assert(codeSource.includes('function listEmailSendCandidates'));
 assert(codeSource.includes('function updateReviewLeadDecision'));
 assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
+assert(codeSource.includes('function classifyLeadListState_'));
+assert(codeSource.includes('function buildLeadListStateBreakdown_'));
 assert(codeSource.includes("withScriptLock_('saveSerperApiKey'"));
 const spreadsheetBindingStart = codeSource.indexOf('function getOrCreateSpreadsheet_');
 const spreadsheetBindingEnd = codeSource.indexOf('\nfunction ', spreadsheetBindingStart + 10);
@@ -1644,6 +1675,8 @@ assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHist
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
+assert(indexSource.includes('id="leadBreakdownSummary"'));
+assert(indexSource.includes("onclick=\"setLeadFilter('${escapeJsString(item.filter)}')\""));
 assert(!indexSource.includes('function importCsv(event)'));
 assert(indexSource.includes('finish();\n            reject(error);'));
 assert(indexSource.includes("apiQuiet('listEmailSendCandidates', { genre, limit: 100 })"));
@@ -1770,4 +1803,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v208 company sender runtime regression tests passed.');
+console.log('v209 lead state breakdown filter regression tests passed.');

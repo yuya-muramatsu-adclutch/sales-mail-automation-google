@@ -3040,9 +3040,32 @@
 
       .lead-kpi-grid {
         display: grid;
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
         gap: 10px;
         margin-bottom: 12px;
+      }
+
+      .lead-breakdown-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 14px 0 10px;
+      }
+
+      .lead-breakdown-summary > div {
+        display: grid;
+        gap: 3px;
+      }
+
+      .lead-breakdown-summary strong {
+        font-size: 15px;
+      }
+
+      .lead-breakdown-summary span {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
       }
 
       .lead-kpi-card {
@@ -3053,6 +3076,26 @@
         min-height: 92px;
         padding: 14px;
         border-top-width: 4px;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .lead-kpi-card:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
+        transform: translateY(-1px);
+      }
+
+      .lead-kpi-card.active {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+      }
+
+      .lead-kpi-card.zero:not(.active) {
+        opacity: 0.62;
       }
 
       .lead-kpi-icon {
@@ -11623,6 +11666,22 @@
               <option value="send_ng">送信NGだけ</option>
               <option value="won">成約だけ</option>
               <option value="lost">失注だけ</option>
+              <optgroup label="状態内訳">
+                <option value="state_email_sendable">メール送信可能</option>
+                <option value="state_form_sendable">フォーム対応可能</option>
+                <option value="state_review">確認待ち</option>
+                <option value="state_no_contact">連絡先なし</option>
+                <option value="state_sent">メール送信済み</option>
+                <option value="state_reply">返信あり</option>
+                <option value="state_deal">商談中</option>
+                <option value="state_won">成約</option>
+                <option value="state_lost">失注</option>
+                <option value="state_send_ng">送信NG</option>
+                <option value="state_no_action">対応不要</option>
+                <option value="state_form_in_progress">フォーム対応中</option>
+                <option value="state_form_completed">フォーム対応済み</option>
+                <option value="state_other">その他・要確認</option>
+              </optgroup>
             </select></label>
             <label>ステータス<select id="leadStatus"></select></label>
             <label>ジャンル<select id="leadGenreFilter"></select></label>
@@ -11683,6 +11742,7 @@
             <div class="panel-body leads-bulk-table">
               <div id="leadCountBar" class="list-count-bar"></div>
               <div id="leadPager" class="lead-pagination"></div>
+              <div id="leadBreakdownSummary" class="lead-breakdown-summary"></div>
               <div id="leadKpiGrid" class="lead-kpi-grid"></div>
               <div id="leadStatusLegend" class="lead-status-legend"></div>
               <div id="leadBulkActionBar" class="bulk-action-bar"></div>
@@ -15613,27 +15673,30 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderLeadInsights() {
         const stats = state.leadPage.stats || {};
-        const filtered = state.leadPage.filteredStats || {};
         const genre = document.getElementById('leadGenreFilter').value || '全ジャンル';
+        const breakdown = Array.isArray(stats.breakdown) ? stats.breakdown : [];
+        const breakdownTotal = breakdown.reduce((sum, item) => sum + Number(item.count || 0), 0);
+        const nonZeroBreakdownCount = breakdown.filter((item) => Number(item.count || 0) > 0).length;
         renderLeadReviewGuide(stats.reviewPending || 0);
         document.getElementById('leadCountBar').innerHTML = [
-          ['営業リスト累計', `${formatNumber(stats.totalLeadCount || 0)}件`],
-          ['表示中', `${formatNumber(state.leadPage.total || 0)}件`],
-          [genre, `${formatNumber(filtered.totalLeadCount || state.leadPage.total || 0)}件`],
+          [`${genre} 合計`, `${formatNumber(stats.totalLeadCount || 0)}件`],
+          ['現在の絞り込み', `${formatNumber(state.leadPage.total || 0)}件`],
+          ['状態区分', `${formatNumber(nonZeroBreakdownCount)}種類`],
         ].map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('');
-        const kpis = [
-          ['lead-kpi-card--sendable', '送信可能数', stats.sendable, 'メール送信対象', 'ML'],
-          ['lead-kpi-card--reply', '返信数', stats.replies, '返信あり', 'RP'],
-          ['lead-kpi-card--send-ng', '送信NG数', stats.sendNg, '送信NG', 'NG'],
-          ['lead-kpi-card--deal', '商談数', stats.deals, '商談予定・済み含む', 'MT'],
-          ['lead-kpi-card--lost', '失注数', stats.lost, '失注', 'LS'],
-          ['lead-kpi-card--won', '成約数', stats.won, '受注', 'WN'],
-        ];
-        document.getElementById('leadKpiGrid').innerHTML = kpis.map(([className, label, value, detail, icon]) => `
-          <div class="lead-kpi-card ${className}">
-            <span class="lead-kpi-icon">${escapeHtml(icon)}</span>
-            <div><span>${escapeHtml(label)}</span><strong>${formatNumber(value || 0)}件</strong><small>${escapeHtml(detail)}</small></div>
+        const activeFilter = document.getElementById('leadQuickFilter')?.value || 'all';
+        const selectedBreakdown = breakdown.find((item) => item.filter === activeFilter);
+        document.getElementById('leadBreakdownSummary').innerHTML = `
+          <div>
+            <strong>${escapeHtml(genre)} ${formatNumber(stats.totalLeadCount || 0)}件の状態内訳</strong>
+            <span>${selectedBreakdown ? `${escapeHtml(selectedBreakdown.label)} ${formatNumber(selectedBreakdown.count || 0)}件に絞り込み中` : 'カードを選ぶと一覧を絞り込めます'} / 内訳合計 ${formatNumber(breakdownTotal)}件</span>
           </div>
+          <button type="button" class="button secondary compact-button" onclick="setLeadFilter('all')" ${activeFilter === 'all' ? 'disabled' : ''}>すべて ${formatNumber(stats.totalLeadCount || 0)}件</button>
+        `;
+        document.getElementById('leadKpiGrid').innerHTML = breakdown.map((item) => `
+          <button type="button" class="lead-kpi-card lead-kpi-card--${escapeHtml(item.key.replace(/_/g, '-'))} ${activeFilter === item.filter ? 'active' : ''} ${Number(item.count || 0) === 0 ? 'zero' : ''}" onclick="setLeadFilter('${escapeJsString(item.filter)}')" aria-pressed="${activeFilter === item.filter ? 'true' : 'false'}">
+            <span class="lead-kpi-icon">${escapeHtml(item.icon || 'ST')}</span>
+            <div><span>${escapeHtml(item.label || 'その他')}</span><strong>${formatNumber(item.count || 0)}件</strong><small>${escapeHtml(item.detail || '')}</small></div>
+          </button>
         `).join('');
         document.getElementById('leadStatusLegend').innerHTML = `
           <span>色分け</span>

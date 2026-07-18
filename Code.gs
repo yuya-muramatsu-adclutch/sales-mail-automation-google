@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260718_apps_script_full_workflow_v208_company_sender_runtime';
+const APP_VERSION = '20260718_apps_script_full_workflow_v209_lead_state_breakdown_filters';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -465,6 +465,22 @@ const SEND_EXCLUDED_STATUSES = Object.freeze([
 ]);
 const DEAL_STATUSES = Object.freeze(['商談予定', '商談済み', '受注', '失注']);
 const FORM_STATUSES = Object.freeze(['未対応', '対応中', '対応済み', '対応不要']);
+const LEAD_LIST_STATE_DEFINITIONS_ = Object.freeze([
+  { key: 'email_sendable', label: 'メール送信可能', detail: '未送信で自動送信の対象', icon: 'ML' },
+  { key: 'form_sendable', label: 'フォーム対応可能', detail: 'メールなし・フォームあり', icon: 'FM' },
+  { key: 'review', label: '確認待ち', detail: '検索追加候補の確認前', icon: 'RV' },
+  { key: 'no_contact', label: '連絡先なし', detail: 'メール・フォーム未取得', icon: 'NC' },
+  { key: 'sent', label: 'メール送信済み', detail: '送信後・返信待ち', icon: 'SD' },
+  { key: 'reply', label: '返信あり', detail: '返信確認済み', icon: 'RP' },
+  { key: 'deal', label: '商談中', detail: '商談予定・商談済み', icon: 'MT' },
+  { key: 'won', label: '成約', detail: '受注', icon: 'WN' },
+  { key: 'lost', label: '失注', detail: '商談失注', icon: 'LS' },
+  { key: 'send_ng', label: '送信NG', detail: '配信対象外', icon: 'NG' },
+  { key: 'no_action', label: '対応不要', detail: '営業対象外・対応完了', icon: 'NA' },
+  { key: 'form_in_progress', label: 'フォーム対応中', detail: 'フォーム作業中', icon: 'FI' },
+  { key: 'form_completed', label: 'フォーム対応済み', detail: 'フォーム送信完了', icon: 'FC' },
+  { key: 'other', label: 'その他・要確認', detail: '連絡先あり・送信条件外', icon: 'OT' },
+]);
 
 function onOpen() {
   try {
@@ -803,6 +819,10 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   const sent = sendCount > 0 || Boolean(lead.last_sent_at) || status.indexOf('送信済み') !== -1;
   const deal = dealStatus !== '未設定' || DEAL_STATUSES.indexOf(status) !== -1;
 
+  if (value.indexOf('state_') === 0) {
+    return classifyLeadListState_(lead, masterContext) === value.slice('state_'.length);
+  }
+
   if (value === 'email') return isEmailSendTarget_(lead, masterContext);
   if (value === 'has_email') return isValidEmailAddress_(lead.email);
   if (value === 'form') return isFormSendTarget_(lead, masterContext);
@@ -818,6 +838,50 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   if (value === 'lost') return dealStatus === '失注' || status === '失注';
   if (value === 'review') return isLeadReviewPending_(lead);
   return true;
+}
+
+function classifyLeadListState_(lead, masterContext) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  const status = String(source.status || '');
+  const dealStatus = String(source.deal_status || '未設定');
+  const formStatus = String(source.form_status || '未対応');
+  const sent = Number(source.send_count || 0) > 0 || Boolean(source.last_sent_at) || status.indexOf('送信済み') !== -1;
+
+  if (dealStatus === '受注' || status === '受注') return 'won';
+  if (dealStatus === '失注' || status === '失注') return 'lost';
+  if (dealStatus === '商談予定' || dealStatus === '商談済み' || status === '商談予定' || status === '商談済み') return 'deal';
+  if (normalizeBooleanLike_(source.reply_checked) || status === '返信あり') return 'reply';
+  if (normalizeBooleanLike_(source.send_ng) || status === '送信NG') return 'send_ng';
+  if (status === '対応不要' || formStatus === '対応不要') return 'no_action';
+  if (isLeadReviewPending_(source)) return 'review';
+  if (sent) return 'sent';
+  if (status === 'フォーム対応済み' || formStatus === '対応済み') return 'form_completed';
+  if (status === 'フォーム対応中' || formStatus === '対応中') return 'form_in_progress';
+  if (isEmailSendTarget_(source, masterContext)) return 'email_sendable';
+  if (isFormSendTarget_(source, masterContext)) return 'form_sendable';
+  if (!isValidEmailAddress_(source.email) && !String(source.form_url || '').trim()) return 'no_contact';
+  return 'other';
+}
+
+function buildLeadListStateBreakdown_(rows, masterContext) {
+  const counts = LEAD_LIST_STATE_DEFINITIONS_.reduce(function (result, definition) {
+    result[definition.key] = 0;
+    return result;
+  }, {});
+  (rows || []).forEach(function (lead) {
+    const key = classifyLeadListState_(lead, masterContext);
+    counts[key] = Number(counts[key] || 0) + 1;
+  });
+  return LEAD_LIST_STATE_DEFINITIONS_.map(function (definition) {
+    return {
+      key: definition.key,
+      filter: 'state_' + definition.key,
+      label: definition.label,
+      detail: definition.detail,
+      icon: definition.icon,
+      count: Number(counts[definition.key] || 0),
+    };
+  });
 }
 
 function isLeadReviewPending_(lead) {
@@ -973,6 +1037,7 @@ function buildLeadListStats_(rows, masterContext, genre) {
     return true;
   });
 
+  const breakdown = buildLeadListStateBreakdown_(active, masterContext);
   return {
     totalLeadCount: active.length,
     sendable: active.filter(function (lead) { return isEmailSendTarget_(lead, masterContext); }).length,
@@ -986,6 +1051,8 @@ function buildLeadListStats_(rows, masterContext, genre) {
     unsent: active.filter(function (lead) { return matchesLeadListFilter_(lead, 'unsent', masterContext); }).length,
     noContact: active.filter(function (lead) { return matchesLeadListFilter_(lead, 'no_contact', masterContext); }).length,
     reviewPending: active.filter(function (lead) { return matchesLeadListFilter_(lead, 'review', masterContext); }).length,
+    breakdown: breakdown,
+    breakdownTotal: breakdown.reduce(function (sum, item) { return sum + Number(item.count || 0); }, 0),
   };
 }
 
@@ -2097,7 +2164,9 @@ function normalizeListOptions_(options) {
   const filter = String(input.filter || 'all').trim() || 'all';
   const formStatus = String(input.formStatus || input.form_status || '').trim();
   const sort = String(input.sort || 'updated_desc').trim() || 'updated_desc';
-  const allowedFilters = ['all', 'email', 'has_email', 'form', 'form_all', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'];
+  const allowedFilters = ['all', 'email', 'has_email', 'form', 'form_all', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'].concat(LEAD_LIST_STATE_DEFINITIONS_.map(function (definition) {
+    return 'state_' + definition.key;
+  }));
   const allowedSorts = ['updated_desc', 'created_desc', 'company_asc', 'status_asc', 'last_sent_desc'];
 
   if (status && LEAD_STATUSES.indexOf(status) === -1) {
