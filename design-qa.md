@@ -303,3 +303,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Contiguous-only range grouping avoids widening reads across omitted JSON columns.
 - Automated coverage verifies active-job reuse, stale-job recovery, new-job creation, the exact projection, and omitted large fields.
 - Fixed deployment updated to `@245`; live trigger duration remains a production observation.
+
+## v245 follow-up
+
+- Reply false-positive review explicitly requests the latest Gmail thread identifier required by optimistic conflict checks.
+- The route skips list statistics and their master-data reads because the screen only needs one paginated reply set.
+- Reply-log reads are projected to six classification/display fields, and logs outside the current page are not accumulated.
+- Human replies still suppress repair candidates, while auto-reply-only records remain repairable with the expected thread ID intact.
+- Automated coverage verifies the query flags, exact log projection, page scoping, candidate classification, and concurrency token.
+- Fixed deployment updated to `@246`; no live Gmail repair mutation was performed during verification.

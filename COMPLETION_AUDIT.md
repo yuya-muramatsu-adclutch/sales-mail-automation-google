@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @245 / production code v244: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @246 / production code v245: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v244_mail_job_claim_columns`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v245_reply_repair_columns`
+
+## v245 返信誤判定候補の安全性・軽量化
+
+- 営業リスト軽量化後も復元時の競合確認を維持するため、返信誤判定候補だけ `last_gmail_thread_id` を追加取得する。
+- 候補ページは状態内訳を使わないため `includeStats: false` とし、不要なNG・除外マスター取得と全件集計を行わない。
+- 返信ログ8列すべてではなく、候補判定と表示に必要な6列だけを読む。IDとthread_idは一覧判定から除外した。
+- 取得した返信ログのうち、現在の候補ページにない営業先はメモリ集計へ入れない。
+- 自動返信だけの営業先を候補に残すこと、人間の返信がある営業先を除外すること、最新GmailスレッドIDが復元候補へ保持されることを回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 246を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@246` であることを確認した。Gmail実データを変更する復元操作は実行していない。
 
 ## v244 完全自動送信ジョブ開始判定の軽量化
 

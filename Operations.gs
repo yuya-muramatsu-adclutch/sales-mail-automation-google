@@ -249,17 +249,40 @@ function releaseGmailReplyCheckRun_(lockToken) {
   });
 }
 
+function replyFalsePositiveLogFields_() {
+  return [
+    'lead_id',
+    'from_email',
+    'subject',
+    'snippet',
+    'received_at',
+    'created_at',
+  ];
+}
+
 function listReplyFalsePositiveCandidates(options) {
   const input = options && typeof options === 'object' ? options : {};
   const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 500);
   const offset = Math.max(Number(input.offset) || 0, 0);
   const startedAt = Date.now();
-  const page = listLeads({ filter: 'reply', limit: limit, offset: offset, includeArchived: false });
+  const page = listLeads({
+    filter: 'reply',
+    limit: limit,
+    offset: offset,
+    includeArchived: false,
+    includeStats: false,
+    includeFields: ['last_gmail_thread_id'],
+  });
   const leads = page.items || [];
+  const requestedLeadIds = leads.reduce(function (result, lead) {
+    const leadId = String(lead.id || '');
+    if (leadId) result[leadId] = true;
+    return result;
+  }, {});
   const latestHistoryByLeadId = buildLatestSuccessfulMailHistoryByLeadId_();
-  const logsByLeadId = readAllSheetRecordsByName_('reply_logs', { includeInactive: true, includeArchived: true }).reduce(function (acc, log) {
+  const logsByLeadId = readSheetRecordFields_('reply_logs', replyFalsePositiveLogFields_(), { maxGapColumns: 0 }).reduce(function (acc, log) {
     const leadId = String(log.lead_id || '');
-    if (!leadId) return acc;
+    if (!leadId || !requestedLeadIds[leadId]) return acc;
     if (!acc[leadId]) acc[leadId] = [];
     acc[leadId].push(log);
     return acc;

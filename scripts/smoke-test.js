@@ -1659,27 +1659,47 @@ const replyRepairContext = vm.createContext({ console });
 files.forEach((file) => {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), replyRepairContext, { filename: file });
 });
-replyRepairContext.listLeads = () => ({
+let replyRepairLeadQuery = null;
+let replyRepairLogFields = [];
+let replyRepairLogReadOptions = null;
+replyRepairContext.listLeads = (query) => {
+  replyRepairLeadQuery = Object.assign({}, query);
+  return ({
   total: 3,
   items: [
-    { id: 'lead-genuine', company_name: 'Genuine', email: 'genuine@example.net', reply_checked: true },
-    { id: 'lead-auto-only', company_name: 'Auto', email: 'auto@example.net', reply_checked: true },
+    { id: 'lead-genuine', company_name: 'Genuine', email: 'genuine@example.net', reply_checked: true, last_gmail_thread_id: 'thread-genuine' },
+    { id: 'lead-auto-only', company_name: 'Auto', email: 'auto@example.net', reply_checked: true, last_gmail_thread_id: 'thread-auto' },
   ],
-});
+  });
+};
 replyRepairContext.buildLatestSuccessfulMailHistoryByLeadId_ = () => ({
   'lead-genuine': { sent_at: '2026-07-15T10:00:00Z', send_type: '初回メール' },
   'lead-auto-only': { sent_at: '2026-07-15T10:00:00Z', send_type: '初回メール' },
 });
-replyRepairContext.readAllSheetRecordsByName_ = () => [
+replyRepairContext.readSheetRecordFields_ = (sheetName, fields, options) => {
+  assert.strictEqual(sheetName, 'reply_logs');
+  replyRepairLogFields = fields.slice();
+  replyRepairLogReadOptions = Object.assign({}, options);
+  return [
   { lead_id: 'lead-genuine', received_at: '2026-07-15T09:00:00Z', subject: '自動返信', snippet: '' },
   { lead_id: 'lead-genuine', received_at: '2026-07-15T11:00:00Z', subject: 'ご連絡ありがとうございます', snippet: '担当者からの返信です' },
   { lead_id: 'lead-auto-only', received_at: '2026-07-15T11:00:00Z', subject: '自動返信', snippet: '受付しました' },
-];
+  { lead_id: 'lead-outside-page', received_at: '2026-07-15T11:00:00Z', subject: '自動返信', snippet: '対象ページ外' },
+  ];
+};
 const replyRepairCandidates = replyRepairContext.listReplyFalsePositiveCandidates({ limit: 2, offset: 0 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(replyRepairCandidates.candidates.map((item) => item.leadId))), ['lead-auto-only']);
+assert.strictEqual(replyRepairCandidates.candidates[0].expectedThreadId, 'thread-auto');
 assert.strictEqual(replyRepairCandidates.total, 3);
 assert.strictEqual(replyRepairCandidates.remaining, 1);
 assert.strictEqual(replyRepairCandidates.stoppedEarly, true);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(replyRepairLeadQuery)), {
+  filter: 'reply', limit: 2, offset: 0, includeArchived: false, includeStats: false, includeFields: ['last_gmail_thread_id'],
+});
+assert.deepStrictEqual(JSON.parse(JSON.stringify(replyRepairLogFields)), [
+  'lead_id', 'from_email', 'subject', 'snippet', 'received_at', 'created_at',
+]);
+assert.deepStrictEqual(replyRepairLogReadOptions, { maxGapColumns: 0 });
 replyRepairContext.listReplyFalsePositiveCandidates = () => ({
   candidates: [{ leadId: 'restore-ok', restoreStatus: '未対応' }, { leadId: 'restore-fail', restoreStatus: '未対応' }],
   errors: [], remaining: 0,
@@ -2640,7 +2660,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v244_mail_job_claim_columns'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v245_reply_repair_columns'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2759,7 +2779,7 @@ assert(!operationsSource.includes("readAllSheetRecordsByName_('jobs'"), 'backgro
 assert(operationsSource.includes("findSheetRecordsByExactFieldValues_('search_jobs', 'status', ['queued', 'running'])"));
 assert(operationsSource.includes("findSheetRecordsByExactFieldValues_('jobs', 'status', ['queued', 'running'])"));
 assert(repositorySource.includes('function findSheetRecordsByExactFieldValues_'));
-assert(operationsSource.includes("readAllSheetRecordsByName_('reply_logs'"));
+assert(!operationsSource.includes("readAllSheetRecordsByName_('reply_logs'"));
 assert(operationsSource.includes("withScriptLock_('importLeadsFromCsv:item'"));
 assert(operationsSource.includes('function startLeadCsvImport'));
 assert(operationsSource.includes('function advanceLeadCsvImportJob'));
@@ -2770,6 +2790,13 @@ assert(operationsSource.includes('function buildSyncFillPatch_'));
 assert(operationsSource.includes("withScriptLock_('recordDetectedReply'"));
 assert(operationsSource.includes('function findReplyLogByLeadAndThread_'));
 assert(operationsSource.includes("withScriptLock_('restoreReplyFalsePositiveCandidate'"));
+const falsePositiveListStart = operationsSource.indexOf('function listReplyFalsePositiveCandidates(options)');
+const falsePositiveListEnd = operationsSource.indexOf('\nfunction ', falsePositiveListStart + 10);
+const falsePositiveListBody = operationsSource.slice(falsePositiveListStart, falsePositiveListEnd);
+assert(falsePositiveListBody.includes("includeFields: ['last_gmail_thread_id']"));
+assert(falsePositiveListBody.includes('includeStats: false'));
+assert(falsePositiveListBody.includes("readSheetRecordFields_('reply_logs', replyFalsePositiveLogFields_(), { maxGapColumns: 0 })"));
+assert(!falsePositiveListBody.includes("readAllSheetRecordsByName_('reply_logs'"));
 assert(operationsSource.includes('function findCalendarEventByClaim_'));
 assert(operationsSource.includes("'管理ID: ' + claimMarker"));
 assert(serperSource.includes("readAllSheetRecordsByName_('domain_cache'"));
@@ -3101,4 +3128,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v244 mail job claim column regression tests passed.');
+console.log('v245 reply repair column regression tests passed.');
