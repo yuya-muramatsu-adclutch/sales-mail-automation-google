@@ -1609,6 +1609,28 @@ function advanceQueuedJobs(options) {
 
   const completedJobs = results.filter(function (result) { return result.completed; }).length;
   const remainingJobs = Math.max(activeJobs.length - completedJobs, 0);
+  let dashboardCacheRefresh = {
+    refreshed: false,
+    skipped: true,
+    reason: stoppedForRuntime ? 'runtime_exhausted' : 'runtime_reserved',
+  };
+  const dashboardRefreshMinimumRuntimeMs = 90000;
+  const remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
+  if (!stoppedForRuntime && remainingRuntimeMs >= dashboardRefreshMinimumRuntimeMs) {
+    try {
+      dashboardCacheRefresh = refreshDashboardStatsCacheIfDue_({ source: input.source || 'trigger' });
+    } catch (error) {
+      dashboardCacheRefresh = {
+        refreshed: false,
+        skipped: false,
+        reason: 'refresh_failed',
+        error: error.message || String(error),
+      };
+      appendSyncError_('refreshDashboardStatsCacheIfDue_', error, {
+        target_sheet: 'dashboard_cache',
+      });
+    }
+  }
   const response = {
     jobs: results,
     errors: errors,
@@ -1618,6 +1640,7 @@ function advanceQueuedJobs(options) {
     remainingJobs: remainingJobs,
     recoveredPreparations: recoveredPreparations,
     recoveredSearchJobs: recoveredSearchJobs,
+    dashboardCacheRefresh: dashboardCacheRefresh,
   };
   recordBackgroundWorkerStatus_('idle', {
     source: input.source || 'trigger',

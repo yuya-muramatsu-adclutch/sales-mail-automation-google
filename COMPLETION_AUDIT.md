@@ -5,9 +5,20 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @223 / production code v222: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @224 / production code v223: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v222_lean_review_startup`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v223_scheduled_dashboard_cache`
+
+## v223 ダッシュボード集計のバックグラウンド化
+
+- 通常の起動後更新は `cacheOnly=true` で保存済み集計だけを取得し、キャッシュ失効時にも画面操作から営業リスト全件集計を開始しない。
+- `dashboard_cache` 以外の業務データが更新されたときは、Script Propertiesへ再集計が必要な時刻だけを記録する。
+- 既存の10分間隔 `advanceQueuedJobs` が、処理時間を90秒以上確保できる場合だけ、未作成・変更後・30分経過のダッシュボード集計を更新する。
+- 全件集計中は長時間のScript Lockを保持せず、保存時の短いロックだけを使うため、確認操作や収集処理との競合を増やさない。
+- 有効期限内の永続キャッシュも通常取得で再利用し、CacheServiceの10分キャッシュが消えた直後の不要な全件再集計を防止。
+- キャッシュ専用取得がシート全件を読まないこと、変更・更新・期限切れ判定、実行時間予約を回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 224を固定Web app URLへ再デプロイ済み。
+- 未認証HTTP取得はGoogleログインへ遷移するため、認証済み画面の体感速度と次回トリガー後の更新時刻確認は未実施。
 
 ## v222 確認待ちの初期表示軽量化
 

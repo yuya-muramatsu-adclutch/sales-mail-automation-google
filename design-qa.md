@@ -114,3 +114,11 @@ final result: code paths verified; authenticated timing comparison pending
 - Default review startup now requests only the review count and first 50 rows without list-wide aggregate cards.
 - Full breakdown data remains deferred until the user explicitly opens the bulk sales-list view.
 - Regression coverage checks both the lean startup request and the full-stat bulk-list transition.
+
+## v223 follow-up
+
+- Post-startup dashboard refresh now reads only the runtime or persisted dashboard cache; it never starts the full lead aggregate from an ordinary screen refresh.
+- Lead, mail, template, job, and operational mutations invalidate the short cache and reserve a deferred aggregate refresh.
+- The existing 10-minute worker refreshes the aggregate only when at least 90 seconds remain, while the analytics screen retains an explicit fresh-data path.
+- Automated coverage verifies cache-only behavior, dirty/fresh/expired state transitions, and the worker runtime guard.
+- Authenticated Chrome timing remains a manual follow-up because this session could only verify the fixed deployment and observed a Google sign-in redirect for anonymous HTTP.

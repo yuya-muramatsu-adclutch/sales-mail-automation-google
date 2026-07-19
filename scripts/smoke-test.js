@@ -267,10 +267,20 @@ context.readAllSheetRecordsByName_ = () => [
 context.recoverStaleCsvPreparationJobs_ = () => 0;
 context.advanceSearchJob = (id) => ({ id, completed: id === 'job-1' });
 context.appendSyncError_ = () => {};
+let dashboardRefreshCalls = 0;
+context.refreshDashboardStatsCacheIfDue_ = () => {
+  dashboardRefreshCalls += 1;
+  return { refreshed: true, skipped: false, reason: 'dirty' };
+};
 const queue = context.advanceQueuedJobs({ maxJobs: 2, runtimeBudgetMs: 300000 });
 assert.strictEqual(queue.jobs.length, 2);
 assert.strictEqual(queue.remainingJobs, 4);
 assert.strictEqual(queue.resumable, true);
+assert.strictEqual(queue.dashboardCacheRefresh.refreshed, true);
+assert.strictEqual(dashboardRefreshCalls, 1);
+const shortQueue = context.advanceQueuedJobs({ maxJobs: 1, runtimeBudgetMs: 80000 });
+assert.strictEqual(shortQueue.dashboardCacheRefresh.reason, 'runtime_reserved');
+assert.strictEqual(dashboardRefreshCalls, 1, 'dashboard refresh must preserve the final 90 seconds of worker runtime');
 
 const hardDeleteReferences = context.listLeadHardDeleteReferences_({ id: 'lead-1', calendar_event_id: '' }, {
   send_histories: [],
@@ -336,10 +346,60 @@ context.readDashboardStatsSheetCache_ = () => {
   persistedDashboardReads += 1;
   return { persistedCache: true };
 };
-assert.strictEqual(context.readDashboardStatsCache_({ allowPersisted: true }), null);
-assert.strictEqual(persistedDashboardReads, 0);
-assert.strictEqual(context.readDashboardStatsCache_({ allowPersisted: true, allowStale: true }).persistedCache, true);
+assert.strictEqual(context.readDashboardStatsCache_({ allowPersisted: true }).persistedCache, true);
 assert.strictEqual(persistedDashboardReads, 1);
+assert.strictEqual(context.readDashboardStatsCache_({ allowPersisted: true, allowStale: true }).persistedCache, true);
+assert.strictEqual(persistedDashboardReads, 2);
+
+const dashboardContext = vm.createContext({ console });
+['Code.gs', 'Repository.gs', 'WebApp.gs'].forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), dashboardContext, { filename: file });
+});
+const dashboardProperties = {};
+dashboardContext.PropertiesService = {
+  getScriptProperties: () => ({
+    getProperty: (key) => dashboardProperties[key] || '',
+    setProperty: (key, value) => { dashboardProperties[key] = value; },
+    deleteProperty: (key) => { delete dashboardProperties[key]; },
+  }),
+};
+dashboardContext.nowIso_ = () => '2026-07-19T10:05:00+09:00';
+const removedDashboardCacheKeys = [];
+dashboardContext.CacheService = {
+  getScriptCache: () => ({
+    remove: (key) => { removedDashboardCacheKeys.push(key); },
+  }),
+};
+dashboardContext.clearRuntimeCaches_('leads');
+assert.strictEqual(dashboardProperties.DASHBOARD_CACHE_DIRTY_AT, '2026-07-19T10:05:00+09:00');
+assert(removedDashboardCacheKeys.includes('dashboard_stats_v5'));
+
+dashboardProperties.DASHBOARD_CACHE_REFRESHED_AT = '2026-07-19T10:00:00+09:00';
+let dashboardRefreshState = dashboardContext.getDashboardCacheRefreshState_({
+  nowMs: Date.parse('2026-07-19T10:10:00+09:00'),
+});
+assert.strictEqual(dashboardRefreshState.due, true);
+assert.strictEqual(dashboardRefreshState.reason, 'dirty');
+dashboardContext.markDashboardCacheRefreshed_('2026-07-19T10:06:00+09:00');
+dashboardRefreshState = dashboardContext.getDashboardCacheRefreshState_({
+  nowMs: Date.parse('2026-07-19T10:10:00+09:00'),
+});
+assert.strictEqual(dashboardRefreshState.due, false);
+assert.strictEqual(dashboardRefreshState.reason, 'fresh');
+dashboardRefreshState = dashboardContext.getDashboardCacheRefreshState_({
+  nowMs: Date.parse('2026-07-19T10:40:00+09:00'),
+});
+assert.strictEqual(dashboardRefreshState.due, true);
+assert.strictEqual(dashboardRefreshState.reason, 'expired');
+
+let fullDashboardReads = 0;
+dashboardContext.readDashboardStatsCache_ = () => null;
+dashboardContext.buildStartupDashboardPlaceholder_ = () => ({ startupPlaceholder: true });
+dashboardContext.readSheetRecords_ = () => { fullDashboardReads += 1; throw new Error('cache-only request must not aggregate sheets'); };
+const cacheOnlyDashboard = dashboardContext.getDashboardStats({ cacheOnly: true });
+assert.strictEqual(cacheOnlyDashboard.startupPlaceholder, true);
+assert.strictEqual(cacheOnlyDashboard.cacheRefreshPending, true);
+assert.strictEqual(fullDashboardReads, 0);
 
 let domainCacheLock = null;
 let domainCacheUpdate = null;
@@ -1650,7 +1710,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v222_lean_review_startup'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v223_scheduled_dashboard_cache'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1777,7 +1837,8 @@ assert(indexSource.includes('@media (prefers-reduced-motion: reduce)'));
 assert(indexSource.includes('async function refreshActiveRouteData(activeTab, options)'));
 assert(indexSource.includes("if (tab === 'dashboard') return;"));
 assert(indexSource.includes("ensureDataLoaded('reference', () => loadReferenceData({ quiet: true }))"));
-assert(indexSource.includes('force: Boolean(state.dashboard && state.dashboard.startupPlaceholder)'));
+assert(indexSource.includes('loadDashboardStats({\n            quiet: true,\n            cacheOnly: true,'));
+assert(indexSource.includes('cacheOnly: config.cacheOnly === true'));
 assert(!indexSource.includes('await (isInitialLoad ? loadInitialReviewLeads() : loadLeads())'));
 assert(indexSource.includes('await loadReviewLeadMenu({ quiet: true, includeStats: false })'));
 assert(indexSource.includes("request.includeStats = config.includeStats === true"));
@@ -1933,4 +1994,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v222 lean review startup regression tests passed.');
+console.log('v223 scheduled dashboard cache regression tests passed.');

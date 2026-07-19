@@ -331,10 +331,22 @@ function getClientEnums_() {
 function getDashboardStats(options) {
   const input = options && typeof options === 'object' ? options : {};
   if (input.bypassCache !== true) {
-    const cached = readDashboardStatsCache_({ allowPersisted: true, allowStale: input.allowStale === true });
+    const cached = readDashboardStatsCache_({
+      allowPersisted: true,
+      allowStale: input.allowStale === true || input.cacheOnly === true,
+    });
     if (cached) {
+      if (input.cacheOnly === true) {
+        cached.cacheRefreshPending = getDashboardCacheRefreshState_().due;
+      }
       return cached;
     }
+  }
+
+  if (input.cacheOnly === true) {
+    const placeholder = buildStartupDashboardPlaceholder_();
+    placeholder.cacheRefreshPending = true;
+    return placeholder;
   }
 
   const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'));
@@ -1036,7 +1048,7 @@ function readDashboardStatsCache_(options) {
   try {
     const cached = CacheService.getScriptCache().get('dashboard_stats_v5');
     if (!cached) {
-      return query.allowPersisted !== false && query.allowStale === true
+      return query.allowPersisted !== false
         ? readDashboardStatsSheetCache_(query)
         : null;
     }
@@ -1046,7 +1058,7 @@ function readDashboardStatsCache_(options) {
     return parsed;
   } catch (error) {
     console.warn('Dashboard cache read skipped: ' + error.message);
-    return query.allowPersisted !== false && query.allowStale === true
+    return query.allowPersisted !== false
       ? readDashboardStatsSheetCache_(query)
       : null;
   }
@@ -1058,13 +1070,91 @@ function writeDashboardStatsCache_(stats) {
   } catch (error) {
     console.warn('Dashboard runtime cache write skipped: ' + error.message);
   }
+  let persisted = false;
   try {
     withScriptLock_('writeDashboardStatsCache', function () {
       upsertDashboardCacheSheet_(stats);
     }, { waitMs: 10000 });
+    persisted = true;
   } catch (error) {
     console.warn('Dashboard sheet cache write skipped: ' + error.message);
   }
+  if (persisted) {
+    markDashboardCacheRefreshed_(stats && stats.updatedAt ? stats.updatedAt : nowIso_());
+  }
+}
+
+function markDashboardCacheRefreshed_(refreshedAt) {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    if (!properties || typeof properties.setProperty !== 'function') return;
+    properties.setProperty(PROPERTY_KEYS.DASHBOARD_CACHE_REFRESHED_AT, String(refreshedAt || nowIso_()));
+    if (typeof properties.deleteProperty === 'function') {
+      properties.deleteProperty(PROPERTY_KEYS.DASHBOARD_CACHE_DIRTY_AT);
+    }
+  } catch (error) {
+    console.warn('Dashboard cache refresh state write skipped: ' + error.message);
+  }
+}
+
+function getDashboardCacheRefreshState_(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const nowMs = Number(input.nowMs) || Date.now();
+  const maxAgeMs = Math.max(Number(input.maxAgeMs) || 30 * 60 * 1000, 5 * 60 * 1000);
+  let dirtyAt = '';
+  let refreshedAt = '';
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    dirtyAt = String(properties.getProperty(PROPERTY_KEYS.DASHBOARD_CACHE_DIRTY_AT) || '');
+    refreshedAt = String(properties.getProperty(PROPERTY_KEYS.DASHBOARD_CACHE_REFRESHED_AT) || '');
+  } catch (error) {
+    return {
+      due: true,
+      reason: 'state_unavailable',
+      dirtyAt: dirtyAt,
+      refreshedAt: refreshedAt,
+    };
+  }
+
+  const dirtyMs = dirtyAt ? new Date(dirtyAt).getTime() : 0;
+  const refreshedMs = refreshedAt ? new Date(refreshedAt).getTime() : 0;
+  let reason = 'fresh';
+  if (!Number.isFinite(refreshedMs) || refreshedMs <= 0) {
+    reason = 'never_refreshed';
+  } else if (Number.isFinite(dirtyMs) && dirtyMs > refreshedMs) {
+    reason = 'dirty';
+  } else if (nowMs - refreshedMs >= maxAgeMs) {
+    reason = 'expired';
+  }
+  return {
+    due: reason !== 'fresh',
+    reason: reason,
+    dirtyAt: dirtyAt,
+    refreshedAt: refreshedAt,
+    ageMs: refreshedMs > 0 ? Math.max(nowMs - refreshedMs, 0) : null,
+  };
+}
+
+function refreshDashboardStatsCacheIfDue_(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const state = getDashboardCacheRefreshState_(input);
+  if (input.force !== true && state.due !== true) {
+    return {
+      refreshed: false,
+      skipped: true,
+      reason: state.reason,
+      refreshedAt: state.refreshedAt,
+    };
+  }
+
+  const stats = getDashboardStats({ bypassCache: true });
+  return {
+    refreshed: true,
+    skipped: false,
+    reason: state.reason,
+    refreshedAt: String(stats.updatedAt || nowIso_()),
+    leadsTotal: Number(stats.leadsTotal || 0),
+  };
 }
 
 function readDashboardStatsSheetCache_(options) {

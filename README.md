@@ -19,7 +19,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - CSVインポート
 - Serper APIキー保存、接続テスト、小規模検索ジョブ
 - 検索結果、検索使用量、ドメインキャッシュ保存
-- `CacheService` と `dashboard_cache` によるダッシュボードキャッシュ
+- `CacheService` と `dashboard_cache` によるダッシュボードキャッシュ、および既存10分トリガーでの期限付き再集計
 - `DriveApp` によるSpreadsheetバックアップ作成
 - `doPost` JSON API入口
 - Apps Script時間主導トリガー作成
@@ -96,8 +96,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @223 / production code v222: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
-- Apps Script HEAD / repository code v222: `20260719_apps_script_full_workflow_v222_lean_review_startup`
+- Web app deployment @224 / production code v223: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Apps Script HEAD / repository code v223: `20260719_apps_script_full_workflow_v223_scheduled_dashboard_cache`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。

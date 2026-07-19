@@ -14247,7 +14247,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           });
           loadDashboardStats({
             quiet: true,
-            force: Boolean(state.dashboard && state.dashboard.startupPlaceholder),
+            cacheOnly: true,
           }).catch((error) => {
             console.warn('Dashboard background refresh skipped:', error && error.message ? error.message : error);
           });
@@ -14263,8 +14263,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const config = options || {};
         if (!config.force && state.dataLoaded.dashboard) return state.dashboard;
         const result = config.quiet
-          ? await apiQuiet('getDashboardStats', { bypassCache: config.force === true })
-          : await api('getDashboardStats', { bypassCache: config.force === true });
+          ? await apiQuiet('getDashboardStats', { bypassCache: config.force === true, cacheOnly: config.cacheOnly === true })
+          : await api('getDashboardStats', { bypassCache: config.force === true, cacheOnly: config.cacheOnly === true });
         renderDashboard(result);
         renderAppSafetyStrip(state.dashboard);
         renderSearchActivityPanel();

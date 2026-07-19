@@ -640,4 +640,16 @@ function clearRuntimeCaches_(changedSheetName) {
   } catch (error) {
     console.warn('Cache clear skipped: ' + error.message);
   }
+
+  markDashboardCacheDirty_();
+}
+
+function markDashboardCacheDirty_() {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    if (!properties || typeof properties.setProperty !== 'function') return;
+    properties.setProperty(PROPERTY_KEYS.DASHBOARD_CACHE_DIRTY_AT, nowIso_());
+  } catch (error) {
+    console.warn('Dashboard cache refresh reservation skipped: ' + error.message);
+  }
 }
