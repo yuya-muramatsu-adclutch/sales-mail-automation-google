@@ -71,7 +71,7 @@ function saveSearxngConfig(input) {
     });
 
     return true;
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
   clearReferenceDataCache_();
   return Object.assign({}, buildSerperApiKeyManagerInfo_('PC検索メイン設定を保存しました。'), {
     ok: true,
@@ -175,7 +175,7 @@ function refreshSerperCredits() {
     writeSerperApiKeyRecords_(harmonizedRecords);
     syncPrimarySerperApiKeyProperty_(harmonizedRecords);
     return buildSerperApiKeyManagerInfo_('Serper残量を確認しました。');
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function saveSerperApiKeyEntry(input) {
@@ -404,7 +404,7 @@ function claimSearchResultForLeadCreation_(resultId, recoveryLeadId) {
       token: token,
       reused: Boolean(recoveryId),
     };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function isSearchResultLeadClaimStale_(record) {
@@ -444,7 +444,7 @@ function finalizeSearchResultLeadCreation_(resultId, leadId, token) {
       review_action: 'add_lead',
       reviewed_at: nowIso_(),
     });
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function releaseSearchResultLeadCreationClaim_(resultId, token) {
@@ -462,7 +462,7 @@ function releaseSearchResultLeadCreationClaim_(resultId, token) {
         review_action: '',
         reviewed_at: '',
       });
-    }, { waitMs: 90000 });
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
   } catch (error) {
     console.warn('Search result add claim release skipped: ' + String(error && error.message || error));
     return null;
@@ -478,46 +478,60 @@ function reviewSearchResults(input) {
   const status = statusByAction[action];
   if (!status) throw createExpectedOperationError_('検索結果レビューの操作が不正です。', 'SEARCH_RESULT_REVIEW_INVALID');
 
-  return withScriptLock_('reviewSearchResults', function () {
-    const reviewed = [];
-    const conflicts = [];
-    const missing = [];
-    ids.forEach(function (id) {
-      const record = findSheetRecordById_('search_results', id);
-      if (!record) {
-        missing.push(id);
-        return;
-      }
-      const currentStatus = String(record.review_status || 'unconfirmed').trim() || 'unconfirmed';
-      if (currentStatus === status) {
-        reviewed.push(record);
-        return;
-      }
-      if (currentStatus !== 'unconfirmed') {
-        conflicts.push({
-          id: id,
-          status: currentStatus,
-          record: record,
-          message: '別の処理で「' + currentStatus + '」に更新済みです。',
-        });
-        return;
-      }
-      reviewed.push(updateSheetRecord_('search_results', id, {
-        review_status: status,
-        review_action: action,
-        reviewed_at: nowIso_(),
-      }));
-    });
+  const reviewed = [];
+  const conflicts = [];
+  const missing = [];
+  const chunkSize = 25;
+  let chunks = 0;
+  for (let offset = 0; offset < ids.length; offset += chunkSize) {
+    const chunkIds = ids.slice(offset, offset + chunkSize);
+    const chunkResult = withScriptLock_('reviewSearchResults', function () {
+      const chunkReviewed = [];
+      const chunkConflicts = [];
+      const chunkMissing = [];
+      chunkIds.forEach(function (id) {
+        const record = findSheetRecordById_('search_results', id);
+        if (!record) {
+          chunkMissing.push(id);
+          return;
+        }
+        const currentStatus = String(record.review_status || 'unconfirmed').trim() || 'unconfirmed';
+        if (currentStatus === status) {
+          chunkReviewed.push(record);
+          return;
+        }
+        if (currentStatus !== 'unconfirmed') {
+          chunkConflicts.push({
+            id: id,
+            status: currentStatus,
+            record: record,
+            message: '別の処理で「' + currentStatus + '」に更新済みです。',
+          });
+          return;
+        }
+        chunkReviewed.push(updateSheetRecord_('search_results', id, {
+          review_status: status,
+          review_action: action,
+          reviewed_at: nowIso_(),
+        }));
+      });
+      return { reviewed: chunkReviewed, conflicts: chunkConflicts, missing: chunkMissing };
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+    chunks += 1;
+    Array.prototype.push.apply(reviewed, chunkResult.reviewed);
+    Array.prototype.push.apply(conflicts, chunkResult.conflicts);
+    Array.prototype.push.apply(missing, chunkResult.missing);
+  }
 
-    return {
-      ok: conflicts.length === 0 && missing.length === 0,
-      status: status,
-      reviewed: reviewed.length,
-      items: reviewed,
-      conflicts: conflicts,
-      missing: missing,
-    };
-  }, { waitMs: 90000 });
+  return {
+    ok: conflicts.length === 0 && missing.length === 0,
+    status: status,
+    reviewed: reviewed.length,
+    items: reviewed,
+    conflicts: conflicts,
+    missing: missing,
+    chunks: chunks,
+  };
 }
 
 function isFormSearchResult_(result, overrides) {
@@ -590,7 +604,7 @@ function startSerperSearchJob(input) {
       started_at: '',
       finished_at: '',
     }), reused: false };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
   const triggerResult = ensureBackgroundJobTriggerBestEffort_();
   return Object.assign({}, queued.job, {
     queued: String(queued.job.status || '') === 'queued',
@@ -893,7 +907,7 @@ function claimSearchJobRun_(jobId, runtimeBudgetMs) {
       finished_at: '',
     }));
     return { claimed: true, busy: false, job: claimedJob, lockToken: lockToken, reason: status === 'running' ? 'stale_recovery' : 'claimed' };
-  });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function isRetryableSearchJobError_(error) {
@@ -921,7 +935,7 @@ function updateClaimedSearchJob_(jobId, lockToken, patch, release) {
       owned: true,
       record: updateSheetRecord_('search_jobs', jobId, nextPatch),
     };
-  });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function normalizeSearchJobInput_(input) {
@@ -2631,7 +2645,7 @@ function updateLeadFromSearchResult_(lead, result, jobType) {
       updated: true,
       lead: updateLeadLocked_(leadId, patch),
     };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function readDomainCache_(cacheKey) {
@@ -2683,7 +2697,7 @@ function writeDomainCache_(cacheKey, lead, selected, jobType) {
     }
 
     return appendSheetRecord_('domain_cache', record);
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function buildDomainCacheKey_(lead, jobType) {
@@ -3517,7 +3531,7 @@ function recordSerperActiveKeyTestResult_(ok, resultCount, errorMessage) {
     });
     writeSerperApiKeyRecords_(nextRecords);
     return selected.id;
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function recordSerperActiveKeyCreditResult_(creditInfo) {
@@ -3532,7 +3546,7 @@ function recordSerperActiveKeyCreditResult_(creditInfo) {
     });
     writeSerperApiKeyRecords_(harmonizeSerperCreditRecords_(nextRecords));
     return selected.id;
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function mergeSerperCreditRecord_(record, creditInfo, checkedAt) {

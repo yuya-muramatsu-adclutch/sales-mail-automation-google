@@ -341,7 +341,8 @@ context.fetchSerperCreditInfo_ = () => {
 };
 context.withScriptLock_ = (operation, callback, options) => {
   assert.strictEqual(operation, 'refreshSerperCredits:save');
-  assert.strictEqual(options.waitMs, 90000);
+  assert.strictEqual(options.waitMs, 6000);
+  assert.strictEqual(options.attempts, 5);
   fetchesObservedAtLock = creditFetches;
   return callback();
 };
@@ -739,7 +740,8 @@ context.updateSheetRecord_ = (sheetName, id, payload) => {
 context.appendSheetRecord_ = () => { throw new Error('domain cache must update instead of append'); };
 context.writeDomainCache_('lead-key', { company_name: 'Example' }, { url: 'https://latest.example', confidence: 0.9, source: {} }, 'lead_official_site');
 assert.strictEqual(domainCacheLock.operation, 'writeDomainCache');
-assert.strictEqual(domainCacheLock.options.waitMs, 90000);
+assert.strictEqual(domainCacheLock.options.waitMs, 6000);
+assert.strictEqual(domainCacheLock.options.attempts, 5);
 assert.strictEqual(domainCacheUpdate.id, 'domain-new');
 
 context.withScriptLock_ = (_operation, callback) => callback();
@@ -1406,7 +1408,7 @@ assert.deepStrictEqual(searchResultLinkLocks.map((item) => item.operation), [
   'claimSearchResultForLeadCreation',
   'finalizeSearchResultLeadCreation',
 ]);
-assert(searchResultLinkLocks.every((item) => item.options.waitMs === 90000));
+assert(searchResultLinkLocks.every((item) => item.options.waitMs === 6000 && item.options.attempts === 5));
 searchResultRecord = Object.assign({}, searchResultRecord, { lead_id: 'other-lead' });
 assert.throws(() => context.finalizeSearchResultLeadCreation_('result-1', 'recovered-lead', 'uuid-1'), /別の営業先に紐付け済み/);
 
@@ -2043,10 +2045,12 @@ const searchReviewRecords = {
   'result-failure': { id: 'result-failure', review_status: 'unconfirmed', review_action: '', title: 'Failure target', url: 'https://failure.example' },
 };
 let searchReviewLock = null;
+let searchReviewLockCount = 0;
 let searchClaimToken = 0;
 searchReviewContext.Utilities = { getUuid: () => `search-claim-${++searchClaimToken}` };
 searchReviewContext.withScriptLock_ = (operation, callback, options) => {
   searchReviewLock = { operation, options };
+  searchReviewLockCount += 1;
   return callback();
 };
 searchReviewContext.findSheetRecordById_ = (_sheet, id) => searchReviewRecords[id] ? Object.assign({}, searchReviewRecords[id]) : null;
@@ -2064,10 +2068,21 @@ assert.strictEqual(searchReview.missing.length, 1);
 assert.strictEqual(searchReviewRecords['result-unconfirmed'].review_status, 'confirmed');
 assert.strictEqual(searchReviewRecords['result-added'].review_status, 'added');
 assert.strictEqual(searchReviewLock.operation, 'reviewSearchResults');
-assert.strictEqual(searchReviewLock.options.waitMs, 90000);
+assert.strictEqual(searchReviewLock.options.waitMs, 6000);
+assert.strictEqual(searchReviewLock.options.attempts, 5);
 const searchReviewRetry = searchReviewContext.reviewSearchResults({ ids: ['result-unconfirmed'], action: 'confirm' });
 assert.strictEqual(searchReviewRetry.reviewed, 1);
 assert.strictEqual(searchReviewRetry.conflicts.length, 0);
+const bulkReviewIds = Array.from({ length: 26 }, (_value, index) => 'result-bulk-' + index);
+bulkReviewIds.forEach((id) => {
+  searchReviewRecords[id] = { id, review_status: 'unconfirmed', review_action: '' };
+});
+const lockCountBeforeBulkReview = searchReviewLockCount;
+const chunkedSearchReview = searchReviewContext.reviewSearchResults({ ids: bulkReviewIds, action: 'exclude' });
+assert.strictEqual(chunkedSearchReview.reviewed, 26);
+assert.strictEqual(chunkedSearchReview.chunks, 2);
+assert.strictEqual(searchReviewLockCount - lockCountBeforeBulkReview, 2, 'bulk review must release the script lock every 25 records');
+assert(bulkReviewIds.every((id) => searchReviewRecords[id].review_status === 'excluded'));
 assert.throws(() => searchReviewContext.reviewSearchResults({ ids: ['result-unconfirmed'], action: 'add_lead' }), /操作が不正/);
 searchReviewContext.findActiveLeadBySourceReference_ = () => null;
 assert.throws(() => searchReviewContext.addSearchResultToLead('result-excluded', {}), /すでに/);
@@ -2113,7 +2128,8 @@ let searchMergeLead = {
 let searchMergePatch = null;
 searchMergeContext.withScriptLock_ = (operation, callback, options) => {
   assert.strictEqual(operation, 'updateLeadFromSearchResult');
-  assert.strictEqual(options.waitMs, 90000);
+  assert.strictEqual(options.waitMs, 6000);
+  assert.strictEqual(options.attempts, 5);
   return callback();
 };
 searchMergeContext.getLeadById = () => Object.assign({}, searchMergeLead);
@@ -2174,8 +2190,11 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v231_duplicate_url_guard'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v232_short_lock_batches'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
+assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
+assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
+assert(/function updateClaimedSearchJob_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -2484,4 +2503,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v231 duplicate URL guard regression tests passed.');
+console.log('v232 short lock batches regression tests passed.');

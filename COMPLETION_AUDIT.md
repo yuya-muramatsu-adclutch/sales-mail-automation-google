@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @232 / production code v231: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @233 / production code v232: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v231_duplicate_url_guard`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v232_short_lock_batches`
+
+## v232 検索・補完処理の短時間ロック分割
+
+- 検索結果の一括確認を最大500件の単一ロックから25件単位へ分割し、各まとまりの完了後にScript Lockを解放する。
+- 検索結果追加、検索ジョブ開始・所有権更新、連絡先補完、ドメインキャッシュ、検索API設定保存の90秒単発待機を6秒×最大5回の短時間再試行へ変更する。
+- 1回の長時間待機でApps Script実行時間を消費せず、確認操作とバックグラウンド検索が互いに長時間停止させる状態を軽減する。
+- 一括確認は各レコードの現在状態をロック取得後に再読込し、すでに確認済み・追加中・除外済みの状態を上書きしない。
+- 26件の一括確認が2ロックへ分割されること、短時間再試行設定、確認済み再実行、競合保持を回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 233を固定Web app URLへ再デプロイ済み。
 
 ## v231 同一URLの重複登録防止
 

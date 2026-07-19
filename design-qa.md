@@ -184,3 +184,11 @@ final result: code paths verified; authenticated timing comparison pending
 - Source-page preflight and final create validation now use the same URL identity rule.
 - Automated fixtures verify same-URL blocking and shared-domain false-positive prevention.
 - Fixed deployment updated to `@232`; no production records were rewritten during verification.
+
+## v232 follow-up
+
+- Search-result bulk review now releases the global script lock every 25 records instead of holding it for the full selection.
+- Search configuration, result claims, job ownership, contact enrichment, and cache writes use bounded 6-second retries instead of a single 90-second wait.
+- Every review item is re-read after the chunk lock is acquired, preserving conflict detection and preventing stale overwrites.
+- Automated coverage verifies a 26-record selection uses two lock windows and retains idempotent/conflict behavior.
+- Fixed deployment updated to `@233`; authenticated concurrent clicking and Apps Script execution timing remain production observations.
