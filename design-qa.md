@@ -428,3 +428,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Overreach restoration uses the current send-NG value rather than the pre-lock snapshot.
 - Automated coverage verifies batch limits, sent-lead protection, and row-identity conflict handling.
 - Fixed deployment updated to `@259`; no live search, mail, or sales-data mutation was run during verification.
+
+## v259 follow-up
+
+- NAP campsite genre repair now uses the same bounded twenty-five-target lock batches as the other lead maintenance tools.
+- Each mutation revalidates lead ID, source, source ID, and current genre immediately before writing.
+- Pending search-job payload repair runs under a separate lock and is capped at twenty-five jobs per pass.
+- Empty or completed lead ranges can still repair pending job payloads without rescanning lead rows.
+- Automated coverage verifies bounded locks, identity checks, job-lock separation, and removal of full-scan reads while locked.
+- Fixed deployment updated to `@260`; no live search, mail, or sales-data mutation was run during verification.

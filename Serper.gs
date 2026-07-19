@@ -1555,23 +1555,47 @@ function findNapCampJobGenreRepairCandidates_() {
   }).filter(Boolean);
 }
 
+function repairNapCampJobGenreCandidates_(candidates) {
+  const jobTargetIds = {};
+  (Array.isArray(candidates) ? candidates : []).slice(0, 25).forEach(function (candidate) {
+    jobTargetIds[String(candidate && candidate.job && candidate.job.id || '')] = true;
+  });
+  if (!Object.keys(jobTargetIds).length) return 0;
+
+  return withScriptLock_('repairNapCampGenres:jobs', function () {
+    const currentJobCandidates = findNapCampJobGenreRepairCandidates_().filter(function (candidate) {
+      return jobTargetIds[String(candidate.job.id || '')];
+    });
+    currentJobCandidates.forEach(function (candidate) {
+      updateSheetRecord_('search_jobs', candidate.job.id, {
+        query_json: safeJsonStringify_(candidate.payload),
+      });
+    });
+    if (currentJobCandidates.length) SpreadsheetApp.flush();
+    return currentJobCandidates.length;
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+}
+
 function repairNapCampGenres(options) {
   const input = options && typeof options === 'object' ? options : {};
   const dryRun = input.dryRun !== false && input.dry_run !== false;
   const startRow = Math.max(Number(input.startRow || input.start_row) || 2, 2);
   const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 2000, 1), 20000);
-  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 250, 1), 5000);
+  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 250, 1), 500);
   const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
   const headers = getHeaders_(sheet);
+  const idColumn = headers.indexOf('id');
   const sourceColumn = headers.indexOf('source');
   const sourceIdColumn = headers.indexOf('source_id');
   const genreColumn = headers.indexOf('genre');
-  if (sourceColumn === -1 || sourceIdColumn === -1 || genreColumn === -1) {
-    throw new Error('leadsシートにsource、source_id、genre列が必要です。');
+  if (idColumn === -1 || sourceColumn === -1 || sourceIdColumn === -1 || genreColumn === -1) {
+    throw new Error('leadsシートにid、source、source_id、genre列が必要です。');
   }
 
+  const jobCandidates = findNapCampJobGenreRepairCandidates_();
   const lastRow = sheet.getLastRow();
   if (startRow > lastRow) {
+    const jobsUpdated = dryRun ? 0 : repairNapCampJobGenreCandidates_(jobCandidates);
     return {
       ok: true,
       dryRun: dryRun,
@@ -1582,17 +1606,18 @@ function repairNapCampGenres(options) {
       eligible: 0,
       matched: 0,
       updated: 0,
-      jobsMatched: findNapCampJobGenreRepairCandidates_().length,
-      jobsUpdated: 0,
+      jobsMatched: jobCandidates.length,
+      jobsUpdated: jobsUpdated,
       done: true,
     };
   }
 
   const rowCount = Math.min(scanLimit, lastRow - startRow + 1);
+  const idValues = sheet.getRange(startRow, idColumn + 1, rowCount, 1).getValues();
   const sourceValues = sheet.getRange(startRow, sourceColumn + 1, rowCount, 1).getValues();
   const sourceIdValues = sheet.getRange(startRow, sourceIdColumn + 1, rowCount, 1).getValues();
   const genreValues = sheet.getRange(startRow, genreColumn + 1, rowCount, 1).getValues();
-  const targetRows = [];
+  const targets = [];
   let eligible = 0;
   let lastScannedRow = startRow - 1;
   for (let index = 0; index < rowCount; index += 1) {
@@ -1605,11 +1630,13 @@ function repairNapCampGenres(options) {
     if (!isNapCampSourcePageLead_(lead)) continue;
     eligible += 1;
     if (String(genreValues[index][0] || '').trim() === NAP_CAMP_GENRE) continue;
-    targetRows.push(rowNumber);
-    if (targetRows.length >= maxUpdates) break;
+    targets.push({
+      rowNumber: rowNumber,
+      id: String(idValues[index][0] || ''),
+    });
+    if (targets.length >= maxUpdates) break;
   }
 
-  const jobCandidates = findNapCampJobGenreRepairCandidates_();
   const baseResult = {
     ok: true,
     dryRun: dryRun,
@@ -1618,50 +1645,53 @@ function repairNapCampGenres(options) {
     lastRow: lastRow,
     scanned: Math.max(lastScannedRow - startRow + 1, 0),
     eligible: eligible,
-    matched: targetRows.length,
+    matched: targets.length,
     updated: 0,
+    lockBatches: 0,
     jobsMatched: jobCandidates.length,
     jobsUpdated: 0,
     done: lastScannedRow >= lastRow,
   };
   if (dryRun) return baseResult;
 
-  return withScriptLock_('repairNapCampGenres', function () {
-    const verifyCount = Math.max(lastScannedRow - startRow + 1, 0);
-    const currentSourceValues = sheet.getRange(startRow, sourceColumn + 1, verifyCount, 1).getValues();
-    const currentSourceIdValues = sheet.getRange(startRow, sourceIdColumn + 1, verifyCount, 1).getValues();
-    const currentGenreValues = sheet.getRange(startRow, genreColumn + 1, verifyCount, 1).getValues();
-    const verifiedRows = [];
-    for (let index = 0; index < verifyCount; index += 1) {
-      if (verifiedRows.length >= maxUpdates) break;
-      if (!isNapCampSourcePageLead_({
-        source: currentSourceValues[index][0],
-        source_id: currentSourceIdValues[index][0],
-      })) continue;
-      if (String(currentGenreValues[index][0] || '').trim() === NAP_CAMP_GENRE) continue;
-      verifiedRows.push(startRow + index);
-    }
-
-    if (verifiedRows.length) {
-      const genreColumnA1 = columnNumberToA1_(genreColumn + 1);
-      sheet.getRangeList(verifiedRows.map(function (rowNumber) {
-        return genreColumnA1 + rowNumber;
-      })).setValue(NAP_CAMP_GENRE);
-      clearRuntimeCaches_('leads');
-    }
-
-    const currentJobCandidates = findNapCampJobGenreRepairCandidates_();
-    currentJobCandidates.forEach(function (candidate) {
-      updateSheetRecord_('search_jobs', candidate.job.id, {
-        query_json: safeJsonStringify_(candidate.payload),
+  let updated = 0;
+  const batches = partitionLeadRepairTargets_(targets);
+  batches.forEach(function (batch) {
+    updated += withScriptLock_('repairNapCampGenres:batch', function () {
+      const firstRow = Number(batch[0].rowNumber);
+      const lastBatchRow = Number(batch[batch.length - 1].rowNumber);
+      const currentValues = sheet.getRange(firstRow, 1, lastBatchRow - firstRow + 1, headers.length).getValues();
+      const verifiedRows = [];
+      batch.forEach(function (target) {
+        const current = currentValues[Number(target.rowNumber) - firstRow] || [];
+        if (String(current[idColumn] || '') !== String(target.id || '')) return;
+        if (!isNapCampSourcePageLead_({
+          source: current[sourceColumn],
+          source_id: current[sourceIdColumn],
+        })) return;
+        if (String(current[genreColumn] || '').trim() === NAP_CAMP_GENRE) return;
+        verifiedRows.push(Number(target.rowNumber));
       });
-    });
-    SpreadsheetApp.flush();
-    return Object.assign({}, baseResult, {
-      updated: verifiedRows.length,
-      jobsUpdated: currentJobCandidates.length,
-    });
-  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+
+      if (verifiedRows.length) {
+        const genreColumnA1 = columnNumberToA1_(genreColumn + 1);
+        sheet.getRangeList(verifiedRows.map(function (rowNumber) {
+          return genreColumnA1 + rowNumber;
+        })).setValue(NAP_CAMP_GENRE);
+        clearRuntimeCaches_('leads');
+        SpreadsheetApp.flush();
+      }
+      return verifiedRows.length;
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+  });
+
+  const jobsUpdated = repairNapCampJobGenreCandidates_(jobCandidates);
+
+  return Object.assign({}, baseResult, {
+    updated: updated,
+    lockBatches: batches.length,
+    jobsUpdated: jobsUpdated,
+  });
 }
 
 function columnNumberToA1_(columnNumber) {

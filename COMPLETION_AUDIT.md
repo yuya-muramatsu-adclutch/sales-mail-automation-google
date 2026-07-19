@@ -5,9 +5,20 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @259 / production code v258: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @260 / production code v259: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v258_batched_lead_repairs`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v259_batched_genre_repairs`
+
+## v259 キャンプ場ジャンル修復のロック分割
+
+- なっぷ由来リードのジャンル修復が、スキャン済み範囲をロック中に丸ごと再読込していた経路を廃止した。
+- リード更新は共通の25件・100行幅バッチを利用し、各バッチの更新直前にリードID、追加元、追加元ID、現在ジャンルを再確認する。
+- 1回の修復対象を通常250件・最大500件に制限し、大量修復が確認・送信NGなどの通常操作を長時間待たせない。
+- 実行待ち・実行中の検索ジョブに残るジャンル補正はリード更新と別ロックに分離し、1回あたり最大25ジョブに制限した。
+- リードが0件または継続位置が末尾を越えた場合でも、検索ジョブだけ必要なら補正できるようにした。
+- 25件分割、行ID再確認、全範囲再読込の撤去、ジョブ用ロック分離を回帰テストした。
+- `node scripts/smoke-test.js`、`node --check scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 260を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@260` であることを確認した。外部検索、メール送信、営業データ変更は検証中に実行していない。
 
 ## v258 一括修復のロック分割と送信履歴保護
 
