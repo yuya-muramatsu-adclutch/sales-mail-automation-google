@@ -3,6 +3,7 @@ const TEMPLATE_TEST_FIXED_NAME_ = '村松侑哉';
 const PRODUCTION_SEND_RESERVED_RESULT_ = '送信中';
 const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉';
 const DEFAULT_GMAIL_PRIMARY_SENDER_EMAIL_ = 'yuya.adclutch@gmail.com';
+const MAIL_DELIVERY_RECEIPT_PREFIX_ = 'MAIL_DELIVERY_RECEIPT_V1_';
 
 function getDefaultGmailSenderName_() {
   const configured = String(getSettingValue_('gmail_sender_name', DEFAULT_GMAIL_SENDER_NAME_) || '').trim();
@@ -328,7 +329,9 @@ function runScheduledEmailBatch(options) {
       return result.errorMessage || result.warning;
     }).filter(Boolean);
     const status = success === 0 && failed > 0 ? 'failed' : 'completed';
-    const message = '完全自動送信: 成功 ' + success + '件 / 失敗 ' + failed + '件 / 対象外 ' + blocked + '件';
+    const deliveryRecoveryCount = Number((plan.deliveryRecovery || {}).processed || 0);
+    const message = '完全自動送信: 成功 ' + success + '件 / 失敗 ' + failed + '件 / 対象外 ' + blocked + '件' +
+      (deliveryRecoveryCount > 0 ? ' / 履歴復旧 ' + deliveryRecoveryCount + '件' : '');
     finalizeScheduledEmailJob_(job.id, {
       status: status,
       total: plan.selectedCount,
@@ -340,6 +343,7 @@ function runScheduledEmailBatch(options) {
       lastError: issueMessages.slice(0, 5).join(' / '),
     });
     clearRuntimeCaches_('dashboard_stats');
+    const sanitizedPlan = sanitizeScheduledEmailPlan_(plan);
     return {
       ok: failed === 0,
       skipped: false,
@@ -348,7 +352,8 @@ function runScheduledEmailBatch(options) {
       success: success,
       failed: failed,
       blocked: blocked,
-      groups: sanitizeScheduledEmailPlan_(plan).groups,
+      groups: sanitizedPlan.groups,
+      deliveryRecovery: sanitizedPlan.deliveryRecovery,
       message: message,
     };
   } catch (error) {
@@ -381,7 +386,11 @@ function buildScheduledEmailSkipResult_(reason, message, extra) {
 
 function buildScheduledEmailBatchPlan_(options) {
   const input = options && typeof options === 'object' ? options : {};
-  const histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  let histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  const deliveryRecovery = reconcileMailDeliveryReceipts_(histories, { maxItems: 20 });
+  if (deliveryRecovery.processed > 0) {
+    histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  }
   const pendingStatus = buildPendingSendReservationStatus_(histories);
   if (pendingStatus.staleCount > 0) {
     return {
@@ -389,6 +398,7 @@ function buildScheduledEmailBatchPlan_(options) {
       blockReason: '30分以上「送信中」の履歴が' + pendingStatus.staleCount + '件あるため、完全自動送信を停止しました。',
       selectedCount: 0,
       groups: [],
+      deliveryRecovery: deliveryRecovery,
     };
   }
 
@@ -407,6 +417,7 @@ function buildScheduledEmailBatchPlan_(options) {
       dailyRemaining: dailyRemaining,
       mailQuota: mailQuota,
       groups: [],
+      deliveryRecovery: deliveryRecovery,
     };
   }
 
@@ -429,6 +440,7 @@ function buildScheduledEmailBatchPlan_(options) {
       dailyRemaining: dailyRemaining,
       mailQuota: mailQuota,
       groups: [],
+      deliveryRecovery: deliveryRecovery,
     };
   }
 
@@ -442,6 +454,7 @@ function buildScheduledEmailBatchPlan_(options) {
       dailyRemaining: dailyRemaining,
       mailQuota: mailQuota,
       groups: [],
+      deliveryRecovery: deliveryRecovery,
     };
   }
 
@@ -453,6 +466,7 @@ function buildScheduledEmailBatchPlan_(options) {
     mailQuota: mailQuota,
     batchLimit: batchLimit,
     groups: selection.groups,
+    deliveryRecovery: deliveryRecovery,
   };
 }
 
@@ -519,10 +533,18 @@ function selectScheduledEmailCandidates_(leads, templates, masterContext, limit)
 
 function sanitizeScheduledEmailPlan_(plan) {
   const source = plan && typeof plan === 'object' ? plan : {};
+  const recovery = source.deliveryRecovery && typeof source.deliveryRecovery === 'object' ? source.deliveryRecovery : {};
   return {
     selectedCount: Number(source.selectedCount || 0),
     dailyRemaining: Number(source.dailyRemaining || 0),
     mailQuota: Number(source.mailQuota || 0),
+    deliveryRecovery: {
+      found: Number(recovery.found || 0),
+      processed: Number(recovery.processed || 0),
+      recoveredSuccess: Number(recovery.recoveredSuccess || 0),
+      recoveredFailure: Number(recovery.recoveredFailure || 0),
+      errorCount: Array.isArray(recovery.errors) ? recovery.errors.length : 0,
+    },
     groups: (source.groups || []).map(function (group) {
       return {
         templateId: String(group.templateId || ''),
@@ -694,6 +716,7 @@ function deliverPreparedLeadEmail_(prepared) {
     sendResult = '失敗';
     errorMessage = error.message || String(error);
   }
+  recordMailDeliveryReceipt_(reservation, sendResult, errorMessage);
 
   let history = reservation;
   const trackingErrors = [];
@@ -722,7 +745,7 @@ function deliverPreparedLeadEmail_(prepared) {
         }
       }
       return result;
-    }, { waitMs: 90000 });
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
     history = finalized.history || history;
     Array.prototype.push.apply(trackingErrors, finalized.trackingErrors || []);
   } catch (error) {
@@ -736,6 +759,8 @@ function deliverPreparedLeadEmail_(prepared) {
       lead_id: lead.id,
       send_result: sendResult,
     });
+  } else {
+    clearMailDeliveryReceipt_(reservation.id);
   }
 
   return {
@@ -825,6 +850,154 @@ function buildPendingSendReservationStatus_(histories, nowMs) {
     staleCount: stale.length,
     oldestAt: pending.length ? pending[0].timestamp : '',
   };
+}
+
+function mailDeliveryReceiptPropertyKey_(reservationId) {
+  const normalizedId = String(reservationId || '').trim();
+  return normalizedId ? MAIL_DELIVERY_RECEIPT_PREFIX_ + normalizedId : '';
+}
+
+function recordMailDeliveryReceipt_(reservation, sendResult, errorMessage) {
+  const source = reservation && typeof reservation === 'object' ? reservation : {};
+  const propertyKey = mailDeliveryReceiptPropertyKey_(source.id);
+  const receipt = {
+    reservationId: String(source.id || ''),
+    leadId: String(source.lead_id || ''),
+    sendResult: String(sendResult || '失敗') === '成功' ? '成功' : '失敗',
+    errorMessage: String(errorMessage || '').slice(0, 2000),
+    sentAt: String(source.sent_at || source.created_at || nowIso_()),
+    sendType: String(source.send_type || '初回メール'),
+    recordedAt: nowIso_(),
+  };
+  if (!propertyKey || typeof PropertiesService === 'undefined') return { persisted: false, receipt: receipt };
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    if (!properties || typeof properties.setProperty !== 'function') return { persisted: false, receipt: receipt };
+    properties.setProperty(propertyKey, JSON.stringify(receipt));
+    return { persisted: true, receipt: receipt };
+  } catch (error) {
+    console.warn('メール送信結果の一時保存に失敗しました: ' + String(error.message || error));
+    return { persisted: false, receipt: receipt };
+  }
+}
+
+function clearMailDeliveryReceipt_(reservationId) {
+  const propertyKey = mailDeliveryReceiptPropertyKey_(reservationId);
+  if (!propertyKey || typeof PropertiesService === 'undefined') return false;
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    if (!properties || typeof properties.deleteProperty !== 'function') return false;
+    properties.deleteProperty(propertyKey);
+    return true;
+  } catch (error) {
+    console.warn('メール送信結果の一時記録を削除できませんでした: ' + String(error.message || error));
+    return false;
+  }
+}
+
+function listMailDeliveryReceipts_() {
+  if (typeof PropertiesService === 'undefined') return [];
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    if (!properties || typeof properties.getProperties !== 'function') return [];
+    const allProperties = properties.getProperties() || {};
+    return Object.keys(allProperties).filter(function (key) {
+      return String(key || '').indexOf(MAIL_DELIVERY_RECEIPT_PREFIX_) === 0;
+    }).map(function (key) {
+      try {
+        const receipt = JSON.parse(String(allProperties[key] || '{}')) || {};
+        receipt.propertyKey = key;
+        return receipt;
+      } catch (error) {
+        return { propertyKey: key, invalid: true };
+      }
+    });
+  } catch (error) {
+    console.warn('メール送信結果の一時記録を読み込めませんでした: ' + String(error.message || error));
+    return [];
+  }
+}
+
+function reconcileMailDeliveryReceipts_(historyRecords, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const maxItems = Math.min(Math.max(Number(input.maxItems) || 20, 1), 100);
+  const histories = Array.isArray(historyRecords) ? historyRecords : [];
+  const historyById = {};
+  histories.forEach(function (history) {
+    const historyId = String(history.id || '').trim();
+    if (historyId) historyById[historyId] = history;
+  });
+  const receipts = listMailDeliveryReceipts_().slice(0, maxItems);
+  const summary = {
+    found: receipts.length,
+    processed: 0,
+    recoveredSuccess: 0,
+    recoveredFailure: 0,
+    errors: [],
+  };
+  receipts.forEach(function (receipt) {
+    const reservationId = String(receipt.reservationId || '').trim();
+    const knownHistory = historyById[reservationId];
+    if (receipt.invalid || !reservationId || !knownHistory || String(knownHistory.send_type || '').indexOf('テスト') !== -1) return;
+    try {
+      const result = withScriptLock_('reconcileMailDeliveryReceipt', function () {
+        const current = findSheetRecordById_('send_histories', reservationId);
+        if (!current) throw new Error('送信履歴が見つかりません: ' + reservationId);
+        const desiredResult = String(receipt.sendResult || '') === '成功' ? '成功' : '失敗';
+        let finalized = current;
+        if (String(current.send_result || '') === PRODUCTION_SEND_RESERVED_RESULT_) {
+          finalized = updateSheetRecord_('send_histories', reservationId, {
+            send_result: desiredResult,
+            error_message: desiredResult === '成功' ? '' : String(receipt.errorMessage || 'メール送信に失敗しました。'),
+          });
+        }
+        if (desiredResult === '成功' && String(finalized.send_result || '') === '成功') {
+          reconcileLeadSendTrackingFromHistory_(finalized);
+        }
+        clearMailDeliveryReceipt_(reservationId);
+        return {
+          sendResult: String(finalized.send_result || desiredResult),
+        };
+      }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+      summary.processed += 1;
+      if (result.sendResult === '成功') summary.recoveredSuccess += 1;
+      else summary.recoveredFailure += 1;
+    } catch (error) {
+      summary.errors.push({ reservationId: reservationId, message: error.message || String(error) });
+      if (!isExpectedOperationError_(error)) {
+        logError_('reconcileMailDeliveryReceipt', error, {
+          target_sheet: 'send_histories',
+          target_id: reservationId,
+        });
+      }
+    }
+  });
+  return summary;
+}
+
+function reconcileLeadSendTrackingFromHistory_(history) {
+  const source = history && typeof history === 'object' ? history : {};
+  const leadId = String(source.lead_id || '').trim();
+  if (!leadId) return false;
+  const lead = getLeadById(leadId);
+  if (!lead) return false;
+  const successful = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).filter(function (item) {
+    return String(item.lead_id || '') === leadId && isSuccessfulProductionSendHistory_(item);
+  }).sort(function (left, right) {
+    return String(right.sent_at || right.created_at || '').localeCompare(String(left.sent_at || left.created_at || ''));
+  });
+  if (!successful.length) return false;
+  const latest = successful[0];
+  const patch = {
+    last_sent_at: String(latest.sent_at || latest.created_at || ''),
+    send_count: successful.length,
+  };
+  const currentStatus = String(lead.status || '');
+  if (['未対応', '対応中', '初回メール送信済み', '2ヶ月後メール送信済み'].indexOf(currentStatus) !== -1 && !normalizeBooleanLike_(lead.reply_checked)) {
+    patch.status = String(latest.send_type || '') === '2ヶ月後メール' ? '2ヶ月後メール送信済み' : '初回メール送信済み';
+  }
+  updateLeadAfterSend_(leadId, patch);
+  return true;
 }
 
 function addProductionSendReservationToSafetyContext_(safety, history) {

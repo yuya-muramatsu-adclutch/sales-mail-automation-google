@@ -5,9 +5,22 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @227 / production code v226: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @229 / production code v228: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v226_background_worker_singleflight`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v228_mail_delivery_recovery_visibility`
+
+## v228 メール送信結果の自動復旧と可視化
+
+- メール送信APIの結果が確定した直後、送信履歴とは別のScript Propertiesへ予約ID・成功/失敗・送信時刻を一時保存。
+- 履歴や営業先更新がロック競合・一時エラーで失敗しても一時記録を残し、次回の完全自動送信が送信履歴と営業先の送信回数・最終送信日時を自動復旧。
+- 通常の履歴確定ロックを90秒1回待機から6秒×最大5回の短時間再試行へ変更し、画面操作・収集処理との長時間競合を回避。
+- 復旧時の送信回数は成功履歴から再計算するため、同じ一時記録を複数回処理しても加算されず、返信・商談など送信後の状態も上書きしない。
+- 履歴と営業先の更新が両方完了した場合だけ一時記録を削除し、復旧失敗時は次回のため保持。
+- 完全自動送信の対象計画を作る前に最大20件を復旧し、復旧後の履歴で日次上限と対象を再計算。
+- 自動送信の戻り値とジョブ完了メッセージに履歴復旧件数を含め、復旧が動いたことを進捗画面から確認可能にした。
+- ダッシュボードの本日残数も「成功数＋送信予約数」を差し引き、実際の送信判定と一致させた。
+- 成功・失敗結果の復旧、送信回数の再計算、返信状態の保護、復旧失敗時の保持、通常送信時の一時記録削除を回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 229を固定Web app URLへ再デプロイ済み。
 
 ## v226 バックグラウンドワーカーの二重起動防止
 

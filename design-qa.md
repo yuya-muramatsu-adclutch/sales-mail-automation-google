@@ -145,3 +145,13 @@ final result: code paths verified; authenticated timing comparison pending
 - Worker health exposes only busy/source/time/stale metadata and never returns the ownership token.
 - Automated coverage verifies success, overlap, exception cleanup, stale recovery, token-matched release, and token redaction.
 - Authenticated live trigger overlap remains a manual production observation because Apps Script execution inspection is unavailable from this session.
+
+## v228 follow-up
+
+- Production delivery outcomes are now persisted independently before spreadsheet tracking is finalized.
+- A later automatic-mail run reconciles retained outcomes into send history and exact lead send counts before selecting new recipients.
+- Finalization uses bounded short lock retries, preserves later reply/deal statuses, and retains failed recovery receipts for another run.
+- Dashboard remaining capacity now subtracts both successful sends and pending production reservations.
+- Automatic-mail results and job messages expose the recovered tracking count without exposing receipt payloads.
+- Automated coverage verifies normal receipt cleanup, successful and failed recovery, exact-count repair, protected statuses, and retry retention.
+- No live email was sent during verification; the next scheduled production run should be observed for receipt recovery and remaining-capacity consistency.

@@ -55,6 +55,22 @@ let unlockedMailDepth = 0;
 const unlockedMailOperations = [];
 const deliveryCheckDepths = [];
 let finalizedLeadSend = 0;
+const unlockedMailReceipts = {};
+let unlockedReceiptWrites = 0;
+let unlockedReceiptDeletes = 0;
+unlockedMailContext.PropertiesService = {
+  getScriptProperties: () => ({
+    setProperty: (key, value) => {
+      unlockedMailReceipts[key] = value;
+      unlockedReceiptWrites += 1;
+    },
+    deleteProperty: (key) => {
+      delete unlockedMailReceipts[key];
+      unlockedReceiptDeletes += 1;
+    },
+    getProperties: () => Object.assign({}, unlockedMailReceipts),
+  }),
+};
 unlockedMailContext.withScriptLock_ = (operation, callback, options) => {
   unlockedMailOperations.push({ operation, options });
   unlockedMailDepth += 1;
@@ -97,6 +113,12 @@ const unlockedMailResult = unlockedMailContext.sendLeadEmail('lead-unlocked', 't
 assert.strictEqual(unlockedMailResult.ok, true);
 assert.strictEqual(finalizedLeadSend, 1);
 assert.deepStrictEqual(unlockedMailOperations.map((item) => item.operation), ['prepareLeadEmailSend', 'finalizeLeadEmailSend']);
+assert.strictEqual(unlockedMailOperations[1].options.waitMs, 6000);
+assert.strictEqual(unlockedMailOperations[1].options.attempts, 5);
+assert.strictEqual(unlockedMailOperations[1].options.retryDelayMs, 400);
+assert.strictEqual(unlockedReceiptWrites, 1, 'a delivery outcome must be persisted before tracking finalization');
+assert.strictEqual(unlockedReceiptDeletes, 1, 'a fully tracked delivery must clear its receipt');
+assert.deepStrictEqual(unlockedMailReceipts, {});
 assert.deepStrictEqual(deliveryCheckDepths, [1, 0]);
 let aliasSendPayload = null;
 unlockedMailContext.getSettingValue_ = (key, fallback) => key === 'gmail_sender_email' ? 'sales@adclutch.example' : fallback;
@@ -220,6 +242,87 @@ vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), dailyLimit
 dailyLimitContext.getSettingValue_ = () => 2;
 dailyLimitContext.MailApp = { getRemainingDailyQuota: () => 100 };
 assert.throws(() => dailyLimitContext.assertEmailSendLimitAvailable_({ includeReservations: true, safety: dailyMailSafety }), /Daily app mail limit reached/);
+
+const mailReceiptContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), mailReceiptContext, { filename: 'Code.gs' });
+vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), mailReceiptContext, { filename: 'Email.gs' });
+const mailReceiptProperties = { UNRELATED_SETTING: 'keep' };
+const receiptHistories = {
+  'receipt-success': {
+    id: 'receipt-success', lead_id: 'lead-success', sent_at: '2026-07-19T01:00:00.000Z',
+    send_type: '初回メール', send_result: '送信中', error_message: '',
+  },
+  'receipt-failure': {
+    id: 'receipt-failure', lead_id: 'lead-failure', sent_at: '2026-07-19T01:01:00.000Z',
+    send_type: '初回メール', send_result: '送信中', error_message: '',
+  },
+};
+const receiptLeads = {
+  'lead-success': { id: 'lead-success', status: '返信あり', reply_checked: true, send_count: 7, last_sent_at: '' },
+  'lead-failure': { id: 'lead-failure', status: '未対応', reply_checked: false, send_count: 0, last_sent_at: '' },
+};
+const receiptLockCalls = [];
+const receiptLoggedErrors = [];
+mailReceiptContext.PropertiesService = {
+  getScriptProperties: () => ({
+    setProperty: (key, value) => { mailReceiptProperties[key] = value; },
+    deleteProperty: (key) => { delete mailReceiptProperties[key]; },
+    getProperties: () => Object.assign({}, mailReceiptProperties),
+  }),
+};
+mailReceiptContext.nowIso_ = () => '2026-07-19T01:05:00.000Z';
+mailReceiptContext.withScriptLock_ = (operation, callback, options) => {
+  receiptLockCalls.push({ operation, options });
+  return callback();
+};
+mailReceiptContext.findSheetRecordById_ = (_sheet, id) => receiptHistories[id] ? Object.assign({}, receiptHistories[id]) : null;
+mailReceiptContext.updateSheetRecord_ = (_sheet, id, patch) => {
+  receiptHistories[id] = Object.assign({}, receiptHistories[id], patch);
+  return Object.assign({}, receiptHistories[id]);
+};
+mailReceiptContext.getLeadById = (id) => receiptLeads[id] ? Object.assign({}, receiptLeads[id]) : null;
+mailReceiptContext.getOrCreateSpreadsheet_ = () => ({});
+mailReceiptContext.ensureSheet_ = () => ({});
+mailReceiptContext.readSheetRecords_ = () => Object.keys(receiptHistories).map((id) => Object.assign({}, receiptHistories[id]));
+mailReceiptContext.updateLeadAfterSend_ = (id, patch) => {
+  receiptLeads[id] = Object.assign({}, receiptLeads[id], patch);
+};
+mailReceiptContext.isExpectedOperationError_ = () => false;
+mailReceiptContext.logError_ = (operation, error) => { receiptLoggedErrors.push({ operation, error: error.message }); };
+assert.strictEqual(mailReceiptContext.recordMailDeliveryReceipt_(receiptHistories['receipt-success'], '成功', '').persisted, true);
+assert.strictEqual(mailReceiptContext.recordMailDeliveryReceipt_(receiptHistories['receipt-failure'], '失敗', 'SMTP rejected').persisted, true);
+assert.strictEqual(mailReceiptContext.listMailDeliveryReceipts_().length, 2);
+const receiptRecovery = mailReceiptContext.reconcileMailDeliveryReceipts_(Object.values(receiptHistories), { maxItems: 20 });
+assert.strictEqual(receiptRecovery.found, 2);
+assert.strictEqual(receiptRecovery.processed, 2);
+assert.strictEqual(receiptRecovery.recoveredSuccess, 1);
+assert.strictEqual(receiptRecovery.recoveredFailure, 1);
+assert.strictEqual(receiptRecovery.errors.length, 0);
+assert.strictEqual(receiptHistories['receipt-success'].send_result, '成功');
+assert.strictEqual(receiptHistories['receipt-failure'].send_result, '失敗');
+assert.strictEqual(receiptHistories['receipt-failure'].error_message, 'SMTP rejected');
+assert.strictEqual(receiptLeads['lead-success'].send_count, 1, 'receipt recovery must repair lead send counts from successful history');
+assert.strictEqual(receiptLeads['lead-success'].last_sent_at, '2026-07-19T01:00:00.000Z');
+assert.strictEqual(receiptLeads['lead-success'].status, '返信あり', 'receipt recovery must preserve a later reply status');
+assert.strictEqual(receiptLeads['lead-failure'].send_count, 0);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(mailReceiptContext.listMailDeliveryReceipts_())), []);
+assert.strictEqual(mailReceiptProperties.UNRELATED_SETTING, 'keep');
+assert(receiptLockCalls.every((item) => item.operation === 'reconcileMailDeliveryReceipt'));
+assert(receiptLockCalls.every((item) => item.options.waitMs === 6000 && item.options.attempts === 5));
+receiptHistories['receipt-error'] = {
+  id: 'receipt-error', lead_id: 'lead-success', sent_at: '2026-07-19T01:02:00.000Z',
+  send_type: '初回メール', send_result: '送信中', error_message: '',
+};
+mailReceiptContext.recordMailDeliveryReceipt_(receiptHistories['receipt-error'], '成功', '');
+mailReceiptContext.findSheetRecordById_ = (_sheet, id) => {
+  if (id === 'receipt-error') throw new Error('temporary sheet failure');
+  return receiptHistories[id] ? Object.assign({}, receiptHistories[id]) : null;
+};
+const failedReceiptRecovery = mailReceiptContext.reconcileMailDeliveryReceipts_([receiptHistories['receipt-error']], { maxItems: 20 });
+assert.strictEqual(failedReceiptRecovery.processed, 0);
+assert.strictEqual(failedReceiptRecovery.errors.length, 1);
+assert(mailReceiptProperties['MAIL_DELIVERY_RECEIPT_V1_receipt-error'], 'a failed reconciliation must retain its receipt for the next run');
+assert.strictEqual(receiptLoggedErrors.length, 1);
 
 let creditFetches = 0;
 let fetchesObservedAtLock = -1;
@@ -1394,6 +1497,7 @@ scheduledRunContext.logError_ = () => {};
 const scheduledRun = scheduledRunContext.runScheduledEmailBatch({});
 assert.strictEqual(scheduledRun.success, 2);
 assert.strictEqual(scheduledRun.failed, 0);
+assert.strictEqual(scheduledRun.deliveryRecovery.processed, 0);
 assert.strictEqual(scheduledClaimCount, 1);
 assert.deepStrictEqual(scheduledHeartbeat, { jobId: 'automatic-job', processed: 2, total: 2 });
 assert.strictEqual(scheduledFinal.summary.status, 'completed');
@@ -1927,7 +2031,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v226_background_worker_singleflight'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v228_mail_delivery_recovery_visibility'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
@@ -1984,6 +2088,9 @@ assert(codeSource.includes("'FORM_SEND_NOT_RECORDED'"));
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
 assert(emailSource.includes('function runScheduledEmailBatch'));
 assert(emailSource.includes("job_type: 'automatic_email_send'"));
+assert(emailSource.includes('function recordMailDeliveryReceipt_'));
+assert(emailSource.includes('function reconcileMailDeliveryReceipts_'));
+assert(emailSource.includes('reconcileMailDeliveryReceipts_(histories, { maxItems: 20 })'));
 assert(operationsSource.includes("newTrigger('runScheduledEmailBatch').timeBased().everyMinutes(10)"));
 assert(operationsSource.includes("const guests = sendInvites ? String(source.guests || lead.email || '').trim() : ''"));
 assert(operationsSource.includes("readAllSheetRecordsByName_('search_jobs'"));
@@ -2026,6 +2133,7 @@ assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLo
 assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5')"));
 assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
 assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
+assert(webAppSource.includes('dailyMailLimit - sentToday - pendingSendReservations.count'));
 assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHistories, today)'));
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
@@ -2228,4 +2336,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v226 background worker singleflight regression tests passed.');
+console.log('v228 mail delivery recovery visibility regression tests passed.');

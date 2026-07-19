@@ -399,7 +399,10 @@ function getDashboardStats(options) {
   const dailyMailLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
   const mailQuota = getMailQuotaStatus_(dailyMailLimit);
   const mailSendingControl = getMailSendingControl_();
-  const todayRemaining = Math.max(0, Math.min(dailyMailLimit - sentToday, mailQuota.remaining));
+  const todayRemaining = Math.max(0, Math.min(
+    dailyMailLimit - sentToday - pendingSendReservations.count,
+    mailQuota.remaining
+  ));
   const todayEmailTargets = mailSendingControl.enabled ? Math.min(listStats.sendable, todayRemaining) : 0;
   const serperInfo = getSerperApiKeyInfo();
   const serperLimits = serperInfo.limits || {};
