@@ -154,7 +154,7 @@ function getInitialData() {
   return {
     app: appInfo,
     enums: getClientEnums_(),
-    dashboard: mergeStartupSerperIntoDashboard_(getStartupDashboardStats_(), serperInfo),
+    dashboard: mergeStartupSerperIntoDashboard_(getStartupDashboardStats_(serperInfo), serperInfo),
     genres: [],
     genreMasters: [],
     reasons: [],
@@ -191,8 +191,8 @@ function mergeStartupSerperIntoDashboard_(dashboard, serperInfo) {
   });
 }
 
-function getStartupDashboardStats_() {
-  return readDashboardStatsCache_({ allowPersisted: true, allowStale: true }) || buildStartupDashboardPlaceholder_();
+function getStartupDashboardStats_(serperInfo) {
+  return readDashboardStatsCache_({ allowPersisted: true, allowStale: true }) || buildStartupDashboardPlaceholder_(serperInfo);
 }
 
 function getReferenceData(options) {
@@ -929,7 +929,7 @@ function isAnalyticsSendNgLead_(lead) {
   return normalizeBooleanLike_(lead.send_ng) || String(lead.status || '') === '送信NG';
 }
 
-function buildStartupDashboardPlaceholder_() {
+function buildStartupDashboardPlaceholder_(startupSerperInfo) {
   const month = monthText_();
   const mailSendingControl = {
     enabled: false,
@@ -937,7 +937,9 @@ function buildStartupDashboardPlaceholder_() {
     updatedAt: null,
   };
   const dailyMailLimit = 80;
-  const serperInfo = getStartupSerperInfo_();
+  const serperInfo = startupSerperInfo && typeof startupSerperInfo === 'object'
+    ? startupSerperInfo
+    : getStartupSerperInfo_();
   const timezone = Session.getScriptTimeZone() || 'Asia/Tokyo';
   const currentTime = Utilities.formatDate(new Date(), timezone, 'HH:mm');
   const sendWindow = {

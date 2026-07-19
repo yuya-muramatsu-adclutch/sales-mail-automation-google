@@ -409,3 +409,12 @@ final result: code paths verified; authenticated timing comparison pending
 - The combined operations screen retains parallel loading and partial-failure fallback across all three data groups.
 - Automated coverage verifies the three section loaders, route-specific wiring, combined loader, and removal of the previous all-routes bundle.
 - Fixed deployment updated to `@257`; no live job, mail, sync, or sales-data mutation was run during verification.
+
+## v257 follow-up
+
+- Startup reuses the Serper/SearXNG summary already fetched by `getInitialData` when a dashboard placeholder is needed.
+- Constant app metadata is shared for two minutes so rapid reloads do not reopen the backing Spreadsheet only to rebuild the same ID and URL.
+- The metadata cache key includes both code version and Spreadsheet ID, and setup clears it after initializing the backing store.
+- The first uncached call still opens the Spreadsheet, preserving detection of unavailable or unauthorized storage.
+- Automated coverage verifies startup argument reuse, placeholder wiring, cache key, TTL, and setup invalidation.
+- Fixed deployment updated to `@258`; no live search, mail, or sales-data mutation was run during verification.

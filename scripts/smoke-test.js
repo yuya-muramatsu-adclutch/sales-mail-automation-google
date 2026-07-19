@@ -2861,7 +2861,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v256_ops_section_lazy_load'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v257_startup_metadata_cache'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3064,6 +3064,13 @@ assert(!webAppSource.includes("readAllSheetRecordsByName_('sync_logs'"), 'dashbo
 assert(!webAppSource.includes("readAllSheetRecordsByName_('search_usage_logs'"), 'dashboard must not read all search-usage columns');
 assert(webAppSource.includes("readSheetRecordFields_('search_jobs', ['status'])"));
 assert(webAppSource.includes("readSheetRecordFields_('search_usage_logs', ['created_at', 'credits', 'request_count'])"));
+assert(webAppSource.includes('getStartupDashboardStats_(serperInfo)'));
+assert(webAppSource.includes('function getStartupDashboardStats_(serperInfo)'));
+assert(webAppSource.includes('buildStartupDashboardPlaceholder_(serperInfo)'));
+assert(webAppSource.includes('function buildStartupDashboardPlaceholder_(startupSerperInfo)'));
+assert(codeSource.includes('function appInfoCacheKey_(spreadsheetId)'));
+assert(codeSource.includes("CacheService.getScriptCache().put(appInfoCacheKey_(info.spreadsheetId), JSON.stringify(info), 120)"));
+assert(codeSource.includes('clearAppInfoCache_();'));
 assert(repositorySource.includes('function readSheetRecordFields_'));
 assert(repositorySource.includes('function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values, resultFieldNames)'));
 assert(repositorySource.includes("const projectionRequested = Array.isArray(query.fields) && query.fields.length > 0"));
@@ -3464,4 +3471,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v256 operations section lazy-load regression tests passed.');
+console.log('v257 startup metadata cache regression tests passed.');

@@ -5,9 +5,20 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @257 / production code v256: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @258 / production code v257: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v256_ops_section_lazy_load`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v257_startup_metadata_cache`
+
+## v257 起動メタ情報の共有キャッシュ
+
+- 起動APIで検索プロバイダー情報を先に取得済みでも、ダッシュボードキャッシュがない場合に同じ情報をもう一度読む経路を解消した。
+- 起動用ダッシュボードへ取得済みのSerper・SearXNG情報を渡し、初期プレースホルダーでも同じオブジェクトを再利用する。
+- アプリ名、コード版、参照情報、保存先ID・URLは2分のスクリプトキャッシュへ保存し、短時間の連続起動でSpreadsheetを開き直さない。
+- キャッシュキーにはコード版と保存先IDを含め、保存先変更後に旧情報を再利用しない。`setup()` 完了時にも明示的に破棄する。
+- 初回キャッシュ生成時は従来どおり保存先Spreadsheetを実際に開き、権限・一時障害を検出する。
+- 起動時の検索設定再利用、プレースホルダー引数、アプリ情報キャッシュのキー・TTL・セットアップ時破棄を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 258を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@258` であることを確認した。外部検索、メール送信、営業データ変更は検証中に実行していない。
 
 ## v256 運用画面データの画面別遅延取得
 

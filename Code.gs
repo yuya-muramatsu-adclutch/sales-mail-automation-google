@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v256_ops_section_lazy_load';
+const APP_VERSION = '20260719_apps_script_full_workflow_v257_startup_metadata_cache';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -516,6 +516,7 @@ function setup() {
     seedDefaultReasons_(spreadsheet);
     removeBlankDefaultSheets_(spreadsheet);
     clearReferenceDataCache_();
+    clearAppInfoCache_();
 
     return {
       ok: true,
@@ -530,15 +531,45 @@ function setup() {
 }
 
 function getAppInfo() {
+  const storedId = String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SPREADSHEET_ID) || '').trim();
+  if (storedId) {
+    try {
+      const cached = CacheService.getScriptCache().get(appInfoCacheKey_(storedId));
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.spreadsheetId === storedId && parsed.version === APP_VERSION) return parsed;
+      }
+    } catch (error) {
+      console.warn('App info cache read skipped: ' + error.message);
+    }
+  }
   const spreadsheet = getOrCreateSpreadsheet_();
-
-  return {
+  const info = {
     appName: APP_NAME,
     version: APP_VERSION,
     reference: EXISTING_APP_REFERENCE,
     spreadsheetId: spreadsheet.getId(),
     spreadsheetUrl: spreadsheet.getUrl(),
   };
+  try {
+    CacheService.getScriptCache().put(appInfoCacheKey_(info.spreadsheetId), JSON.stringify(info), 120);
+  } catch (error) {
+    console.warn('App info cache write skipped: ' + error.message);
+  }
+  return info;
+}
+
+function appInfoCacheKey_(spreadsheetId) {
+  return 'app_info_' + String(APP_VERSION || 'v1') + '_' + String(spreadsheetId || 'none');
+}
+
+function clearAppInfoCache_() {
+  try {
+    const storedId = String(PropertiesService.getScriptProperties().getProperty(PROPERTY_KEYS.SPREADSHEET_ID) || '').trim();
+    if (storedId) CacheService.getScriptCache().remove(appInfoCacheKey_(storedId));
+  } catch (error) {
+    console.warn('App info cache clear skipped: ' + error.message);
+  }
 }
 
 function getSchemaStatus(options) {
