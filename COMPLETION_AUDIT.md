@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @237 / production code v236: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @238 / production code v237: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v236_active_job_lookup`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v237_dashboard_column_reads`
+
+## v237 ダッシュボード集計の必要列読込
+
+- ダッシュボード再集計で `search_jobs` はstatus列だけ、`search_usage_logs` はcreated_at・credits・request_countだけを読む。
+- `sync_logs` はlevelと追加・重複・除外件数の列だけを読み、message・stack・context_jsonなど大きな本文列を転送しない。
+- 必要列が隣接している場合は1つのRangeへ結合し、セル数の削減でSpreadsheet API呼出回数が過度に増えないようにした。
+- 欠けている旧互換列は無視し、存在する列だけで従来のフォールバック集計を維持する。
+- 非選択のクエリ本文を取得しないこと、隣接3列を1Rangeにまとめること、日次・月次の検索利用数が従来と一致することを回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 238を固定Web app URLへ再デプロイ済み。
 
 ## v236 実行中ジョブだけを読む軽量化
 

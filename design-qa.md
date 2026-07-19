@@ -228,3 +228,12 @@ final result: code paths verified; authenticated timing comparison pending
 - The helper rechecks the returned row status and deduplicates matched row numbers before returning records.
 - Automated coverage proves that only queued/running full rows are read from a mixed-status fixture and that background paths no longer contain full-history job reads.
 - Fixed deployment updated to `@237`; authenticated worker timing remains a production observation.
+
+## v237 follow-up
+
+- Dashboard refresh reads only status from search jobs, usage counters and timestamps from search usage, and metric fields from sync logs.
+- Query payloads, error stacks, context JSON, and other large text cells are excluded from routine dashboard aggregation.
+- Adjacent selected columns are merged into one range, balancing lower cell transfer against Apps Script call overhead.
+- Missing legacy metric columns are ignored while existing fallback column names remain supported.
+- Automated coverage verifies merged ranges, omitted payload fields, and unchanged daily/monthly usage totals.
+- Fixed deployment updated to `@238`; authenticated refresh duration remains a production observation.

@@ -41,6 +41,65 @@ function readAllSheetRecordsByName_(sheetName, options) {
   });
 }
 
+function readSheetRecordFields_(sheetName, fieldNames) {
+  const requestedNames = Array.from(new Set((Array.isArray(fieldNames) ? fieldNames : [fieldNames]).map(function (fieldName) {
+    return String(fieldName || '').trim();
+  }).filter(Boolean)));
+  if (!requestedNames.length) return [];
+
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), sheetName);
+  const headers = getHeaders_(sheet);
+  const rowCount = Math.max(Number(sheet.getLastRow() || 0) - 1, 0);
+  if (!rowCount) return [];
+
+  const selectedColumns = requestedNames.map(function (fieldName) {
+    return { fieldName: fieldName, columnIndex: headers.indexOf(fieldName) };
+  }).filter(function (column) {
+    return column.columnIndex !== -1;
+  }).sort(function (left, right) {
+    return left.columnIndex - right.columnIndex;
+  });
+  if (!selectedColumns.length) return [];
+
+  const columnGroups = [];
+  selectedColumns.forEach(function (column) {
+    const current = columnGroups[columnGroups.length - 1];
+    if (current && column.columnIndex === current.endColumnIndex + 1) {
+      current.columns.push(column);
+      current.endColumnIndex = column.columnIndex;
+      return;
+    }
+    columnGroups.push({
+      startColumnIndex: column.columnIndex,
+      endColumnIndex: column.columnIndex,
+      columns: [column],
+    });
+  });
+
+  const records = Array.from({ length: rowCount }, function () { return {}; });
+  columnGroups.forEach(function (group) {
+    const values = sheet.getRange(
+      2,
+      group.startColumnIndex + 1,
+      rowCount,
+      group.endColumnIndex - group.startColumnIndex + 1
+    ).getValues();
+    values.forEach(function (row, rowIndex) {
+      group.columns.forEach(function (column) {
+        const valueIndex = column.columnIndex - group.startColumnIndex;
+        const value = row[valueIndex];
+        records[rowIndex][column.fieldName] = value === null || value === undefined ? '' : value;
+      });
+    });
+  });
+
+  return records.filter(function (record) {
+    return selectedColumns.some(function (column) {
+      return record[column.fieldName] !== '';
+    });
+  });
+}
+
 function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values) {
   const normalizedFieldName = String(fieldName || '').trim();
   const requestedValues = Array.from(new Set((Array.isArray(values) ? values : [values]).map(function (value) {

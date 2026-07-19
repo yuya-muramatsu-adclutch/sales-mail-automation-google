@@ -583,6 +583,43 @@ const activeJobLookup = JSON.parse(JSON.stringify(activeJobLookupContext.findShe
 assert.deepStrictEqual(activeJobLookup.map((job) => job.id), ['queued-1', 'running-1']);
 assert.strictEqual(activeJobFullRowReads, 2, 'active job lookup must read only matched full rows');
 
+const selectedFieldContext = vm.createContext({ console });
+['Code.gs', 'Repository.gs'].forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), selectedFieldContext, { filename: file });
+});
+const selectedFieldHeaders = ['id', 'status', 'query_json', 'created_at', 'credits', 'request_count', 'error_message'];
+const selectedFieldRows = [
+  ['job-1', 'queued', 'large secret payload 1', '2026-07-19T01:00:00+09:00', 1, 1, ''],
+  ['job-2', 'completed', 'large secret payload 2', '2026-07-18T01:00:00+09:00', 2, 1, ''],
+  ['job-3', '', 'irrelevant-only row', '', '', '', 'not requested'],
+];
+const selectedFieldRanges = [];
+const selectedFieldSheet = {
+  getLastColumn: () => selectedFieldHeaders.length,
+  getLastRow: () => selectedFieldRows.length + 1,
+  getRange: (row, column, rowCount, columnCount) => {
+    if (row === 1) return { getValues: () => [selectedFieldHeaders] };
+    selectedFieldRanges.push({ column, columnCount });
+    return {
+      getValues: () => selectedFieldRows.slice(0, rowCount).map((values) => values.slice(column - 1, column - 1 + columnCount)),
+    };
+  },
+};
+selectedFieldContext.getOrCreateSpreadsheet_ = () => ({});
+selectedFieldContext.ensureSheet_ = () => selectedFieldSheet;
+const selectedFields = JSON.parse(JSON.stringify(selectedFieldContext.readSheetRecordFields_(
+  'search_usage_logs',
+  ['status', 'created_at', 'credits', 'request_count', 'missing_field', 'credits']
+)));
+assert.deepStrictEqual(selectedFieldRanges, [
+  { column: 2, columnCount: 1 },
+  { column: 4, columnCount: 3 },
+]);
+assert.strictEqual(selectedFields.length, 2);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(selectedFields[0], 'query_json'), false, 'unrequested payload columns must not be transferred');
+assert.strictEqual(context.getSerperUsageCount_({ day: '2026-07-19' }, selectedFields), 1);
+assert.strictEqual(context.getSerperUsageCount_({ month: '2026-07' }, selectedFields), 3);
+
 const hardDeleteReferences = context.listLeadHardDeleteReferences_({ id: 'lead-1', calendar_event_id: '' }, {
   send_histories: [],
   reply_logs: [],
@@ -2303,7 +2340,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v236_active_job_lookup'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v237_dashboard_column_reads'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2450,7 +2487,12 @@ assert(serperSource.includes('function repairNapCampGenres'));
 assert(serperSource.includes('function rankContactPageLinks_'));
 assert(serperSource.includes('excludedFromReview: true'));
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
-assert(webAppSource.includes("readAllSheetRecordsByName_('search_jobs'"));
+assert(!webAppSource.includes("readAllSheetRecordsByName_('search_jobs'"), 'dashboard must not read all search-job columns');
+assert(!webAppSource.includes("readAllSheetRecordsByName_('sync_logs'"), 'dashboard must not read all sync-log columns');
+assert(!webAppSource.includes("readAllSheetRecordsByName_('search_usage_logs'"), 'dashboard must not read all search-usage columns');
+assert(webAppSource.includes("readSheetRecordFields_('search_jobs', ['status'])"));
+assert(webAppSource.includes("readSheetRecordFields_('search_usage_logs', ['created_at', 'credits', 'request_count'])"));
+assert(repositorySource.includes('function readSheetRecordFields_'));
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
 assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5')"));
 assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
@@ -2662,4 +2704,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v236 active job lookup regression tests passed.');
+console.log('v237 dashboard column reads regression tests passed.');

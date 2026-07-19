@@ -382,9 +382,17 @@ function getDashboardStats(options) {
 
   const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'));
   const templates = readAllSheetRecordsByName_('email_templates');
-  const searchJobs = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true });
-  const syncLogs = readAllSheetRecordsByName_('sync_logs', { includeInactive: true, includeArchived: true });
-  const searchUsageLogs = readAllSheetRecordsByName_('search_usage_logs', { includeInactive: true, includeArchived: true });
+  const searchJobs = readSheetRecordFields_('search_jobs', ['status']);
+  const syncLogs = readSheetRecordFields_('sync_logs', [
+    'level',
+    'added_count',
+    'added',
+    'duplicate_skip_count',
+    'skipped',
+    'excluded_count',
+    'protected_skip_count',
+  ]);
+  const searchUsageLogs = readSheetRecordFields_('search_usage_logs', ['created_at', 'credits', 'request_count']);
   const today = todayText_();
   const month = today.slice(0, 7);
   const sendHistories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
