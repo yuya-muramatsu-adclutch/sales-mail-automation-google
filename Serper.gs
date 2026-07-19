@@ -1898,10 +1898,24 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
   return { created: Boolean(lead) };
 }
 
+function sourcePageLeadIndexFields_() {
+  return [
+    'id',
+    'source',
+    'source_id',
+    'external_id',
+    'company_name',
+    'normalized_company_name',
+    'facility_name',
+    'website_url',
+    'archived_at',
+  ];
+}
+
 function buildSourcePageLeadIndex_() {
-  const spreadsheet = getOrCreateSpreadsheet_();
-  const sheet = ensureSheet_(spreadsheet, 'leads');
-  return buildSourcePageLeadIndexFromRecords_(readSheetRecords_(sheet));
+  return buildSourcePageLeadIndexFromRecords_(
+    readSheetRecordFields_('leads', sourcePageLeadIndexFields_(), { maxGapColumns: 0 })
+  );
 }
 
 function buildSourcePageLeadIndexFromRecords_(leads) {
@@ -1935,10 +1949,12 @@ function findExistingSourcePageLead_(candidate, facilityName, officialUrl, leadI
   const sourceId = String(candidate.source_id || '').trim();
   const candidateName = normalizeCompanyName_(facilityName || candidate.facility_name || candidate.text || '');
   const detailUrl = normalizeSourcePageComparableUrl_(candidate.detail_url || candidate.url || '');
+  const officialComparableUrl = normalizeSourcePageComparableUrl_(officialUrl || candidate.official_url || '');
   const index = leadIndex || buildSourcePageLeadIndex_();
   return (sourceId && index.sourceIds[sourceId]) ||
     (detailUrl && index.externalUrls[detailUrl]) ||
     (detailUrl && index.websiteUrls[detailUrl]) ||
+    (officialComparableUrl && index.websiteUrls[officialComparableUrl]) ||
     (candidateName && candidateName.length >= 4 && index.names[candidateName]) ||
     null;
 }

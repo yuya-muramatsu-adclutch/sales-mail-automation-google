@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @247 / production code v246: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @248 / production code v247: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v246_duplicate_candidate_columns`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v247_source_page_index_columns`
+
+## v247 まとめサイト収集の既存営業先索引を軽量化
+
+- まとめサイト型のバックグラウンド収集は、既存営業先との重複索引作成で全列ではなく9列だけを読む。
+- `source_payload_json`、カスタム項目、メモ、住所、メール、フォーム、状態詳細、商談情報を索引作成から除外した。
+- 追加元ID、詳細URL、既存WEBサイトURL、正規化施設名の索引キーと、アーカイブ済み営業先の除外は維持する。
+- 検索後に判明した公式URLを受け取っても照合に使っていなかった既存不具合を修正し、既存WEBサイトURLと一致する場合は重複として追加しない。
+- 巨大JSONを含む全文データと9列データで索引キーと営業先IDが一致すること、追加元ID・詳細URL・公式URL・施設名の各照合、アーカイブ除外を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 248を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@248` であることを確認した。外部サイトへの実収集は検証中に実行していない。
 
 ## v246 重複候補検索の軽量化
 

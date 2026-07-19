@@ -321,3 +321,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Email, domain, and company-domain matches preserve the same reason labels, archived exclusion, and send-count ordering.
 - Automated coverage compares full large-payload fixtures with projected fixtures and verifies identical candidates and reasons.
 - Fixed deployment updated to `@247`; authenticated editor timing remains a production observation.
+
+## v247 follow-up
+
+- Source-page background collection builds its existing-lead duplicate index from nine identity and URL fields rather than every lead column.
+- Source payload JSON, custom fields, notes, address, contact channels, decision details, and meeting metadata are omitted.
+- Source ID, detail URL, website URL, normalized-name keys, and archived-record exclusion retain their previous behavior.
+- A discovered official URL is now actually checked against existing website URLs; previously the argument was accepted but not used.
+- Automated coverage verifies identical index keys between full and projected records plus source-ID, detail-URL, official-URL, name, and archived cases.
+- Fixed deployment updated to `@248`; no live external collection was run during verification.

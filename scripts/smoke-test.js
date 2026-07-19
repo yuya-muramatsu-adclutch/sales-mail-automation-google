@@ -1971,6 +1971,65 @@ assert.deepStrictEqual(projectedDuplicateProjectionResult.items.map((item) => it
 assert(projectedDuplicateProjectionResult.items[0].reason.includes('メール'));
 assert(projectedDuplicateProjectionResult.items[1].reason.includes('ドメイン'));
 
+const sourcePageIndexContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), sourcePageIndexContext, { filename: file });
+});
+const sourcePageIndexFixtures = [
+  {
+    id: 'source-id-match', source: 'source_page', source_id: 'site:item:1', external_id: 'https://guide.example/detail/1',
+    company_name: '株式会社森のキャンプ', normalized_company_name: '森のキャンプ', facility_name: '森のキャンプ場',
+    website_url: 'https://forest-camp.example/', source_payload_json: JSON.stringify({ html: 'large'.repeat(1000) }),
+    notes: 'large'.repeat(1000),
+  },
+  {
+    id: 'website-match', source: 'manual', source_id: '', external_id: '', company_name: '湖畔リゾート',
+    normalized_company_name: '湖畔リゾート', facility_name: '湖畔リゾート', website_url: 'https://lake.example/path/',
+    source_payload_json: JSON.stringify({ html: 'large'.repeat(1000) }),
+  },
+  {
+    id: 'archived-match', source: 'source_page', source_id: 'archived:item', external_id: 'https://guide.example/archived',
+    company_name: '閉鎖施設', normalized_company_name: '閉鎖施設', facility_name: '閉鎖施設', website_url: 'https://closed.example/',
+    archived_at: '2026-07-01T00:00:00+09:00',
+  },
+];
+let sourcePageIndexRequestedFields = [];
+let sourcePageIndexReadOptions = null;
+let sourcePageIndexProjectionEnabled = false;
+sourcePageIndexContext.readSheetRecordFields_ = (sheetName, fields, options) => {
+  assert.strictEqual(sheetName, 'leads');
+  sourcePageIndexRequestedFields = fields.slice();
+  sourcePageIndexReadOptions = Object.assign({}, options);
+  if (!sourcePageIndexProjectionEnabled) return sourcePageIndexFixtures.map((lead) => Object.assign({}, lead));
+  return sourcePageIndexFixtures.map((lead) => fields.reduce((record, field) => {
+    record[field] = lead[field] === undefined ? '' : lead[field];
+    return record;
+  }, {}));
+};
+const summarizeSourcePageIndex = (index) => ['sourceIds', 'externalUrls', 'websiteUrls', 'names'].reduce((summary, key) => {
+  summary[key] = Object.keys(index[key] || {}).sort().map((value) => [value, index[key][value].id]);
+  return summary;
+}, {});
+const fullSourcePageIndex = sourcePageIndexContext.buildSourcePageLeadIndex_();
+sourcePageIndexProjectionEnabled = true;
+const projectedSourcePageIndex = sourcePageIndexContext.buildSourcePageLeadIndex_();
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(summarizeSourcePageIndex(projectedSourcePageIndex))),
+  JSON.parse(JSON.stringify(summarizeSourcePageIndex(fullSourcePageIndex)))
+);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(sourcePageIndexRequestedFields)), [
+  'id', 'source', 'source_id', 'external_id', 'company_name', 'normalized_company_name', 'facility_name', 'website_url', 'archived_at',
+]);
+['custom_fields_json', 'source_payload_json', 'notes', 'address', 'email', 'form_url'].forEach((field) => {
+  assert(!sourcePageIndexRequestedFields.includes(field));
+});
+assert.deepStrictEqual(sourcePageIndexReadOptions, { maxGapColumns: 0 });
+assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({ source_id: 'site:item:1' }, '', '', projectedSourcePageIndex).id, 'source-id-match');
+assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({ detail_url: 'https://guide.example/detail/1' }, '', '', projectedSourcePageIndex).id, 'source-id-match');
+assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({}, '', 'https://lake.example/path/', projectedSourcePageIndex).id, 'website-match');
+assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({}, '湖畔リゾート', '', projectedSourcePageIndex).id, 'website-match');
+assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({ source_id: 'archived:item' }, '閉鎖施設', 'https://closed.example/', projectedSourcePageIndex), null);
+
 const sparseHeaders = historyContext.getHeaders_({
   getLastColumn: () => 3,
   getRange: () => ({ getValues: () => [['id', '', 'email']] }),
@@ -2717,7 +2776,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v246_duplicate_candidate_columns'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v247_source_page_index_columns'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2891,6 +2950,11 @@ assert(!sourcePageStatusListBody.includes("readAllSheetRecordsByName_('search_jo
 assert(sourcePageStatusListBody.includes("CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 300)"));
 assert(serperSource.includes('function rankContactPageLinks_'));
 assert(serperSource.includes('excludedFromReview: true'));
+const sourcePageLeadIndexStart = serperSource.indexOf('function buildSourcePageLeadIndex_()');
+const sourcePageLeadIndexEnd = serperSource.indexOf('\nfunction ', sourcePageLeadIndexStart + 10);
+const sourcePageLeadIndexBody = serperSource.slice(sourcePageLeadIndexStart, sourcePageLeadIndexEnd);
+assert(sourcePageLeadIndexBody.includes("readSheetRecordFields_('leads', sourcePageLeadIndexFields_(), { maxGapColumns: 0 })"));
+assert(!sourcePageLeadIndexBody.includes('readSheetRecords_('), 'source-page collection must not read every lead column for duplicate indexing');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 assert(!webAppSource.includes("readAllSheetRecordsByName_('search_jobs'"), 'dashboard must not read all search-job columns');
 assert(!webAppSource.includes("readAllSheetRecordsByName_('sync_logs'"), 'dashboard must not read all sync-log columns');
@@ -3190,4 +3254,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v246 duplicate candidate column regression tests passed.');
+console.log('v247 source-page lead index column regression tests passed.');
