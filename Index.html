@@ -14198,18 +14198,36 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.dataLoaded.dashboard = !initial.dashboard?.startupPlaceholder;
           renderSerper(initial.serper);
           message('', '');
-          await (isInitialLoad ? loadInitialReviewLeads() : loadLeads());
           state.hasCompletedInitialLoad = true;
+          await refreshActiveRouteData(activeTab, { initial: isInitialLoad });
           message(`起動しました (${Math.round(performance.now() - startedAt)}ms)`, 'ok');
           schedulePostStartupRefresh();
-          if (isInitialLoad || activeTab === 'dashboard' || activeTab === 'leads') {
-            ensureTabDataLoaded(activeTab);
-          } else {
-            await ensureTabDataLoaded(activeTab);
-          }
         } catch (error) {
           await showStartupError(error);
         }
+      }
+
+      async function refreshActiveRouteData(activeTab, options) {
+        const config = options || {};
+        const tab = activeTab || currentTab || 'dashboard';
+        if (config.initial === true) {
+          await loadInitialReviewLeads();
+          if (tab !== 'reviewLeads') await ensureTabDataLoaded(tab);
+          return;
+        }
+        if (tab === 'dashboard') return;
+        if (tab === 'leads') {
+          await Promise.all([
+            ensureDataLoaded('reference', () => loadReferenceData({ quiet: true })),
+            loadLeads(state.leadPage.offset || 0, { quiet: true }),
+          ]);
+          return;
+        }
+        if (tab === 'reviewLeads') {
+          await ensureDataLoaded('reviewLeads', () => loadReviewLeadMenu({ quiet: true }));
+          return;
+        }
+        await ensureTabDataLoaded(tab);
       }
 
       function resetDeferredDataFlags() {
@@ -14227,7 +14245,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ensureDataLoaded('reference', () => loadReferenceData({ quiet: true })).catch((error) => {
             console.warn('Reference data background refresh skipped:', error && error.message ? error.message : error);
           });
-          loadDashboardStats({ quiet: true, force: true }).catch((error) => {
+          loadDashboardStats({
+            quiet: true,
+            force: Boolean(state.dashboard && state.dashboard.startupPlaceholder),
+          }).catch((error) => {
             console.warn('Dashboard background refresh skipped:', error && error.message ? error.message : error);
           });
         };
@@ -15914,6 +15935,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           sort: 'updated_desc',
           limit: 100,
           offset: 0,
+          includeStats: false,
         });
         state.emailLeads = result.items || [];
         state.emailTotal = result.total || 0;
@@ -15952,6 +15974,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           sort: 'updated_desc',
           limit: 100,
           offset: 0,
+          includeStats: false,
         });
         state.dealLeads = result.items || [];
         state.dealTotal = result.total || 0;
@@ -18293,6 +18316,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             formStatus: document.getElementById('formStatusFilter').value,
             limit: Number(document.getElementById('formLimit').value || 25),
             offset: 0,
+            includeStats: false,
           });
           state.formLeads = result.items || [];
           state.formTotal = result.total || state.formLeads.length;
@@ -24554,7 +24578,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           const limit = 2000;
           let total = 0;
           do {
-            const page = await api('listLeads', { limit, offset, includeArchived: false });
+            const page = await api('listLeads', { limit, offset, includeArchived: false, includeStats: false });
             leads.push(...(page.items || []));
             total = page.total || leads.length;
             offset += limit;

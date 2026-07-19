@@ -90,3 +90,21 @@ final result: blocked
 - Verify the sidebar and content remain usable at 900px and 620px breakpoints.
 
 final result: pending authenticated production screenshot
+
+# Performance QA: ルート別更新 v221
+
+## Findings
+
+- `refreshAll()` が初回以外も常に `loadLeads()` を待っていたため、ダッシュボード・設定・履歴など営業リストを必要としない画面でも全件読込が発生していた。
+- 起動後の遅延更新が常に `bypassCache=true` でダッシュボード全件集計を再実行していた。
+- メール、フォーム、商談、重複チェックはレスポンスの集計値を使わない一方、サーバー側で全件集計と絞り込み集計を毎回作っていた。
+
+## Verification
+
+- 表示中ルートだけを更新する `refreshActiveRouteData()` を追加。
+- ダッシュボードの通常更新で営業リストAPIを呼ばないことを静的回帰テストで固定。
+- 軽量一覧取得が集計・不要なマスター構築を実行しないことをモックで確認。
+- 初期キャッシュがない場合だけダッシュボード強制再集計を行うことを回帰テストで固定。
+- 認証済みChromeを制御する実行機能がこのセッションでは利用できないため、Networkタイミングの実測比較は未取得。
+
+final result: code paths verified; authenticated timing comparison pending

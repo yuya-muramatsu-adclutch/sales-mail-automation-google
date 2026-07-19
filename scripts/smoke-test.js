@@ -180,6 +180,31 @@ assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures
 assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[3], 'no_contact', {}), true);
 assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[9], 'no_contact', {}), false, 'send NG without contact details must not appear in no-contact results');
 assert.strictEqual(leadBreakdownContext.matchesLeadListFilter_(leadStateFixtures[9], 'send_ng', {}), true);
+assert.strictEqual(leadBreakdownContext.normalizeListOptions_({ includeStats: false }).includeStats, false);
+assert.strictEqual(leadBreakdownContext.normalizeListOptions_({}).includeStats, true);
+const leanListContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), leanListContext, { filename: file });
+});
+let leanListMasterBuilds = 0;
+let leanListStatBuilds = 0;
+leanListContext.getOrCreateSpreadsheet_ = () => ({});
+leanListContext.ensureSheet_ = () => ({});
+leanListContext.readSheetRecords_ = () => [
+  { id: 'lean-a', company_name: 'A', status: '未対応', updated_at: '2026-07-19T00:00:00Z' },
+  { id: 'lean-b', company_name: 'B', status: '対応中', updated_at: '2026-07-18T00:00:00Z' },
+];
+leanListContext.buildMasterBlockContext_ = () => { leanListMasterBuilds += 1; return {}; };
+leanListContext.buildLeadListStats_ = (rows) => { leanListStatBuilds += 1; return { totalLeadCount: rows.length }; };
+const leanListResult = leanListContext.listLeads({ filter: 'all', includeStats: false, limit: 10 });
+assert.strictEqual(leanListResult.total, 2);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(leanListResult, 'stats'), false);
+assert.strictEqual(leanListMasterBuilds, 0, 'lean list routes must skip master context when their filter does not need it');
+assert.strictEqual(leanListStatBuilds, 0, 'lean list routes must skip aggregate statistics');
+const fullListResult = leanListContext.listLeads({ filter: 'all', limit: 10 });
+assert.strictEqual(fullListResult.stats.totalLeadCount, 2);
+assert.strictEqual(leanListMasterBuilds, 1);
+assert.strictEqual(leanListStatBuilds, 2);
 unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
 unlockedMailContext.ensureSheet_ = () => ({});
 unlockedMailContext.readSheetRecords_ = () => [
@@ -1625,7 +1650,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v220_workflow_navigation_performance'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v221_route_aware_refresh'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1749,6 +1774,12 @@ assert(!indexSource.includes('function updateTopShortcutBar'));
 assert(!indexSource.includes('renderTodayLabel'));
 assert(indexSource.includes('role="status" aria-live="polite"'));
 assert(indexSource.includes('@media (prefers-reduced-motion: reduce)'));
+assert(indexSource.includes('async function refreshActiveRouteData(activeTab, options)'));
+assert(indexSource.includes("if (tab === 'dashboard') return;"));
+assert(indexSource.includes("ensureDataLoaded('reference', () => loadReferenceData({ quiet: true }))"));
+assert(indexSource.includes('force: Boolean(state.dashboard && state.dashboard.startupPlaceholder)'));
+assert(!indexSource.includes('await (isInitialLoad ? loadInitialReviewLeads() : loadLeads())'));
+assert((indexSource.match(/includeStats: false/g) || []).length >= 4);
 assert(indexSource.includes('function renderLeadRowsTable'));
 assert(indexSource.includes('const columns = getVisibleLeadColumns()'));
 assert(indexSource.includes("['操作', renderLeadActionCell(lead)]"));
@@ -1899,4 +1930,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v220 workflow navigation and performance regression tests passed.');
+console.log('v221 route-aware refresh regression tests passed.');

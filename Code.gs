@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v220_workflow_navigation_performance';
+const APP_VERSION = '20260719_apps_script_full_workflow_v221_route_aware_refresh';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -711,7 +711,7 @@ function listLeads(options) {
   const sheet = ensureSheet_(spreadsheet, 'leads');
   const rows = readSheetRecords_(sheet);
   const query = normalizeListOptions_(options);
-  const masterContext = buildMasterBlockContext_();
+  const masterContext = leadListQueryNeedsMasterContext_(query) ? buildMasterBlockContext_() : {};
   const filtered = rows.filter(function (lead) {
     if (!query.includeArchived && isArchivedLead_(lead)) {
       return false;
@@ -755,17 +755,28 @@ function listLeads(options) {
 
   sortLeads_(filtered, query.sort);
 
-  return {
+  const response = {
     total: filtered.length,
     offset: query.offset,
     limit: query.limit,
     filter: query.filter,
     genre: query.genre,
     sort: query.sort,
-    stats: buildLeadListStats_(rows, masterContext, query.genre),
-    filteredStats: buildLeadListStats_(filtered, masterContext, query.genre),
     items: filtered.slice(query.offset, query.offset + query.limit),
   };
+  if (query.includeStats) {
+    response.stats = buildLeadListStats_(rows, masterContext, query.genre);
+    response.filteredStats = buildLeadListStats_(filtered, masterContext, query.genre);
+  }
+  return response;
+}
+
+function leadListQueryNeedsMasterContext_(query) {
+  const source = query && typeof query === 'object' ? query : {};
+  const filter = String(source.filter || 'all');
+  if (source.includeStats !== false) return true;
+  if (filter.indexOf('state_') === 0 || filter.indexOf('group_') === 0) return true;
+  return ['email', 'form', 'unsent'].indexOf(filter) !== -1;
 }
 
 function listEmailSendCandidates(options) {
@@ -2599,6 +2610,7 @@ function normalizeListOptions_(options) {
     sort: sort,
     search: String(input.search || '').trim().toLowerCase(),
     includeArchived: input.includeArchived === true,
+    includeStats: input.includeStats !== false,
   };
 }
 

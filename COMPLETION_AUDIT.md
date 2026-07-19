@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @221 / production code v220: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @222 / production code v221: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v220_workflow_navigation_performance`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v221_route_aware_refresh`
+
+## v221 画面別更新と一覧APIの軽量化
+
+- 初回起動以外の全体更新で、表示中画面に関係なく営業リストを取得していた経路を廃止。
+- ダッシュボードでは一覧取得を行わず、営業リスト・確認待ち・その他画面は現在の画面に必要なデータだけ再取得する。
+- 起動後のダッシュボード再集計は、初期キャッシュがない場合だけ強制実行。キャッシュがある通常起動では不要な全件再集計を避ける。
+- メール対象、フォーム対象、商談、重複チェックの一覧取得で `includeStats=false` を使用し、利用していなかった全体集計・絞り込み集計を省略。
+- 集計不要かつ判定マスターを使わない一覧では、送信NG・除外マスターの構築も省略。
+- 軽量取得では集計関数が0回、通常の営業リスト取得では従来どおり2回実行されるモック回帰テストを追加。
+- `node scripts/smoke-test.js` と `git diff --check` が成功。Version 222を固定Web app URLへ再デプロイ済み。
 
 ## v220 業務フローナビゲーションと画面更新の軽量化
 
