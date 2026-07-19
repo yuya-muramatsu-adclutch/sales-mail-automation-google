@@ -1548,132 +1548,171 @@ function normalizeCsvHeader_(header) {
 
 function advanceQueuedJobs(options) {
   const input = options && typeof options === 'object' ? options : {};
-  recordBackgroundWorkerStatus_('running', { source: input.source || 'trigger' });
-  const recoveredSearchJobs = recoverStaleSearchJobs_();
-  const recoveredPreparations = recoverStaleCsvPreparationJobs_();
+  const source = String(input.source || 'trigger');
   const maxJobs = Math.min(Math.max(Number(input.maxJobs) || 3, 1), 10);
   const totalRuntimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000, 10000), 330000);
-  const runWindow = buildSearchJobRunWindow_(totalRuntimeBudgetMs, Date.now());
-  const activeSearchJobs = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
-    return job.status === 'queued' || job.status === 'running';
-  }).map(function (job) {
-    return { kind: 'search', job: job };
+  const workerClaim = claimBackgroundWorkerRun_({
+    source: source,
+    runtimeBudgetMs: totalRuntimeBudgetMs,
   });
-  const activeImportJobs = readAllSheetRecordsByName_('jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
-    return String(job.job_type || '') === 'csv_import' && (job.status === 'queued' || job.status === 'running');
-  }).map(function (job) {
-    return { kind: 'csv_import', job: job };
-  });
-  const activeJobs = activeSearchJobs.concat(activeImportJobs).sort(function (left, right) {
-    return String(left.job.updated_at || left.job.created_at || '').localeCompare(String(right.job.updated_at || right.job.created_at || ''));
-  });
-  const jobs = activeJobs.slice(0, maxJobs);
-  const results = [];
-  const errors = [];
-  let stoppedForRuntime = false;
+  if (!workerClaim.claimed) {
+    return {
+      skipped: true,
+      busy: true,
+      reason: String(workerClaim.reason || 'already_running'),
+      jobs: [],
+      errors: [],
+      stoppedForRuntime: false,
+      resumable: true,
+      remainingJobs: null,
+      workerClaim: workerClaim.claim || {},
+    };
+  }
 
-  for (let index = 0; index < jobs.length; index += 1) {
-    if (isSearchJobRuntimeExhausted_(runWindow.deadlineMs)) {
-      stoppedForRuntime = true;
-      break;
-    }
-    const queued = jobs[index];
-    const job = queued.job;
-    let payload = {};
-    try {
-      const remainingBudgetMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
-      if (remainingBudgetMs < 10000) {
+  recordBackgroundWorkerStatus_('running', {
+    source: source,
+    recoveredStaleClaim: workerClaim.recoveredStaleClaim === true,
+  });
+  try {
+    const recoveredSearchJobs = recoverStaleSearchJobs_();
+    const recoveredPreparations = recoverStaleCsvPreparationJobs_();
+    const runWindow = buildSearchJobRunWindow_(totalRuntimeBudgetMs, Date.now());
+    const activeSearchJobs = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
+      return job.status === 'queued' || job.status === 'running';
+    }).map(function (job) {
+      return { kind: 'search', job: job };
+    });
+    const activeImportJobs = readAllSheetRecordsByName_('jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
+      return String(job.job_type || '') === 'csv_import' && (job.status === 'queued' || job.status === 'running');
+    }).map(function (job) {
+      return { kind: 'csv_import', job: job };
+    });
+    const activeJobs = activeSearchJobs.concat(activeImportJobs).sort(function (left, right) {
+      return String(left.job.updated_at || left.job.created_at || '').localeCompare(String(right.job.updated_at || right.job.created_at || ''));
+    });
+    const jobs = activeJobs.slice(0, maxJobs);
+    const results = [];
+    const errors = [];
+    let stoppedForRuntime = false;
+
+    for (let index = 0; index < jobs.length; index += 1) {
+      if (isSearchJobRuntimeExhausted_(runWindow.deadlineMs)) {
         stoppedForRuntime = true;
         break;
       }
-      if (queued.kind === 'csv_import') {
-        results.push(advanceLeadCsvImportJob(job.id, {
-          maxItems: input.csvMaxItems || input.csv_max_items || input.maxItems || 500,
-          runtimeBudgetMs: Math.min(totalRuntimeBudgetMs, remainingBudgetMs),
-        }));
-      } else {
-        payload = JSON.parse(job.query_json || '{}');
-        results.push(advanceSearchJob(job.id, {
-          maxItems: payload.crawl_all ? 1 : (input.maxItems || 5),
-          runtimeBudgetMs: Math.min(totalRuntimeBudgetMs, remainingBudgetMs),
-        }));
+      const queued = jobs[index];
+      const job = queued.job;
+      let payload = {};
+      try {
+        const remainingBudgetMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
+        if (remainingBudgetMs < 10000) {
+          stoppedForRuntime = true;
+          break;
+        }
+        if (queued.kind === 'csv_import') {
+          results.push(advanceLeadCsvImportJob(job.id, {
+            maxItems: input.csvMaxItems || input.csv_max_items || input.maxItems || 500,
+            runtimeBudgetMs: Math.min(totalRuntimeBudgetMs, remainingBudgetMs),
+          }));
+        } else {
+          payload = JSON.parse(job.query_json || '{}');
+          results.push(advanceSearchJob(job.id, {
+            maxItems: payload.crawl_all ? 1 : (input.maxItems || 5),
+            runtimeBudgetMs: Math.min(totalRuntimeBudgetMs, remainingBudgetMs),
+          }));
+        }
+      } catch (error) {
+        errors.push({ jobId: job.id, kind: queued.kind, message: error.message || String(error) });
+        appendSyncError_('advanceQueuedJobs', error, {
+          target_sheet: queued.kind === 'csv_import' ? 'jobs' : 'search_jobs',
+          target_id: job.id,
+        });
       }
-    } catch (error) {
-      errors.push({ jobId: job.id, kind: queued.kind, message: error.message || String(error) });
-      appendSyncError_('advanceQueuedJobs', error, {
-        target_sheet: queued.kind === 'csv_import' ? 'jobs' : 'search_jobs',
-        target_id: job.id,
-      });
     }
-  }
 
-  const completedJobs = results.filter(function (result) { return result.completed; }).length;
-  const remainingJobs = Math.max(activeJobs.length - completedJobs, 0);
-  let collectionQualityMigration = getLeadCollectionQualityMigrationV215Status_();
-  const qualityMigrationMinimumRuntimeMs = 150000;
-  let remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
-  if (!stoppedForRuntime && collectionQualityMigration.pending === true && remainingRuntimeMs >= qualityMigrationMinimumRuntimeMs) {
-    try {
-      collectionQualityMigration = runLeadCollectionQualityMigrationV215_({ source: input.source || 'trigger' });
-    } catch (error) {
-      collectionQualityMigration = {
-        ok: false,
-        pending: true,
-        skipped: false,
-        reason: 'migration_failed',
-        error: error.message || String(error),
-      };
-      appendSyncError_('runLeadCollectionQualityMigrationV215_:background', error, {
-        target_sheet: 'leads',
+    const completedJobs = results.filter(function (result) { return result.completed; }).length;
+    const remainingJobs = Math.max(activeJobs.length - completedJobs, 0);
+    let collectionQualityMigration = getLeadCollectionQualityMigrationV215Status_();
+    const qualityMigrationMinimumRuntimeMs = 150000;
+    let remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
+    if (!stoppedForRuntime && collectionQualityMigration.pending === true && remainingRuntimeMs >= qualityMigrationMinimumRuntimeMs) {
+      try {
+        collectionQualityMigration = runLeadCollectionQualityMigrationV215_({ source: source });
+      } catch (error) {
+        collectionQualityMigration = {
+          ok: false,
+          pending: true,
+          skipped: false,
+          reason: 'migration_failed',
+          error: error.message || String(error),
+        };
+        appendSyncError_('runLeadCollectionQualityMigrationV215_:background', error, {
+          target_sheet: 'leads',
+        });
+      }
+    } else if (collectionQualityMigration.pending === true) {
+      collectionQualityMigration = Object.assign({}, collectionQualityMigration, {
+        skipped: true,
+        reason: stoppedForRuntime ? 'runtime_exhausted' : 'runtime_reserved',
       });
     }
-  } else if (collectionQualityMigration.pending === true) {
-    collectionQualityMigration = Object.assign({}, collectionQualityMigration, {
+    let dashboardCacheRefresh = {
+      refreshed: false,
       skipped: true,
       reason: stoppedForRuntime ? 'runtime_exhausted' : 'runtime_reserved',
+    };
+    const dashboardRefreshMinimumRuntimeMs = 90000;
+    remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
+    if (!stoppedForRuntime && remainingRuntimeMs >= dashboardRefreshMinimumRuntimeMs) {
+      try {
+        dashboardCacheRefresh = refreshDashboardStatsCacheIfDue_({ source: source });
+      } catch (error) {
+        dashboardCacheRefresh = {
+          refreshed: false,
+          skipped: false,
+          reason: 'refresh_failed',
+          error: error.message || String(error),
+        };
+        appendSyncError_('refreshDashboardStatsCacheIfDue_', error, {
+          target_sheet: 'dashboard_cache',
+        });
+      }
+    }
+    const response = {
+      jobs: results,
+      errors: errors,
+      elapsedMs: Date.now() - runWindow.startedAtMs,
+      stoppedForRuntime: stoppedForRuntime,
+      resumable: remainingJobs > 0,
+      remainingJobs: remainingJobs,
+      recoveredPreparations: recoveredPreparations,
+      recoveredSearchJobs: recoveredSearchJobs,
+      collectionQualityMigration: collectionQualityMigration,
+      dashboardCacheRefresh: dashboardCacheRefresh,
+      workerClaim: {
+        recoveredStaleClaim: workerClaim.recoveredStaleClaim === true,
+      },
+    };
+    recordBackgroundWorkerStatus_('idle', {
+      source: source,
+      remainingJobs: remainingJobs,
+      recoveredSearchJobs: recoveredSearchJobs.length,
+      errorCount: errors.length,
     });
-  }
-  let dashboardCacheRefresh = {
-    refreshed: false,
-    skipped: true,
-    reason: stoppedForRuntime ? 'runtime_exhausted' : 'runtime_reserved',
-  };
-  const dashboardRefreshMinimumRuntimeMs = 90000;
-  remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
-  if (!stoppedForRuntime && remainingRuntimeMs >= dashboardRefreshMinimumRuntimeMs) {
+    return response;
+  } catch (error) {
+    recordBackgroundWorkerStatus_('failed', {
+      source: source,
+      error: String(error && error.message ? error.message : error),
+    });
+    throw error;
+  } finally {
     try {
-      dashboardCacheRefresh = refreshDashboardStatsCacheIfDue_({ source: input.source || 'trigger' });
-    } catch (error) {
-      dashboardCacheRefresh = {
-        refreshed: false,
-        skipped: false,
-        reason: 'refresh_failed',
-        error: error.message || String(error),
-      };
-      appendSyncError_('refreshDashboardStatsCacheIfDue_', error, {
-        target_sheet: 'dashboard_cache',
-      });
+      releaseBackgroundWorkerRun_(workerClaim.lockToken);
+    } catch (releaseError) {
+      console.warn('バックグラウンド実行の所有権を解放できませんでした: ' + String(releaseError.message || releaseError));
     }
   }
-  const response = {
-    jobs: results,
-    errors: errors,
-    elapsedMs: Date.now() - runWindow.startedAtMs,
-    stoppedForRuntime: stoppedForRuntime,
-    resumable: remainingJobs > 0,
-    remainingJobs: remainingJobs,
-    recoveredPreparations: recoveredPreparations,
-    recoveredSearchJobs: recoveredSearchJobs,
-    collectionQualityMigration: collectionQualityMigration,
-    dashboardCacheRefresh: dashboardCacheRefresh,
-  };
-  recordBackgroundWorkerStatus_('idle', {
-    source: input.source || 'trigger',
-    remainingJobs: remainingJobs,
-    recoveredSearchJobs: recoveredSearchJobs.length,
-    errorCount: errors.length,
-  });
-  return response;
 }
 
 function isStaleSearchJob_(job, nowMs, staleAfterMs) {
@@ -1764,6 +1803,99 @@ function recoverStaleSearchJobs_(options) {
   return recovered;
 }
 
+function parseBackgroundWorkerClaim_(rawValue) {
+  try {
+    const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue || '{}') : rawValue;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function backgroundWorkerClaimSummary_(claim, nowMs) {
+  const source = claim && typeof claim === 'object' ? claim : {};
+  const hasClaim = Boolean(String(source.token || '').trim());
+  const expiresAtMs = new Date(source.expiresAt || 0).getTime();
+  const comparisonNowMs = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+  const stale = hasClaim && (!Number.isFinite(expiresAtMs) || expiresAtMs <= comparisonNowMs);
+  return {
+    busy: hasClaim && !stale,
+    source: String(source.source || ''),
+    startedAt: String(source.startedAt || ''),
+    expiresAt: String(source.expiresAt || ''),
+    stale: stale,
+  };
+}
+
+function readBackgroundWorkerClaim_() {
+  const properties = PropertiesService.getScriptProperties();
+  return parseBackgroundWorkerClaim_(properties.getProperty(PROPERTY_KEYS.BACKGROUND_WORKER_CLAIM_JSON) || '{}');
+}
+
+function claimBackgroundWorkerRun_(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const source = String(input.source || 'trigger');
+  const nowMs = Number.isFinite(Number(input.nowMs)) ? Number(input.nowMs) : Date.now();
+  const runtimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs) || 300000, 10000), 330000);
+  const leaseMs = Math.min(Math.max(runtimeBudgetMs + 90000, 120000), 480000);
+  try {
+    return withScriptLock_('claimBackgroundWorkerRun', function () {
+      const properties = PropertiesService.getScriptProperties();
+      const current = parseBackgroundWorkerClaim_(properties.getProperty(PROPERTY_KEYS.BACKGROUND_WORKER_CLAIM_JSON) || '{}');
+      const currentSummary = backgroundWorkerClaimSummary_(current, nowMs);
+      if (currentSummary.busy) {
+        return {
+          claimed: false,
+          busy: true,
+          reason: 'already_running',
+          claim: currentSummary,
+        };
+      }
+      const recoveredStaleClaim = currentSummary.stale === true;
+      const claim = {
+        token: Utilities.getUuid(),
+        source: source,
+        startedAt: new Date(nowMs).toISOString(),
+        expiresAt: new Date(nowMs + leaseMs).toISOString(),
+      };
+      properties.setProperty(PROPERTY_KEYS.BACKGROUND_WORKER_CLAIM_JSON, JSON.stringify(claim));
+      return {
+        claimed: true,
+        busy: false,
+        lockToken: claim.token,
+        recoveredStaleClaim: recoveredStaleClaim,
+        claim: backgroundWorkerClaimSummary_(claim, nowMs),
+      };
+    }, { waitMs: 5000, attempts: 2, retryDelayMs: 250 });
+  } catch (error) {
+    if (!isScriptLockTimeoutError_(error)) throw error;
+    return {
+      claimed: false,
+      busy: true,
+      reason: 'claim_lock_busy',
+      claim: {
+        busy: true,
+        source: '',
+        startedAt: '',
+        expiresAt: '',
+        stale: false,
+      },
+    };
+  }
+}
+
+function releaseBackgroundWorkerRun_(lockToken) {
+  const normalizedToken = String(lockToken || '').trim();
+  if (!normalizedToken) return false;
+  return withScriptLock_('releaseBackgroundWorkerRun', function () {
+    const properties = PropertiesService.getScriptProperties();
+    const current = parseBackgroundWorkerClaim_(properties.getProperty(PROPERTY_KEYS.BACKGROUND_WORKER_CLAIM_JSON) || '{}');
+    if (String(current.token || '') !== normalizedToken) return false;
+    properties.deleteProperty(PROPERTY_KEYS.BACKGROUND_WORKER_CLAIM_JSON);
+    return true;
+  }, { waitMs: 5000, attempts: 3, retryDelayMs: 250 });
+}
+
 function recordBackgroundWorkerStatus_(status, detail) {
   try {
     const properties = PropertiesService.getScriptProperties();
@@ -1786,6 +1918,10 @@ function getBackgroundWorkerHealth() {
   } catch (error) {
     worker = {};
   }
+  const workerClaim = backgroundWorkerClaimSummary_(
+    parseBackgroundWorkerClaim_(properties.getProperty(PROPERTY_KEYS.BACKGROUND_WORKER_CLAIM_JSON) || '{}'),
+    Date.now()
+  );
   const activeJobs = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
     return ['queued', 'running'].indexOf(String(job.status || '')) !== -1;
   });
@@ -1798,6 +1934,7 @@ function getBackgroundWorkerHealth() {
     activeJobCount: activeJobs.length,
     staleJobIds: activeJobs.filter(function (job) { return isStaleSearchJob_(job); }).map(function (job) { return job.id; }),
     worker: worker,
+    workerClaim: workerClaim,
   };
 }
 
@@ -1805,8 +1942,8 @@ function repairBackgroundJobs(options) {
   const input = options && typeof options === 'object' ? options : {};
   const jobId = String(input.jobId || input.job_id || '').trim();
   const trigger = ensureBackgroundJobTriggerBestEffort_();
-  const recoveredSearchJobs = recoverStaleSearchJobs_({ jobId: jobId });
-  const recoveredPreparations = recoverStaleCsvPreparationJobs_();
+  const recoveredSearchJobs = jobId ? recoverStaleSearchJobs_({ jobId: jobId }) : [];
+  const recoveredPreparations = jobId ? recoverStaleCsvPreparationJobs_() : 0;
   let runResult = null;
   if (jobId) {
     const job = findSheetRecordById_('search_jobs', jobId);

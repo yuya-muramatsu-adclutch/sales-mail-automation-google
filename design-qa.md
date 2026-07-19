@@ -136,3 +136,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Genre records are read once, and the settings already loaded for the UI are reused by schema validation.
 - Lead activity does not evict the reference cache; master, settings, list-view, custom-field, Serper, and PC-search changes do.
 - Automated coverage verifies cache hits, relevant and irrelevant invalidation, and explicit cache bypass.
+
+## v226 follow-up
+
+- The scheduled and manually resumed background worker now uses one short-lived ownership claim before reading or advancing jobs.
+- Overlapping invocations return a safe busy result without running stale recovery, migrations, or dashboard aggregation twice.
+- Top-level failures record a failed worker state and release ownership in `finally`; expired claims are recovered automatically by the next run.
+- Worker health exposes only busy/source/time/stale metadata and never returns the ownership token.
+- Automated coverage verifies success, overlap, exception cleanup, stale recovery, token-matched release, and token redaction.
+- Authenticated live trigger overlap remains a manual production observation because Apps Script execution inspection is unavailable from this session.

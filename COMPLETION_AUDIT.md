@@ -5,9 +5,20 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @226 / production code v225: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @227 / production code v226: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v225_reference_data_cache`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v226_background_worker_singleflight`
+
+## v226 バックグラウンドワーカーの二重起動防止
+
+- 時間トリガーと手動再開が重なっても、ワーカー全体の短時間所有権を最初に取得し、2本目はジョブ・移行・集計を一切開始せず安全に待機。
+- 所有権の取得・解放時だけScript Lockを使い、実処理中は長時間ロックを保持しないため、確認操作や設定保存への影響を抑制。
+- 実行時間に90秒の余裕を加えた有効期限を設定し、Apps Scriptの異常終了で所有権が残っても次回実行が自動回収。
+- 正常終了だけでなくトップレベル例外でも `finally` で所有権を解放し、ワーカー状態を `failed` に更新して「実行中」の残留を防止。
+- ヘルス情報へ実行元・開始・期限・期限切れ状態を追加し、所有権トークンは画面/APIへ返さない。
+- 手動の全体修復で事前の重複回収処理を行わず、所有権取得後のワーカー内に一本化。
+- 通常完了、重複起動の即時スキップ、例外時の解放、期限切れ回収、誤トークンによる解放拒否、ヘルス情報の秘匿を回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 227を固定Web app URLへ再デプロイ済み。
 
 ## v225 参照データAPIのキャッシュ化
 

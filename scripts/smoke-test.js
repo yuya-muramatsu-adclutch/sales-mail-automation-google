@@ -257,13 +257,35 @@ context.getSettingValue_ = (_key, fallback) => fallback;
 context.buildSearchJobRunWindow_ = (budget, startedAt) => ({ deadlineMs: startedAt + budget, startedAtMs: startedAt });
 context.isSearchJobRuntimeExhausted_ = () => false;
 const originalReadAllSheetRecordsByName = context.readAllSheetRecordsByName_;
-context.readAllSheetRecordsByName_ = () => [
+let queuedJobSheetReads = 0;
+context.readAllSheetRecordsByName_ = () => {
+  queuedJobSheetReads += 1;
+  return [
   { id: 'job-1', status: 'queued', query_json: '{}', updated_at: '1' },
   { id: 'job-2', status: 'queued', query_json: '{}', updated_at: '2' },
   { id: 'job-3', status: 'queued', query_json: '{}', updated_at: '3' },
   { id: 'job-4', status: 'queued', query_json: '{}', updated_at: '4' },
   { id: 'job-5', status: 'queued', query_json: '{}', updated_at: '5' },
-];
+  ];
+};
+let queuedWorkerClaims = 0;
+let queuedWorkerReleases = 0;
+let queuedStaleRecoveries = 0;
+const queuedWorkerStatuses = [];
+context.claimBackgroundWorkerRun_ = () => {
+  queuedWorkerClaims += 1;
+  return { claimed: true, busy: false, lockToken: `worker-${queuedWorkerClaims}`, recoveredStaleClaim: false };
+};
+context.releaseBackgroundWorkerRun_ = (lockToken) => {
+  assert.strictEqual(lockToken, `worker-${queuedWorkerReleases + 1}`);
+  queuedWorkerReleases += 1;
+  return true;
+};
+context.recordBackgroundWorkerStatus_ = (status) => { queuedWorkerStatuses.push(status); };
+context.recoverStaleSearchJobs_ = () => {
+  queuedStaleRecoveries += 1;
+  return [];
+};
 context.recoverStaleCsvPreparationJobs_ = () => 0;
 context.advanceSearchJob = (id) => ({ id, completed: id === 'job-1' });
 context.appendSyncError_ = () => {};
@@ -291,6 +313,125 @@ assert.strictEqual(shortQueue.dashboardCacheRefresh.reason, 'runtime_reserved');
 assert.strictEqual(shortQueue.collectionQualityMigration.reason, 'runtime_reserved');
 assert.strictEqual(qualityMigrationRuns, 1, 'quality migration must preserve the final 150 seconds of worker runtime');
 assert.strictEqual(dashboardRefreshCalls, 1, 'dashboard refresh must preserve the final 90 seconds of worker runtime');
+assert.strictEqual(queuedWorkerClaims, 2);
+assert.strictEqual(queuedWorkerReleases, 2, 'every completed worker must release its claim');
+assert.deepStrictEqual(queuedWorkerStatuses, ['running', 'idle', 'running', 'idle']);
+const jobReadsBeforeBusyWorker = queuedJobSheetReads;
+const staleRecoveriesBeforeBusyWorker = queuedStaleRecoveries;
+context.claimBackgroundWorkerRun_ = () => ({
+  claimed: false,
+  busy: true,
+  reason: 'already_running',
+  claim: { busy: true, source: 'trigger', startedAt: '2026-07-19T00:00:00.000Z', expiresAt: '2026-07-19T00:07:00.000Z', stale: false },
+});
+const busyQueue = context.advanceQueuedJobs({ maxJobs: 2, runtimeBudgetMs: 300000, source: 'manual_repair' });
+assert.strictEqual(busyQueue.skipped, true);
+assert.strictEqual(busyQueue.busy, true);
+assert.strictEqual(busyQueue.reason, 'already_running');
+assert.strictEqual(busyQueue.remainingJobs, null);
+assert.strictEqual(queuedJobSheetReads, jobReadsBeforeBusyWorker, 'a busy worker must not read job sheets');
+assert.strictEqual(queuedStaleRecoveries, staleRecoveriesBeforeBusyWorker, 'a busy worker must not run stale recovery');
+assert.strictEqual(queuedWorkerReleases, 2, 'a worker that did not acquire ownership must not release it');
+
+const workerFailureContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), workerFailureContext, { filename: file });
+});
+const workerFailureStatuses = [];
+let workerFailureReleases = 0;
+workerFailureContext.getSettingValue_ = (_key, fallback) => fallback;
+workerFailureContext.claimBackgroundWorkerRun_ = () => ({ claimed: true, busy: false, lockToken: 'failure-worker' });
+workerFailureContext.releaseBackgroundWorkerRun_ = (lockToken) => {
+  assert.strictEqual(lockToken, 'failure-worker');
+  workerFailureReleases += 1;
+  return true;
+};
+workerFailureContext.recordBackgroundWorkerStatus_ = (status, detail) => {
+  workerFailureStatuses.push({ status, detail });
+};
+workerFailureContext.recoverStaleSearchJobs_ = () => { throw new Error('recovery exploded'); };
+assert.throws(() => workerFailureContext.advanceQueuedJobs({ source: 'trigger' }), /recovery exploded/);
+assert.deepStrictEqual(workerFailureStatuses.map((item) => item.status), ['running', 'failed']);
+assert.match(workerFailureStatuses[1].detail.error, /recovery exploded/);
+assert.strictEqual(workerFailureReleases, 1, 'a failed worker must release its claim in finally');
+
+const workerClaimContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), workerClaimContext, { filename: file });
+});
+const workerClaimProperties = {};
+let workerUuid = 0;
+const workerClaimLocks = [];
+workerClaimContext.PropertiesService = {
+  getScriptProperties: () => ({
+    getProperty: (key) => workerClaimProperties[key] || '',
+    setProperty: (key, value) => { workerClaimProperties[key] = value; },
+    deleteProperty: (key) => { delete workerClaimProperties[key]; },
+  }),
+};
+workerClaimContext.Utilities = { getUuid: () => `worker-uuid-${++workerUuid}` };
+workerClaimContext.withScriptLock_ = (operation, callback, options) => {
+  workerClaimLocks.push({ operation, options });
+  return callback();
+};
+const claimNowMs = Date.parse('2026-07-19T01:00:00.000Z');
+workerClaimProperties.BACKGROUND_WORKER_CLAIM_JSON = JSON.stringify({
+  token: 'existing-worker',
+  source: 'trigger',
+  startedAt: '2026-07-19T00:59:00.000Z',
+  expiresAt: '2026-07-19T01:05:00.000Z',
+});
+const activeWorkerClaim = workerClaimContext.claimBackgroundWorkerRun_({ source: 'manual_repair', runtimeBudgetMs: 180000, nowMs: claimNowMs });
+assert.strictEqual(activeWorkerClaim.claimed, false);
+assert.strictEqual(activeWorkerClaim.busy, true);
+assert.strictEqual(activeWorkerClaim.claim.source, 'trigger');
+assert.strictEqual(Object.prototype.hasOwnProperty.call(activeWorkerClaim.claim, 'token'), false, 'claim summaries must not expose ownership tokens');
+workerClaimProperties.BACKGROUND_WORKER_CLAIM_JSON = JSON.stringify({
+  token: 'stale-worker',
+  source: 'trigger',
+  startedAt: '2026-07-19T00:40:00.000Z',
+  expiresAt: '2026-07-19T00:50:00.000Z',
+});
+const recoveredWorkerClaim = workerClaimContext.claimBackgroundWorkerRun_({ source: 'manual_repair', runtimeBudgetMs: 180000, nowMs: claimNowMs });
+assert.strictEqual(recoveredWorkerClaim.claimed, true);
+assert.strictEqual(recoveredWorkerClaim.recoveredStaleClaim, true);
+assert.strictEqual(recoveredWorkerClaim.lockToken, 'worker-uuid-1');
+assert.strictEqual(workerClaimContext.releaseBackgroundWorkerRun_('wrong-token'), false);
+assert(workerClaimProperties.BACKGROUND_WORKER_CLAIM_JSON, 'a mismatched release must preserve the active claim');
+assert.strictEqual(workerClaimContext.releaseBackgroundWorkerRun_('worker-uuid-1'), true);
+assert.strictEqual(workerClaimProperties.BACKGROUND_WORKER_CLAIM_JSON, undefined);
+assert.deepStrictEqual(workerClaimLocks.map((item) => item.operation), [
+  'claimBackgroundWorkerRun',
+  'claimBackgroundWorkerRun',
+  'releaseBackgroundWorkerRun',
+  'releaseBackgroundWorkerRun',
+]);
+assert(workerClaimLocks.every((item) => item.options.waitMs === 5000));
+workerClaimProperties.BACKGROUND_WORKER_STATUS_JSON = JSON.stringify({ status: 'running' });
+workerClaimProperties.BACKGROUND_WORKER_CLAIM_JSON = JSON.stringify({
+  token: 'health-worker-token',
+  source: 'trigger',
+  startedAt: new Date(Date.now() - 1000).toISOString(),
+  expiresAt: new Date(Date.now() + 60000).toISOString(),
+});
+workerClaimContext.readAllSheetRecordsByName_ = () => [];
+workerClaimContext.ScriptApp = {
+  getProjectTriggers: () => [{ getHandlerFunction: () => 'advanceQueuedJobs' }],
+};
+const activeWorkerHealth = workerClaimContext.getBackgroundWorkerHealth();
+assert.strictEqual(activeWorkerHealth.ok, true);
+assert.strictEqual(activeWorkerHealth.workerClaim.busy, true);
+assert.strictEqual(activeWorkerHealth.workerClaim.stale, false);
+assert.strictEqual(JSON.stringify(activeWorkerHealth).includes('health-worker-token'), false, 'worker health must not expose ownership tokens');
+workerClaimProperties.BACKGROUND_WORKER_CLAIM_JSON = JSON.stringify({
+  token: 'stale-health-token',
+  source: 'trigger',
+  startedAt: new Date(Date.now() - 120000).toISOString(),
+  expiresAt: new Date(Date.now() - 60000).toISOString(),
+});
+const staleWorkerHealth = workerClaimContext.getBackgroundWorkerHealth();
+assert.strictEqual(staleWorkerHealth.workerClaim.busy, false);
+assert.strictEqual(staleWorkerHealth.workerClaim.stale, true);
 
 const hardDeleteReferences = context.listLeadHardDeleteReferences_({ id: 'lead-1', calendar_event_id: '' }, {
   send_histories: [],
@@ -1786,7 +1927,8 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v225_reference_data_cache'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v226_background_worker_singleflight'));
+assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1896,7 +2038,7 @@ assert(!initialDataBody.includes('runLeadCollectionQualityMigrationV215_'), 'sta
 const scheduledEmailStart = emailSource.indexOf('function runScheduledEmailBatch');
 const scheduledEmailEnd = emailSource.indexOf('\nfunction ', scheduledEmailStart + 10);
 assert(!emailSource.slice(scheduledEmailStart, scheduledEmailEnd).includes('runLeadCollectionQualityMigrationV215_'), 'mail trigger must not run data migrations');
-assert(operationsSource.includes('runLeadCollectionQualityMigrationV215_({ source: input.source || \'trigger\' })'));
+assert(operationsSource.includes('runLeadCollectionQualityMigrationV215_({ source: source })'));
 assert(operationsSource.includes('const qualityMigrationMinimumRuntimeMs = 150000'));
 assert(webAppSource.includes("return 'reference_data_' + String(APP_VERSION || 'v1')"));
 assert(webAppSource.includes('getSchemaStatus({ settingsRecords: settings })'));
@@ -2020,6 +2162,9 @@ assert.strictEqual(JSON.parse(firstRecovery.patch.cursor_json).staleRecoveryCoun
 assert(operationsSource.includes('function repairBackgroundJobs'));
 assert(operationsSource.includes('function getBackgroundWorkerHealth'));
 assert(operationsSource.includes('function recoverStaleSearchJobs_'));
+assert(operationsSource.includes('function claimBackgroundWorkerRun_'));
+assert(operationsSource.includes('function releaseBackgroundWorkerRun_'));
+assert(operationsSource.includes("recordBackgroundWorkerStatus_('failed'"));
 assert(serperSource.includes("payload.job_type === 'source_page' ? String(progressRecord.cursor_json || job.cursor_json || '') : ''"));
 assert(indexSource.includes('自動復旧して再開'));
 assert(indexSource.includes("api('repairBackgroundJobs'"));
@@ -2083,4 +2228,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v225 reference data cache regression tests passed.');
+console.log('v226 background worker singleflight regression tests passed.');
