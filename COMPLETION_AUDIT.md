@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @261 / production code v260: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @262 / production code v261: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v260_single_lookup_review_decisions`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v261_lightweight_form_block_rules`
+
+## v261 フォーム判定の送信履歴読込撤去
+
+- フォーム送信済みを記録する処理は、除外判定に不要な全メール送信履歴までグローバルロック中に読み込んでいた。
+- NGマスターと除外ドメインだけを読む `buildMasterBlockRulesContext_` を分離し、フォーム記録と単純なマスター除外判定で利用する。
+- メール送信対象の判定は従来どおり送信済み・予約中の安全情報を含む完全コンテキストを利用し、重複送信防止を維持する。
+- フォーム記録のロック内処理にメール送信履歴読込がないこと、軽量コンテキストに必要な2マスターが含まれることを回帰テストした。
+- `node scripts/smoke-test.js`、`node --check scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 262を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@262` であることを確認した。フォーム送信、外部検索、メール送信、営業データ変更は検証中に実行していない。
 
 ## v260 確認待ち更新のリード検索1回化
 

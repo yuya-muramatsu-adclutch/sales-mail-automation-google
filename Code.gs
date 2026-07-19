@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v260_single_lookup_review_decisions';
+const APP_VERSION = '20260719_apps_script_full_workflow_v261_lightweight_form_block_rules';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -1757,7 +1757,7 @@ function markLeadFormSent(leadId, options) {
       throw new Error('Lead not found: ' + id);
     }
 
-    const blockReason = getFormSendTargetBlockReason_(found.record, buildMasterBlockContext_());
+    const blockReason = getFormSendTargetBlockReason_(found.record, buildMasterBlockRulesContext_());
     if (blockReason) {
       throw createExpectedOperationError_(blockReason, 'FORM_TARGET_BLOCKED');
     }

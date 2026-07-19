@@ -2881,7 +2881,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v260_single_lookup_review_decisions'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v261_lightweight_form_block_rules'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2912,6 +2912,18 @@ const duplicateCandidatesBody = codeSource.slice(duplicateCandidatesStart, dupli
 assert(duplicateCandidatesBody.includes("readSheetRecordFields_('leads', leadDuplicateCandidateFields_(), { maxGapColumns: 0 })"));
 assert(!duplicateCandidatesBody.includes('readSheetRecords_('), 'lead detail duplicate checks must not read every lead column');
 assert(codeSource.includes('function updateReviewLeadDecision'));
+const markFormStart = codeSource.indexOf('function markLeadFormSent(leadId, options)');
+const markFormEnd = codeSource.indexOf('\nfunction ', markFormStart + 10);
+const markFormBody = codeSource.slice(markFormStart, markFormEnd);
+assert(markFormBody.includes('buildMasterBlockRulesContext_()'));
+assert(!markFormBody.includes('buildMasterBlockContext_()'), 'form recording must not scan mail send histories while locked');
+const masterRulesSource = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
+const masterRulesStart = masterRulesSource.indexOf('function buildMasterBlockRulesContext_()');
+const masterRulesEnd = masterRulesSource.indexOf('\nfunction ', masterRulesStart + 10);
+const masterRulesBody = masterRulesSource.slice(masterRulesStart, masterRulesEnd);
+assert(masterRulesBody.includes("readAllActiveSheetRecords_('ng_masters')"));
+assert(masterRulesBody.includes("readAllActiveSheetRecords_('excluded_domains')"));
+assert(!masterRulesBody.includes('buildMailSendSafetyContext_'));
 assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
 assert(codeSource.includes('function repairNonAdvertiserReviewLeads'));
 assert(codeSource.includes('function repairNonAdvertiserCleanupOverreach'));
@@ -3591,4 +3603,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v260 single-lookup review decision regression tests passed.');
+console.log('v261 lightweight form block rule regression tests passed.');

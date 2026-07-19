@@ -445,3 +445,11 @@ final result: code paths verified; authenticated timing comparison pending
 - The shared found-row updater preserves derived fields, status side effects, timestamps, and cache invalidation for normal edits.
 - Automated coverage retains idempotency, stale-action conflict, undo, and invalid-action checks while asserting one lookup per valid request.
 - Fixed deployment updated to `@261`; no live mail, external search, or sales-data mutation was run during verification.
+
+## v261 follow-up
+
+- Form outreach recording now loads only NG-master and excluded-domain rules while holding the global lock.
+- Mail history safety data is no longer scanned for a form-only action that never consumes it.
+- Email eligibility retains the complete master and delivery-safety context, preserving duplicate-send protection.
+- Automated coverage verifies the lightweight context fields and the absence of mail-history loading in the form-recording path.
+- Fixed deployment updated to `@262`; no live form, mail, search, or sales-data mutation was run during verification.

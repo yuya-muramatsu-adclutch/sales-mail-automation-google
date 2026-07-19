@@ -536,15 +536,20 @@ function normalizeMasterName_(value) {
 }
 
 function isLeadBlockedByMasters_(lead) {
-  return isLeadBlockedByMastersInContext_(lead, buildMasterBlockContext_());
+  return isLeadBlockedByMastersInContext_(lead, buildMasterBlockRulesContext_());
 }
 
-function buildMasterBlockContext_() {
+function buildMasterBlockRulesContext_() {
   return {
     ngMasters: readAllActiveSheetRecords_('ng_masters'),
     excludedDomains: readAllActiveSheetRecords_('excluded_domains'),
-    mailSendSafety: buildMailSendSafetyContext_(),
   };
+}
+
+function buildMasterBlockContext_() {
+  return Object.assign(buildMasterBlockRulesContext_(), {
+    mailSendSafety: buildMailSendSafetyContext_(),
+  });
 }
 
 function readAllActiveSheetRecords_(sheetName) {
