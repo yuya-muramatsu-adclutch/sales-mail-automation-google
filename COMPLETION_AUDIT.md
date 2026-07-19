@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @260 / production code v259: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @261 / production code v260: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v259_batched_genre_repairs`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v260_single_lookup_review_decisions`
+
+## v260 確認待ち更新のリード検索1回化
+
+- 送信NG・対応不要・確認済み・取り消し操作は、ロック内で同じリードを状態確認用と更新用に2回検索していた。
+- 1回目に取得した行番号・見出し・レコードを更新処理へ直接渡し、同一リードのID列検索と全列取得を1回に削減した。
+- 状態確認と更新が同じ行スナップショットを使うため、競合判定後に別の検索結果へ切り替わる余地もなくした。
+- 通常の `updateLead` は共通の行取得済み更新関数を利用し、派生項目、状態副作用、キャッシュ破棄の既存動作を維持する。
+- 再操作の冪等性、返信済みへの古い操作の上書き防止、取り消し、1要求1検索を回帰テストした。
+- `node scripts/smoke-test.js`、`node --check scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 261を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@261` であることを確認した。外部検索、メール送信、営業データ変更は検証中に実行していない。
 
 ## v259 キャンプ場ジャンル修復のロック分割
 

@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v259_batched_genre_repairs';
+const APP_VERSION = '20260719_apps_script_full_workflow_v260_single_lookup_review_decisions';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -1561,7 +1561,11 @@ function updateReviewLeadDecision(id, input) {
 
   return withScriptLock_('updateReviewLeadDecision', function () {
     const leadId = requireId_(id);
-    const current = getLeadById(leadId);
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'leads');
+    const found = findRowById_(sheet, leadId);
+    if (!found) throw new Error('Lead not found: ' + leadId);
+    const current = found.record;
     const currentStatus = String(current.status || '');
     const reviewSource = ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(current.source || '')) !== -1;
 
@@ -1585,7 +1589,7 @@ function updateReviewLeadDecision(id, input) {
       return buildReviewLeadConflict_(current, 'この営業先はすでに確認待ちではないため更新しませんでした。');
     }
 
-    const updated = updateLeadLocked_(leadId, { status: nextStatus });
+    const updated = updateLeadFoundLocked_(sheet, found, { status: nextStatus });
     return {
       ok: true,
       reused: false,
@@ -1615,6 +1619,14 @@ function updateLeadLocked_(id, patch) {
 
   if (!found) {
     throw new Error('Lead not found: ' + leadId);
+  }
+
+  return updateLeadFoundLocked_(sheet, found, patch);
+}
+
+function updateLeadFoundLocked_(sheet, found, patch) {
+  if (!sheet || !found || !found.record || !found.rowNumber) {
+    throw new Error('Lead row is required for update.');
   }
 
   const headers = found.headers || getHeaders_(sheet);

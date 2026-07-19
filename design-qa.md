@@ -437,3 +437,11 @@ final result: code paths verified; authenticated timing comparison pending
 - Empty or completed lead ranges can still repair pending job payloads without rescanning lead rows.
 - Automated coverage verifies bounded locks, identity checks, job-lock separation, and removal of full-scan reads while locked.
 - Fixed deployment updated to `@260`; no live search, mail, or sales-data mutation was run during verification.
+
+## v260 follow-up
+
+- Review decisions now locate the lead row once and reuse that exact row snapshot for conflict checks and mutation.
+- Send-NG, no-action, approve, and undo requests no longer repeat the full lead ID lookup while holding the global lock.
+- The shared found-row updater preserves derived fields, status side effects, timestamps, and cache invalidation for normal edits.
+- Automated coverage retains idempotency, stale-action conflict, undo, and invalid-action checks while asserting one lookup per valid request.
+- Fixed deployment updated to `@261`; no live mail, external search, or sales-data mutation was run during verification.

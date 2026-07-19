@@ -2458,6 +2458,8 @@ let reviewDecisionLead = {
   send_ng: false,
 };
 let reviewDecisionWrites = 0;
+let reviewDecisionFinds = 0;
+const reviewDecisionSheet = {};
 reviewDecisionContext.withScriptLock_ = (operation, callback, options) => {
   assert.strictEqual(operation, 'updateReviewLeadDecision');
   assert.strictEqual(options.waitMs, 6000);
@@ -2465,8 +2467,19 @@ reviewDecisionContext.withScriptLock_ = (operation, callback, options) => {
   assert.strictEqual(options.retryDelayMs, 400);
   return callback();
 };
-reviewDecisionContext.getLeadById = () => Object.assign({}, reviewDecisionLead);
-reviewDecisionContext.updateLeadLocked_ = (_id, patch) => {
+reviewDecisionContext.getOrCreateSpreadsheet_ = () => ({});
+reviewDecisionContext.ensureSheet_ = () => reviewDecisionSheet;
+reviewDecisionContext.findRowById_ = (_sheet, id) => {
+  reviewDecisionFinds += 1;
+  return {
+    rowNumber: 2,
+    headers: Object.keys(reviewDecisionLead),
+    record: Object.assign({}, reviewDecisionLead, { id }),
+  };
+};
+reviewDecisionContext.updateLeadFoundLocked_ = (sheet, found, patch) => {
+  assert.strictEqual(sheet, reviewDecisionSheet);
+  assert.strictEqual(found.record.id, 'review-1');
   reviewDecisionWrites += 1;
   reviewDecisionLead = Object.assign({}, reviewDecisionLead, patch);
   return Object.assign({}, reviewDecisionLead);
@@ -2500,6 +2513,13 @@ assert.strictEqual(reviewDecisionLead.status, '未対応');
 assert.throws(() => reviewDecisionContext.updateReviewLeadDecision('review-1', {
   mode: 'decision', expected_status: '未対応', status: '返信あり',
 }), /選べない更新内容/);
+assert.strictEqual(reviewDecisionFinds, 4, 'each valid review request must look up the lead row only once');
+const reviewDecisionCodeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
+const reviewDecisionStart = reviewDecisionCodeSource.indexOf('function updateReviewLeadDecision(id, input)');
+const reviewDecisionEnd = reviewDecisionCodeSource.indexOf('\nfunction ', reviewDecisionStart + 10);
+const reviewDecisionBody = reviewDecisionCodeSource.slice(reviewDecisionStart, reviewDecisionEnd);
+assert(!reviewDecisionBody.includes('getLeadById('), 'review decisions must not perform a second lead lookup');
+assert(reviewDecisionBody.includes('updateLeadFoundLocked_(sheet, found'));
 
 const lockRetryContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), lockRetryContext, { filename: 'Code.gs' });
@@ -2861,7 +2881,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v259_batched_genre_repairs'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v260_single_lookup_review_decisions'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3410,7 +3430,7 @@ assert(indexSource.includes('別処理で更新済みのため上書きしませ
 assert(indexSource.includes('Promise.allSettled(['));
 assert(indexSource.includes("window.addEventListener('unhandledrejection'"));
 assert(indexSource.includes('if (state.analyticsData) return state.analyticsData;'));
-['updateLeadLocked_', 'deleteLead', 'markLeadFormSent', 'unmarkLeadFormSent'].forEach((functionName) => {
+['updateLeadFoundLocked_', 'deleteLead', 'markLeadFormSent', 'unmarkLeadFormSent'].forEach((functionName) => {
   const start = codeSource.indexOf(`function ${functionName}`);
   const next = codeSource.indexOf('\nfunction ', start + 10);
   const body = codeSource.slice(start, next === -1 ? codeSource.length : next);
@@ -3571,4 +3591,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v259 batched genre repair regression tests passed.');
+console.log('v260 single-lookup review decision regression tests passed.');
