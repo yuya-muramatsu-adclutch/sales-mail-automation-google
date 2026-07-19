@@ -325,9 +325,7 @@ function normalizeBooleanLike_(value) {
 }
 
 function getSettingValue_(key, defaultValue) {
-  const spreadsheet = getOrCreateSpreadsheet_();
-  const sheet = ensureSheet_(spreadsheet, 'settings');
-  const records = readSheetRecords_(sheet);
+  const records = readSettingsRecordsCached_();
   const setting = records.find(function (record) {
     return record.key === key;
   });
@@ -354,6 +352,42 @@ function getSettingValue_(key, defaultValue) {
   }
 
   return setting.value === '' || setting.value === undefined || setting.value === null ? defaultValue : setting.value;
+}
+
+function settingsRecordsCacheKey_() {
+  return 'settings_records_' + String(APP_VERSION || 'v1');
+}
+
+function readSettingsRecordsCached_() {
+  try {
+    const cached = CacheService.getScriptCache().get(settingsRecordsCacheKey_());
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (error) {
+    console.warn('Settings cache read skipped: ' + error.message);
+  }
+
+  const records = readSheetRecordFields_(
+    'settings',
+    ['id', 'key', 'value', 'value_type', 'description', 'updated_at'],
+    { maxGapColumns: 0 }
+  );
+  try {
+    CacheService.getScriptCache().put(settingsRecordsCacheKey_(), JSON.stringify(records), 300);
+  } catch (error) {
+    console.warn('Settings cache write skipped: ' + error.message);
+  }
+  return records;
+}
+
+function clearSettingsRecordsCache_() {
+  try {
+    CacheService.getScriptCache().remove(settingsRecordsCacheKey_());
+  } catch (error) {
+    console.warn('Settings cache clear skipped: ' + error.message);
+  }
 }
 
 function setSettingValue(key, value, valueType, description) {
@@ -821,6 +855,9 @@ function clearRuntimeCaches_(changedSheetName) {
 
   if (shouldInvalidateReferenceDataCache_(changedSheetName)) {
     clearReferenceDataCache_();
+  }
+  if (String(changedSheetName || '') === 'settings') {
+    clearSettingsRecordsCache_();
   }
 
   try {

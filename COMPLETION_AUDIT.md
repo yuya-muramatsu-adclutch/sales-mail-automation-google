@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @252 / production code v251: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @253 / production code v252: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v251_search_support_projection`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v252_settings_cache`
+
+## v252 設定値読込の共有キャッシュ
+
+- ダッシュボード・メール送信・返信確認・収集処理から設定値を参照するたびに `settings` シート全体を再読込する処理を、5分のスクリプトキャッシュへ切り替えた。
+- キャッシュ生成時はID・キー・値・型・説明・更新日時の6列だけを読み、同一期間の複数設定参照で再利用する。
+- 数値・真偽値・JSON・文字列の復元規則と、設定未登録・不正JSON時の既定値フォールバックは変更しない。
+- 設定保存は従来どおりロック内でシートの最新全行を確認し、更新または追加の完了後に設定キャッシュを即時破棄する。
+- 数値・JSON設定の連続参照が1回のシート読取になること、キャッシュキー削除後に再読込すること、取得列とTTLを回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 253を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@253` であることを確認した。設定値や営業データの実変更は検証中に実行していない。
 
 ## v251 検索関連一覧の必要列取得
 

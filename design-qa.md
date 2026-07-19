@@ -364,3 +364,11 @@ final result: code paths verified; authenticated timing comparison pending
 - Projected search operates on returned fields, and an all-invalid field request fails closed instead of falling back to every column.
 - Automated coverage verifies total count, newest-first paging, projected output, large-payload omission, and invalid-field rejection.
 - Fixed deployment updated to `@252`; no live search, result review, or lead creation was run during verification.
+
+## v252 follow-up
+
+- Repeated settings reads across dashboard, mail, reply, and collection paths now share a five-minute script cache.
+- Cache population reads six settings fields and preserves number, boolean, JSON, string, and default-value parsing.
+- Setting writes still inspect the latest sheet inside the existing lock, then invalidate the settings cache immediately after persistence.
+- Automated coverage verifies one sheet read across repeated typed settings, explicit invalidation, refreshed reads, cache fields, and TTL.
+- Fixed deployment updated to `@253`; no live setting or sales-data mutation was run during verification.

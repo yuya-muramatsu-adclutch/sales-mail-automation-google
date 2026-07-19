@@ -2861,7 +2861,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v251_search_support_projection'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v252_settings_cache'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3067,6 +3067,9 @@ assert(webAppSource.includes("readSheetRecordFields_('search_usage_logs', ['crea
 assert(repositorySource.includes('function readSheetRecordFields_'));
 assert(repositorySource.includes('function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values, resultFieldNames)'));
 assert(repositorySource.includes("const projectionRequested = Array.isArray(query.fields) && query.fields.length > 0"));
+assert(repositorySource.includes('function readSettingsRecordsCached_()'));
+assert(repositorySource.includes("CacheService.getScriptCache().put(settingsRecordsCacheKey_(), JSON.stringify(records), 300)"));
+assert(repositorySource.includes("if (String(changedSheetName || '') === 'settings')"));
 const searchSupportIndexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const searchSupportLoadStart = searchSupportIndexSource.indexOf('async function loadSearchResults()');
 const searchSupportLoadEnd = searchSupportIndexSource.indexOf('\n      function ', searchSupportLoadStart + 20);
@@ -3074,6 +3077,41 @@ const searchSupportLoadBody = searchSupportIndexSource.slice(searchSupportLoadSt
 assert(searchSupportLoadBody.includes("fields: ['id', 'job_id', 'lead_id', 'query', 'result_type', 'title', 'url', 'snippet', 'rank', 'review_status', 'review_action', 'reviewed_at', 'created_at', 'updated_at']"));
 assert(searchSupportLoadBody.includes("fields: ['created_at', 'purpose', 'query', 'result_count', 'status']"));
 assert(!searchSupportLoadBody.includes("'raw_json'"));
+
+const settingsCacheContext = vm.createContext({ console });
+['Code.gs', 'Repository.gs'].forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), settingsCacheContext, { filename: file });
+});
+const settingsCacheStore = {};
+const removedSettingsCacheKeys = [];
+settingsCacheContext.CacheService = {
+  getScriptCache: () => ({
+    get: (key) => settingsCacheStore[key] || null,
+    put: (key, value) => { settingsCacheStore[key] = value; },
+    remove: (key) => {
+      removedSettingsCacheKeys.push(key);
+      delete settingsCacheStore[key];
+    },
+  }),
+};
+let settingsSheetReads = 0;
+settingsCacheContext.readSheetRecordFields_ = (sheetName, fields, options) => {
+  settingsSheetReads += 1;
+  assert.strictEqual(sheetName, 'settings');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(fields)), ['id', 'key', 'value', 'value_type', 'description', 'updated_at']);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(options)), { maxGapColumns: 0 });
+  return [
+    { id: 'setting-1', key: 'gmail_daily_send_limit', value: 80, value_type: 'number', description: '', updated_at: '2026-07-19T00:00:00.000Z' },
+    { id: 'setting-2', key: 'mail_sending_control', value: '{"enabled":true}', value_type: 'json', description: '', updated_at: '2026-07-19T00:00:00.000Z' },
+  ];
+};
+assert.strictEqual(settingsCacheContext.getSettingValue_('gmail_daily_send_limit', 10), 80);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(settingsCacheContext.getSettingValue_('mail_sending_control', {}))), { enabled: true });
+assert.strictEqual(settingsSheetReads, 1, 'repeated setting reads must reuse CacheService');
+settingsCacheContext.clearSettingsRecordsCache_();
+assert.strictEqual(removedSettingsCacheKeys.includes(settingsCacheContext.settingsRecordsCacheKey_()), true);
+assert.strictEqual(settingsCacheContext.getSettingValue_('gmail_daily_send_limit', 10), 80);
+assert.strictEqual(settingsSheetReads, 2, 'cache invalidation must force a fresh settings read');
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
 assert(!webAppSource.includes("readAllSheetRecordsByName_('dashboard_cache'"), 'dashboard cache paths must not transfer every cached payload');
 assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5')"));
@@ -3368,4 +3406,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v251 search support projection regression tests passed.');
+console.log('v252 settings cache regression tests passed.');
