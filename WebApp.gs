@@ -110,7 +110,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'advanceQueuedJobs') return advanceQueuedJobs(data);
   if (action === 'getBackgroundWorkerHealth') return getBackgroundWorkerHealth();
   if (action === 'getStorageHealth') return getStorageHealth(data);
-  if (action === 'listSourcePageSiteStatuses') return listSourcePageSiteStatuses();
+  if (action === 'listSourcePageSiteStatuses') return listSourcePageSiteStatuses(data);
   if (action === 'repairBackgroundJobs') return repairBackgroundJobs(data);
   if (action === 'repairNapCampGenres') return repairNapCampGenres(data);
   if (action === 'repairReviewLeadsWithoutContact') return repairReviewLeadsWithoutContact(data);

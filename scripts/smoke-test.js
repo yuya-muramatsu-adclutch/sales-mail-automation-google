@@ -712,6 +712,8 @@ dashboardContext.CacheService = {
 dashboardContext.clearRuntimeCaches_('leads');
 assert.strictEqual(dashboardProperties.DASHBOARD_CACHE_DIRTY_AT, '2026-07-19T10:05:00+09:00');
 assert(removedDashboardCacheKeys.includes('dashboard_stats_v5'));
+dashboardContext.clearRuntimeCaches_('search_jobs');
+assert(removedDashboardCacheKeys.includes('source_page_site_status_v1'));
 const pendingQualityMigration = dashboardContext.getLeadCollectionQualityMigrationV215Status_();
 assert.strictEqual(pendingQualityMigration.pending, true);
 assert.strictEqual(pendingQualityMigration.completed, false);
@@ -2340,7 +2342,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v237_dashboard_column_reads'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v238_source_status_cache'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2484,6 +2486,12 @@ assert(serperSource.includes("{ waitMs: 5000, attempts: 1 }"));
 assert(serperSource.includes('lockContention: true'));
 assert(serperSource.includes("const NAP_CAMP_GENRE = 'キャンプ'"));
 assert(serperSource.includes('function repairNapCampGenres'));
+const sourcePageStatusListStart = serperSource.indexOf('function listSourcePageSiteStatuses');
+const sourcePageStatusListEnd = serperSource.indexOf('\nfunction ', sourcePageStatusListStart + 10);
+const sourcePageStatusListBody = serperSource.slice(sourcePageStatusListStart, sourcePageStatusListEnd);
+assert(sourcePageStatusListBody.includes("readSheetRecordFields_('search_jobs'"));
+assert(!sourcePageStatusListBody.includes("readAllSheetRecordsByName_('search_jobs'"));
+assert(sourcePageStatusListBody.includes("CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 300)"));
 assert(serperSource.includes('function rankContactPageLinks_'));
 assert(serperSource.includes('excludedFromReview: true'));
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
@@ -2503,6 +2511,7 @@ assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
 assert(webAppSource.includes("if (action === 'repairNonAdvertiserReviewLeads')"));
 assert(webAppSource.includes("if (action === 'getStorageHealth') return getStorageHealth(data);"));
+assert(webAppSource.includes("if (action === 'listSourcePageSiteStatuses') return listSourcePageSiteStatuses(data);"));
 const initialDataStart = webAppSource.indexOf('function getInitialData()');
 const initialDataEnd = webAppSource.indexOf('\nfunction ', initialDataStart + 10);
 const initialDataBody = webAppSource.slice(initialDataStart, initialDataEnd);
@@ -2563,6 +2572,8 @@ assert(indexSource.includes('id="leadListViewSettingsPanel" class="lead-view-set
 assert(indexSource.includes('id="storageHealthPanel" class="panel stack"'));
 assert(indexSource.includes("ensureDataLoaded('storageHealth', () => loadStorageHealth({ quiet: true }))"));
 assert(indexSource.includes('function renderStorageHealthPanel()'));
+assert(indexSource.includes("request('listSourcePageSiteStatuses', { bypassCache: config.force === true })"));
+assert(indexSource.includes("loadSourcePageSiteStatuses({ force: true })"));
 assert(indexSource.includes("{ key: 'facility', label: '施設名', visible: true"));
 assert(indexSource.includes('if (panel) panel.hidden = false;'));
 const facilityCellSource = indexSource.slice(
@@ -2658,9 +2669,11 @@ sourcePageStatusContext.getSettingValue_ = () => ({
   sites: [
     { id: 'nap', label: 'なっぷ', url: 'https://www.nap-camp.com/', genre: 'キャンプ', crawlAll: true },
     { id: 'running', label: '調査中サイト', url: 'https://example.com/list/', genre: 'キャンプ', crawlAll: true },
+    { id: 'failed', label: '失敗サイト', url: 'https://failed.example/list/', genre: 'キャンプ', crawlAll: false },
+    { id: 'not-started', label: '未実行サイト', url: 'https://not-started.example/list/', genre: 'キャンプ', crawlAll: false },
   ],
 });
-sourcePageStatusContext.readAllSheetRecordsByName_ = () => [
+const sourcePageStatusJobs = [
   {
     id: 'completed-job',
     job_type: 'source_page',
@@ -2677,6 +2690,20 @@ sourcePageStatusContext.readAllSheetRecordsByName_ = () => [
     updated_at: '2026-07-16T07:10:15+09:00',
   },
   {
+    id: 'older-completed-job',
+    job_type: 'source_page',
+    status: 'completed',
+    query_json: JSON.stringify({
+      source_url: 'https://example.com/list',
+      crawl_all: true,
+      total_candidates: 1000,
+    }),
+    total_count: 1,
+    processed_count: 1,
+    finished_at: '2026-07-16T00:00:00+09:00',
+    updated_at: '2026-07-16T00:00:00+09:00',
+  },
+  {
     id: 'running-job',
     job_type: 'source_page',
     status: 'running',
@@ -2691,17 +2718,55 @@ sourcePageStatusContext.readAllSheetRecordsByName_ = () => [
     processed_count: 0,
     updated_at: '2026-07-17T00:00:00+09:00',
   },
+  {
+    id: 'failed-job',
+    job_type: 'source_page',
+    status: 'failed',
+    query_json: JSON.stringify({ source_url: 'https://failed.example/list' }),
+    error_count: 1,
+    last_error: '取得に失敗しました',
+    updated_at: '2026-07-17T00:01:00+09:00',
+  },
 ];
+let sourcePageStatusReads = 0;
+let sourcePageStatusRequestedFields = [];
+const sourcePageStatusCache = {};
+sourcePageStatusContext.CacheService = {
+  getScriptCache: () => ({
+    get: (key) => sourcePageStatusCache[key] || null,
+    put: (key, value) => { sourcePageStatusCache[key] = value; },
+    remove: (key) => { delete sourcePageStatusCache[key]; },
+  }),
+};
+sourcePageStatusContext.readSheetRecordFields_ = (_sheetName, fields) => {
+  sourcePageStatusReads += 1;
+  sourcePageStatusRequestedFields = fields.slice();
+  return sourcePageStatusJobs;
+};
 const sourcePageStatuses = JSON.parse(JSON.stringify(sourcePageStatusContext.listSourcePageSiteStatuses()));
-assert.strictEqual(sourcePageStatuses.total, 2);
+assert.strictEqual(sourcePageStatuses.total, 4);
 assert.strictEqual(sourcePageStatuses.completed, 1);
 assert.strictEqual(sourcePageStatuses.running, 1);
+assert.strictEqual(sourcePageStatuses.attention, 1);
+assert.strictEqual(sourcePageStatuses.notStarted, 1);
 assert.strictEqual(sourcePageStatuses.items[0].statusLabel, '全件調査完了');
 assert.strictEqual(sourcePageStatuses.items[0].processed, 5872);
 assert.strictEqual(sourcePageStatuses.items[0].total, 5872);
 assert.strictEqual(sourcePageStatuses.items[0].percent, 100);
-assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
+assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '再調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
+assert.strictEqual(sourcePageStatuses.items[2].statusLabel, '調査失敗');
+assert.strictEqual(sourcePageStatuses.items[2].lastError, '取得に失敗しました');
+assert.strictEqual(sourcePageStatuses.items[3].statusLabel, '未実行');
+assert.strictEqual(sourcePageStatusReads, 1);
+assert(sourcePageStatusRequestedFields.includes('query_json'));
+assert(!sourcePageStatusRequestedFields.includes('request_key'));
+assert(!sourcePageStatusRequestedFields.includes('lock_token'));
+const cachedSourcePageStatuses = sourcePageStatusContext.listSourcePageSiteStatuses();
+assert.strictEqual(cachedSourcePageStatuses.cached, true);
+assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks must use the five-minute cache');
+sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
+assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v237 dashboard column reads regression tests passed.');
+console.log('v238 source status cache regression tests passed.');

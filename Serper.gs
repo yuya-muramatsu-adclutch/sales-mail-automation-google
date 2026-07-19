@@ -2127,19 +2127,48 @@ function buildSourcePageSiteStatus_(site, searchJobs) {
   });
 }
 
-function listSourcePageSiteStatuses() {
+function listSourcePageSiteStatuses(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const cacheKey = 'source_page_site_status_v1';
+  if (input.bypassCache !== true) {
+    try {
+      const cached = CacheService.getScriptCache().get(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        parsed.cached = true;
+        return parsed;
+      }
+    } catch (error) {
+      console.warn('Source page site status cache read skipped: ' + String(error.message || error));
+    }
+  }
   const setting = getSettingValue_('source_page_prospecting', { sites: [] }) || {};
   const sites = Array.isArray(setting.sites) ? setting.sites.filter(function (site) {
     return site && site.url;
   }) : [];
-  const searchJobs = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true });
+  const searchJobs = readSheetRecordFields_('search_jobs', [
+    'id',
+    'job_type',
+    'status',
+    'query_json',
+    'total_count',
+    'processed_count',
+    'cursor_json',
+    'last_error',
+    'error_count',
+    'last_heartbeat_at',
+    'started_at',
+    'finished_at',
+    'created_at',
+    'updated_at',
+  ]);
   const parsedSearchJobs = searchJobs.map(function (job) {
     return { job: job, payload: parseSourcePageJobPayloadForStatus_(job) };
   });
   const items = sites.map(function (site) {
     return buildSourcePageSiteStatus_(site, parsedSearchJobs);
   });
-  return {
+  const result = {
     total: items.length,
     completed: items.filter(function (item) { return item.completed; }).length,
     running: items.filter(function (item) { return item.statusKey === 'running'; }).length,
@@ -2150,6 +2179,12 @@ function listSourcePageSiteStatuses() {
     generatedAt: nowIso_(),
     items: items,
   };
+  try {
+    CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 300);
+  } catch (error) {
+    console.warn('Source page site status cache write skipped: ' + String(error.message || error));
+  }
+  return result;
 }
 
 function appendSourcePageResult_(jobId, result) {

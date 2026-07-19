@@ -738,11 +738,15 @@ function clearRuntimeCaches_(changedSheetName) {
   }
 
   try {
-    CacheService.getScriptCache().remove('dashboard_stats_v1');
-    CacheService.getScriptCache().remove('dashboard_stats_v2');
-    CacheService.getScriptCache().remove('dashboard_stats_v3');
-    CacheService.getScriptCache().remove('dashboard_stats_v4');
-    CacheService.getScriptCache().remove('dashboard_stats_v5');
+    const cache = CacheService.getScriptCache();
+    cache.remove('dashboard_stats_v1');
+    cache.remove('dashboard_stats_v2');
+    cache.remove('dashboard_stats_v3');
+    cache.remove('dashboard_stats_v4');
+    cache.remove('dashboard_stats_v5');
+    if (['search_jobs', 'settings'].indexOf(String(changedSheetName || '')) !== -1) {
+      cache.remove('source_page_site_status_v1');
+    }
   } catch (error) {
     console.warn('Cache clear skipped: ' + error.message);
   }

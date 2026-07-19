@@ -14499,7 +14499,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function loadSourcePageSiteStatuses(options) {
         const config = options || {};
         const request = config.quiet ? apiQuiet : api;
-        const result = await request('listSourcePageSiteStatuses');
+        const result = await request('listSourcePageSiteStatuses', { bypassCache: config.force === true });
         state.sourcePageSiteStatusSummary = Object.assign({
           total: 0,
           completed: 0,
@@ -14515,7 +14515,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function refreshSourcePageSiteStatuses() {
         state.dataLoaded.sourcePageSites = false;
-        await ensureDataLoaded('sourcePageSites', () => loadSourcePageSiteStatuses());
+        await ensureDataLoaded('sourcePageSites', () => loadSourcePageSiteStatuses({ force: true }));
         message('保存済みURLの調査状況を更新しました', 'ok');
       }
 

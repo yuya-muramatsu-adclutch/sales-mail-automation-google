@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @238 / production code v237: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @239 / production code v238: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v237_dashboard_column_reads`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v238_source_status_cache`
+
+## v238 保存済みサイト調査状況の軽量化
+
+- 保存済みURLの調査状況集計は、検索ジョブ全20列ではなく、URL照合・状態・進捗・エラー・日時に必要な14列だけを読む。
+- 集計結果を5分間キャッシュし、収集画面を開き直しても大きなquery_jsonを繰り返し読み込まない。
+- `search_jobs` またはURL設定を含む `settings` 更新時にキャッシュを自動破棄し、保存・進捗更新後の表示を古いままにしない。
+- 画面の「更新」はキャッシュを明示的に無視し、最新の調査状態を取得する。
+- 全件調査完了、過去完了後の再調査中、調査失敗、未実行をテストし、再調査中は現在のactive jobと進捗を優先することを確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 239を固定Web app URLへ再デプロイ済み。
 
 ## v237 ダッシュボード集計の必要列読込
 

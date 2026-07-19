@@ -237,3 +237,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Missing legacy metric columns are ignored while existing fallback column names remain supported.
 - Automated coverage verifies merged ranges, omitted payload fields, and unchanged daily/monthly usage totals.
 - Fixed deployment updated to `@238`; authenticated refresh duration remains a production observation.
+
+## v238 follow-up
+
+- Saved-site research status reads only the 14 search-job fields required for URL matching, progress, errors, and timestamps.
+- The computed status list is cached for five minutes and invalidated whenever search jobs or source-page settings change.
+- The visible refresh action bypasses the cache, so operators can request current status without waiting for expiry.
+- Active research is preferred over an older completed job, while completed, failed, and never-started states remain distinct.
+- Automated coverage verifies all four states, active-job progress, cache reuse, invalidation, and manual bypass behavior.
+- Fixed deployment updated to `@239`; authenticated UI timing remains a production observation.
