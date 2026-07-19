@@ -64,6 +64,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'markLeadFormSent') return markLeadFormSent(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'unmarkLeadFormSent') return unmarkLeadFormSent(data.leadId || data.lead_id || data.id);
   if (action === 'listSheetRecords') return listSheetRecords(data.sheetName || data.sheet_name, data.options || data);
+  if (action === 'getSendHistoryDetail') return getSendHistoryDetail(data.id || data.historyId || data.history_id || data);
   if (action === 'listEmailTemplates') return listEmailTemplates(data);
   if (action === 'saveEmailTemplate') return saveEmailTemplate(data);
   if (action === 'importEmailTemplates') return importEmailTemplates(data);

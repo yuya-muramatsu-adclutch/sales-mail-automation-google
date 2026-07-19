@@ -2861,7 +2861,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v252_settings_cache'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v253_history_body_on_demand'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3070,6 +3070,8 @@ assert(repositorySource.includes("const projectionRequested = Array.isArray(quer
 assert(repositorySource.includes('function readSettingsRecordsCached_()'));
 assert(repositorySource.includes("CacheService.getScriptCache().put(settingsRecordsCacheKey_(), JSON.stringify(records), 300)"));
 assert(repositorySource.includes("if (String(changedSheetName || '') === 'settings')"));
+assert(repositorySource.includes('function getSendHistoryDetail(id)'));
+assert(repositorySource.includes("findSheetRecordsByExactFieldValues_(\n    'send_histories',\n    'id'"));
 const searchSupportIndexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 const searchSupportLoadStart = searchSupportIndexSource.indexOf('async function loadSearchResults()');
 const searchSupportLoadEnd = searchSupportIndexSource.indexOf('\n      function ', searchSupportLoadStart + 20);
@@ -3077,6 +3079,32 @@ const searchSupportLoadBody = searchSupportIndexSource.slice(searchSupportLoadSt
 assert(searchSupportLoadBody.includes("fields: ['id', 'job_id', 'lead_id', 'query', 'result_type', 'title', 'url', 'snippet', 'rank', 'review_status', 'review_action', 'reviewed_at', 'created_at', 'updated_at']"));
 assert(searchSupportLoadBody.includes("fields: ['created_at', 'purpose', 'query', 'result_count', 'status']"));
 assert(!searchSupportLoadBody.includes("'raw_json'"));
+const opsLoadStart = searchSupportIndexSource.indexOf('async function loadOpsData(options)');
+const opsLoadEnd = searchSupportIndexSource.indexOf('\n      function ', opsLoadStart + 20);
+const opsLoadBody = searchSupportIndexSource.slice(opsLoadStart, opsLoadEnd);
+assert(opsLoadBody.includes("fields: ['id', 'lead_id', 'sent_at', 'send_type'"));
+assert(!opsLoadBody.includes("'body'"), 'initial operations load must not transfer send-history bodies');
+assert(searchSupportIndexSource.includes('async function loadSendHistoryBody(id)'));
+assert(searchSupportIndexSource.includes("fields: ['id', 'body']"));
+assert(searchSupportIndexSource.includes("apiQuiet('getSendHistoryDetail', historyId)"));
+
+let sendHistoryDetailLookup = null;
+context.findSheetRecordsByExactFieldValues_ = (sheetName, fieldName, values, fields) => {
+  sendHistoryDetailLookup = {
+    sheetName,
+    fieldName,
+    values: JSON.parse(JSON.stringify(values)),
+    fields: JSON.parse(JSON.stringify(fields)),
+  };
+  return [{ id: 'history-1', body: '本文', updated_at: '2026-07-19T00:00:00.000Z' }];
+};
+assert.strictEqual(context.getSendHistoryDetail('history-1').body, '本文');
+assert.deepStrictEqual(sendHistoryDetailLookup, {
+  sheetName: 'send_histories',
+  fieldName: 'id',
+  values: ['history-1'],
+  fields: ['id', 'body', 'updated_at'],
+});
 
 const settingsCacheContext = vm.createContext({ console });
 ['Code.gs', 'Repository.gs'].forEach((file) => {
@@ -3406,4 +3434,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v252 settings cache regression tests passed.');
+console.log('v253 send history body on-demand regression tests passed.');

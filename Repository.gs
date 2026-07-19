@@ -313,6 +313,20 @@ function findSheetRecordById_(sheetName, id) {
   return found ? found.record : null;
 }
 
+function getSendHistoryDetail(id) {
+  const recordId = requireId_(id);
+  const records = findSheetRecordsByExactFieldValues_(
+    'send_histories',
+    'id',
+    [recordId],
+    ['id', 'body', 'updated_at']
+  );
+  if (!records.length) {
+    throw new Error('send_histories not found: ' + recordId);
+  }
+  return records[0];
+}
+
 function normalizeBooleanLike_(value) {
   if (value === true || value === false) {
     return value;

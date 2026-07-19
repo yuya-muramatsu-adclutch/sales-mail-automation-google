@@ -13718,6 +13718,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           items: [],
         },
         histories: [],
+        historyBodies: {},
+        historyBodyLoading: {},
         historyTotal: 0,
         historyFilter: 'all',
         historyQuery: '',
@@ -20927,7 +20929,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const config = options || {};
         const request = config.quiet ? apiQuiet : api;
         const settled = await Promise.allSettled([
-          request('listSheetRecords', 'send_histories', { limit: 100, includeInactive: true }),
+          request('listSheetRecords', 'send_histories', {
+            limit: 100,
+            includeInactive: true,
+            fields: ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'company_name', 'facility_name', 'genre', 'template_id', 'template_name', 'subject', 'send_result', 'error_message', 'gmail_message_id', 'gmail_thread_id', 'sender_name', 'created_at', 'updated_at'],
+          }),
           request('listSheetRecords', 'sync_logs', { limit: 100, includeInactive: true }),
           request('listSheetRecords', 'jobs', { limit: 100, includeInactive: true }),
           request('listSheetRecords', 'search_jobs', { limit: 100, includeInactive: true }),
@@ -20939,7 +20945,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const currentSearchJobs = (state.jobs || []).filter((job) => String(job.__sourceSheet || '') === 'search_jobs');
         const jobs = settledPageResult(settled[2], 'バックグラウンドジョブ', currentJobs, Math.max(0, state.jobTotal - state.searchJobTotal), failures);
         const searchJobs = settledPageResult(settled[3], '検索ジョブ', currentSearchJobs, state.searchJobTotal, failures);
-        state.histories = histories.items;
+        state.histories = histories.items.map((history) => Object.prototype.hasOwnProperty.call(state.historyBodies, history.id)
+          ? Object.assign({}, history, { body: state.historyBodies[history.id] })
+          : history);
         state.historyTotal = histories.total;
         state.syncLogs = syncLogs.items;
         state.syncLogTotal = syncLogs.total;
@@ -22543,11 +22551,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         `;
       }
 
-      function applyHistoryFilters() {
+      async function applyHistoryFilters() {
         const search = document.getElementById('historySearch');
         const filter = document.getElementById('historyFilter');
         state.historyQuery = search ? search.value : '';
         state.historyFilter = filter ? filter.value : 'all';
+        if (String(state.historyQuery || '').trim()) {
+          try {
+            await loadSendHistoryBodiesForSearch();
+          } catch (error) {
+            message(`本文検索用データを取得できませんでした: ${apiErrorText(error)}`, 'error');
+          }
+        }
         resetTableRenderLimit('sendHistory');
         renderHistoriesScreen();
       }
@@ -22593,7 +22608,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           history.genre,
           history.template_name,
           history.subject,
-          history.body,
+          Object.prototype.hasOwnProperty.call(state.historyBodies, history.id) ? state.historyBodies[history.id] : history.body,
           history.gmail_message_id,
           history.gmail_thread_id,
         ].filter(Boolean).some((value) => String(value).toLowerCase().includes(query));
@@ -22606,18 +22621,60 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderHistoryActionCell(history) {
+        const historyId = String(history.id || '');
+        const hasCachedBody = historyId && Object.prototype.hasOwnProperty.call(state.historyBodies, historyId);
+        const hasInlineBody = Object.prototype.hasOwnProperty.call(history, 'body');
+        const body = hasCachedBody ? state.historyBodies[historyId] : history.body;
+        const loading = Boolean(historyId && state.historyBodyLoading[historyId]);
         return `
           <span class="history-action-cell">
-            <details class="history-detail">
+            ${hasCachedBody || hasInlineBody ? `<details class="history-detail">
               <summary>本文を見る</summary>
-              <pre>${escapeHtml(history.body || '本文なし')}</pre>
-            </details>
+              <pre>${escapeHtml(body || '本文なし')}</pre>
+            </details>` : `<button type="button" class="table-link-button" ${loading || !historyId ? 'disabled' : ''} onclick="loadSendHistoryBody('${escapeJsString(historyId)}')">${loading ? '本文を取得中…' : '本文を見る'}</button>`}
             <details class="history-detail compact-detail">
               <summary>Gmail情報</summary>
               <pre>${escapeHtml(`Gmail ID: ${history.gmail_message_id || '-'}\nThread ID: ${history.gmail_thread_id || '-'}`)}</pre>
             </details>
           </span>
         `;
+      }
+
+      async function loadSendHistoryBody(id) {
+        const historyId = String(id || '');
+        if (!historyId || state.historyBodyLoading[historyId]) return;
+        state.historyBodyLoading[historyId] = true;
+        renderHistoriesScreen();
+        try {
+          const detail = await apiQuiet('getSendHistoryDetail', historyId);
+          state.historyBodies[historyId] = String((detail && detail.body) || '');
+          state.histories = (state.histories || []).map((history) => history.id === historyId
+            ? Object.assign({}, history, { body: state.historyBodies[historyId] })
+            : history);
+        } catch (error) {
+          message(`送信本文を取得できませんでした: ${apiErrorText(error)}`, 'error');
+        } finally {
+          delete state.historyBodyLoading[historyId];
+          renderHistoriesScreen();
+        }
+      }
+
+      async function loadSendHistoryBodiesForSearch() {
+        const missingIds = (state.histories || []).filter((history) => history.id
+          && !Object.prototype.hasOwnProperty.call(history, 'body')
+          && !Object.prototype.hasOwnProperty.call(state.historyBodies, history.id)).map((history) => history.id);
+        if (!missingIds.length) return;
+        const page = await apiQuiet('listSheetRecords', 'send_histories', {
+          limit: 100,
+          includeInactive: true,
+          fields: ['id', 'body'],
+        });
+        ((page && page.items) || []).forEach((history) => {
+          if (history && history.id) state.historyBodies[history.id] = String(history.body || '');
+        });
+        state.histories = (state.histories || []).map((history) => Object.prototype.hasOwnProperty.call(state.historyBodies, history.id)
+          ? Object.assign({}, history, { body: state.historyBodies[history.id] })
+          : history);
       }
 
       function isTodayClientDate(value) {

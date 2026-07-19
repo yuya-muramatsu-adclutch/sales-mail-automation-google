@@ -372,3 +372,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Setting writes still inspect the latest sheet inside the existing lock, then invalidate the settings cache immediately after persistence.
 - Automated coverage verifies one sheet read across repeated typed settings, explicit invalidation, refreshed reads, cache fields, and TTL.
 - Fixed deployment updated to `@253`; no live setting or sales-data mutation was run during verification.
+
+## v253 follow-up
+
+- Initial operations loading omits the large send-history body while keeping the other eighteen list, filter, Gmail, and test-history fields.
+- Selecting “本文を見る” fetches one history body through an exact ID lookup and retains it in the page cache.
+- A non-empty history search explicitly preloads ID/body pairs for the latest one hundred rows, preserving body search only when requested.
+- CSV export intentionally retains its full-record, all-page fetch so exported body content is unchanged; analytics continues to use server aggregates.
+- Automated coverage verifies initial body omission, on-demand API wiring, exact projected fields, and search-time body projection.
+- Fixed deployment updated to `@254`; no live mail send, history write, or sales-data mutation was run during verification.

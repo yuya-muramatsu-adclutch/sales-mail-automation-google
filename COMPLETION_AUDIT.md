@@ -5,9 +5,20 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @253 / production code v252: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @254 / production code v253: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v252_settings_cache`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v253_history_body_on_demand`
+
+## v253 送信履歴本文のオンデマンド取得
+
+- 運用データの通常取得では送信履歴19列中、巨大な本文を除く18列だけを読み、折りたたまれた本文を初期表示へ転送しない。
+- 「本文を見る」を選んだときは履歴IDの完全一致検索でID・本文・更新日時の3列だけを1件取得する。
+- 本文を含む検索を実行した場合だけ最新100件のID・本文を追加取得し、従来の本文検索を維持する。
+- CSV出力は明示操作時に全件・全項目を取得する従来動作を維持し、本文列を欠落させない。
+- 一度取得した本文は画面内キャッシュへ保持し、運用データ再読込後も同じ履歴では再利用する。分析画面は既存のサーバー集計を使用する。
+- 初期一覧の本文非取得、個別ID完全一致取得、検索時の本文射影、本文キャッシュ、API配線を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 254を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@254` であることを確認した。メール実送信、履歴更新、営業データ変更は検証中に実行していない。
 
 ## v252 設定値読込の共有キャッシュ
 
