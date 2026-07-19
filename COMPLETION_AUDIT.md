@@ -5,9 +5,17 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @222 / production code v221: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @223 / production code v222: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v221_route_aware_refresh`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v222_lean_review_startup`
+
+## v222 確認待ちの初期表示軽量化
+
+- 起動直後の確認待ち表示では、一覧画面用の全件内訳・ジャンル内訳を計算せず、確認待ち件数と先頭50件だけを取得する。
+- 「一括操作」で営業リストへ移動するときだけ、従来どおり全体内訳を含む一覧を取得するため、一覧の絞り込み・内訳表示は維持。
+- 確認受信トレイ、確認済み・送信NG・対応不要、編集、連続確認は軽量取得したデータで従来どおり動作する。
+- 初期表示が `includeStats=false`、一括操作が通常集計付き取得を使うことを回帰テストで固定。
+- `node scripts/smoke-test.js` と `git diff --check` が成功。Version 223を固定Web app URLへ再デプロイ済み。
 
 ## v221 画面別更新と一覧APIの軽量化
 

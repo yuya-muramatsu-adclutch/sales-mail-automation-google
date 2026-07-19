@@ -15378,9 +15378,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         resetLeadFiltersForReview();
         beginLeadLoadProgress('確認待ちリストを読み込み中', '初期表示を軽くするため確認待ちだけ取得しています。', 18);
         try {
-          await loadLeads(0, { filter: 'review', mode: 'review', limit: INITIAL_REVIEW_LEAD_LIMIT, quiet: true });
-          syncReviewStateFromLeadPage();
-          completeLeadLoadProgress('確認待ちリストを読み込みました', `${leadRangeLabel()}を表示しています。`);
+          await loadReviewLeadMenu({ quiet: true, includeStats: false });
+          completeLeadLoadProgress('確認待ちリストを読み込みました', `${formatNumber(state.reviewLeads.length)} / ${formatNumber(state.reviewTotal)}件を表示しています。`);
         } catch (error) {
           failLeadLoadProgress(error);
           throw error;
@@ -15407,6 +15406,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           sort: 'updated_desc',
           limit: INITIAL_REVIEW_LEAD_LIMIT,
           offset: 0,
+          includeStats: false,
         };
       }
 
@@ -15424,6 +15424,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderReviewLeadsScreen();
         try {
           const request = getReviewLeadRequest();
+          request.includeStats = config.includeStats === true;
           const result = config.quiet ? await apiQuiet('listLeads', request) : await api('listLeads', request);
           state.reviewLeads = result.items || [];
           state.reviewTotal = result.total || 0;
@@ -15679,10 +15680,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function openReviewLeadsInList() {
-        if (!state.dataLoaded.reviewLeads) {
-          await loadReviewLeadMenu();
-        }
-        syncReviewLeadsToLeadList();
+        resetLeadFiltersForReview();
+        await loadLeads(0, {
+          filter: 'review',
+          mode: 'review',
+          limit: INITIAL_REVIEW_LEAD_LIMIT,
+          quiet: true,
+        });
+        syncReviewStateFromLeadPage();
         showTab('leads');
       }
 

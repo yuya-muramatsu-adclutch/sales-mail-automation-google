@@ -108,3 +108,9 @@ final result: pending authenticated production screenshot
 - 認証済みChromeを制御する実行機能がこのセッションでは利用できないため、Networkタイミングの実測比較は未取得。
 
 final result: code paths verified; authenticated timing comparison pending
+
+## v222 follow-up
+
+- Default review startup now requests only the review count and first 50 rows without list-wide aggregate cards.
+- Full breakdown data remains deferred until the user explicitly opens the bulk sales-list view.
+- Regression coverage checks both the lean startup request and the full-stat bulk-list transition.
