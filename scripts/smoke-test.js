@@ -2116,6 +2116,72 @@ assert(!requestedLeadListFields.includes('not_a_lead_field'));
 assert(!requestedLeadListFields.includes('source_payload_json'));
 assert.deepStrictEqual(requestedLeadListOptions, { maxGapColumns: 0 });
 
+const scheduledJobClaimFields = JSON.parse(JSON.stringify(leadListContext.scheduledEmailJobClaimFields_()));
+assert.deepStrictEqual(scheduledJobClaimFields, [
+  'id', 'job_type', 'status', 'last_heartbeat_at', 'started_at', 'created_at', 'updated_at',
+]);
+['payload_json', 'cursor_json', 'found_results_json', 'last_error', 'current_query'].forEach((field) => {
+  assert(!scheduledJobClaimFields.includes(field), `scheduled mail job claim must omit ${field}`);
+});
+const scheduledJobClaimContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), scheduledJobClaimContext, { filename: file });
+});
+let scheduledJobClaimFieldsRead = [];
+let scheduledJobClaimReadOptions = null;
+let scheduledJobClaimAppends = 0;
+const scheduledJobClaimUpdates = [];
+scheduledJobClaimContext.withScriptLock_ = (operation, callback, options) => {
+  assert.strictEqual(operation, 'claimScheduledEmailJob');
+  assert.strictEqual(options.waitMs, 6000);
+  return callback();
+};
+scheduledJobClaimContext.readSheetRecordFields_ = (sheetName, fields, options) => {
+  assert.strictEqual(sheetName, 'jobs');
+  scheduledJobClaimFieldsRead = fields.slice();
+  scheduledJobClaimReadOptions = Object.assign({}, options);
+  return [{
+    id: 'active-mail-job',
+    job_type: 'automatic_email_send',
+    status: 'running',
+    last_heartbeat_at: new Date(Date.now() - 60 * 1000).toISOString(),
+    created_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 60 * 1000).toISOString(),
+  }];
+};
+scheduledJobClaimContext.updateSheetRecord_ = (_sheetName, id, patch) => {
+  scheduledJobClaimUpdates.push({ id, patch });
+  return Object.assign({ id }, patch);
+};
+scheduledJobClaimContext.appendSheetRecord_ = (_sheetName, record) => {
+  scheduledJobClaimAppends += 1;
+  return Object.assign({ id: 'new-mail-job' }, record);
+};
+scheduledJobClaimContext.nowIso_ = () => '2026-07-19T23:30:00+09:00';
+scheduledJobClaimContext.todayText_ = () => '2026-07-19';
+const activeScheduledJobClaim = JSON.parse(JSON.stringify(scheduledJobClaimContext.claimScheduledEmailJob_()));
+assert.strictEqual(activeScheduledJobClaim.busy, true);
+assert.strictEqual(activeScheduledJobClaim.job.id, 'active-mail-job');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(scheduledJobClaimFieldsRead)), scheduledJobClaimFields);
+assert.deepStrictEqual(scheduledJobClaimReadOptions, { maxGapColumns: 0 });
+assert.strictEqual(scheduledJobClaimAppends, 0);
+assert.strictEqual(scheduledJobClaimUpdates.length, 0);
+scheduledJobClaimContext.readSheetRecordFields_ = () => [{
+  id: 'stale-mail-job',
+  job_type: 'automatic_email_send',
+  status: 'running',
+  last_heartbeat_at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
+  created_at: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+  updated_at: new Date(Date.now() - 11 * 60 * 1000).toISOString(),
+}];
+const recoveredScheduledJobClaim = JSON.parse(JSON.stringify(scheduledJobClaimContext.claimScheduledEmailJob_()));
+assert.strictEqual(recoveredScheduledJobClaim.busy, false);
+assert.strictEqual(recoveredScheduledJobClaim.job.id, 'new-mail-job');
+assert.strictEqual(scheduledJobClaimUpdates.length, 1);
+assert.strictEqual(scheduledJobClaimUpdates[0].id, 'stale-mail-job');
+assert.strictEqual(scheduledJobClaimUpdates[0].patch.status, 'failed');
+assert.strictEqual(scheduledJobClaimAppends, 1);
+
 const testMailContext = vm.createContext({ console });
 files.forEach((file) => {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), testMailContext, { filename: file });
@@ -2574,7 +2640,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v243_lead_list_projection'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v244_mail_job_claim_columns'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2761,6 +2827,11 @@ assert(!operationsSource.includes(fullSendHistoryRead), 'reply checks must not t
 assert(emailSource.includes('let histories = readMailSendSafetyHistories_()'));
 assert(emailSource.includes("const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 })"));
 assert(!emailSource.includes("const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'automatic mail planning must not read all lead columns');
+const scheduledJobClaimStart = emailSource.indexOf('function claimScheduledEmailJob_()');
+const scheduledJobClaimEnd = emailSource.indexOf('\nfunction ', scheduledJobClaimStart + 10);
+const scheduledJobClaimBody = emailSource.slice(scheduledJobClaimStart, scheduledJobClaimEnd);
+assert(scheduledJobClaimBody.includes("readSheetRecordFields_('jobs', scheduledEmailJobClaimFields_(), { maxGapColumns: 0 })"));
+assert(!scheduledJobClaimBody.includes("readAllSheetRecordsByName_('jobs'"), 'scheduled mail claim must not read every job column');
 assert(emailSource.includes("findSheetRecordsByExactFieldValues_(\n    'send_histories',\n    'lead_id',\n    [leadId],\n    mailSendSafetyHistoryFields_()"));
 assert(emailSource.includes("findSheetRecordsByExactFieldValues_('send_histories', 'lead_id', [recordId])"));
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
@@ -3030,4 +3101,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v243 lead list projection regression tests passed.');
+console.log('v244 mail job claim column regression tests passed.');

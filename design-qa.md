@@ -294,3 +294,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Contiguous-only range grouping prevents the omitted source payload column from being swept into a widened read.
 - Automated coverage verifies the base projection, safe extra-field allowlist, search behavior, omitted payload, route-specific fields, and on-demand detail fetch.
 - Fixed deployment updated to `@244`; authenticated list timing remains a production observation.
+
+## v244 follow-up
+
+- The ten-minute automatic-mail trigger now reads seven job-claim fields instead of all twenty-five job columns.
+- Payload, cursor, found-result JSON, query detail, and error text are excluded from the single-flight check.
+- Active jobs still block duplicate execution, while only jobs stale for more than ten minutes are failed before replacement.
+- Contiguous-only range grouping avoids widening reads across omitted JSON columns.
+- Automated coverage verifies active-job reuse, stale-job recovery, new-job creation, the exact projection, and omitted large fields.
+- Fixed deployment updated to `@245`; live trigger duration remains a production observation.

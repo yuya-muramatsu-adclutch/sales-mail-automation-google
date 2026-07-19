@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @244 / production code v243: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @245 / production code v244: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v243_lead_list_projection`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v244_mail_job_claim_columns`
+
+## v244 完全自動送信ジョブ開始判定の軽量化
+
+- 10分ごとの完全自動送信は、重複実行防止の開始判定で `jobs` 全25列ではなく7列だけを読む。
+- 候補結果、payload、cursor、検索内容、エラー本文など、開始判定に不要な大きな列を定期トリガーから除外した。
+- 有効な実行中ジョブの再利用、10分以上止まったジョブの失敗終了、新規ジョブ開始の条件は変更しない。
+- 連続列だけをRangeへまとめ、非選択のJSON列を広いRangeに巻き込まない。
+- 有効ジョブ時に新規作成しないこと、停止ジョブだけを失敗へ更新して新規作成すること、取得列と巨大列の除外を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 245を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@245` であることを確認した。実運用トリガー時間は継続観測対象とする。
 
 ## v243 営業リスト初期表示の軽量化
 

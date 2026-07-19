@@ -578,9 +578,21 @@ function sanitizeScheduledEmailPlan_(plan) {
   };
 }
 
+function scheduledEmailJobClaimFields_() {
+  return [
+    'id',
+    'job_type',
+    'status',
+    'last_heartbeat_at',
+    'started_at',
+    'created_at',
+    'updated_at',
+  ];
+}
+
 function claimScheduledEmailJob_() {
   return withScriptLock_('claimScheduledEmailJob', function () {
-    const jobs = readAllSheetRecordsByName_('jobs', { includeInactive: true, includeArchived: true });
+    const jobs = readSheetRecordFields_('jobs', scheduledEmailJobClaimFields_(), { maxGapColumns: 0 });
     const now = Date.now();
     const running = jobs.filter(function (job) {
       return String(job.job_type || '') === 'automatic_email_send' && String(job.status || '') === 'running';
