@@ -1609,13 +1609,37 @@ function advanceQueuedJobs(options) {
 
   const completedJobs = results.filter(function (result) { return result.completed; }).length;
   const remainingJobs = Math.max(activeJobs.length - completedJobs, 0);
+  let collectionQualityMigration = getLeadCollectionQualityMigrationV215Status_();
+  const qualityMigrationMinimumRuntimeMs = 150000;
+  let remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
+  if (!stoppedForRuntime && collectionQualityMigration.pending === true && remainingRuntimeMs >= qualityMigrationMinimumRuntimeMs) {
+    try {
+      collectionQualityMigration = runLeadCollectionQualityMigrationV215_({ source: input.source || 'trigger' });
+    } catch (error) {
+      collectionQualityMigration = {
+        ok: false,
+        pending: true,
+        skipped: false,
+        reason: 'migration_failed',
+        error: error.message || String(error),
+      };
+      appendSyncError_('runLeadCollectionQualityMigrationV215_:background', error, {
+        target_sheet: 'leads',
+      });
+    }
+  } else if (collectionQualityMigration.pending === true) {
+    collectionQualityMigration = Object.assign({}, collectionQualityMigration, {
+      skipped: true,
+      reason: stoppedForRuntime ? 'runtime_exhausted' : 'runtime_reserved',
+    });
+  }
   let dashboardCacheRefresh = {
     refreshed: false,
     skipped: true,
     reason: stoppedForRuntime ? 'runtime_exhausted' : 'runtime_reserved',
   };
   const dashboardRefreshMinimumRuntimeMs = 90000;
-  const remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
+  remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
   if (!stoppedForRuntime && remainingRuntimeMs >= dashboardRefreshMinimumRuntimeMs) {
     try {
       dashboardCacheRefresh = refreshDashboardStatsCacheIfDue_({ source: input.source || 'trigger' });
@@ -1640,6 +1664,7 @@ function advanceQueuedJobs(options) {
     remainingJobs: remainingJobs,
     recoveredPreparations: recoveredPreparations,
     recoveredSearchJobs: recoveredSearchJobs,
+    collectionQualityMigration: collectionQualityMigration,
     dashboardCacheRefresh: dashboardCacheRefresh,
   };
   recordBackgroundWorkerStatus_('idle', {

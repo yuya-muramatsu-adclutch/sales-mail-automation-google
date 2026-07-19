@@ -252,11 +252,6 @@ function sendLeadEmailBatch(leadIds, templateId, options) {
 
 function runScheduledEmailBatch(options) {
   const input = options && typeof options === 'object' ? options : {};
-  try {
-    runLeadCollectionQualityMigrationV215_();
-  } catch (error) {
-    logError_('runLeadCollectionQualityMigrationV215_:scheduled', error, {});
-  }
   const control = getMailSendingControl_();
   if (!control.enabled) {
     return buildScheduledEmailSkipResult_('mail_disabled', control.reason || '自動送信停止中です。');

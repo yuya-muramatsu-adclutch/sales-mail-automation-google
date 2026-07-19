@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @224 / production code v223: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @225 / production code v224: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v223_scheduled_dashboard_cache`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v224_deferred_quality_migration`
+
+## v224 起動時データ移行のバックグラウンド化
+
+- `getInitialData()` が画面を開くたびに実行していたv215品質移行を廃止し、Script Propertiesの完了状態だけを返す軽量処理へ変更。
+- 品質移行は最大2万行の確認と最大2,000件の更新を行い得るため、通常起動・画面更新から切り離して起動待ちとロック競合を防止。
+- 10分間隔の自動メール処理からも移行を除去し、送信停止中・送信時間外の判定を移行処理より先に実行できる構成へ修正。
+- 未完了の移行だけを既存 `advanceQueuedJobs` で実行し、残り実行時間が150秒未満なら安全に次回へ延期。
+- 移行完了キーを `PROPERTY_KEYS` へ集約し、起動API・バックグラウンド処理が同じ状態を参照。
+- 起動APIとメールトリガーに移行実行が残っていないこと、150秒の実行時間予約、完了状態の読み取りを回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 225を固定Web app URLへ再デプロイ済み。
 
 ## v223 ダッシュボード集計のバックグラウンド化
 

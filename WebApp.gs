@@ -148,16 +148,6 @@ const GMAIL_INTEGRATION_SCOPES = Object.freeze([
 function getInitialData() {
   const appInfo = getAppInfo();
   const serperInfo = getStartupSerperInfo_();
-  let collectionQualityMigration = null;
-  try {
-    collectionQualityMigration = runLeadCollectionQualityMigrationV215_({ interactive: true });
-  } catch (error) {
-    logError_('runLeadCollectionQualityMigrationV215_', error, {});
-    collectionQualityMigration = {
-      ok: false,
-      error: error.message || String(error),
-    };
-  }
   return {
     app: appInfo,
     enums: getClientEnums_(),
@@ -170,7 +160,7 @@ function getInitialData() {
     listViewSettings: [],
     schemaStatus: null,
     serper: serperInfo,
-    collectionQualityMigration: collectionQualityMigration,
+    collectionQualityMigration: getLeadCollectionQualityMigrationV215Status_(),
   };
 }
 

@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v223_scheduled_dashboard_cache';
+const APP_VERSION = '20260719_apps_script_full_workflow_v224_deferred_quality_migration';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -13,6 +13,7 @@ const PROPERTY_KEYS = Object.freeze({
   BACKGROUND_WORKER_STATUS_JSON: 'BACKGROUND_WORKER_STATUS_JSON',
   DASHBOARD_CACHE_DIRTY_AT: 'DASHBOARD_CACHE_DIRTY_AT',
   DASHBOARD_CACHE_REFRESHED_AT: 'DASHBOARD_CACHE_REFRESHED_AT',
+  LEAD_COLLECTION_QUALITY_MIGRATION_V215: 'MIGRATION_V215_NON_ADVERTISER_LEADS',
 });
 
 const EXISTING_APP_REFERENCE = Object.freeze({
@@ -1300,11 +1301,10 @@ function repairNonAdvertiserCleanupOverreach(options) {
 function runLeadCollectionQualityMigrationV215_(options) {
   const input = options && typeof options === 'object' ? options : {};
   const lockWaitMs = input.interactive === true ? 2000 : 90000;
-  const migrationKey = 'MIGRATION_V215_NON_ADVERTISER_LEADS';
   const properties = PropertiesService.getScriptProperties();
-  const completedAt = properties.getProperty(migrationKey);
+  const completedAt = properties.getProperty(PROPERTY_KEYS.LEAD_COLLECTION_QUALITY_MIGRATION_V215);
   if (completedAt) {
-    return { ok: true, skipped: true, completedAt: completedAt };
+    return { ok: true, skipped: true, pending: false, completedAt: completedAt };
   }
 
   const exclusions = importExcludedDomains({
@@ -1321,15 +1321,40 @@ function runLeadCollectionQualityMigrationV215_(options) {
     maxUpdates: 2000,
     lockWaitMs: lockWaitMs,
   });
+  let nextCompletedAt = '';
   if (cleanup.done) {
-    properties.setProperty(migrationKey, nowIso_());
+    nextCompletedAt = nowIso_();
+    properties.setProperty(PROPERTY_KEYS.LEAD_COLLECTION_QUALITY_MIGRATION_V215, nextCompletedAt);
   }
   return {
     ok: true,
     skipped: false,
+    pending: cleanup.done !== true,
+    completedAt: nextCompletedAt,
     exclusions: exclusions,
     cleanup: cleanup,
   };
+}
+
+function getLeadCollectionQualityMigrationV215Status_() {
+  try {
+    const completedAt = String(PropertiesService.getScriptProperties()
+      .getProperty(PROPERTY_KEYS.LEAD_COLLECTION_QUALITY_MIGRATION_V215) || '');
+    return {
+      ok: true,
+      pending: !completedAt,
+      completed: Boolean(completedAt),
+      completedAt: completedAt,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      pending: true,
+      completed: false,
+      completedAt: '',
+      error: error.message || String(error),
+    };
+  }
 }
 
 function matchesFormStatusFilter_(lead, formStatus) {

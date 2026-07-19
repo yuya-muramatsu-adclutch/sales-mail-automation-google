@@ -122,3 +122,10 @@ final result: code paths verified; authenticated timing comparison pending
 - The existing 10-minute worker refreshes the aggregate only when at least 90 seconds remain, while the analytics screen retains an explicit fresh-data path.
 - Automated coverage verifies cache-only behavior, dirty/fresh/expired state transitions, and the worker runtime guard.
 - Authenticated Chrome timing remains a manual follow-up because this session could only verify the fixed deployment and observed a Google sign-in redirect for anonymous HTTP.
+
+## v224 follow-up
+
+- Initial app data now reads only the persisted completion status of the legacy collection-quality migration.
+- The migration no longer runs during page refreshes or before scheduled-mail safety checks.
+- Pending migration work is deferred to the existing background worker and requires at least 150 seconds of remaining runtime.
+- Regression coverage verifies that startup and scheduled mail cannot execute the migration and that short worker windows defer it.

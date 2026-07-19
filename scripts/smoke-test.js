@@ -267,6 +267,12 @@ context.readAllSheetRecordsByName_ = () => [
 context.recoverStaleCsvPreparationJobs_ = () => 0;
 context.advanceSearchJob = (id) => ({ id, completed: id === 'job-1' });
 context.appendSyncError_ = () => {};
+let qualityMigrationRuns = 0;
+context.getLeadCollectionQualityMigrationV215Status_ = () => ({ ok: true, pending: true, completed: false });
+context.runLeadCollectionQualityMigrationV215_ = () => {
+  qualityMigrationRuns += 1;
+  return { ok: true, pending: false, skipped: false, cleanup: { done: true } };
+};
 let dashboardRefreshCalls = 0;
 context.refreshDashboardStatsCacheIfDue_ = () => {
   dashboardRefreshCalls += 1;
@@ -276,10 +282,14 @@ const queue = context.advanceQueuedJobs({ maxJobs: 2, runtimeBudgetMs: 300000 })
 assert.strictEqual(queue.jobs.length, 2);
 assert.strictEqual(queue.remainingJobs, 4);
 assert.strictEqual(queue.resumable, true);
+assert.strictEqual(queue.collectionQualityMigration.pending, false);
+assert.strictEqual(qualityMigrationRuns, 1);
 assert.strictEqual(queue.dashboardCacheRefresh.refreshed, true);
 assert.strictEqual(dashboardRefreshCalls, 1);
 const shortQueue = context.advanceQueuedJobs({ maxJobs: 1, runtimeBudgetMs: 80000 });
 assert.strictEqual(shortQueue.dashboardCacheRefresh.reason, 'runtime_reserved');
+assert.strictEqual(shortQueue.collectionQualityMigration.reason, 'runtime_reserved');
+assert.strictEqual(qualityMigrationRuns, 1, 'quality migration must preserve the final 150 seconds of worker runtime');
 assert.strictEqual(dashboardRefreshCalls, 1, 'dashboard refresh must preserve the final 90 seconds of worker runtime');
 
 const hardDeleteReferences = context.listLeadHardDeleteReferences_({ id: 'lead-1', calendar_event_id: '' }, {
@@ -373,6 +383,14 @@ dashboardContext.CacheService = {
 dashboardContext.clearRuntimeCaches_('leads');
 assert.strictEqual(dashboardProperties.DASHBOARD_CACHE_DIRTY_AT, '2026-07-19T10:05:00+09:00');
 assert(removedDashboardCacheKeys.includes('dashboard_stats_v5'));
+const pendingQualityMigration = dashboardContext.getLeadCollectionQualityMigrationV215Status_();
+assert.strictEqual(pendingQualityMigration.pending, true);
+assert.strictEqual(pendingQualityMigration.completed, false);
+dashboardProperties.MIGRATION_V215_NON_ADVERTISER_LEADS = '2026-07-19T09:00:00+09:00';
+const completedQualityMigration = dashboardContext.getLeadCollectionQualityMigrationV215Status_();
+assert.strictEqual(completedQualityMigration.pending, false);
+assert.strictEqual(completedQualityMigration.completed, true);
+assert.strictEqual(completedQualityMigration.completedAt, '2026-07-19T09:00:00+09:00');
 
 dashboardProperties.DASHBOARD_CACHE_REFRESHED_AT = '2026-07-19T10:00:00+09:00';
 let dashboardRefreshState = dashboardContext.getDashboardCacheRefreshState_({
@@ -1710,7 +1728,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v223_scheduled_dashboard_cache'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v224_deferred_quality_migration'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1812,8 +1830,16 @@ assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHist
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
 assert(webAppSource.includes("if (action === 'repairNonAdvertiserReviewLeads')"));
-assert(webAppSource.includes('runLeadCollectionQualityMigrationV215_({ interactive: true })'));
-assert(emailSource.includes("logError_('runLeadCollectionQualityMigrationV215_:scheduled'"));
+const initialDataStart = webAppSource.indexOf('function getInitialData()');
+const initialDataEnd = webAppSource.indexOf('\nfunction ', initialDataStart + 10);
+const initialDataBody = webAppSource.slice(initialDataStart, initialDataEnd);
+assert(initialDataBody.includes('getLeadCollectionQualityMigrationV215Status_()'));
+assert(!initialDataBody.includes('runLeadCollectionQualityMigrationV215_'), 'startup must not run data migrations');
+const scheduledEmailStart = emailSource.indexOf('function runScheduledEmailBatch');
+const scheduledEmailEnd = emailSource.indexOf('\nfunction ', scheduledEmailStart + 10);
+assert(!emailSource.slice(scheduledEmailStart, scheduledEmailEnd).includes('runLeadCollectionQualityMigrationV215_'), 'mail trigger must not run data migrations');
+assert(operationsSource.includes('runLeadCollectionQualityMigrationV215_({ source: input.source || \'trigger\' })'));
+assert(operationsSource.includes('const qualityMigrationMinimumRuntimeMs = 150000'));
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 assert(indexSource.includes('class="workflow-nav" aria-label="主要な業務フロー"'));
 assert(indexSource.includes('data-tab="dashboard" onclick="showTab(\'dashboard\')"'));
@@ -1994,4 +2020,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v223 scheduled dashboard cache regression tests passed.');
+console.log('v224 deferred quality migration regression tests passed.');
