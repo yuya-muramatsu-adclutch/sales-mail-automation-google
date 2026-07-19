@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @239 / production code v238: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @240 / production code v239: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v238_source_status_cache`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v239_dashboard_history_columns`
+
+## v239 ダッシュボード送信履歴の軽量化
+
+- ダッシュボード再集計で送信履歴19列すべてを読まず、送信数・予約・再送防止・分析に必要な10列だけを読む。
+- 履歴本文、件名、エラー詳細、会社名、施設名、Gmail IDなど、日常の集計に不要な大きな列をSpreadsheet転送から除外した。
+- テンプレート別分析の件名・本文プレビューは、同時に読み込んでいる現在のメールテンプレート定義から補完する。
+- 送信成功数、失敗数、送信中予約、日次・月次件数、営業先の送信回数不整合、返信率・商談率の判定条件は変更しない。
+- 大きな本文・エラー詳細を含む全文履歴と、10列に射影した軽量履歴で分析結果が完全一致する回帰テストを追加した。
+- `node scripts/smoke-test.js`、全Apps Script構文確認、`git diff --check`、`clasp push` が成功。Version 240を固定Web app URLへ再デプロイ済み。
 
 ## v238 保存済みサイト調査状況の軽量化
 

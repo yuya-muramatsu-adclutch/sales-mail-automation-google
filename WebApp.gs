@@ -395,7 +395,7 @@ function getDashboardStats(options) {
   const searchUsageLogs = readSheetRecordFields_('search_usage_logs', ['created_at', 'credits', 'request_count']);
   const today = todayText_();
   const month = today.slice(0, 7);
-  const sendHistories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  const sendHistories = readSheetRecordFields_('send_histories', dashboardSendHistoryFields_());
   const pendingSendReservations = buildPendingSendReservationStatus_(sendHistories);
   const sendTrackingMismatchCount = countLeadSendTrackingMismatches_(leads, sendHistories);
   const sentToday = countSuccessfulProductionSends_(sendHistories, today);
@@ -530,7 +530,7 @@ function getDashboardStats(options) {
     automaticMailTriggerInstalled: automaticMailTriggerCount > 0,
     gasUsage: gasUsage,
     thisMonth: thisMonth,
-    analytics: buildAnalyticsSnapshot_(leads, sendHistories, today),
+    analytics: buildAnalyticsSnapshot_(leads, sendHistories, today, templates),
     byStatus: byStatus,
     byGenre: byGenre,
     updatedAt: nowIso_(),
@@ -541,12 +541,43 @@ function getDashboardStats(options) {
   return stats;
 }
 
-function buildAnalyticsSnapshot_(leadRecords, historyRecords, todayKey) {
+function dashboardSendHistoryFields_() {
+  return [
+    'id',
+    'lead_id',
+    'sent_at',
+    'send_type',
+    'to_email',
+    'genre',
+    'template_id',
+    'template_name',
+    'send_result',
+    'created_at',
+  ];
+}
+
+function buildAnalyticsSnapshot_(leadRecords, historyRecords, todayKey, templateRecords) {
   const leads = (Array.isArray(leadRecords) ? leadRecords : []).filter(function (lead) {
     return !isArchivedLead_(lead) && String(lead.status || '') !== 'アーカイブ';
   });
   const histories = Array.isArray(historyRecords) ? historyRecords : [];
-  const productionSends = histories.filter(isSuccessfulProductionSendHistory_);
+  const templateById = {};
+  const templateByName = {};
+  (Array.isArray(templateRecords) ? templateRecords : []).forEach(function (template) {
+    const templateId = String(template.id || '').trim();
+    const templateName = String(template.name || '').trim();
+    if (templateId) templateById[templateId] = template;
+    if (templateName && !templateByName[templateName]) templateByName[templateName] = template;
+  });
+  const productionSends = histories.filter(isSuccessfulProductionSendHistory_).map(function (history) {
+    const templateId = String(history.template_id || '').trim();
+    const templateName = String(history.template_name || '').trim();
+    const template = (templateId && templateById[templateId]) || (templateName && templateByName[templateName]) || {};
+    return Object.assign({}, history, {
+      subject: history.subject || template.subject || '',
+      body: history.body || template.body || '',
+    });
+  });
   const productionAttempts = histories.filter(function (history) {
     return String(history.send_type || '').indexOf('テスト') === -1 && String(history.send_result || '') !== '送信中';
   });

@@ -1883,6 +1883,58 @@ assert.strictEqual(analyticsSnapshot.currentMonth.sent, 2);
 assert.strictEqual(analyticsSnapshot.currentMonth.replies, 1);
 assert.strictEqual(analyticsSnapshot.currentMonthLeadSourceRows[0].sourceKey, 'prospecting');
 assert.strictEqual(analyticsSnapshot.templateRows.find((row) => row.templateId === 'template-a').sent, 1);
+const dashboardHistoryFields = JSON.parse(JSON.stringify(analyticsContext.dashboardSendHistoryFields_()));
+assert.deepStrictEqual(dashboardHistoryFields, [
+  'id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'genre', 'template_id', 'template_name', 'send_result', 'created_at',
+]);
+assert(!dashboardHistoryFields.includes('subject'));
+assert(!dashboardHistoryFields.includes('body'));
+assert(!dashboardHistoryFields.includes('error_message'));
+const analyticsHistoryWithLargeText = [{
+  id: 'history-text',
+  lead_id: 'lead-a',
+  sent_at: '2026-07-15T10:00:00+09:00',
+  send_type: '初回メール',
+  to_email: 'lead-a@example.com',
+  genre: 'キャンプ',
+  template_id: 'template-text',
+  template_name: '本文確認',
+  send_result: '成功',
+  created_at: '2026-07-15T10:00:00+09:00',
+  subject: '現在の件名',
+  body: '非常に長い本文'.repeat(1000),
+  error_message: '取得してはいけないエラー詳細'.repeat(1000),
+}];
+const analyticsTemplateTextFixture = [{
+  id: 'template-text',
+  name: '本文確認',
+  subject: '現在の件名',
+  body: '非常に長い本文'.repeat(1000),
+}];
+const projectedAnalyticsHistories = analyticsHistoryWithLargeText.map((history) => {
+  const projected = {};
+  dashboardHistoryFields.forEach((field) => { projected[field] = history[field] || ''; });
+  return projected;
+});
+const analyticsWithFullHistoryText = analyticsContext.buildAnalyticsSnapshot_(
+  [{ id: 'lead-a', email: 'lead-a@example.com', created_at: '2026-07-01T09:00:00+09:00', genre: 'キャンプ', status: '未対応' }],
+  analyticsHistoryWithLargeText,
+  '2026-07-15',
+  analyticsTemplateTextFixture
+);
+const analyticsWithProjectedHistory = analyticsContext.buildAnalyticsSnapshot_(
+  [{ id: 'lead-a', email: 'lead-a@example.com', created_at: '2026-07-01T09:00:00+09:00', genre: 'キャンプ', status: '未対応' }],
+  projectedAnalyticsHistories,
+  '2026-07-15',
+  analyticsTemplateTextFixture
+);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(analyticsWithProjectedHistory)),
+  JSON.parse(JSON.stringify(analyticsWithFullHistoryText)),
+  'dashboard analytics must stay identical when large history text columns are omitted'
+);
+assert.strictEqual(analyticsWithProjectedHistory.templateRows[0].subject, '現在の件名');
+assert(analyticsWithProjectedHistory.templateRows[0].bodyPreview.startsWith('非常に長い本文'));
 
 const testMailContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -2342,7 +2394,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v238_source_status_cache'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v239_dashboard_history_columns'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2506,7 +2558,9 @@ assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboar
 assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
 assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
 assert(webAppSource.includes('dailyMailLimit - sentToday - pendingSendReservations.count'));
-assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHistories, today)'));
+assert(webAppSource.includes("const sendHistories = readSheetRecordFields_('send_histories', dashboardSendHistoryFields_())"));
+assert(!webAppSource.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'))"), 'dashboard must not read all send-history columns');
+assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHistories, today, templates)'));
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
 assert(webAppSource.includes("if (action === 'repairNonAdvertiserReviewLeads')"));
@@ -2769,4 +2823,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v238 source status cache regression tests passed.');
+console.log('v239 dashboard history column regression tests passed.');

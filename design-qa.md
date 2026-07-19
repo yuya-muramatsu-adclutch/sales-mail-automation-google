@@ -246,3 +246,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Active research is preferred over an older completed job, while completed, failed, and never-started states remain distinct.
 - Automated coverage verifies all four states, active-job progress, cache reuse, invalidation, and manual bypass behavior.
 - Fixed deployment updated to `@239`; authenticated UI timing remains a production observation.
+
+## v239 follow-up
+
+- Routine dashboard aggregation reads only the ten send-history fields required for counts, pending reservations, duplicate-send protection, and analytics attribution.
+- Historical subject, body, error detail, company/facility labels, and Gmail identifiers are no longer transferred with every dashboard refresh.
+- Template-analysis copy is hydrated from the already-loaded current template records, preserving the visible subject and body preview without reading every historical body cell.
+- Send success/failure counts, pending-send age, lead tracking mismatches, recipient uniqueness, and reply/deal attribution keep their existing rules.
+- Automated coverage compares full large-text histories with projected histories and verifies identical analytics plus the omission of subject, body, and error columns.
+- Fixed deployment updated to `@240`; authenticated refresh timing remains a production observation.
