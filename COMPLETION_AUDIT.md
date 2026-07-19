@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @254 / production code v253: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @255 / production code v254: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v253_history_body_on_demand`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v254_sync_log_details_on_demand`
+
+## v254 同期ログ詳細のオンデマンド取得
+
+- 運用データの通常取得では、同期ログの表示・集計に必要な13列だけを読み、長いスタックトレースとコンテキストJSONを初期表示へ転送しない。
+- エラー画面または管理画面を開いたときだけ、最新100件のID・スタック・コンテキストJSONの3列を追加取得して、一覧データへIDで結合する。
+- 管理画面では通常ログと詳細ログを並列取得しても、どちらが先に完了しても詳細が欠落しない双方向マージにした。
+- 同期・進捗・バックグラウンド処理の通常画面は軽量なまま、エラー画面のメッセージ、スタック、コンテキスト表示を維持する。
+- 初期取得列、巨大詳細列の非取得、詳細取得列、エラー・管理画面だけの遅延ロードを回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 255を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@255` であることを確認した。同期ログや営業データの実変更は検証中に実行していない。
 
 ## v253 送信履歴本文のオンデマンド取得
 

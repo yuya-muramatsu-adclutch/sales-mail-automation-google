@@ -2861,7 +2861,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v253_history_body_on_demand'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v254_sync_log_details_on_demand'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3080,13 +3080,19 @@ assert(searchSupportLoadBody.includes("fields: ['id', 'job_id', 'lead_id', 'quer
 assert(searchSupportLoadBody.includes("fields: ['created_at', 'purpose', 'query', 'result_count', 'status']"));
 assert(!searchSupportLoadBody.includes("'raw_json'"));
 const opsLoadStart = searchSupportIndexSource.indexOf('async function loadOpsData(options)');
-const opsLoadEnd = searchSupportIndexSource.indexOf('\n      function ', opsLoadStart + 20);
+const opsLoadEnd = searchSupportIndexSource.indexOf('\n      async function loadHistories()', opsLoadStart + 20);
 const opsLoadBody = searchSupportIndexSource.slice(opsLoadStart, opsLoadEnd);
 assert(opsLoadBody.includes("fields: ['id', 'lead_id', 'sent_at', 'send_type'"));
 assert(!opsLoadBody.includes("'body'"), 'initial operations load must not transfer send-history bodies');
+assert(opsLoadBody.includes("fields: ['id', 'event_type', 'operation', 'source', 'status', 'level', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'message', 'created_at']"));
+assert(!opsLoadBody.includes("'stack'"), 'initial operations load must not transfer sync-log stacks');
+assert(!opsLoadBody.includes("'context_json'"), 'initial operations load must not transfer sync-log contexts');
 assert(searchSupportIndexSource.includes('async function loadSendHistoryBody(id)'));
 assert(searchSupportIndexSource.includes("fields: ['id', 'body']"));
 assert(searchSupportIndexSource.includes("apiQuiet('getSendHistoryDetail', historyId)"));
+assert(searchSupportIndexSource.includes('async function loadSyncLogDetails()'));
+assert(searchSupportIndexSource.includes("fields: ['id', 'stack', 'context_json']"));
+assert(searchSupportIndexSource.includes("await ensureDataLoaded('syncLogDetails', loadSyncLogDetails)"));
 
 let sendHistoryDetailLookup = null;
 context.findSheetRecordsByExactFieldValues_ = (sheetName, fieldName, values, fields) => {
@@ -3434,4 +3440,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v253 send history body on-demand regression tests passed.');
+console.log('v254 sync log details on-demand regression tests passed.');

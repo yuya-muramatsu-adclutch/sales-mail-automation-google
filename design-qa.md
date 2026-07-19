@@ -381,3 +381,12 @@ final result: code paths verified; authenticated timing comparison pending
 - CSV export intentionally retains its full-record, all-page fetch so exported body content is unchanged; analytics continues to use server aggregates.
 - Automated coverage verifies initial body omission, on-demand API wiring, exact projected fields, and search-time body projection.
 - Fixed deployment updated to `@254`; no live mail send, history write, or sales-data mutation was run during verification.
+
+## v254 follow-up
+
+- Initial operations loading now requests thirteen sync-log fields and omits large stack traces and context JSON.
+- Error and admin screens fetch ID, stack, and context JSON for the latest one hundred logs only when those screens are opened.
+- Two-way merging preserves details regardless of whether the normal list or detail request completes first on the admin screen.
+- Normal sync, progress, and background views retain status, counts, messages, ordering, and totals without transferring debug payloads.
+- Automated coverage verifies the initial projection, detail projection, omitted fields, and error/admin lazy-load wiring.
+- Fixed deployment updated to `@255`; no live log or sales-data mutation was run during verification.

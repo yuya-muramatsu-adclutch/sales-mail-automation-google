@@ -13688,6 +13688,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           sourcePageSites: false,
           reviewLeads: false,
           ops: false,
+          syncLogDetails: false,
           gmailAuth: false,
           emailLeads: false,
           formLeads: false,
@@ -13726,6 +13727,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         jobs: [],
         jobTotal: 0,
         syncLogs: [],
+        syncLogDetails: {},
         syncLogTotal: 0,
         tableRenderLimits: {},
         syncImport: {
@@ -14405,6 +14407,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           }
           if (['backgroundJobs', 'backgroundActivity', 'ops', 'errors', 'sync', 'histories'].includes(name)) {
             await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
+            if (name === 'errors') {
+              await ensureDataLoaded('syncLogDetails', loadSyncLogDetails);
+            }
             renderActiveLoadedScreen(name);
             return;
           }
@@ -14470,6 +14475,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           if (name === 'admin') {
             const adminLoadResults = await Promise.allSettled([
               ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true })),
+              ensureDataLoaded('ops', () => loadOpsData({ render: false })),
+              ensureDataLoaded('syncLogDetails', loadSyncLogDetails),
             ]);
             adminLoadResults
               .filter((result) => result.status === 'rejected')
@@ -20934,7 +20941,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             includeInactive: true,
             fields: ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'company_name', 'facility_name', 'genre', 'template_id', 'template_name', 'subject', 'send_result', 'error_message', 'gmail_message_id', 'gmail_thread_id', 'sender_name', 'created_at', 'updated_at'],
           }),
-          request('listSheetRecords', 'sync_logs', { limit: 100, includeInactive: true }),
+          request('listSheetRecords', 'sync_logs', {
+            limit: 100,
+            includeInactive: true,
+            fields: ['id', 'event_type', 'operation', 'source', 'status', 'level', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'message', 'created_at'],
+          }),
           request('listSheetRecords', 'jobs', { limit: 100, includeInactive: true }),
           request('listSheetRecords', 'search_jobs', { limit: 100, includeInactive: true }),
         ]);
@@ -20949,7 +20960,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ? Object.assign({}, history, { body: state.historyBodies[history.id] })
           : history);
         state.historyTotal = histories.total;
-        state.syncLogs = syncLogs.items;
+        state.syncLogs = syncLogs.items.map((log) => Object.prototype.hasOwnProperty.call(state.syncLogDetails, log.id)
+          ? Object.assign({}, log, state.syncLogDetails[log.id])
+          : log);
         state.syncLogTotal = syncLogs.total;
         state.jobs = jobs.items.map((job) => Object.assign({ __sourceSheet: 'jobs' }, job))
           .concat(searchJobs.items.map((job) => Object.assign({ __sourceSheet: 'search_jobs' }, job)));
@@ -20964,6 +20977,24 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function loadHistories() {
         await loadOpsData();
+      }
+
+      async function loadSyncLogDetails() {
+        const page = await apiQuiet('listSheetRecords', 'sync_logs', {
+          limit: 100,
+          includeInactive: true,
+          fields: ['id', 'stack', 'context_json'],
+        });
+        ((page && page.items) || []).forEach((log) => {
+          if (!log || !log.id) return;
+          state.syncLogDetails[log.id] = {
+            stack: String(log.stack || ''),
+            context_json: String(log.context_json || ''),
+          };
+        });
+        state.syncLogs = (state.syncLogs || []).map((log) => Object.prototype.hasOwnProperty.call(state.syncLogDetails, log.id)
+          ? Object.assign({}, log, state.syncLogDetails[log.id])
+          : log);
       }
 
       function renderOpsPanels() {
