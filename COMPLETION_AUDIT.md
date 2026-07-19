@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @242 / production code v241: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @243 / production code v242: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v241_dashboard_lead_columns`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v242_mail_candidate_columns`
+
+## v242 完全自動送信の候補抽出軽量化
+
+- 完全自動送信の候補計画は営業先45列すべてではなく、対象判定・テンプレート振分・並び順に必要な17列だけを読む。
+- 大きなJSON、メモ、住所、施設名、フォーム進捗など候補選定で未使用の項目を、10分ごとの自動送信トリガーから除外した。
+- 選択列は小さな間隔をまとめた3つのRangeで取得し、セル転送量とSpreadsheet API呼出回数の両方を抑える。
+- 送信対象・除外対象、同一メールアドレスの重複除外、更新日時順、ジャンル別ラウンドロビン、テンプレート別グループは従来どおり維持する。
+- 実際のメール送信準備は選択された営業先IDから最新レコードを再取得し、ロック内で送信可否を再判定する既存の安全策を変更しない。
+- 全文営業先と17列に射影した営業先で候補順・除外・グループが一致する回帰テストを追加した。
+- `node scripts/smoke-test.js`、全Apps Script構文確認、`git diff --check`、`clasp push` が成功。Version 243を固定Web app URLへ再デプロイ済み。
 
 ## v241 ダッシュボード営業先データの軽量化
 

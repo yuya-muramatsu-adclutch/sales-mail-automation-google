@@ -2023,6 +2023,36 @@ assert.deepStrictEqual(
   JSON.parse(JSON.stringify(analyticsContext.buildAnalyticsSnapshot_(dashboardLeadFixtures, [], '2026-07-15', []))),
   'dashboard analytics must stay identical when large lead payload columns are omitted'
 );
+const mailCandidateLeadFields = JSON.parse(JSON.stringify(analyticsContext.mailSendCandidateLeadFields_()));
+assert.deepStrictEqual(mailCandidateLeadFields, [
+  'id', 'source', 'genre', 'company_name', 'email', 'website_url', 'website_domain', 'form_url', 'status',
+  'send_ng', 'reply_checked', 'last_sent_at', 'send_count', 'deal_status', 'created_at', 'updated_at', 'archived_at',
+]);
+['custom_fields_json', 'source_payload_json', 'notes', 'address', 'facility_name', 'form_status'].forEach((field) => {
+  assert(!mailCandidateLeadFields.includes(field));
+});
+const projectedMailCandidateLeads = dashboardLeadFixtures.map((lead) => {
+  const projected = {};
+  mailCandidateLeadFields.forEach((field) => { projected[field] = lead[field] || ''; });
+  return projected;
+});
+const candidateTemplates = [
+  { id: 'template-camp', name: 'キャンプ初回', genre: 'キャンプ' },
+  { id: 'template-beauty', name: '美容初回', genre: '美容' },
+  { id: 'template-care', name: '介護初回', genre: '介護' },
+];
+const fullPayloadCandidateSelection = analyticsContext.selectScheduledEmailCandidates_(dashboardLeadFixtures, candidateTemplates, dashboardMasterFixture, 10);
+const projectedCandidateSelection = analyticsContext.selectScheduledEmailCandidates_(projectedMailCandidateLeads, candidateTemplates, dashboardMasterFixture, 10);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(projectedCandidateSelection.groups)),
+  JSON.parse(JSON.stringify(fullPayloadCandidateSelection.groups)),
+  'automatic candidate groups must stay identical with projected leads'
+);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(projectedCandidateSelection.selected.map((item) => item.lead.id))),
+  JSON.parse(JSON.stringify(fullPayloadCandidateSelection.selected.map((item) => item.lead.id))),
+  'automatic candidate order and exclusions must stay identical with projected leads'
+);
 
 const testMailContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -2482,7 +2512,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v241_dashboard_lead_columns'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v242_mail_candidate_columns'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2657,6 +2687,8 @@ assert(!emailSource.includes(fullSendHistoryRead), 'mail paths must not transfer
 assert(!codeSource.includes(fullSendHistoryRead), 'lead mail-date lookup must not transfer every send-history column');
 assert(!operationsSource.includes(fullSendHistoryRead), 'reply checks must not transfer every send-history column');
 assert(emailSource.includes('let histories = readMailSendSafetyHistories_()'));
+assert(emailSource.includes("const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 })"));
+assert(!emailSource.includes("const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'automatic mail planning must not read all lead columns');
 assert(emailSource.includes("findSheetRecordsByExactFieldValues_(\n    'send_histories',\n    'lead_id',\n    [leadId],\n    mailSendSafetyHistoryFields_()"));
 assert(emailSource.includes("findSheetRecordsByExactFieldValues_('send_histories', 'lead_id', [recordId])"));
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
@@ -2921,4 +2953,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v241 dashboard lead column regression tests passed.');
+console.log('v242 mail candidate column regression tests passed.');

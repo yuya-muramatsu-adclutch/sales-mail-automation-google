@@ -444,7 +444,7 @@ function buildScheduledEmailBatchPlan_(options) {
     };
   }
 
-  const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'));
+  const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 });
   const selection = selectScheduledEmailCandidates_(leads, templates, masterContext, availableSlots);
   if (!selection.selected.length) {
     return {
@@ -468,6 +468,28 @@ function buildScheduledEmailBatchPlan_(options) {
     groups: selection.groups,
     deliveryRecovery: deliveryRecovery,
   };
+}
+
+function mailSendCandidateLeadFields_() {
+  return [
+    'id',
+    'source',
+    'genre',
+    'company_name',
+    'email',
+    'website_url',
+    'website_domain',
+    'form_url',
+    'status',
+    'send_ng',
+    'reply_checked',
+    'last_sent_at',
+    'send_count',
+    'deal_status',
+    'created_at',
+    'updated_at',
+    'archived_at',
+  ];
 }
 
 function selectScheduledEmailCandidates_(leads, templates, masterContext, limit) {

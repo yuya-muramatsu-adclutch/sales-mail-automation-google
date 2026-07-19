@@ -274,3 +274,13 @@ final result: code paths verified; authenticated timing comparison pending
 - Gap columns are never copied into returned records, preserving field minimization even when the underlying range is widened for latency.
 - Automated coverage verifies unchanged lead-state/sendability summaries and analytics between full large-payload leads and projected leads.
 - Fixed deployment updated to `@242`; authenticated dashboard timing remains a production observation.
+
+## v242 follow-up
+
+- Automatic-mail candidate planning reads seventeen eligibility, routing, and ordering fields instead of every lead column.
+- Large payload JSON, notes, address/facility labels, and form-progress fields are excluded from the ten-minute scheduled trigger path.
+- The selected fields are fetched in three grouped ranges to balance lower cell transfer with fewer Spreadsheet calls.
+- Email deduplication, newest-first ordering, genre round-robin, and template grouping retain their previous behavior.
+- Each selected lead is still reloaded and revalidated under the send-preparation lock immediately before delivery.
+- Automated coverage verifies identical selected order, exclusions, and template groups between full and projected lead fixtures.
+- Fixed deployment updated to `@243`; authenticated trigger duration remains a production observation.
