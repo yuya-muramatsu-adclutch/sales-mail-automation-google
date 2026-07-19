@@ -1433,7 +1433,12 @@ assert.strictEqual(sourceLockContext.isLeadReviewPending_({
 }), true);
 assert.strictEqual(sourceLockContext.isLikelyOfficialCandidateUrl_('https://camp-go.com/camps/example', ''), false);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://yamagatakanko.com/attractions/detail_234.html'), true);
-assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.town.nishikawa.yamagata.jp/site/kanko/'), false);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.pref.yamagata.jp/050011/kurashi/shizen/koen/shiduyaeiguide.html'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.town.nishikawa.yamagata.jp/site/kanko/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.city.sakata.lg.jp/sangyo/kanko/rejyashisetsu/kazokuryokomura.html'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.city.example.lg.jp/camp/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.mlit.go.jp/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://prefecture-camp.example/'), false);
 assert.strictEqual(sourceLockContext.isLikelyOfficialCandidateUrl_('https://facility.example/', ''), true);
 const selectedOfficial = sourceLockContext.selectLeadSearchResult_([
   { title: '施設まとめ', link: 'https://camp-go.com/camps/example', snippet: '一覧' },
@@ -1441,10 +1446,11 @@ const selectedOfficial = sourceLockContext.selectLeadSearchResult_([
 ], 'lead_official_site', { company_name: '星空キャンプ場' });
 assert.strictEqual(selectedOfficial.url, 'https://hoshizora.example/');
 const selectedAdvertiserSite = sourceLockContext.selectLeadSearchResult_([
-  { title: '大沼キャンプ場 観光スポット', link: 'https://yamagatakanko.com/attractions/detail_234.html', snippet: '山形県観光情報ポータル' },
-  { title: '大沼キャンプ場 公式案内', link: 'https://www.town.nishikawa.yamagata.jp/site/kanko/', snippet: '西川町公式サイト' },
-], 'lead_official_site', { company_name: '大沼キャンプ場' });
-assert.strictEqual(selectedAdvertiserSite.url, 'https://www.town.nishikawa.yamagata.jp/site/kanko/');
+  { title: '志津野営場 観光スポット', link: 'https://yamagatakanko.com/attractions/detail_234.html', snippet: '山形県観光情報ポータル' },
+  { title: '山形県志津野営場の概要', link: 'https://www.pref.yamagata.jp/050011/kurashi/shizen/koen/shiduyaeiguide.html', snippet: '山形県公式サイト' },
+  { title: '志津野営場 申込先 公式サイト', link: 'https://gassan-bunarin.jp/', snippet: '山形県立自然博物園' },
+], 'lead_official_site', { company_name: '志津野営場' });
+assert.strictEqual(selectedAdvertiserSite.url, 'https://gassan-bunarin.jp/');
 const contactPages = {
   'https://camp.example/': '<a href="/privacy">プライバシー</a><a href="/contact">お問い合わせ</a>',
   'https://camp.example/contact': '<div class="wpcf7">お問い合わせ</div><p>sales (at) camp (dot) example</p><form><input type="email"><textarea name="message"></textarea></form>',
@@ -1619,7 +1625,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v218_non_advertiser_review_cleanup_guard'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v219_government_site_exclusion'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1875,4 +1881,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v218 non-advertiser site cleanup regression tests passed.');
+console.log('v219 government site exclusion regression tests passed.');

@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v218_non_advertiser_review_cleanup_guard';
+const APP_VERSION = '20260719_apps_script_full_workflow_v219_government_site_exclusion';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -2443,10 +2443,18 @@ const NON_ADVERTISER_LEAD_DOMAINS_ = Object.freeze([
   'agoda.com',
 ]);
 
+function isGovernmentOrMunicipalLeadDomain_(value) {
+  const domain = normalizeDomain_(value);
+  if (!domain) return false;
+  if (/(?:^|\.)go\.jp$/i.test(domain) || /(?:^|\.)lg\.jp$/i.test(domain)) return true;
+  return /(?:^|\.)(?:pref|city|town|vill|village)\.[a-z0-9-]+(?:\.[a-z0-9-]+)?\.jp$/i.test(domain);
+}
+
 function isKnownNonAdvertiserLeadUrl_(value) {
   const normalizedUrl = normalizeUrl_(value);
   const domain = normalizeDomain_(normalizedUrl);
   if (!domain) return false;
+  if (isGovernmentOrMunicipalLeadDomain_(domain)) return true;
   if (NON_ADVERTISER_LEAD_DOMAINS_.some(function (host) {
     return isDomainOrSubdomain_(domain, host);
   })) return true;
