@@ -100,7 +100,7 @@ function readSheetRecordFields_(sheetName, fieldNames) {
   });
 }
 
-function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values) {
+function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values, resultFieldNames) {
   const normalizedFieldName = String(fieldName || '').trim();
   const requestedValues = Array.from(new Set((Array.isArray(values) ? values : [values]).map(function (value) {
     return String(value == null ? '' : value);
@@ -130,9 +130,53 @@ function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values) {
       });
   });
 
+  const hasProjection = resultFieldNames !== undefined && resultFieldNames !== null;
+  const projectedFieldNames = hasProjection
+    ? Array.from(new Set([normalizedFieldName].concat(Array.isArray(resultFieldNames) ? resultFieldNames : [resultFieldNames]).map(function (fieldName) {
+      return String(fieldName || '').trim();
+    }).filter(Boolean)))
+    : [];
+  const projectedColumns = projectedFieldNames.map(function (fieldName) {
+    return { fieldName: fieldName, columnIndex: headers.indexOf(fieldName) };
+  }).filter(function (column) {
+    return column.columnIndex !== -1;
+  }).sort(function (left, right) {
+    return left.columnIndex - right.columnIndex;
+  });
+  const projectedColumnGroups = [];
+  projectedColumns.forEach(function (column) {
+    const current = projectedColumnGroups[projectedColumnGroups.length - 1];
+    if (current && column.columnIndex === current.endColumnIndex + 1) {
+      current.columns.push(column);
+      current.endColumnIndex = column.columnIndex;
+      return;
+    }
+    projectedColumnGroups.push({
+      startColumnIndex: column.columnIndex,
+      endColumnIndex: column.columnIndex,
+      columns: [column],
+    });
+  });
+
   return Object.keys(rowNumbers).map(Number).sort(function (left, right) {
     return left - right;
   }).map(function (rowNumber) {
+    if (hasProjection) {
+      const record = {};
+      projectedColumnGroups.forEach(function (group) {
+        const row = sheet.getRange(
+          rowNumber,
+          group.startColumnIndex + 1,
+          1,
+          group.endColumnIndex - group.startColumnIndex + 1
+        ).getValues()[0];
+        group.columns.forEach(function (column) {
+          const value = row[column.columnIndex - group.startColumnIndex];
+          record[column.fieldName] = value === null || value === undefined ? '' : value;
+        });
+      });
+      return record;
+    }
     const row = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
     return rowToRecord_(headers, row);
   }).filter(function (record) {

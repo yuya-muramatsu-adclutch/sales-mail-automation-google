@@ -229,13 +229,33 @@ assert.strictEqual(leanListMasterBuilds, 1);
 assert.strictEqual(leanListStatBuilds, 2);
 unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
 unlockedMailContext.ensureSheet_ = () => ({});
-unlockedMailContext.readSheetRecords_ = () => [
+const unlockedMailHistoryFixtures = [
   { lead_id: 'sent', to_email: 'sent@example.net', sent_at: '2026-07-15T00:00:00Z', send_result: '成功', send_type: '初回メール' },
   { lead_id: 'reserved', to_email: 'reserved@example.net', sent_at: '2026-07-15T00:01:00Z', send_result: '送信中', send_type: '初回メール' },
 ];
+unlockedMailContext.readSheetRecords_ = () => unlockedMailHistoryFixtures;
+let mailSafetyRequestedFields = [];
+unlockedMailContext.readSheetRecordFields_ = (_sheetName, fields) => {
+  mailSafetyRequestedFields = fields.slice();
+  return unlockedMailHistoryFixtures;
+};
 const dailyMailSafety = unlockedMailContext.buildMailSendSafetyContext_();
 assert.strictEqual(dailyMailSafety.successfulCountToday, 1);
 assert.strictEqual(dailyMailSafety.reservedCountToday, 1);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(mailSafetyRequestedFields)), ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'send_result', 'created_at']);
+assert(!mailSafetyRequestedFields.includes('subject'));
+assert(!mailSafetyRequestedFields.includes('body'));
+assert(!mailSafetyRequestedFields.includes('error_message'));
+const mailSafetyFullTextFixture = unlockedMailHistoryFixtures.map((history) => Object.assign({}, history, {
+  subject: '不要な件名',
+  body: '不要な本文'.repeat(1000),
+  error_message: '不要なエラー詳細'.repeat(1000),
+}));
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(unlockedMailContext.buildMailSendSafetyContext_(mailSafetyFullTextFixture))),
+  JSON.parse(JSON.stringify(unlockedMailContext.buildMailSendSafetyContext_(unlockedMailHistoryFixtures))),
+  'mail safety decisions must not depend on large history text fields'
+);
 const dailyLimitContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), dailyLimitContext, { filename: 'Code.gs' });
 vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), dailyLimitContext, { filename: 'Email.gs' });
@@ -284,6 +304,9 @@ mailReceiptContext.getLeadById = (id) => receiptLeads[id] ? Object.assign({}, re
 mailReceiptContext.getOrCreateSpreadsheet_ = () => ({});
 mailReceiptContext.ensureSheet_ = () => ({});
 mailReceiptContext.readSheetRecords_ = () => Object.keys(receiptHistories).map((id) => Object.assign({}, receiptHistories[id]));
+mailReceiptContext.findSheetRecordsByExactFieldValues_ = (_sheet, _field, values) => Object.keys(receiptHistories)
+  .map((id) => Object.assign({}, receiptHistories[id]))
+  .filter((history) => values.includes(history.lead_id));
 mailReceiptContext.updateLeadAfterSend_ = (id, patch) => {
   receiptLeads[id] = Object.assign({}, receiptLeads[id], patch);
 };
@@ -551,6 +574,7 @@ const activeJobLookupRows = {
   5: ['failed-1', 'failed', '{}'],
 };
 let activeJobFullRowReads = 0;
+const activeJobRecordRanges = [];
 const activeJobLookupSheet = {
   getLastColumn: () => activeJobLookupHeaders.length,
   getLastRow: () => 5,
@@ -570,6 +594,7 @@ const activeJobLookupSheet = {
       };
     }
     activeJobFullRowReads += 1;
+    activeJobRecordRanges.push({ row, column, columnCount });
     return { getValues: () => [activeJobLookupRows[row]] };
   },
 };
@@ -582,6 +607,22 @@ const activeJobLookup = JSON.parse(JSON.stringify(activeJobLookupContext.findShe
 )));
 assert.deepStrictEqual(activeJobLookup.map((job) => job.id), ['queued-1', 'running-1']);
 assert.strictEqual(activeJobFullRowReads, 2, 'active job lookup must read only matched full rows');
+const projectedActiveJobLookup = JSON.parse(JSON.stringify(activeJobLookupContext.findSheetRecordsByExactFieldValues_(
+  'search_jobs',
+  'status',
+  ['queued', 'running'],
+  ['id', 'status']
+)));
+assert.deepStrictEqual(projectedActiveJobLookup, [
+  { id: 'queued-1', status: 'queued' },
+  { id: 'running-1', status: 'running' },
+]);
+assert.strictEqual(activeJobFullRowReads, 4, 'projected exact lookup must read only matched rows and requested columns');
+assert.deepStrictEqual(activeJobRecordRanges.slice(2), [
+  { row: 3, column: 1, columnCount: 2 },
+  { row: 4, column: 1, columnCount: 2 },
+]);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(projectedActiveJobLookup[0], 'query_json'), false);
 
 const selectedFieldContext = vm.createContext({ console });
 ['Code.gs', 'Repository.gs'].forEach((file) => {
@@ -1785,12 +1826,12 @@ vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), historyCont
 vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), historyContext, { filename: 'Email.gs' });
 historyContext.getOrCreateSpreadsheet_ = () => ({});
 historyContext.ensureSheet_ = () => ({});
-historyContext.readSheetRecords_ = () => [
+historyContext.findSheetRecordsByExactFieldValues_ = (_sheet, _field, values) => [
   { id: 'history-1', lead_id: 'lead-history', sent_at: '2026-07-15T00:03:00Z' },
   { id: 'history-2', lead_id: 'lead-history', sent_at: '2026-07-15T00:02:00Z' },
   { id: 'history-3', lead_id: 'lead-history', sent_at: '2026-07-15T00:01:00Z' },
   { id: 'other-history', lead_id: 'other-lead', sent_at: '2026-07-15T00:04:00Z' },
-];
+].filter((history) => values.includes(history.lead_id));
 const pagedHistories = historyContext.listLeadSendHistories('lead-history', { limit: 2 });
 assert.strictEqual(pagedHistories.total, 3);
 assert.strictEqual(pagedHistories.items.length, 2);
@@ -1804,6 +1845,7 @@ duplicateImportContext.getOrCreateSpreadsheet_ = () => ({});
 duplicateImportContext.ensureSheet_ = () => ({});
 duplicateImportContext.getHeaders_ = () => [];
 duplicateImportContext.readSheetRecords_ = () => [];
+duplicateImportContext.readSheetRecordFields_ = () => [];
 duplicateImportContext.nowIso_ = () => '2026-07-15T00:00:00.000Z';
 duplicateImportContext.Utilities = { getUuid: () => 'generated-id' };
 const templateDuplicateImport = duplicateImportContext.importEmailTemplates({
@@ -2394,7 +2436,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v239_dashboard_history_columns'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v240_mail_history_columns'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2553,6 +2595,7 @@ assert(!webAppSource.includes("readAllSheetRecordsByName_('search_usage_logs'"),
 assert(webAppSource.includes("readSheetRecordFields_('search_jobs', ['status'])"));
 assert(webAppSource.includes("readSheetRecordFields_('search_usage_logs', ['created_at', 'credits', 'request_count'])"));
 assert(repositorySource.includes('function readSheetRecordFields_'));
+assert(repositorySource.includes('function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values, resultFieldNames)'));
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
 assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5')"));
 assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
@@ -2561,6 +2604,13 @@ assert(webAppSource.includes('dailyMailLimit - sentToday - pendingSendReservatio
 assert(webAppSource.includes("const sendHistories = readSheetRecordFields_('send_histories', dashboardSendHistoryFields_())"));
 assert(!webAppSource.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'))"), 'dashboard must not read all send-history columns');
 assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHistories, today, templates)'));
+const fullSendHistoryRead = "readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'))";
+assert(!emailSource.includes(fullSendHistoryRead), 'mail paths must not transfer every send-history column');
+assert(!codeSource.includes(fullSendHistoryRead), 'lead mail-date lookup must not transfer every send-history column');
+assert(!operationsSource.includes(fullSendHistoryRead), 'reply checks must not transfer every send-history column');
+assert(emailSource.includes('let histories = readMailSendSafetyHistories_()'));
+assert(emailSource.includes("findSheetRecordsByExactFieldValues_(\n    'send_histories',\n    'lead_id',\n    [leadId],\n    mailSendSafetyHistoryFields_()"));
+assert(emailSource.includes("findSheetRecordsByExactFieldValues_('send_histories', 'lead_id', [recordId])"));
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
 assert(webAppSource.includes("if (action === 'repairNonAdvertiserReviewLeads')"));
@@ -2823,4 +2873,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v239 dashboard history column regression tests passed.');
+console.log('v240 mail history column regression tests passed.');

@@ -255,3 +255,13 @@ final result: code paths verified; authenticated timing comparison pending
 - Send success/failure counts, pending-send age, lead tracking mismatches, recipient uniqueness, and reply/deal attribution keep their existing rules.
 - Automated coverage compares full large-text histories with projected histories and verifies identical analytics plus the omission of subject, body, and error columns.
 - Fixed deployment updated to `@240`; authenticated refresh timing remains a production observation.
+
+## v240 follow-up
+
+- Automatic-mail planning, daily limits, duplicate-send protection, pending reservations, and delivery recovery now read seven compact send-history fields.
+- Per-lead send tracking recovery uses exact lead-ID matching with projected columns instead of scanning every historical body.
+- Gmail reply checks and false-positive diagnostics reuse the compact history reader, reducing scheduled-trigger payload without changing sent-at ordering.
+- Lead-detail history retains full subject/body/error content but fetches only histories belonging to the selected lead.
+- Send-history import duplicate checks read only the ID column.
+- Automated coverage verifies exact-match column projection, omitted large text fields, and identical safety decisions with or without large historical content.
+- Fixed deployment updated to `@241`; authenticated trigger duration and live quota behavior remain production observations.

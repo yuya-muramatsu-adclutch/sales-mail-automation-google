@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @240 / production code v239: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @241 / production code v240: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v239_dashboard_history_columns`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v240_mail_history_columns`
+
+## v240 完全自動送信・返信確認の履歴軽量化
+
+- 完全自動送信の実行計画、日次上限、再送防止、送信中予約、配送結果復旧は、送信履歴19列ではなく必要な7列だけを読む。
+- 送信成功後の営業先 `send_count` / `last_sent_at` 復旧は、全履歴を再読込せず、対象の営業先IDに一致する行と必要列だけを取得する。
+- Gmail返信確認と誤検知診断も7列の軽量履歴で最新送信日時を構築し、本文・件名・エラー詳細を定期トリガーへ転送しない。
+- リード詳細の送信履歴画面は本文表示を維持しつつ、全営業先の履歴ではなく対象IDに一致する行だけを全文取得する。
+- 送信履歴インポートの重複確認はID列だけを読み、既存本文を全件転送しない。
+- 選択列付きの完全一致検索を共通化し、該当行だけ・隣接列だけを読むこと、巨大本文の有無で安全判定が変わらないことを回帰テストで確認した。
+- `node scripts/smoke-test.js`、全Apps Script構文確認、`git diff --check`、`clasp push` が成功。Version 241を固定Web app URLへ再デプロイ済み。
 
 ## v239 ダッシュボード送信履歴の軽量化
 

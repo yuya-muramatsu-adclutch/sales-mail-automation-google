@@ -386,10 +386,10 @@ function buildScheduledEmailSkipResult_(reason, message, extra) {
 
 function buildScheduledEmailBatchPlan_(options) {
   const input = options && typeof options === 'object' ? options : {};
-  let histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+  let histories = readMailSendSafetyHistories_();
   const deliveryRecovery = reconcileMailDeliveryReceipts_(histories, { maxItems: 20 });
   if (deliveryRecovery.processed > 0) {
-    histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+    histories = readMailSendSafetyHistories_();
   }
   const pendingStatus = buildPendingSendReservationStatus_(histories);
   if (pendingStatus.staleCount > 0) {
@@ -785,10 +785,18 @@ function assertProductionMailDeliveryAllowed_(requireSendWindow) {
   }
 }
 
+function mailSendSafetyHistoryFields_() {
+  return ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'send_result', 'created_at'];
+}
+
+function readMailSendSafetyHistories_() {
+  return readSheetRecordFields_('send_histories', mailSendSafetyHistoryFields_());
+}
+
 function buildMailSendSafetyContext_(historyRecords) {
   const histories = Array.isArray(historyRecords)
     ? historyRecords
-    : readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'));
+    : readMailSendSafetyHistories_();
   const today = todayText_();
   const sentLeadIds = {};
   const sentEmails = {};
@@ -981,7 +989,12 @@ function reconcileLeadSendTrackingFromHistory_(history) {
   if (!leadId) return false;
   const lead = getLeadById(leadId);
   if (!lead) return false;
-  const successful = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).filter(function (item) {
+  const successful = findSheetRecordsByExactFieldValues_(
+    'send_histories',
+    'lead_id',
+    [leadId],
+    mailSendSafetyHistoryFields_()
+  ).filter(function (item) {
     return String(item.lead_id || '') === leadId && isSuccessfulProductionSendHistory_(item);
   }).sort(function (left, right) {
     return String(right.sent_at || right.created_at || '').localeCompare(String(left.sent_at || left.created_at || ''));
@@ -1046,7 +1059,7 @@ function countLeadSendTrackingMismatches_(leads, histories) {
 
 function countSuccessfulProductionSendsOnDate_(datePrefix) {
   return countSuccessfulProductionSends_(
-    readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')),
+    readMailSendSafetyHistories_(),
     datePrefix
   );
 }
@@ -1231,10 +1244,7 @@ function listLeadSendHistories(leadId, options) {
   const recordId = requireId_(leadId);
   const query = options && typeof options === 'object' ? options : {};
   const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
-  const histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'))
-    .filter(function (history) {
-      return String(history.lead_id || '') === recordId;
-    })
+  const histories = findSheetRecordsByExactFieldValues_('send_histories', 'lead_id', [recordId])
     .sort(function (a, b) {
       return String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || ''));
     });
@@ -1261,7 +1271,7 @@ function importSendHistories(input) {
     const spreadsheet = getOrCreateSpreadsheet_();
     const sheet = ensureSheet_(spreadsheet, 'send_histories');
     const headers = getHeaders_(sheet);
-    const existing = readSheetRecords_(sheet);
+    const existing = readSheetRecordFields_('send_histories', ['id']);
     const existingById = {};
     existing.forEach(function (record) {
       const id = String(record.id || '').trim();
@@ -1410,7 +1420,7 @@ function assertEmailSendLimitAvailable_(options) {
 
 function countPendingProductionSendReservationsOnDate_(datePrefix) {
   const prefix = String(datePrefix || '');
-  return readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).filter(function (history) {
+  return readMailSendSafetyHistories_().filter(function (history) {
     return isProductionSendReservationHistory_(history) &&
       (!prefix || String(history.sent_at || history.created_at || '').slice(0, prefix.length) === prefix);
   }).length;

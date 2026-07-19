@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v239_dashboard_history_columns';
+const APP_VERSION = '20260719_apps_script_full_workflow_v240_mail_history_columns';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -2720,10 +2720,15 @@ function formSendEventsFromCustomFields_(customFields) {
 }
 
 function latestSuccessfulMailSentAt_(leadId) {
-  const histories = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'))
-    .filter(function (history) {
-      return String(history.lead_id || '') === String(leadId || '') && isSuccessfulProductionSendHistory_(history);
-    })
+  const normalizedLeadId = String(leadId || '');
+  const histories = findSheetRecordsByExactFieldValues_(
+    'send_histories',
+    'lead_id',
+    [normalizedLeadId],
+    mailSendSafetyHistoryFields_()
+  ).filter(function (history) {
+    return String(history.lead_id || '') === normalizedLeadId && isSuccessfulProductionSendHistory_(history);
+  })
     .sort(function (a, b) {
       return String(b.sent_at || b.created_at || '').localeCompare(String(a.sent_at || a.created_at || ''));
     });

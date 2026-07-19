@@ -406,7 +406,7 @@ function buildLatestSuccessfulMailSentAtByLeadId_() {
 
 function buildLatestSuccessfulMailHistoryByLeadId_() {
   const result = {};
-  readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories')).forEach(function (history) {
+  readMailSendSafetyHistories_().forEach(function (history) {
     if (!isSuccessfulProductionSendHistory_(history)) return;
     const leadId = String(history.lead_id || '').trim();
     const sentAt = String(history.sent_at || history.created_at || '').trim();
