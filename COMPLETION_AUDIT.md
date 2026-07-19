@@ -1,14 +1,23 @@
 # 完成監査メモ
 
-最終更新: 2026-07-16
+最終更新: 2026-07-19
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @200 / production code v200: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @221 / production code v220: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260716_apps_script_full_workflow_v201_contact_quality`
-- v201本番反映の残作業: Apps Scriptのプロジェクト履歴で未使用の旧版を1件削除し、固定Web appを再デプロイする。版削除はApps Script API非対応のためIDE操作が必要。
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v220_workflow_navigation_performance`
+
+## v220 業務フローナビゲーションと画面更新の軽量化
+
+- 常時表示メニューを `今日 → 収集 → 確認 → 送信 → 成果` の5段階に整理し、一覧・履歴・設定・管理は2つの補助メニューへ集約。
+- 確認待ち数と送信可能数を主要メニューに表示し、現在画面だけ `aria-current="page"` で示す。
+- 補助メニューは現在画面を含むものだけ開き、複数グループが開き続けてサイドバーが長くなる状態を解消。
+- グローバル通知をライブリージョン化し、OSのモーション軽減設定に対応。
+- DOM更新後の共通UI補正を、画面全体の再走査から追加された要素だけの処理へ変更。大量更新時だけ安全な全体フォールバックを使う。
+- `node scripts/smoke-test.js` と `git diff --check` が成功。Version 221を固定Web app URLへ再デプロイ済み。
+- 未認証環境ではGoogleログインへリダイレクトされるため、最終的な折り返し・ホバー・フォーカス・スマホ幅は認証済みChromeでの目視確認を残す。
 
 ## v201 連絡先誤検知の追加防止（HEAD反映済み・本番反映待ち）
 

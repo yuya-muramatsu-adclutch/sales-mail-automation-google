@@ -11935,6 +11935,106 @@
           grid-column: auto;
         }
       }
+
+      /* v220-workflow-navigation: keep the daily flow obvious and reduce sidebar expansion. */
+      .workflow-nav {
+        display: grid;
+        gap: 5px;
+      }
+
+      .workflow-nav .tab.nav-item {
+        display: grid;
+        grid-template-columns: 26px minmax(0, 1fr) auto;
+        column-gap: 9px;
+        align-items: center;
+        min-height: 52px;
+        padding: 8px 10px;
+      }
+
+      .workflow-nav .nav-copy {
+        display: grid;
+        gap: 1px;
+        min-width: 0;
+      }
+
+      .workflow-nav .nav-copy strong,
+      .workflow-nav .nav-copy small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .workflow-nav .nav-copy strong {
+        color: inherit;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .workflow-nav .nav-copy small {
+        color: #8190a6;
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .workflow-nav .tab.nav-item.active .nav-copy small {
+        color: #c8dcff;
+      }
+
+      .workflow-nav .nav-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 22px;
+        padding: 0 7px;
+        border: 1px solid rgba(147, 197, 253, 0.35);
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.16);
+        color: #dbeafe;
+        font-size: 10px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .workflow-nav .nav-count[hidden] {
+        display: none;
+      }
+
+      .nav-support-label {
+        margin: 9px 10px 3px;
+        color: #708096;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+      }
+
+      .nav-section > summary {
+        min-height: 44px;
+      }
+
+      .nav-section:not([open]) .nav-group-secondary {
+        display: none;
+      }
+
+      .nav-section.has-active > summary {
+        border: 1px solid rgba(147, 197, 253, 0.2);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+
+        .app-route-progress {
+          transition: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -11966,81 +12066,48 @@
         </div>
 
         <nav class="tabs" aria-label="業務メニュー">
-          <div class="nav-group nav-home-group">
+          <div class="workflow-nav" aria-label="主要な業務フロー">
             <button type="button" class="tab nav-item" data-tab="dashboard" onclick="showTab('dashboard')">
-              <span class="nav-icon">DB</span><span>今日の作業</span>
+              <span class="nav-icon">DB</span><span class="nav-copy"><strong>今日</strong><small>作業と異常を確認</small></span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="search" onclick="showTab('search')">
+              <span class="nav-icon">SP</span><span class="nav-copy"><strong>収集</strong><small>営業先を増やす</small></span>
+            </button>
+            <button type="button" class="tab nav-item active" data-tab="reviewLeads" onclick="showTab('reviewLeads')" aria-current="page">
+              <span class="nav-icon">RV</span><span class="nav-copy"><strong>確認</strong><small>候補を承認・除外</small></span><span id="navReviewCount" class="nav-count" hidden>0</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="emailLeads" onclick="showTab('emailLeads')">
+              <span class="nav-icon">ML</span><span class="nav-copy"><strong>送信</strong><small>送信対象を確認</small></span><span id="navSendCount" class="nav-count" hidden>0</span>
+            </button>
+            <button type="button" class="tab nav-item" data-tab="analytics" onclick="showTab('analytics')">
+              <span class="nav-icon">AN</span><span class="nav-copy"><strong>成果</strong><small>返信・商談・分析</small></span>
             </button>
           </div>
 
-          <details class="nav-more nav-section" data-nav-tabs="leads,reviewLeads,search,backgroundJobs" open>
-            <summary><span class="nav-icon">LD</span><span>営業</span><small>営業先を探す・整える</small></summary>
+          <div class="nav-support-label">関連メニュー</div>
+          <details class="nav-more nav-section" data-nav-tabs="leads,backgroundJobs,forms,sending,histories,templates,deals">
+            <summary><span class="nav-icon">LD</span><span>一覧・履歴</span><small>必要な画面を開く</small></summary>
             <div class="nav-group nav-group-secondary">
-              <button type="button" class="tab nav-item" data-tab="leads" onclick="showTab('leads')">
-                <span class="nav-icon">LD</span><span>営業リスト</span>
-              </button>
-              <button type="button" class="tab nav-item active" data-tab="reviewLeads" onclick="showTab('reviewLeads')">
-                <span class="nav-icon">RV</span><span>確認待ち</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="search" onclick="showTab('search')">
-                <span class="nav-icon">SP</span><span>営業先を収集</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="backgroundJobs" onclick="showTab('backgroundJobs')">
-                <span class="nav-icon">BG</span><span>収集の進捗</span>
-              </button>
-            </div>
-          </details>
-
-          <details class="nav-more nav-section" data-nav-tabs="emailLeads,forms,sending,histories,templates">
-            <summary><span class="nav-icon">ML</span><span>送信</span><small>メール・フォーム</small></summary>
-            <div class="nav-group nav-group-secondary">
-              <button type="button" class="tab nav-item" data-tab="emailLeads" onclick="showTab('emailLeads')">
-                <span class="nav-icon">ML</span><span>メール送信リスト</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="forms" onclick="showTab('forms')">
-                <span class="nav-icon">FM</span><span>フォーム送信リスト</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="sending" onclick="showTab('sending')">
-                <span class="nav-icon">PV</span><span>送信プレビュー</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="histories" onclick="showTab('histories')">
-                <span class="nav-icon">HS</span><span>送信履歴</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="templates" onclick="showTab('templates')">
-                <span class="nav-icon">TP</span><span>テンプレート</span>
-              </button>
-            </div>
-          </details>
-
-          <details class="nav-more nav-section" data-nav-tabs="deals,analytics">
-            <summary><span class="nav-icon">AN</span><span>成果</span><small>返信・商談・分析</small></summary>
-            <div class="nav-group nav-group-secondary">
-              <button type="button" class="tab nav-item" data-tab="deals" onclick="showTab('deals')">
-                <span class="nav-icon">DL</span><span>返信・商談</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="analytics" onclick="showTab('analytics')">
-                <span class="nav-icon">AN</span><span>分析</span>
-              </button>
+              <button type="button" class="tab nav-item" data-tab="leads" onclick="showTab('leads')"><span class="nav-icon">LD</span><span>営業リスト</span></button>
+              <button type="button" class="tab nav-item" data-tab="backgroundJobs" onclick="showTab('backgroundJobs')"><span class="nav-icon">BG</span><span>収集の進捗</span></button>
+              <button type="button" class="tab nav-item" data-tab="forms" onclick="showTab('forms')"><span class="nav-icon">FM</span><span>フォーム送信</span></button>
+              <button type="button" class="tab nav-item" data-tab="sending" onclick="showTab('sending')"><span class="nav-icon">PV</span><span>送信プレビュー</span></button>
+              <button type="button" class="tab nav-item" data-tab="histories" onclick="showTab('histories')"><span class="nav-icon">HS</span><span>送信履歴</span></button>
+              <button type="button" class="tab nav-item" data-tab="templates" onclick="showTab('templates')"><span class="nav-icon">TP</span><span>テンプレート</span></button>
+              <button type="button" class="tab nav-item" data-tab="deals" onclick="showTab('deals')"><span class="nav-icon">DL</span><span>返信・商談</span></button>
             </div>
           </details>
 
           <details class="nav-more nav-section" data-nav-tabs="sync,sendNg,exclusions,gmail,admin,errors,ops">
             <summary><span class="nav-icon">AD</span><span>設定・管理</span><small>必要なときだけ</small></summary>
             <div class="nav-group nav-group-secondary">
-              <button type="button" class="tab nav-item" data-tab="sync" onclick="showTab('sync')">
-                <span class="nav-icon">SY</span><span>データ同期</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="sendNg" onclick="showTab('sendNg')">
-                <span class="nav-icon">NG</span><span>送信NG</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="exclusions" onclick="showTab('exclusions')">
-                <span class="nav-icon">EX</span><span>除外ドメイン</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="gmail" onclick="showTab('gmail')">
-                <span class="nav-icon">GM</span><span>Gmail連携</span>
-              </button>
-              <button type="button" class="tab nav-item" data-tab="admin" onclick="showTab('admin')">
-                <span class="nav-icon">AD</span><span>管理設定</span>
-              </button>
+              <button type="button" class="tab nav-item" data-tab="sync" onclick="showTab('sync')"><span class="nav-icon">SY</span><span>データ同期</span></button>
+              <button type="button" class="tab nav-item" data-tab="sendNg" onclick="showTab('sendNg')"><span class="nav-icon">NG</span><span>送信NG</span></button>
+              <button type="button" class="tab nav-item" data-tab="exclusions" onclick="showTab('exclusions')"><span class="nav-icon">EX</span><span>除外ドメイン</span></button>
+              <button type="button" class="tab nav-item" data-tab="errors" onclick="showTab('errors')"><span class="nav-icon">ER</span><span>エラー詳細</span></button>
+              <button type="button" class="tab nav-item" data-tab="gmail" onclick="showTab('gmail')"><span class="nav-icon">GM</span><span>Gmail連携</span></button>
+              <button type="button" class="tab nav-item" data-tab="admin" onclick="showTab('admin')"><span class="nav-icon">AD</span><span>管理設定</span></button>
+              <button type="button" class="tab nav-item" data-tab="ops" onclick="showTab('ops')"><span class="nav-icon">OP</span><span>運用管理</span></button>
             </div>
           </details>
         </nav>
@@ -12075,7 +12142,7 @@
           </div>
         </section>
         <aside id="taskCenterPanel" class="task-center" aria-label="タスクセンター" hidden></aside>
-        <div id="globalMessage" class="message"></div>
+        <div id="globalMessage" class="message" role="status" aria-live="polite"></div>
 
         <section id="dashboard" class="section">
           <header class="section-header">
@@ -13153,12 +13220,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         ops: 'バックグラウンド処理と運用設定をまとめて確認します。',
       });
 
-      const SECONDARY_NAV_TABS = Object.freeze([
-        'dashboard', 'analytics', 'sync', 'sendNg', 'exclusions', 'templates',
-        'sending', 'histories', 'deals', 'gmail', 'admin', 'errors', 'ops',
-      ]);
-
-      const TOP_SHORTCUT_TABS = ['reviewLeads', 'search', 'leads', 'backgroundJobs', 'forms', 'emailLeads'];
       const RECENT_BACKGROUND_JOB_MS = 10 * 60 * 1000;
       const INITIAL_REVIEW_LEAD_LIMIT = 50;
       const FULL_LEAD_DEFAULT_LIMIT = 100;
@@ -13427,8 +13488,26 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           const tabs = String(disclosure.dataset.navTabs || '').split(',').map((item) => item.trim()).filter(Boolean);
           const hasActiveTab = tabs.includes(activeTab);
           disclosure.classList.toggle('has-active', hasActiveTab);
-          if (hasActiveTab) disclosure.open = true;
+          disclosure.open = hasActiveTab;
         });
+      }
+
+      function updateWorkflowNavCount(id, value) {
+        const target = document.getElementById(id);
+        if (!target) return;
+        const count = Math.max(0, Number(value || 0));
+        target.hidden = count <= 0;
+        target.textContent = count > 999 ? '999+' : formatNumber(count);
+        target.title = `${formatNumber(count)}件`;
+      }
+
+      function updateWorkflowNavCounts(dashboard) {
+        const data = dashboard || state.dashboard || {};
+        const reviewCount = state.dataLoaded.reviewLeads
+          ? Number(state.reviewTotal || 0)
+          : Number(data.reviewTargets || data.reviewPending || state.reviewTotal || 0);
+        updateWorkflowNavCount('navReviewCount', reviewCount);
+        updateWorkflowNavCount('navSendCount', Number(data.sendTargets || 0));
       }
 
       function appVersionLabel(version) {
@@ -13439,7 +13518,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function organizeTableRowActions(root) {
         const scope = root || document;
         const selector = '.lead-action-cell, .review-action-row, .table-action-row, .template-action-row, .job-result-actions, .excluded-domain-actions';
-        scope.querySelectorAll(selector).forEach((container) => {
+        const containers = [];
+        if (scope.nodeType === 1 && typeof scope.matches === 'function' && scope.matches(selector)) containers.push(scope);
+        if (typeof scope.querySelectorAll === 'function') containers.push(...scope.querySelectorAll(selector));
+        containers.forEach((container) => {
           if (container.dataset.actionsOrganized === 'true') return;
           const controls = Array.from(container.children).filter((item) => item.matches('button, a.table-link-button, a.table-danger-button'));
           if (controls.length < 3) return;
@@ -13477,7 +13559,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           sendHistoryScreenTable: '送信履歴はまだありません',
           errorDetailsTable: '確認が必要なエラーはありません',
         };
-        scope.querySelectorAll('table').forEach((tableElement) => {
+        const tables = [];
+        if (scope.nodeType === 1 && typeof scope.matches === 'function' && scope.matches('table')) tables.push(scope);
+        if (typeof scope.querySelectorAll === 'function') tables.push(...scope.querySelectorAll('table'));
+        tables.forEach((tableElement) => {
           const emptyLabel = tableElement.querySelector('.data-table-empty-cell span');
           if (!emptyLabel || emptyLabel.textContent.trim() !== 'データがありません') return;
           emptyLabel.textContent = labels[tableElement.id] || '表示できるデータはありません';
@@ -13493,13 +13578,23 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const main = document.querySelector('.main');
         if (!main || typeof MutationObserver === 'undefined') return;
         let scheduled = false;
-        const observer = new MutationObserver(() => {
-          if (scheduled) return;
+        const pendingMutationRoots = new Set();
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+              if (node && node.nodeType === 1) pendingMutationRoots.add(node);
+            });
+          });
+          if (scheduled || !pendingMutationRoots.size) return;
           scheduled = true;
           window.requestAnimationFrame(() => {
             scheduled = false;
-            organizeTableRowActions(main);
-            enhanceEmptyTableStates(main);
+            const roots = pendingMutationRoots.size > 24 ? [main] : Array.from(pendingMutationRoots);
+            pendingMutationRoots.clear();
+            roots.forEach((root) => {
+              organizeTableRowActions(root);
+              enhanceEmptyTableStates(root);
+            });
           });
         });
         observer.observe(main, { childList: true, subtree: true });
@@ -13853,13 +13948,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           }
           currentTab = name;
         }
-        document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
+        document.querySelectorAll('.tab').forEach((tab) => {
+          const active = tab.dataset.tab === name;
+          tab.classList.toggle('active', active);
+          if (active) tab.setAttribute('aria-current', 'page');
+          else tab.removeAttribute('aria-current');
+        });
         document.querySelectorAll('.section').forEach((section) => section.classList.toggle('active', section.id === name));
-        const title = document.getElementById('activeViewTitle');
-        if (title) title.textContent = TAB_TITLES[name] || name;
         document.title = `${TAB_TITLES[name] || name} | 自動営業リスト`;
         updateNavigationDisclosure(name);
-        updateTopShortcutBar(name);
         updateBackgroundCenterButton(name);
         renderBackgroundJobWidgets();
         if (changedTab) window.scrollTo(0, 0);
@@ -13884,29 +13981,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         progress.classList.add('active');
         if (routeProgressTimer) clearTimeout(routeProgressTimer);
         routeProgressTimer = setTimeout(() => progress.classList.remove('active'), 650);
-      }
-
-      function updateTopShortcutBar(activeTab) {
-        document.querySelectorAll('.toolbar-shortcut').forEach((button) => {
-          const active = button.dataset.shortcutTab === activeTab;
-          button.classList.toggle('active', active);
-          if (active) {
-            button.setAttribute('aria-current', 'page');
-          } else {
-            button.removeAttribute('aria-current');
-          }
-        });
-      }
-
-      function renderTodayLabel() {
-        const target = document.getElementById('todayLabel');
-        if (!target) return;
-        target.textContent = new Intl.DateTimeFormat('ja-JP', {
-          month: 'short',
-          day: 'numeric',
-          weekday: 'short',
-          timeZone: 'Asia/Tokyo',
-        }).format(new Date());
       }
 
       function renderAppSafetyStrip(dashboard) {
@@ -14118,7 +14192,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.schemaStatus = initial.schemaStatus || null;
           state.adminReadinessResult = null;
           document.getElementById('appMeta').textContent = appVersionLabel(initial.app.version);
-          renderTodayLabel();
           renderAppSafetyStrip(initial.dashboard);
           renderSelects(initial.enums, initial.genres);
           renderDashboard(initial.dashboard);
@@ -14126,7 +14199,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           renderSerper(initial.serper);
           message('', '');
           await (isInitialLoad ? loadInitialReviewLeads() : loadLeads());
-          updateTopShortcutBar(document.querySelector('.section.active')?.id || 'dashboard');
           state.hasCompletedInitialLoad = true;
           message(`起動しました (${Math.round(performance.now() - startedAt)}ms)`, 'ok');
           schedulePostStartupRefresh();
@@ -14583,6 +14655,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           searxngStatus: source.searxngStatus !== undefined ? source.searxngStatus : String(searxng.lastStatus || ''),
         });
         state.dashboard = dashboard;
+        updateWorkflowNavCounts(dashboard);
         if (dashboard.analytics) state.analyticsData = dashboard.analytics;
         const stats = [
           ['リード', dashboard.leadsTotal],
@@ -14621,6 +14694,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!target) return;
         const dashboard = state.dashboard || {};
         const reviewTotal = Number(state.reviewTotal || 0);
+        updateWorkflowNavCounts(dashboard);
         const action = dailyFocusAction(dashboard, reviewTotal);
         const month = dashboard.thisMonth || {};
         const completedReview = Number(state.reviewSessionHandled || 0);

@@ -52,3 +52,41 @@
 - Pass 1: implementation, regression checks, and production deployment passed; authenticated rendered comparison blocked.
 
 final result: blocked
+
+# Design QA: アプリ全体ナビゲーション v220
+
+## Source visual truth
+
+- Figma audit board: `https://www.figma.com/design/A5O3KJBJtNQOjdCpprD8Vf?node-id=2-2`.
+- Audit recommendation: make the daily workflow visible as `今日 → 収集 → 確認 → 送信 → 成果`, and move lower-frequency screens under secondary navigation.
+- Existing visual language, colors, sidebar width, icons, page content, and lead table are preserved.
+
+## Implementation
+
+- Five primary workflow destinations are always visible and open directly.
+- List, history, templates, settings, and operations screens are grouped into two secondary disclosures.
+- Only the disclosure containing the current screen opens; previously visited groups no longer accumulate in the sidebar.
+- Review and send counts are visible beside the relevant primary destination.
+- Active navigation exposes `aria-current="page"`, global feedback uses a polite live region, and reduced-motion preferences are respected.
+- The global DOM enhancement observer now inspects only added subtrees, with a full-main fallback only for unusually large mutation batches.
+
+## Static and functional evidence
+
+- `node scripts/smoke-test.js`: passed for the v220 navigation, accessibility, and observer regressions.
+- `git diff --check`: passed.
+- The existing mail safety, review, list, background, and collection regressions remain in the same smoke suite.
+
+## Visual comparison evidence
+
+- The authenticated production screen still requires a signed-in browser capture after deployment.
+- Static and functional checks do not prove final wrapping, hover/focus rendering, or mobile drawer spacing.
+
+## Production checklist
+
+- Confirm the five primary destinations fit without wrapping at desktop width.
+- Navigate through a secondary screen and verify only its disclosure stays open.
+- Confirm the review/send badges update after data load.
+- Verify keyboard focus and reduced-motion behavior.
+- Verify the sidebar and content remain usable at 900px and 620px breakpoints.
+
+final result: pending authenticated production screenshot
