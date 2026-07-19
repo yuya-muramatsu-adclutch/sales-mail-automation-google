@@ -5,9 +5,21 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @256 / production code v255: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @257 / production code v256: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v255_job_list_projection`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v256_ops_section_lazy_load`
+
+## v256 運用画面データの画面別遅延取得
+
+- 従来は進捗・履歴・同期・エラーのどの画面を開いても、送信履歴、同期ログ、`jobs`、`search_jobs` の4要求をまとめて実行していた。
+- 送信履歴画面は履歴1要求、進捗・タスクセンターはジョブ2要求、同期画面はログ1要求、エラー画面はログと詳細だけを取得する構成へ分離した。
+- 総合運用画面だけは従来どおり履歴・ログ・ジョブを並列取得し、部分失敗時は成功したデータを保持して警告する。
+- 送信実行画面は直近履歴と送信系ジョブだけ、Gmail詳細は開いた履歴／ロック項目だけを取得する。
+- 管理画面の初期表示ではログ・ジョブを先読みせず、ログ詳細を開いたときだけ同期ログ・詳細・保存容量を取得する。
+- 画面ごとの読込済み状態を分離し、全3区分がそろった場合だけ総合運用データを読込済みとして扱う。
+- 画面別ルーティング、各区分の取得列、総合運用画面の3区分並列取得、旧一括ルートの撤去を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 257を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@257` であることを確認した。ジョブ実行、メール送信、同期、営業データ変更は検証中に実行していない。
 
 ## v255 バックグラウンドジョブ一覧の必要列取得
 

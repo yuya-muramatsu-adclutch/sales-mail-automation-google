@@ -13688,6 +13688,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           sourcePageSites: false,
           reviewLeads: false,
           ops: false,
+          histories: false,
+          jobs: false,
+          syncLogs: false,
           syncLogDetails: false,
           gmailAuth: false,
           emailLeads: false,
@@ -14405,11 +14408,29 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             }
             return;
           }
-          if (['backgroundJobs', 'backgroundActivity', 'ops', 'errors', 'sync', 'histories'].includes(name)) {
+          if (['backgroundJobs', 'backgroundActivity'].includes(name)) {
+            await ensureDataLoaded('jobs', () => loadJobData({ render: false }));
+            renderActiveLoadedScreen(name);
+            return;
+          }
+          if (name === 'ops') {
             await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
-            if (name === 'errors') {
-              await ensureDataLoaded('syncLogDetails', loadSyncLogDetails);
-            }
+            renderActiveLoadedScreen(name);
+            return;
+          }
+          if (name === 'errors') {
+            await ensureDataLoaded('syncLogs', () => loadSyncLogData({ render: false }));
+            await ensureDataLoaded('syncLogDetails', loadSyncLogDetails);
+            renderActiveLoadedScreen(name);
+            return;
+          }
+          if (name === 'sync') {
+            await ensureDataLoaded('syncLogs', () => loadSyncLogData({ render: false }));
+            renderActiveLoadedScreen(name);
+            return;
+          }
+          if (name === 'histories') {
+            await ensureDataLoaded('histories', () => loadHistoryData({ render: false }));
             renderActiveLoadedScreen(name);
             return;
           }
@@ -14428,11 +14449,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               ensureDataLoaded('templates', loadTemplates),
               ensureDataLoaded('emailLeads', loadEmailLeads),
             ]);
-            try {
-              await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
-            } catch (error) {
-              console.warn('Recent send history load skipped:', apiErrorText(error));
-            }
+            const sendingOpsResults = await Promise.allSettled([
+              ensureDataLoaded('histories', () => loadHistoryData({ render: false })),
+              ensureDataLoaded('jobs', () => loadJobData({ render: false })),
+            ]);
+            sendingOpsResults
+              .filter((result) => result.status === 'rejected')
+              .forEach((result) => console.warn('Sending support data load skipped:', apiErrorText(result.reason)));
             try {
               await loadEmailBatchCandidates();
             } catch (error) {
@@ -14475,8 +14498,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           if (name === 'admin') {
             const adminLoadResults = await Promise.allSettled([
               ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true })),
-              ensureDataLoaded('ops', () => loadOpsData({ render: false })),
-              ensureDataLoaded('syncLogDetails', loadSyncLogDetails),
             ]);
             adminLoadResults
               .filter((result) => result.status === 'rejected')
@@ -14538,7 +14559,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             return;
           }
           if (group === 'testHistory') {
-            await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
+            await ensureDataLoaded('histories', () => loadHistoryData({ render: false }));
             renderGmailTestSendHistoryPanel();
             return;
           }
@@ -14548,7 +14569,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             return;
           }
           if (group === 'sendLock') {
-            await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
+            await ensureDataLoaded('jobs', () => loadJobData({ render: false }));
             renderMailSendLockPanel();
           }
         } catch (error) {
@@ -14583,7 +14604,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           }
           if (group === 'logs') {
             await Promise.allSettled([
-              ensureDataLoaded('ops', () => loadOpsData({ render: false })),
+              ensureDataLoaded('syncLogs', () => loadSyncLogData({ render: false })),
+              ensureDataLoaded('syncLogDetails', loadSyncLogDetails),
               ensureDataLoaded('storageHealth', () => loadStorageHealth({ quiet: true })),
             ]);
             renderAdminErrorDetailsPanel();
@@ -14893,10 +14915,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function toggleTaskCenter() {
         state.taskCenterOpen = !state.taskCenterOpen;
         renderTaskCenter();
-        if (!state.taskCenterOpen || state.dataLoaded.ops || state.dataLoading.taskCenter) return;
+        if (!state.taskCenterOpen || state.dataLoaded.jobs || state.dataLoading.taskCenter) return;
         state.dataLoading.taskCenter = true;
         try {
-          await loadOpsData({ render: false, quiet: true });
+          await loadJobData({ render: false, quiet: true });
         } catch (error) {
           console.warn('Task center load skipped:', error && error.message ? error.message : error);
         } finally {
@@ -20936,20 +20958,55 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         await reloadCollectionSupportIfOpen();
       }
 
-      async function loadOpsData(options) {
+      function syncOpsLoadedFlag() {
+        state.dataLoaded.ops = Boolean(state.dataLoaded.histories && state.dataLoaded.jobs && state.dataLoaded.syncLogs);
+        return state.dataLoaded.ops;
+      }
+
+      function finishOpsSectionLoad(config) {
+        syncOpsLoadedFlag();
+        renderTaskCenter();
+        if (!config || config.render !== false) renderActiveLoadedScreen();
+      }
+
+      async function loadHistoryData(options) {
+        const config = options || {};
+        const request = config.quiet ? apiQuiet : api;
+        const histories = await request('listSheetRecords', 'send_histories', {
+          limit: 100,
+          includeInactive: true,
+          fields: ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'company_name', 'facility_name', 'genre', 'template_id', 'template_name', 'subject', 'send_result', 'error_message', 'gmail_message_id', 'gmail_thread_id', 'sender_name', 'created_at', 'updated_at'],
+        });
+        state.histories = (histories.items || []).map((history) => Object.prototype.hasOwnProperty.call(state.historyBodies, history.id)
+          ? Object.assign({}, history, { body: state.historyBodies[history.id] })
+          : history);
+        state.historyTotal = Number(histories.total || 0);
+        state.dataLoaded.histories = true;
+        finishOpsSectionLoad(config);
+        return histories;
+      }
+
+      async function loadSyncLogData(options) {
+        const config = options || {};
+        const request = config.quiet ? apiQuiet : api;
+        const syncLogs = await request('listSheetRecords', 'sync_logs', {
+          limit: 100,
+          includeInactive: true,
+          fields: ['id', 'event_type', 'operation', 'source', 'status', 'level', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'message', 'created_at'],
+        });
+        state.syncLogs = (syncLogs.items || []).map((log) => Object.prototype.hasOwnProperty.call(state.syncLogDetails, log.id)
+          ? Object.assign({}, log, state.syncLogDetails[log.id])
+          : log);
+        state.syncLogTotal = Number(syncLogs.total || 0);
+        state.dataLoaded.syncLogs = true;
+        finishOpsSectionLoad(config);
+        return syncLogs;
+      }
+
+      async function loadJobData(options) {
         const config = options || {};
         const request = config.quiet ? apiQuiet : api;
         const settled = await Promise.allSettled([
-          request('listSheetRecords', 'send_histories', {
-            limit: 100,
-            includeInactive: true,
-            fields: ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'company_name', 'facility_name', 'genre', 'template_id', 'template_name', 'subject', 'send_result', 'error_message', 'gmail_message_id', 'gmail_thread_id', 'sender_name', 'created_at', 'updated_at'],
-          }),
-          request('listSheetRecords', 'sync_logs', {
-            limit: 100,
-            includeInactive: true,
-            fields: ['id', 'event_type', 'operation', 'source', 'status', 'level', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'message', 'created_at'],
-          }),
           request('listSheetRecords', 'jobs', {
             limit: 100,
             includeInactive: true,
@@ -20962,24 +21019,30 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           }),
         ]);
         const failures = [];
-        const histories = settledPageResult(settled[0], '送信履歴', state.histories, state.historyTotal, failures);
-        const syncLogs = settledPageResult(settled[1], '同期ログ', state.syncLogs, state.syncLogTotal, failures);
         const currentJobs = (state.jobs || []).filter((job) => String(job.__sourceSheet || '') !== 'search_jobs');
         const currentSearchJobs = (state.jobs || []).filter((job) => String(job.__sourceSheet || '') === 'search_jobs');
-        const jobs = settledPageResult(settled[2], 'バックグラウンドジョブ', currentJobs, Math.max(0, state.jobTotal - state.searchJobTotal), failures);
-        const searchJobs = settledPageResult(settled[3], '検索ジョブ', currentSearchJobs, state.searchJobTotal, failures);
-        state.histories = histories.items.map((history) => Object.prototype.hasOwnProperty.call(state.historyBodies, history.id)
-          ? Object.assign({}, history, { body: state.historyBodies[history.id] })
-          : history);
-        state.historyTotal = histories.total;
-        state.syncLogs = syncLogs.items.map((log) => Object.prototype.hasOwnProperty.call(state.syncLogDetails, log.id)
-          ? Object.assign({}, log, state.syncLogDetails[log.id])
-          : log);
-        state.syncLogTotal = syncLogs.total;
+        const jobs = settledPageResult(settled[0], 'バックグラウンドジョブ', currentJobs, Math.max(0, state.jobTotal - state.searchJobTotal), failures);
+        const searchJobs = settledPageResult(settled[1], '検索ジョブ', currentSearchJobs, state.searchJobTotal, failures);
         state.jobs = jobs.items.map((job) => Object.assign({ __sourceSheet: 'jobs' }, job))
           .concat(searchJobs.items.map((job) => Object.assign({ __sourceSheet: 'search_jobs' }, job)));
         state.searchJobTotal = searchJobs.total;
         state.jobTotal = jobs.total + searchJobs.total;
+        state.dataLoaded.jobs = failures.length === 0;
+        finishOpsSectionLoad(config);
+        if (failures.length) throw new Error(`ジョブデータの一部を更新できませんでした。${failures.join(' / ')}`);
+        return { jobs, searchJobs };
+      }
+
+      async function loadOpsData(options) {
+        const config = options || {};
+        const settled = await Promise.allSettled([
+          loadHistoryData({ render: false, quiet: config.quiet }),
+          loadSyncLogData({ render: false, quiet: config.quiet }),
+          loadJobData({ render: false, quiet: config.quiet }),
+        ]);
+        const failures = settled
+          .filter((result) => result.status === 'rejected')
+          .map((result) => apiErrorText(result.reason));
         state.dataLoaded.ops = failures.length === 0;
         renderTaskCenter();
         if (config.render !== false) renderOpsPanels();
@@ -20988,7 +21051,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function loadHistories() {
-        await loadOpsData();
+        await loadHistoryData();
+      }
+
+      async function loadJobs() {
+        await loadJobData();
       }
 
       async function loadSyncLogDetails() {
@@ -21521,7 +21588,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <h2>バックグラウンド進捗</h2>
               <p class="muted">項目ごとに、現在動いている処理と直近3日間の成果を並べて表示します。</p>
             </div>
-            <button type="button" class="secondary compact" onclick="loadOpsData()">更新</button>
+            <button type="button" class="secondary compact" onclick="loadJobs()">更新</button>
           </div>
           <div class="background-overview-kpis" aria-label="バックグラウンド成果サマリー">
             <div class="background-overview-kpi active"><span>実行中</span><strong>${formatNumber(stats.activeCount)}件</strong><small>自動更新対象</small></div>
@@ -21787,7 +21854,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         } catch (error) {
           message(`ジョブを進められませんでした: ${error.message || error}`, 'error');
         }
-        await loadOpsData({ render: false });
+        await loadJobData({ render: false });
         renderBackgroundJobsScreen();
         if (state.dataLoaded.search) await loadSearchResults();
       }
@@ -25343,7 +25410,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ensureDataLoaded('templates', loadTemplates),
             ensureDataLoaded('emailLeads', loadEmailLeads),
             ensureDataLoaded('formLeads', loadFormLeads),
-            ensureDataLoaded('ops', () => loadOpsData({ render: false })),
+            ensureDataLoaded('jobs', () => loadJobData({ render: false })),
           ]);
           state.adminReadinessResult = buildAdminReadinessData();
           renderAdminReadinessRunnerPanel();

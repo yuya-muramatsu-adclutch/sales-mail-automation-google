@@ -399,3 +399,13 @@ final result: code paths verified; authenticated timing comparison pending
 - Current query, progress, result counters, errors, added-lead samples, and source-page facility progress remain available.
 - Automated coverage verifies both projections and the absence of internal lock fields and unused payload data.
 - Fixed deployment updated to `@256`; no live job execution, external search, or sales-data mutation was run during verification.
+
+## v256 follow-up
+
+- Operations support data is now loaded by screen instead of fetching histories, logs, and both job tables for every operations-related route.
+- Histories use one request; progress and the task center use the two job requests; sync uses one log request; errors add debug details only on demand.
+- The sending screen loads histories and jobs only, while Gmail disclosures load the selected history or lock data only.
+- Admin startup no longer preloads logs or jobs; its logs disclosure loads sync-log summaries, debug details, and storage health together.
+- The combined operations screen retains parallel loading and partial-failure fallback across all three data groups.
+- Automated coverage verifies the three section loaders, route-specific wiring, combined loader, and removal of the previous all-routes bundle.
+- Fixed deployment updated to `@257`; no live job, mail, sync, or sales-data mutation was run during verification.
