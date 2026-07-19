@@ -210,3 +210,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Lock-time revalidation and post-write cache invalidation remain intact, so the optimization does not weaken stale-write protection.
 - Automated coverage verifies zero post-append searches, one total update-row search, no duplicate update-header read, and returned/written row equality.
 - Fixed deployment updated to `@235`; authenticated wall-clock profiling remains a production observation.
+
+## v235 follow-up
+
+- Storage growth is shown only after opening Admin > Logs / Maintenance, so startup and normal list work do not pay for the diagnostic.
+- The diagnostic uses sheet row counts rather than loading records and caches the result for ten minutes.
+- Search results, search usage, sync logs, job history, and raw import staging have visible normal/warn/danger thresholds.
+- Leads, send history, and reply logs are listed separately as protected evidence and cannot be deleted from this panel.
+- No cleanup action was added or run; the UI requires a Drive backup and retention decision before any future temporary-data cleanup.
+- Fixed deployment updated to `@236`; authenticated current row counts remain a production UI observation.

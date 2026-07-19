@@ -109,6 +109,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'advanceLeadCsvImportJob') return advanceLeadCsvImportJob(data.jobId || data.job_id || data.id, data.options || data);
   if (action === 'advanceQueuedJobs') return advanceQueuedJobs(data);
   if (action === 'getBackgroundWorkerHealth') return getBackgroundWorkerHealth();
+  if (action === 'getStorageHealth') return getStorageHealth(data);
   if (action === 'listSourcePageSiteStatuses') return listSourcePageSiteStatuses();
   if (action === 'repairBackgroundJobs') return repairBackgroundJobs(data);
   if (action === 'repairNapCampGenres') return repairNapCampGenres(data);

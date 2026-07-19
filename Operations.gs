@@ -1938,6 +1938,86 @@ function getBackgroundWorkerHealth() {
   };
 }
 
+const STORAGE_HEALTH_MONITORED_SHEETS_ = Object.freeze([
+  { key: 'search_results', label: '検索結果', warnRows: 20000, dangerRows: 50000 },
+  { key: 'search_usage_logs', label: '検索利用履歴', warnRows: 20000, dangerRows: 50000 },
+  { key: 'sync_logs', label: '同期・エラーログ', warnRows: 10000, dangerRows: 30000 },
+  { key: 'search_jobs', label: '検索ジョブ履歴', warnRows: 5000, dangerRows: 15000 },
+  { key: 'jobs', label: '取込ジョブ履歴', warnRows: 5000, dangerRows: 15000 },
+  { key: 'raw_import', label: 'CSV取込一時行', warnRows: 50000, dangerRows: 100000 },
+]);
+
+const STORAGE_HEALTH_PROTECTED_SHEETS_ = Object.freeze([
+  { key: 'leads', label: '営業先', reason: '営業活動の本体データ' },
+  { key: 'send_histories', label: '送信履歴', reason: '再送防止と送信証跡' },
+  { key: 'reply_logs', label: '返信履歴', reason: '返信・商談の証跡' },
+]);
+
+function getStorageHealth(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const cacheKey = 'storage_health_v1';
+  if (input.bypassCache !== true) {
+    try {
+      const cached = CacheService.getScriptCache().get(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        parsed.cached = true;
+        return parsed;
+      }
+    } catch (error) {
+      console.warn('Storage health cache read skipped: ' + String(error.message || error));
+    }
+  }
+
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const rowCount = function (sheetName) {
+    const sheet = spreadsheet.getSheetByName(sheetName);
+    return sheet ? Math.max(Number(sheet.getLastRow() || 0) - 1, 0) : 0;
+  };
+  const monitored = STORAGE_HEALTH_MONITORED_SHEETS_.map(function (definition) {
+    const rows = rowCount(definition.key);
+    const status = rows >= definition.dangerRows ? 'danger' : rows >= definition.warnRows ? 'warn' : 'normal';
+    return {
+      key: definition.key,
+      label: definition.label,
+      rows: rows,
+      warnRows: definition.warnRows,
+      dangerRows: definition.dangerRows,
+      status: status,
+    };
+  });
+  const protectedSheets = STORAGE_HEALTH_PROTECTED_SHEETS_.map(function (definition) {
+    return {
+      key: definition.key,
+      label: definition.label,
+      rows: rowCount(definition.key),
+      reason: definition.reason,
+      protected: true,
+    };
+  });
+  const status = monitored.some(function (item) { return item.status === 'danger'; })
+    ? 'danger'
+    : monitored.some(function (item) { return item.status === 'warn'; }) ? 'warn' : 'normal';
+  const result = {
+    ok: status === 'normal',
+    status: status,
+    monitored: monitored,
+    protectedSheets: protectedSheets,
+    noAutomaticDeletion: true,
+    recommendation: status === 'normal'
+      ? '現在は整理の必要はありません。行数だけを監視し、既存データは削除していません。'
+      : 'バックアップ作成後に、一時データの保持期間を決めて整理してください。送信履歴・返信履歴・営業先は削除対象にしません。',
+    generatedAt: nowIso_(),
+  };
+
+  try {
+    CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 600);
+  } catch (error) {
+    console.warn('Storage health cache write skipped: ' + String(error.message || error));
+  }
+  return result;
+}
+
 function repairBackgroundJobs(options) {
   const input = options && typeof options === 'object' ? options : {};
   const jobId = String(input.jobId || input.job_id || '').trim();

@@ -13081,6 +13081,7 @@ PropertiesService
               <summary><span>ログ / メンテナンス</span><small>エラー、ジョブ処理、バックアップ、設定メモ</small></summary>
               <div class="admin-disclosure-body">
                 <section id="adminErrorDetailsPanel" class="panel stack"></section>
+                <section id="storageHealthPanel" class="panel stack"></section>
                 <section class="panel stack admin-maintenance-panel">
                   <h2>運用アクション</h2>
                   <div class="admin-action-strip">
@@ -13642,6 +13643,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         gmailAuthorizationStatus: null,
         gmailIntegrationCheckResult: null,
         adminReadinessResult: null,
+        storageHealth: null,
         schemaStatus: null,
         analyticsData: null,
         activeCollectionTab: 'overview',
@@ -13690,6 +13692,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           formLeads: false,
           dealLeads: false,
           analytics: false,
+          storageHealth: false,
         },
         dataLoading: {},
         leadLoadMode: 'review',
@@ -14569,8 +14572,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             return;
           }
           if (group === 'logs') {
-            await ensureDataLoaded('ops', () => loadOpsData({ render: false }));
+            await Promise.allSettled([
+              ensureDataLoaded('ops', () => loadOpsData({ render: false })),
+              ensureDataLoaded('storageHealth', () => loadStorageHealth({ quiet: true })),
+            ]);
             renderAdminErrorDetailsPanel();
+            renderStorageHealthPanel();
           }
         } catch (error) {
           console.warn('Admin detail lazy load failed:', error && error.message ? error.message : error);
@@ -21654,6 +21661,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderCustomFieldDefinitionPanel();
         renderDuplicateLeadManagerPanel();
         renderAdminErrorDetailsPanel();
+        renderStorageHealthPanel();
         renderErrorDetailsScreen();
       }
 
@@ -24741,6 +24749,73 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             ['内容', escapeHtml(log.operation || log.event_type || '-')],
             ['詳細', escapeHtml(log.message || log.stack || log.context_json || '-')],
           ])).join(''))}</table></div>
+        `;
+      }
+
+      async function loadStorageHealth(options) {
+        const config = options || {};
+        const request = config.quiet ? apiQuiet : api;
+        state.storageHealth = await request('getStorageHealth', { bypassCache: config.force === true });
+        state.dataLoaded.storageHealth = true;
+        renderStorageHealthPanel();
+        return state.storageHealth;
+      }
+
+      async function refreshStorageHealth() {
+        try {
+          await loadStorageHealth({ force: true });
+          message('保存容量の状態を更新しました', 'ok');
+        } catch (error) {
+          message(error.message || String(error), 'error');
+        }
+      }
+
+      function renderStorageHealthPanel() {
+        const target = document.getElementById('storageHealthPanel');
+        if (!target) return;
+        const health = state.storageHealth;
+        if (!health) {
+          target.innerHTML = '<p class="muted">保存容量を確認しています...</p>';
+          return;
+        }
+        const status = String(health.status || 'normal');
+        const tone = status === 'danger' ? 'bad' : status === 'warn' ? 'warn' : 'good';
+        const statusLabel = status === 'danger' ? '要整理' : status === 'warn' ? '注意' : '正常';
+        const monitored = Array.isArray(health.monitored) ? health.monitored : [];
+        const protectedSheets = Array.isArray(health.protectedSheets) ? health.protectedSheets : [];
+        target.innerHTML = `
+          <div class="section-title-row">
+            <div>
+              <h2>保存容量の状態</h2>
+              <p class="muted">検索・ジョブ・一時ログの行数だけを確認します。通常画面の起動時には読み込みません。</p>
+            </div>
+            <div class="toolbar">
+              <span class="pill ${tone}">${statusLabel}</span>
+              <button type="button" onclick="refreshStorageHealth()">再確認</button>
+            </div>
+          </div>
+          <div class="gas-limit-list">
+            ${monitored.map((item) => `
+              <div>
+                <span>${escapeHtml(item.label || item.key || '-')}</span>
+                <strong>${formatNumber(item.rows || 0)}行</strong>
+                <small>${item.status === 'danger' ? '整理を検討' : item.status === 'warn' ? '増加を監視' : `注意目安 ${formatNumber(item.warnRows || 0)}行`}</small>
+              </div>
+            `).join('')}
+          </div>
+          <div class="message ${tone === 'good' ? 'ok' : 'error'}">${escapeHtml(health.recommendation || '')}</div>
+          <details class="admin-inner-disclosure">
+            <summary><span>自動削除しない保護データ</span><small>営業証跡を保持</small></summary>
+            <div class="admin-detail-body">
+              <div class="gas-limit-list">
+                ${protectedSheets.map((item) => `
+                  <div><span>${escapeHtml(item.label || item.key || '-')}</span><strong>${formatNumber(item.rows || 0)}行</strong><small>${escapeHtml(item.reason || '保護対象')}</small></div>
+                `).join('')}
+              </div>
+              <p class="gas-usage-note">この画面からデータ削除は実行しません。整理が必要になった場合も、先にDriveバックアップを作成し、保持期間を決めてから一時データだけを対象にします。</p>
+            </div>
+          </details>
+          <p class="muted">確認日時: ${escapeHtml(dateTimeLabel(health.generatedAt) || '-')} ${health.cached ? '（キャッシュ）' : ''}</p>
         `;
       }
 

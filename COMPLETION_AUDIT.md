@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @235 / production code v234: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @236 / production code v235: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v234_write_without_reread`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v235_storage_health`
+
+## v235 保存容量の安全な可視化
+
+- 管理画面の「ログ / メンテナンス」を開いた時だけ、検索結果、検索利用履歴、同期ログ、検索／取込ジョブ、CSV取込一時行の行数を取得する。
+- 通常起動時には保存容量を読まず、10分キャッシュを使うことで管理画面の連続表示によるSpreadsheetアクセスを抑える。
+- シート全件を読み込まず `getLastRow()` だけで判定し、注意・要整理の目安を画面へ表示する。
+- 営業先、送信履歴、返信履歴は自動削除しない保護対象として表示し、再送防止・返信・商談の証跡を維持する。
+- この機能から既存データの削除は行わない。整理が必要な場合も、Driveバックアップと保持期間の合意を先に求める。
+- 閾値判定、キャッシュ時のSpreadsheet再読込なし、保護対象3シート、遅延読込UIを回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 236を固定Web app URLへ再デプロイ済み。
 
 ## v234 書込後の不要なSpreadsheet再読込削減
 

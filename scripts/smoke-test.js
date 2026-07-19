@@ -2254,7 +2254,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v234_write_without_reread'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v235_storage_health'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2312,6 +2312,41 @@ assert(!mastersSource.includes("listSheetRecords('email_templates', { limit: 100
 assert(emailSource.includes("const templates = readAllActiveSheetRecords_('email_templates')"));
 assert(codeSource.includes("'FORM_SEND_NOT_RECORDED'"));
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
+const storageHealthContext = vm.createContext({ console });
+['Code.gs', 'Operations.gs'].forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), storageHealthContext, { filename: file });
+});
+const storageRows = {
+  search_results: 20001,
+  search_usage_logs: 120,
+  sync_logs: 30000,
+  search_jobs: 30,
+  jobs: 20,
+  raw_import: 100,
+  leads: 10000,
+  send_histories: 2500,
+  reply_logs: 300,
+};
+let storageCacheValue = '';
+storageHealthContext.CacheService = {
+  getScriptCache: () => ({
+    get: () => storageCacheValue,
+    put: (_key, value) => { storageCacheValue = value; },
+  }),
+};
+storageHealthContext.getOrCreateSpreadsheet_ = () => ({
+  getSheetByName: (sheetName) => ({ getLastRow: () => Number(storageRows[sheetName] || 0) + 1 }),
+});
+storageHealthContext.nowIso_ = () => '2026-07-19T12:00:00+09:00';
+const storageHealth = JSON.parse(JSON.stringify(storageHealthContext.getStorageHealth({ bypassCache: true })));
+assert.strictEqual(storageHealth.status, 'danger');
+assert.strictEqual(storageHealth.noAutomaticDeletion, true);
+assert.strictEqual(storageHealth.monitored.find((item) => item.key === 'search_results').status, 'warn');
+assert.strictEqual(storageHealth.monitored.find((item) => item.key === 'sync_logs').status, 'danger');
+assert.deepStrictEqual(storageHealth.protectedSheets.map((item) => item.key), ['leads', 'send_histories', 'reply_logs']);
+assert(storageHealth.protectedSheets.every((item) => item.protected === true));
+storageHealthContext.getOrCreateSpreadsheet_ = () => { throw new Error('cached storage health must avoid sheet reads'); };
+assert.strictEqual(storageHealthContext.getStorageHealth({}).cached, true);
 assert(!codeSource.includes('waitMs: 90000'), 'lead updates and legacy search settings must not wait on one script lock for 90 seconds');
 assert(!emailSource.includes('waitMs: 90000'), 'mail preparation and tracking must not wait on one script lock for 90 seconds');
 assert(!emailSource.includes('waitMs: 30000'), 'scheduled mail tracking must use the short retry policy');
@@ -2373,6 +2408,7 @@ assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHist
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
 assert(webAppSource.includes("if (action === 'repairNonAdvertiserReviewLeads')"));
+assert(webAppSource.includes("if (action === 'getStorageHealth') return getStorageHealth(data);"));
 const initialDataStart = webAppSource.indexOf('function getInitialData()');
 const initialDataEnd = webAppSource.indexOf('\nfunction ', initialDataStart + 10);
 const initialDataBody = webAppSource.slice(initialDataStart, initialDataEnd);
@@ -2430,6 +2466,9 @@ assert(indexSource.includes('id="leadHeaderTotal"'));
 assert(indexSource.includes('class="lead-stage-filter lead-menu-stage-filter"'));
 assert(indexSource.includes('class="lead-load-disclosure lead-utility-disclosure"'));
 assert(indexSource.includes('id="leadListViewSettingsPanel" class="lead-view-settings-slot"'));
+assert(indexSource.includes('id="storageHealthPanel" class="panel stack"'));
+assert(indexSource.includes("ensureDataLoaded('storageHealth', () => loadStorageHealth({ quiet: true }))"));
+assert(indexSource.includes('function renderStorageHealthPanel()'));
 assert(indexSource.includes("{ key: 'facility', label: '施設名', visible: true"));
 assert(indexSource.includes('if (panel) panel.hidden = false;'));
 const facilityCellSource = indexSource.slice(
@@ -2571,4 +2610,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v234 write without reread regression tests passed.');
+console.log('v235 storage health regression tests passed.');
