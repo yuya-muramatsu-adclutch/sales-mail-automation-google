@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @250 / production code v249: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @251 / production code v250: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v249_dashboard_cache_exact_lookup`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v250_serper_usage_projection`
+
+## v250 Serper使用量集計の一回・必要列取得
+
+- Serper管理情報の表示で、今日と今月の使用量を計算するたびに `search_usage_logs` 全列を2回読む処理を廃止した。
+- 管理情報では作成日時・credits・request_countの3列を1回だけ読み、同じ配列から日次・月次を集計する。
+- 他の呼出元が単独で使用量を集計する場合も、作成日時・営業先ID・credits・request_countの4列だけを取得する。
+- 日付・月・営業先IDの絞り込み、credits優先・request_countフォールバック・1件フォールバックの集計条件は変更しない。
+- 1,002件の履歴で集計値を維持すること、フォールバック読取の列と回数、管理情報が同じ配列を日次・月次へ渡すことを回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 251を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@251` であることを確認した。Serper APIの実検索や使用量ログ追加は検証中に実行していない。
 
 ## v249 ダッシュボードキャッシュの完全一致取得
 

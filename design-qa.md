@@ -347,3 +347,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Newest-v5 priority, expiry handling, legacy-v4 update fallback, the ten-second write lock, and the two-level CacheService/sheet strategy are preserved.
 - Automated coverage restores the newest of multiple v5 rows and verifies the exact read/write lookup arguments and updated row ID.
 - Fixed deployment updated to `@250`; no live cache rebuild or sales-data mutation was run during verification.
+
+## v250 follow-up
+
+- Serper manager data no longer reads every search-usage column twice for daily and monthly totals.
+- The manager reads created time, credits, and request count once, then reuses that array for both aggregates.
+- Standalone usage-count fallback reads four required fields, including lead ID for its optional lead filter.
+- Daily, monthly, and lead filters plus the credits/request-count/default-one precedence are preserved.
+- Automated coverage validates a 1,002-row aggregate, projected fallback fields, one fallback read, and shared manager input.
+- Fixed deployment updated to `@251`; no live Serper request or usage-log mutation was run during verification.

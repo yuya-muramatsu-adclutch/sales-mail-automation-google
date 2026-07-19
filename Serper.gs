@@ -3336,7 +3336,11 @@ function formatSerperCreditNumber_(value) {
 function getSerperUsageCount_(range, records) {
   const usageRecords = Array.isArray(records)
     ? records
-    : readAllSheetRecordsByName_('search_usage_logs', { includeInactive: true, includeArchived: true });
+    : readSheetRecordFields_(
+      'search_usage_logs',
+      ['created_at', 'lead_id', 'credits', 'request_count'],
+      { maxGapColumns: 0 }
+    );
   return usageRecords.reduce(function (sum, record) {
     const createdAt = String(record.created_at || '').trim();
     if (range.day && createdAt.slice(0, 10) !== range.day) return sum;
@@ -3425,8 +3429,13 @@ function buildSerperApiKeyManagerInfo_(message) {
   const configured = Boolean(selected && selected.key) || Boolean(legacyKey);
   const today = todayText_();
   const month = monthText_();
-  const todayUsed = getSerperUsageCount_({ day: today });
-  const monthUsed = getSerperUsageCount_({ month: month });
+  const usageRecords = readSheetRecordFields_(
+    'search_usage_logs',
+    ['created_at', 'credits', 'request_count'],
+    { maxGapColumns: 0 }
+  );
+  const todayUsed = getSerperUsageCount_({ day: today }, usageRecords);
+  const monthUsed = getSerperUsageCount_({ month: month }, usageRecords);
   const creditStatus = buildSerperCreditStatusFromRecord_(selected);
   const actualRemaining = creditStatus.remainingLabel;
   const searxng = getSearxngConfigInfo_();

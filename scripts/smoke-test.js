@@ -699,6 +699,16 @@ assert.strictEqual(pagedActiveRecords.items.length, 1000);
 assert.strictEqual(context.readAllSheetRecordsByName_('ng_masters', { includeInactive: true }).length, 1002);
 const usageFixture = Array.from({ length: 1002 }, () => ({ created_at: '2026-07-15T00:00:00.000Z', credits: 1 }));
 assert.strictEqual(context.getSerperUsageCount_({ day: '2026-07-15' }, usageFixture), 1002);
+let serperUsageProjectionReads = 0;
+context.readSheetRecordFields_ = (sheetName, fields, options) => {
+  serperUsageProjectionReads += 1;
+  assert.strictEqual(sheetName, 'search_usage_logs');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(fields)), ['created_at', 'lead_id', 'credits', 'request_count']);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(options)), { maxGapColumns: 0 });
+  return usageFixture;
+};
+assert.strictEqual(context.getSerperUsageCount_({ month: '2026-07' }), 1002);
+assert.strictEqual(serperUsageProjectionReads, 1);
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(context.normalizeSettingForSave_('gmail_sender_name', ' 【Ad Clutch】村松 侑哉 ', 'string'))),
   { key: 'gmail_sender_name', value: '【Ad Clutch】村松 侑哉', valueType: 'string' }
@@ -2824,7 +2834,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v249_dashboard_cache_exact_lookup'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v250_serper_usage_projection'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2975,7 +2985,19 @@ assert(serperSource.slice(readDomainCacheStart, readDomainCacheEnd).includes("fi
 const writeDomainCacheStart = serperSource.indexOf('function writeDomainCache_(cacheKey, lead, selected, jobType)');
 const writeDomainCacheEnd = serperSource.indexOf('\nfunction ', writeDomainCacheStart + 10);
 assert(serperSource.slice(writeDomainCacheStart, writeDomainCacheEnd).includes("['id', 'cache_key', 'created_at', 'updated_at']"));
-assert(serperSource.includes("readAllSheetRecordsByName_('search_usage_logs'"));
+assert(!serperSource.includes("readAllSheetRecordsByName_('search_usage_logs'"));
+const serperUsageCountStart = serperSource.indexOf('function getSerperUsageCount_(range, records)');
+const serperUsageCountEnd = serperSource.indexOf('\nfunction ', serperUsageCountStart + 10);
+const serperUsageCountBody = serperSource.slice(serperUsageCountStart, serperUsageCountEnd);
+assert(serperUsageCountBody.includes("readSheetRecordFields_(\n      'search_usage_logs'"));
+const serperManagerStart = serperSource.indexOf('function buildSerperApiKeyManagerInfo_(message)');
+const serperManagerEnd = serperSource.indexOf('\nfunction ', serperManagerStart + 10);
+const serperManagerBody = serperSource.slice(serperManagerStart, serperManagerEnd);
+assert(serperManagerBody.includes("const usageRecords = readSheetRecordFields_(\n    'search_usage_logs'"));
+assert(serperManagerBody.includes("['created_at', 'credits', 'request_count']"));
+assert(serperManagerBody.includes('getSerperUsageCount_({ day: today }, usageRecords)'));
+assert(serperManagerBody.includes('getSerperUsageCount_({ month: month }, usageRecords)'));
+assert(!serperManagerBody.includes('getSerperUsageCount_({ day: today });'));
 assert(serperSource.includes("withScriptLock_('writeDomainCache'"));
 assert(serperSource.includes('function buildSearchJobRequestKey_'));
 assert(serperSource.includes('function isRetryableSearchJobError_'));
@@ -3311,4 +3333,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v249 dashboard cache exact lookup regression tests passed.');
+console.log('v250 Serper usage projection regression tests passed.');
