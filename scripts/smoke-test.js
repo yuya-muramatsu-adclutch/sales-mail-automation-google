@@ -1612,7 +1612,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v213_grouped_navigation_restored_lead_table'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v214_compact_lead_menu_clean_facility_cell'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1700,7 +1700,18 @@ assert(!indexSource.includes('function renderLeadWorkspaceDetail'));
 assert(indexSource.includes('id="leadBreakdownSummary"'));
 assert(indexSource.includes('id="leadBreakdownDetails"'));
 assert(indexSource.includes('id="leadBreakdownDetailGrid"'));
-assert(indexSource.includes('class="lead-stage-filter"'));
+assert(indexSource.includes('id="leadHeaderTotal"'));
+assert(indexSource.includes('class="lead-stage-filter lead-menu-stage-filter"'));
+assert(indexSource.includes('class="lead-load-disclosure lead-utility-disclosure"'));
+assert(indexSource.includes('id="leadListViewSettingsPanel" class="lead-view-settings-slot"'));
+assert(indexSource.includes("{ key: 'facility', label: '施設名', visible: true"));
+assert(indexSource.includes('if (panel) panel.hidden = false;'));
+const facilityCellSource = indexSource.slice(
+  indexSource.indexOf('function renderFacilityCell'),
+  indexSource.indexOf('function contactChannelCell')
+);
+assert(facilityCellSource.includes('normalizeName(lead.company_name) !== normalizeName(name)'));
+assert(!facilityCellSource.includes('lead.address'));
 assert(indexSource.includes("onclick=\"setLeadFilter('${escapeJsString(item.filter)}')\""));
 assert(indexSource.includes('<option value="group_no_contact">連絡先なし</option>'));
 assert(indexSource.includes('<option value="group_send_ng">送信NG</option>'));
@@ -1831,4 +1842,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v213 grouped navigation and restored lead table regression tests passed.');
+console.log('v214 compact lead menu and clean facility cell regression tests passed.');

@@ -11557,6 +11557,384 @@
           border-left: 1px solid rgba(148, 163, 184, 0.2);
         }
       }
+
+      /* v214-lead-list-menu: selected compact three-level menu and cleaner facility cells. */
+      #leads .lead-list-page-header {
+        align-items: center;
+        margin-bottom: 0;
+      }
+
+      #leads .lead-list-page-title {
+        display: grid;
+        gap: 2px;
+      }
+
+      #leads .lead-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      #leads .lead-header-total {
+        color: #475569;
+        font-size: 18px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+
+      #leads .lead-title-refresh {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        min-height: 32px;
+        padding: 0;
+        border-color: #d9e2ec;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #475569;
+        box-shadow: none;
+      }
+
+      #leads .lead-title-refresh:hover {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: #1d4ed8;
+        transform: none;
+      }
+
+      #leads .lead-title-refresh .button-icon,
+      #leads .lead-title-refresh svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      #leads .lead-simple-filter-panel {
+        grid-template-columns: minmax(320px, 1fr) minmax(180px, 240px) auto;
+        gap: 10px;
+        margin: 0;
+        padding: 12px;
+        border: 1px solid #dbe3ec;
+        border-radius: 9px;
+        background: #ffffff;
+        box-shadow: none;
+      }
+
+      #leads .lead-simple-filter-panel > label {
+        gap: 5px;
+        color: #475569;
+        font-size: 11px;
+      }
+
+      #leads .lead-simple-filter-panel input,
+      #leads .lead-simple-filter-panel select,
+      #leads .lead-list-limit-control select {
+        min-height: 40px;
+      }
+
+      #leads .lead-simple-filter-panel .list-filter-actions {
+        align-items: end;
+        flex-wrap: nowrap;
+      }
+
+      #leads .lead-simple-filter-panel .list-filter-actions .button {
+        min-height: 40px;
+      }
+
+      #leads .lead-simple-filter-panel > .list-filter-panel-icon {
+        display: none;
+      }
+
+      #leads .lead-saved-views:empty,
+      #leads .lead-breakdown-summary:empty {
+        display: none;
+      }
+
+      #leads .lead-list-panel {
+        overflow: visible;
+        border-color: #dbe3ec;
+        box-shadow: none;
+      }
+
+      #leads .lead-list-panel > .panel-head {
+        min-height: 54px;
+        padding: 13px 16px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      #leads .lead-list-panel > .panel-head h2 {
+        font-size: 16px;
+      }
+
+      #leads .lead-list-menu {
+        gap: 10px;
+        padding: 12px 14px 14px;
+        overflow: visible;
+      }
+
+      #leads .lead-menu-stage-filter {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(118px, 1fr));
+        gap: 5px;
+        padding: 5px;
+        overflow-x: auto;
+        border-radius: 8px;
+        background: #f8fafc;
+        scrollbar-width: thin;
+      }
+
+      #leads .lead-menu-stage-filter .lead-stage-filter-button {
+        flex: none;
+        min-width: 118px;
+        min-height: 40px;
+        padding: 7px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+
+      #leads .lead-menu-stage-filter .lead-stage-filter-button strong {
+        font-size: 13px;
+      }
+
+      #leads .lead-list-utility-row {
+        position: relative;
+        z-index: 8;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 50px;
+        padding: 7px 9px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      #leads .lead-list-utility-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      #leads .lead-utility-disclosure,
+      #leads .lead-view-settings-slot,
+      #leads .list-view-settings-panel {
+        position: relative;
+        margin: 0;
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      #leads .lead-utility-disclosure > summary,
+      #leads .list-view-settings-panel > summary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 7px;
+        min-height: 34px;
+        padding: 6px 10px;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 900;
+        line-height: 1;
+        cursor: pointer;
+        list-style: none;
+      }
+
+      #leads .lead-utility-disclosure > summary::-webkit-details-marker,
+      #leads .list-view-settings-panel > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      #leads .lead-utility-disclosure > summary:hover,
+      #leads .list-view-settings-panel > summary:hover,
+      #leads .lead-utility-disclosure[open] > summary,
+      #leads .list-view-settings-panel[open] > summary {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      #leads .lead-advanced-filter-disclosure {
+        grid-column: auto;
+        padding-top: 0;
+        border-top: 0;
+      }
+
+      #leads .lead-advanced-filter-disclosure > summary::after,
+      #leads .list-view-settings-panel > summary::after {
+        display: none;
+      }
+
+      #leads .lead-utility-disclosure .button-icon,
+      #leads .list-view-settings-icon,
+      #leads .list-view-settings-icon svg {
+        display: inline-flex;
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+      }
+
+      #leads .list-view-settings-summary-copy {
+        display: inline-flex;
+        gap: 0;
+      }
+
+      #leads .list-view-settings-summary-copy small {
+        display: none;
+      }
+
+      #leads .lead-advanced-filter-fields,
+      #leads .lead-load-panel,
+      #leads .list-view-settings-form {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        z-index: 30;
+        width: min(840px, calc(100vw - var(--sidebar-width) - 72px));
+        margin: 0;
+        padding: 14px;
+        border: 1px solid #cbd5e1;
+        border-radius: 9px;
+        background: #ffffff;
+        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
+      }
+
+      #leads .lead-advanced-filter-fields {
+        grid-template-columns: repeat(3, minmax(160px, 1fr)) auto;
+      }
+
+      #leads .lead-breakdown-details {
+        grid-column: 1 / -1;
+      }
+
+      #leads .lead-load-panel {
+        display: flex;
+        width: min(720px, calc(100vw - var(--sidebar-width) - 72px));
+      }
+
+      #leads .lead-load-panel[hidden] {
+        display: none;
+      }
+
+      #leads .list-view-settings-form {
+        width: min(760px, calc(100vw - var(--sidebar-width) - 72px));
+      }
+
+      #leads .lead-list-limit-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 0 0 auto;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      #leads .lead-list-limit-control select {
+        min-width: 92px;
+        min-height: 34px;
+        padding: 6px 28px 6px 9px;
+        font-size: 12px;
+      }
+
+      #leads .lead-breakdown-summary {
+        min-height: 44px;
+        padding: 8px 10px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #f8fbff;
+      }
+
+      #leads .lead-breakdown-summary-copy {
+        gap: 2px;
+      }
+
+      #leads .lead-breakdown-summary-copy > strong {
+        color: #1e3a5f;
+        font-size: 13px;
+      }
+
+      #leads .facility-cell {
+        gap: 4px;
+      }
+
+      #leads .facility-title-line {
+        align-items: center;
+      }
+
+      @media (max-width: 900px) {
+        #leads .lead-simple-filter-panel {
+          grid-template-columns: minmax(0, 1fr) minmax(150px, 210px) auto;
+        }
+
+        #leads .lead-list-utility-row {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        #leads .lead-list-utility-actions {
+          flex-wrap: wrap;
+        }
+
+        #leads .lead-list-limit-control {
+          justify-content: flex-end;
+        }
+
+        #leads .lead-advanced-filter-fields,
+        #leads .lead-load-panel,
+        #leads .list-view-settings-form {
+          position: static;
+          width: 100%;
+          margin-top: 8px;
+          box-shadow: none;
+        }
+
+        #leads .lead-utility-disclosure,
+        #leads .lead-view-settings-slot,
+        #leads .list-view-settings-panel {
+          flex: 1 1 100%;
+          width: 100%;
+        }
+
+        #leads .lead-utility-disclosure > summary,
+        #leads .list-view-settings-panel > summary {
+          width: 100%;
+        }
+      }
+
+      @media (max-width: 620px) {
+        #leads .lead-list-page-header {
+          align-items: stretch;
+        }
+
+        #leads .lead-list-page-header > .toolbar {
+          width: 100%;
+        }
+
+        #leads .lead-simple-filter-panel {
+          grid-template-columns: 1fr;
+        }
+
+        #leads .lead-simple-filter-panel .list-filter-actions {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+
+        #leads .lead-advanced-filter-fields {
+          grid-template-columns: 1fr;
+        }
+
+        #leads .lead-breakdown-details {
+          grid-column: auto;
+        }
+      }
     </style>
   </head>
   <body>
@@ -11787,10 +12165,14 @@
         </section>
 
         <section id="leads" class="section">
-          <header class="section-header">
-            <div>
+          <header class="section-header lead-list-page-header">
+            <div class="lead-list-page-title">
               <p class="eyebrow">Sales list</p>
-              <h1>営業リスト</h1>
+              <div class="lead-title-row">
+                <h1>営業リスト</h1>
+                <span id="leadHeaderTotal" class="lead-header-total">0件</span>
+                <button type="button" class="lead-title-refresh" onclick="loadLeads(0)" aria-label="営業リストを更新" title="営業リストを更新"><span class="button-icon" data-ui-icon="refreshCw"></span></button>
+              </div>
             </div>
             <div class="toolbar">
               <button type="button" onclick="exportVisibleLeadsCsv()">CSV出力</button>
@@ -11805,93 +12187,105 @@
               <button type="button" class="button primary" onclick="filterLeads()"><span class="button-icon" data-ui-icon="search"></span>検索</button>
               <button type="button" class="button secondary" onclick="clearLeadFilters()"><span class="button-icon" data-ui-icon="reset"></span>クリア</button>
             </div>
-            <details class="lead-advanced-filter-disclosure">
-              <summary>詳細条件</summary>
-              <div class="lead-advanced-filter-fields">
-                <label>詳しい絞り込み<select id="leadQuickFilter">
-                  <option value="all">すべて</option>
-                  <optgroup label="かんたん絞り込み">
-                    <option value="group_ready">送信準備</option>
-                    <option value="group_review">確認待ち</option>
-                    <option value="group_active">対応中</option>
-                    <option value="group_no_contact">連絡先なし</option>
-                    <option value="group_send_ng">送信NG</option>
-                    <option value="group_closed">完了</option>
-                  </optgroup>
-                  <optgroup label="連絡先・作業">
-                    <option value="has_email">連絡先メールあり</option>
-                    <option value="email">メール対象</option>
-                    <option value="form">フォーム対象</option>
-                    <option value="review">確認待ち</option>
-                    <option value="unsent">未送信だけ</option>
-                    <option value="sent">送信済み</option>
-                    <option value="reply">返信あり</option>
-                    <option value="deal">商談あり</option>
-                    <option value="no_contact">連絡先なし（送信NGを除く）</option>
-                    <option value="send_ng">送信NGだけ</option>
-                    <option value="won">成約だけ</option>
-                    <option value="lost">失注だけ</option>
-                  </optgroup>
-                  <optgroup label="詳しい状態">
-                    <option value="state_email_sendable">メール送信可能</option>
-                    <option value="state_form_sendable">フォーム対応可能</option>
-                    <option value="state_review">確認待ち</option>
-                    <option value="state_no_contact">連絡先なし</option>
-                    <option value="state_sent">メール送信済み</option>
-                    <option value="state_reply">返信あり</option>
-                    <option value="state_deal">商談中</option>
-                    <option value="state_won">成約</option>
-                    <option value="state_lost">失注</option>
-                    <option value="state_send_ng">送信NG</option>
-                    <option value="state_no_action">対応不要</option>
-                    <option value="state_form_in_progress">フォーム対応中</option>
-                    <option value="state_form_completed">フォーム対応済み</option>
-                    <option value="state_other">その他・要確認</option>
-                  </optgroup>
-                </select></label>
-                <label>ステータス<select id="leadStatus"></select></label>
-                <label>並び替え<select id="leadSort">
-                  <option value="updated_desc">更新が新しい順</option>
-                  <option value="created_desc">作成が新しい順</option>
-                  <option value="company_asc">会社名順</option>
-                  <option value="status_asc">ステータス順</option>
-                  <option value="last_sent_desc">最終送信が新しい順</option>
-                </select></label>
-                <button type="button" class="button secondary compact-button" onclick="saveCurrentLeadView()">現在の条件を保存</button>
-              </div>
-            </details>
             <span class="list-filter-panel-icon" data-ui-icon="sliders" aria-hidden="true"></span>
           </div>
           <div class="lead-quick-views" id="leadQuickViews" hidden></div>
           <section id="leadSavedViews" class="lead-saved-views"></section>
-          <section class="lead-load-panel" id="leadLoadPanel" aria-live="polite">
-            <div class="lead-load-copy">
-              <span class="lead-load-kicker">軽量ロード</span>
-              <strong id="leadLoadModeLabel">確認待ちリスト</strong>
-              <small id="leadLoadModeDetail">初動では確認待ちだけ読み込みます。全件は必要な時に読み込めます。</small>
-            </div>
-            <div class="lead-load-actions">
-              <button type="button" class="button secondary compact-button" onclick="loadReviewLeadsOnly()">確認待ちだけ</button>
-              <button id="leadLoadAllButton" type="button" class="button primary compact-button" onclick="loadAllLeadsManually()">
-                <span class="button-icon" data-ui-icon="database"></span><span id="leadLoadAllButtonText">営業リスト全件を読み込む</span>
-              </button>
-            </div>
-            <div id="leadLoadProgress" class="lead-load-progress" hidden>
-              <div class="lead-load-progress-row">
-                <strong id="leadLoadProgressLabel">読み込み中</strong>
-                <span id="leadLoadProgressPercent">0%</span>
-              </div>
-              <div class="lead-load-progress-bar" aria-hidden="true"><span id="leadLoadProgressBar"></span></div>
-              <small id="leadLoadProgressDetail">Google Sheetsから取得しています。</small>
-            </div>
-          </section>
-          <section id="leadListViewSettingsPanel"></section>
           <section id="leadReviewGuide" class="prospecting-review-guide" hidden></section>
-          <section class="panel">
+          <section class="panel lead-list-panel">
             <div class="panel-head">
               <h2>リード一覧</h2>
-              <div class="toolbar">
-                <label>表示件数<select id="leadLimit">
+            </div>
+            <div class="panel-body leads-bulk-table lead-list-menu">
+              <div id="leadKpiGrid" class="lead-stage-filter lead-menu-stage-filter" role="group" aria-label="営業リストの状態"></div>
+              <div class="lead-list-utility-row">
+                <div class="lead-list-utility-actions">
+                  <details class="lead-advanced-filter-disclosure lead-utility-disclosure">
+                    <summary><span class="button-icon" data-ui-icon="sliders"></span>詳細条件</summary>
+                    <div class="lead-advanced-filter-fields">
+                      <label>詳しい絞り込み<select id="leadQuickFilter">
+                        <option value="all">すべて</option>
+                        <optgroup label="かんたん絞り込み">
+                          <option value="group_ready">送信準備</option>
+                          <option value="group_review">確認待ち</option>
+                          <option value="group_active">対応中</option>
+                          <option value="group_no_contact">連絡先なし</option>
+                          <option value="group_send_ng">送信NG</option>
+                          <option value="group_closed">完了</option>
+                        </optgroup>
+                        <optgroup label="連絡先・作業">
+                          <option value="has_email">連絡先メールあり</option>
+                          <option value="email">メール対象</option>
+                          <option value="form">フォーム対象</option>
+                          <option value="review">確認待ち</option>
+                          <option value="unsent">未送信だけ</option>
+                          <option value="sent">送信済み</option>
+                          <option value="reply">返信あり</option>
+                          <option value="deal">商談あり</option>
+                          <option value="no_contact">連絡先なし（送信NGを除く）</option>
+                          <option value="send_ng">送信NGだけ</option>
+                          <option value="won">成約だけ</option>
+                          <option value="lost">失注だけ</option>
+                        </optgroup>
+                        <optgroup label="詳しい状態">
+                          <option value="state_email_sendable">メール送信可能</option>
+                          <option value="state_form_sendable">フォーム対応可能</option>
+                          <option value="state_review">確認待ち</option>
+                          <option value="state_no_contact">連絡先なし</option>
+                          <option value="state_sent">メール送信済み</option>
+                          <option value="state_reply">返信あり</option>
+                          <option value="state_deal">商談中</option>
+                          <option value="state_won">成約</option>
+                          <option value="state_lost">失注</option>
+                          <option value="state_send_ng">送信NG</option>
+                          <option value="state_no_action">対応不要</option>
+                          <option value="state_form_in_progress">フォーム対応中</option>
+                          <option value="state_form_completed">フォーム対応済み</option>
+                          <option value="state_other">その他・要確認</option>
+                        </optgroup>
+                      </select></label>
+                      <label>ステータス<select id="leadStatus"></select></label>
+                      <label>並び替え<select id="leadSort">
+                        <option value="updated_desc">更新が新しい順</option>
+                        <option value="created_desc">作成が新しい順</option>
+                        <option value="company_asc">会社名順</option>
+                        <option value="status_asc">ステータス順</option>
+                        <option value="last_sent_desc">最終送信が新しい順</option>
+                      </select></label>
+                      <button type="button" class="button secondary compact-button" onclick="saveCurrentLeadView()">現在の条件を保存</button>
+                      <details id="leadBreakdownDetails" class="lead-breakdown-details">
+                        <summary>詳しい内訳を見る</summary>
+                        <div id="leadBreakdownDetailGrid" class="lead-breakdown-detail-grid"></div>
+                      </details>
+                    </div>
+                  </details>
+                  <section id="leadListViewSettingsPanel" class="lead-view-settings-slot"></section>
+                  <details class="lead-load-disclosure lead-utility-disclosure">
+                    <summary><span class="button-icon" data-ui-icon="database"></span>読み込み範囲</summary>
+                    <section class="lead-load-panel" id="leadLoadPanel" aria-live="polite">
+                      <div class="lead-load-copy">
+                        <span class="lead-load-kicker">軽量ロード</span>
+                        <strong id="leadLoadModeLabel">確認待ちリスト</strong>
+                        <small id="leadLoadModeDetail">初動では確認待ちだけ読み込みます。全件は必要な時に読み込めます。</small>
+                      </div>
+                      <div class="lead-load-actions">
+                        <button type="button" class="button secondary compact-button" onclick="loadReviewLeadsOnly()">確認待ちだけ</button>
+                        <button id="leadLoadAllButton" type="button" class="button primary compact-button" onclick="loadAllLeadsManually()">
+                          <span class="button-icon" data-ui-icon="database"></span><span id="leadLoadAllButtonText">営業リスト全件を読み込む</span>
+                        </button>
+                      </div>
+                      <div id="leadLoadProgress" class="lead-load-progress" hidden>
+                        <div class="lead-load-progress-row">
+                          <strong id="leadLoadProgressLabel">読み込み中</strong>
+                          <span id="leadLoadProgressPercent">0%</span>
+                        </div>
+                        <div class="lead-load-progress-bar" aria-hidden="true"><span id="leadLoadProgressBar"></span></div>
+                        <small id="leadLoadProgressDetail">Google Sheetsから取得しています。</small>
+                      </div>
+                    </section>
+                  </details>
+                </div>
+                <label class="lead-list-limit-control">表示件数<select id="leadLimit">
                   <option value="50" selected>50件</option>
                   <option value="100">100件</option>
                   <option value="500">500件</option>
@@ -11899,14 +12293,7 @@
                   <option value="2000">2000件</option>
                 </select></label>
               </div>
-            </div>
-            <div class="panel-body leads-bulk-table">
               <div id="leadBreakdownSummary" class="lead-breakdown-summary"></div>
-              <div id="leadKpiGrid" class="lead-stage-filter" role="group" aria-label="営業リストの状態"></div>
-              <details id="leadBreakdownDetails" class="lead-breakdown-details">
-                <summary>詳しい内訳を見る</summary>
-                <div id="leadBreakdownDetailGrid" class="lead-breakdown-detail-grid"></div>
-              </details>
               <div id="leadPager" class="lead-pagination"></div>
               <div id="leadBulkActionBar" class="bulk-action-bar"></div>
             </div>
@@ -14859,7 +15246,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const progressState = state.leadLoadProgress || {};
         const percent = Math.max(0, Math.min(100, Number(progressState.percent || 0)));
         const panel = document.getElementById('leadLoadPanel');
-        if (panel) panel.hidden = state.leadLoadMode !== 'review' && !progressState.active && percent <= 0;
+        if (panel) panel.hidden = false;
         if (label && detail) {
           if (state.leadLoadMode === 'review') {
             label.textContent = '確認待ちリスト';
@@ -15574,7 +15961,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         target.innerHTML = `
           <details class="list-view-settings-panel">
             <summary>
-              <span class="nav-icon">SL</span>
+              <span class="list-view-settings-icon">${legacyUiIcon('listChecks')}</span>
               <span class="list-view-settings-summary-copy">
                 <span>表示項目</span>
                 <small>${messageText}</small>
@@ -15655,7 +16042,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function getAvailableLeadColumns() {
         const defaults = [
-          { key: 'facility', label: '屋号', visible: true, order: 1 },
+          { key: 'facility', label: '施設名', visible: true, order: 1 },
           { key: 'contact', label: '連絡先', visible: true, order: 2 },
           { key: 'genre', label: 'ジャンル名', visible: true, order: 3 },
           { key: 'status', label: 'ステータス', visible: true, order: 4 },
@@ -15792,11 +16179,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderFacilityCell(lead) {
         const name = lead.facility_name || lead.company_name || '-';
-        const company = lead.facility_name && lead.company_name ? `<small class="muted">${escapeHtml(lead.company_name)}</small>` : '';
+        const normalizeName = (value) => String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+        const company = lead.facility_name && lead.company_name && normalizeName(lead.company_name) !== normalizeName(name)
+          ? `<small class="muted">${escapeHtml(lead.company_name)}</small>`
+          : '';
         const website = lead.website_url
           ? `<a class="url-mini-link" href="${escapeHtml(externalUrl(lead.website_url))}" target="_blank" rel="noopener" title="${escapeHtml(lead.website_url)}">${legacyUiIcon('external')}<span>WEBサイト</span></a>`
           : '';
-        const address = lead.address ? `<small class="muted">${escapeHtml(lead.address)}</small>` : '';
         const review = isReviewPendingLead(lead) ? '<small class="prospecting-origin-note">検索追加候補</small>' : '';
         return `
           <span class="facility-cell">
@@ -15805,7 +16194,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               ${website}
             </span>
             ${company}
-            ${address}
             ${review}
           </span>
         `;
@@ -15879,15 +16267,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const filteredText = activeFilter === 'all'
           ? '状態を選ぶと一覧を絞り込めます'
           : `${activeLabel} ${formatNumber(state.leadPage.total || 0)}件を表示中`;
-        document.getElementById('leadBreakdownSummary').innerHTML = `
+        const headerTotal = document.getElementById('leadHeaderTotal');
+        if (headerTotal) headerTotal.textContent = `${formatNumber(stats.totalLeadCount || state.leadPage.total || 0)}件`;
+        const breakdownSummary = document.getElementById('leadBreakdownSummary');
+        breakdownSummary.innerHTML = activeFilter === 'all' ? '' : `
           <div class="lead-breakdown-summary-copy">
-            <div class="lead-breakdown-summary-title">
-              <strong>${escapeHtml(genre)} ${formatNumber(stats.totalLeadCount || 0)}件</strong>
-              <span>現在 ${formatNumber(state.leadPage.total || 0)}件</span>
-            </div>
-            <small>${escapeHtml(filteredText)}</small>
+            <strong>${escapeHtml(activeLabel)}を表示中</strong>
+            <small>${escapeHtml(filteredText)} / ${escapeHtml(genre)}</small>
           </div>
-          ${activeFilter === 'all' ? '' : '<button type="button" class="button secondary compact-button" onclick="setLeadFilter(\'all\')">絞り込みを解除</button>'}
+          <button type="button" class="button secondary compact-button" onclick="setLeadFilter('all')">絞り込みを解除</button>
         `;
         document.getElementById('leadKpiGrid').innerHTML = [{
           filter: 'all',
