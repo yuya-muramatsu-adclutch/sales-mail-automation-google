@@ -2247,7 +2247,9 @@ function extractContactFromOfficialPage_(officialUrl) {
   const errors = [];
   queued[result.checkedUrl] = true;
 
-  while (queue.length && result.checkedUrls.length < 3) {
+  const maxCheckedPages = 4;
+  const maxQueuedPages = 6;
+  while (queue.length && result.checkedUrls.length < maxCheckedPages) {
     const current = queue.shift();
     const currentUrl = normalizeUrl_(current.url);
     if (!currentUrl || visited[currentUrl]) continue;
@@ -2267,7 +2269,7 @@ function extractContactFromOfficialPage_(officialUrl) {
       if (!result.formUrl && isLikelyContactFormHtml_(decoded, currentUrl)) result.formUrl = currentUrl;
 
       rankContactPageLinks_(links, officialDomain).forEach(function (candidate) {
-        if (!queued[candidate.url] && !visited[candidate.url] && queue.length < 4) {
+        if (!queued[candidate.url] && !visited[candidate.url] && queue.length < maxQueuedPages) {
           queued[candidate.url] = true;
           queue.push(candidate);
         }
@@ -2285,9 +2287,43 @@ function extractContactFromOfficialPage_(officialUrl) {
 }
 
 function decodeContactDiscoveryHtml_(html) {
-  return decodeHtmlEntitiesBasic_(html)
+  let decoded = decodeHtmlEntitiesBasic_(html);
+  decoded = decoded.replace(/(?:data-cfemail\s*=\s*["']?([0-9a-f]{4,})["']?|\/cdn-cgi\/l\/email-protection#([0-9a-f]{4,}))/gi, function (match, attributeHex, linkHex) {
+    const email = decodeCloudflareEmailHex_(attributeHex || linkHex || '');
+    return email ? match + ' ' + email + ' ' : match;
+  });
+  decoded = decoded.replace(/<[^>]{0,2000}>/g, function (tag) {
+    const user = extractContactDataAttribute_(tag, ['data-user', 'data-name', 'data-account', 'data-local']);
+    const domain = extractContactDataAttribute_(tag, ['data-domain', 'data-host']);
+    const email = user && domain ? String(user).trim() + '@' + String(domain).trim() : '';
+    return email && isValidEmailAddress_(email) ? tag + ' ' + email + ' ' : tag;
+  });
+  return decoded
     .replace(/\s*(?:\(at\)|\[at\]|＠)\s*/gi, '@')
     .replace(/\s*(?:\(dot\)|\[dot\])\s*/gi, '.');
+}
+
+function decodeCloudflareEmailHex_(encodedValue) {
+  const encoded = String(encodedValue || '').trim();
+  if (!/^[0-9a-f]+$/i.test(encoded) || encoded.length < 4 || encoded.length % 2 !== 0) return '';
+  const key = parseInt(encoded.slice(0, 2), 16);
+  if (!Number.isFinite(key)) return '';
+  let decoded = '';
+  for (let index = 2; index < encoded.length; index += 2) {
+    decoded += String.fromCharCode(parseInt(encoded.slice(index, index + 2), 16) ^ key);
+  }
+  return isValidEmailAddress_(decoded) ? decoded.toLowerCase() : '';
+}
+
+function extractContactDataAttribute_(tag, names) {
+  const source = String(tag || '');
+  const attributeNames = Array.isArray(names) ? names : [];
+  for (let index = 0; index < attributeNames.length; index += 1) {
+    const escapedName = String(attributeNames[index] || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = source.match(new RegExp('\\b' + escapedName + '\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\'|([^\\s>]+))', 'i'));
+    if (match) return decodeHtmlEntitiesBasic_(match[1] || match[2] || match[3] || '');
+  }
+  return '';
 }
 
 function rankContactPageLinks_(links, officialDomain) {
@@ -2311,17 +2347,21 @@ function scoreContactPageLink_(link, officialDomain) {
   if (!/^https?:\/\//i.test(url) || /\.(?:pdf|jpe?g|png|gif|webp|svg|zip)(?:$|\?)/i.test(url)) return -1000;
   const text = cleanSourcePageText_(link && link.text || '');
   const value = text + ' ' + url;
+  const domain = normalizeDomain_(url);
+  const sameOfficialDomain = Boolean(officialDomain && domain && isDomainOrSubdomain_(domain, officialDomain));
   let score = 0;
   if (/(?:お問い合わせ|お問合せ|問い合わせ|contact\s*us|inquiry)/i.test(text)) score += 120;
   if (/(?:contact|inquiry|otoiawase|toiawase)(?:[\/_\-.?=&]|$)/i.test(url)) score += 85;
   if (/(?:フォーム|メールフォーム|ご相談|資料請求)/i.test(text)) score += 65;
   if (/(?:form)(?:[\/_\-.?=&]|$)/i.test(url)) score += 40;
+  if (sameOfficialDomain && /(?:会社概要|運営会社|運営者|事業者情報|施設概要|about\s*us|company|corporate|operator)/i.test(text)) score += 55;
+  if (sameOfficialDomain && /(?:about|company|corporate|operator|profile)(?:[\/_\-.?=&]|$)/i.test(url)) score += 45;
   if (isKnownContactFormHost_(url)) score += 80;
-  const domain = normalizeDomain_(url);
-  if (officialDomain && domain && isDomainOrSubdomain_(domain, officialDomain)) score += 15;
+  if (sameOfficialDomain) score += 15;
   else if (!isKnownContactFormHost_(url)) score -= 20;
   if (/(?:recruit|career|saiyo|採用|privacy|policy|login|member|newsletter|mailmag|メルマガ)/i.test(value)) score -= 120;
-  if (/(?:reservation|booking|reserve|予約)/i.test(value)) score -= 35;
+  if (/(?:reservation|booking|reserve|予約)/i.test(value)) score -= 50;
+  if (/(?:access|交通アクセス|アクセスマップ|道順|地図)/i.test(value)) score -= 80;
   return score;
 }
 
@@ -2338,6 +2378,10 @@ function isKnownContactFormHost_(url) {
     'jotform.com',
     'jotformpro.com',
     'kintoneapp.com',
+    'forms.office.com',
+    'form-mailer.jp',
+    'formok.com',
+    'share.hsforms.com',
   ].some(function (host) {
     return isDomainOrSubdomain_(domain, host);
   });
@@ -2355,11 +2399,22 @@ function extractEmbeddedContactFormUrl_(html, baseUrl) {
 
 function isLikelyContactFormHtml_(html, url) {
   const source = String(html || '');
-  if (/(?:wpcf7|mw_wp_form|mw-wp-form|ninja-forms|gform_wrapper|forminator|contact-form-7)/i.test(source)) return true;
+  if (/<(?:form|div)\b[^>]*(?:wpcf7|mw_wp_form|mw-wp-form|ninja-forms|gform_wrapper|forminator|contact-form-7)/i.test(source) &&
+      /(?:<textarea\b|name\s*=\s*["']?(?:message|comment|inquiry))/i.test(source)) return true;
   if (!/<form\b/i.test(source)) return false;
-  const contactSignal = /(?:お問い合わせ|お問合せ|問い合わせ|contact|inquiry|ご相談|資料請求)/i.test(source + ' ' + String(url || ''));
-  const fieldSignal = /(?:<textarea\b|type\s*=\s*["']?email|name\s*=\s*["']?(?:message|comment|inquiry|email))/i.test(source);
-  return contactSignal && fieldSignal;
+  const formPattern = /<form\b([^>]*)>([\s\S]*?)<\/form>/gi;
+  let match;
+  while ((match = formPattern.exec(source)) !== null) {
+    const formSource = String(match[1] || '') + ' ' + String(match[2] || '');
+    const plainFormText = cleanSourcePageText_(formSource);
+    const signals = formSource + ' ' + plainFormText + ' ' + String(url || '');
+    if (/(?:newsletter|mailmag|メルマガ|検索|site\s*search|login|ログイン|reservation|booking|reserve|予約)/i.test(signals)) continue;
+    const contactSignal = /(?:お問い合わせ|お問合せ|問い合わせ|contact|inquiry|ご相談|資料請求)/i.test(signals);
+    const messageSignal = /(?:<textarea\b|name\s*=\s*["']?(?:message|comment|inquiry|body|content))/i.test(formSource);
+    const identitySignal = /(?:type\s*=\s*["']?(?:email|tel)|name\s*=\s*["']?(?:name|email|mail|tel|phone))/i.test(formSource);
+    if (contactSignal && messageSignal && identitySignal) return true;
+  }
+  return false;
 }
 
 function extractHtmlLinks_(html, baseUrl) {
@@ -2373,11 +2428,12 @@ function extractHtmlLinks_(html, baseUrl) {
     const rawHref = String(hrefMatch[1] || hrefMatch[2] || hrefMatch[3] || '').trim();
     const text = cleanSourcePageText_(match[2] || '');
     if (/^mailto:/i.test(rawHref)) {
+      const mailtoValue = decodeUriComponentSafely_(rawHref.replace(/^mailto:/i, '').split('?')[0]);
       links.push({
         rawHref: rawHref,
         text: text,
         url: '',
-        email: extractEmailFromSearchResult_(rawHref.replace(/^mailto:/i, '')),
+        email: extractEmailFromSearchResult_(mailtoValue),
       });
       continue;
     }
@@ -2391,6 +2447,14 @@ function extractHtmlLinks_(html, baseUrl) {
     });
   }
   return links;
+}
+
+function decodeUriComponentSafely_(value) {
+  try {
+    return decodeURIComponent(String(value || '').replace(/\+/g, '%20'));
+  } catch (error) {
+    return String(value || '');
+  }
 }
 
 function resolveSourcePageUrl_(href, baseUrl) {

@@ -1948,6 +1948,38 @@ const falsePositivePages = {
 sourceLockContext.fetchProspectingHtml_ = (url) => ({ url, html: falsePositivePages[url] || '' });
 const rejectedFalsePositive = sourceLockContext.extractContactFromOfficialPage_('https://guide.example/');
 assert.strictEqual(rejectedFalsePositive.formUrl, '', 'a guide page with only a search form is not a contact form');
+const contactDepthPages = {
+  'https://operator.example/': '<a href="/contact-broken">お問い合わせ</a><a href="/company">運営会社・会社概要</a>',
+  'https://operator.example/company': '<span data-domain="operator.example" data-user="sales"></span><form class="newsletter"><input type="email"></form>',
+};
+sourceLockContext.fetchProspectingHtml_ = (url) => {
+  if (url === 'https://operator.example/contact-broken') throw new Error('temporary fetch failure');
+  return { url, html: contactDepthPages[url] || '' };
+};
+const discoveredFromCompanyPage = sourceLockContext.extractContactFromOfficialPage_('https://operator.example/');
+assert.strictEqual(discoveredFromCompanyPage.email, 'sales@operator.example');
+assert.strictEqual(discoveredFromCompanyPage.formUrl, '', 'a newsletter form must not be treated as a contact form');
+assert.deepStrictEqual(Array.from(discoveredFromCompanyPage.checkedUrls), ['https://operator.example/', 'https://operator.example/company']);
+assert(sourceLockContext.scoreContactPageLink_({ url: 'https://operator.example/company', text: '会社概要' }, 'operator.example') >= 60);
+assert(sourceLockContext.scoreContactPageLink_({ url: 'https://external.example/company', text: '会社概要' }, 'operator.example') < 60);
+assert.strictEqual(sourceLockContext.isKnownContactFormHost_('https://forms.office.com/r/abc123'), true);
+const cloudflareEmail = 'info@cloud.example';
+const cloudflareKey = 0x12;
+const cloudflareHex = cloudflareKey.toString(16).padStart(2, '0') + Array.from(cloudflareEmail).map((character) =>
+  (character.charCodeAt(0) ^ cloudflareKey).toString(16).padStart(2, '0')
+).join('');
+assert(sourceLockContext.decodeContactDiscoveryHtml_('<a data-cfemail="' + cloudflareHex + '">email</a>').includes(cloudflareEmail));
+const encodedMailLink = sourceLockContext.extractHtmlLinks_('<a href="mailto:hello%40camp.example?subject=test">mail</a>', 'https://camp.example/')[0];
+assert.strictEqual(encodedMailLink.email, 'hello@camp.example');
+const depthPages = {};
+for (let depth = 0; depth < 8; depth += 1) {
+  const currentUrl = depth === 0 ? 'https://depth.example/' : 'https://depth.example/about/' + depth;
+  const nextUrl = 'https://depth.example/about/' + (depth + 1);
+  depthPages[currentUrl] = '<a href="' + nextUrl + '">会社概要</a>';
+}
+sourceLockContext.fetchProspectingHtml_ = (url) => ({ url, html: depthPages[url] || '' });
+const boundedContactDiscovery = sourceLockContext.extractContactFromOfficialPage_('https://depth.example/');
+assert.strictEqual(boundedContactDiscovery.checkedUrls.length, 4, 'contact discovery must remain bounded to four successful pages');
 const normalizedNapPayload = sourceLockContext.normalizeNapCampJobGenrePayload_({
   job_type: 'source_page',
   site_preset: 'nap_camp',
@@ -2106,7 +2138,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v229_search_provider_failover'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v230_contact_discovery_depth'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
@@ -2416,4 +2448,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v229 search provider failover regression tests passed.');
+console.log('v230 contact discovery depth regression tests passed.');

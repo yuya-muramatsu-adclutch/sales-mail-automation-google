@@ -5,9 +5,21 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @230 / production code v229: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @231 / production code v230: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v229_search_provider_failover`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v230_contact_discovery_depth`
+
+## v230 公式サイト内の連絡先探索強化
+
+- 問い合わせページに加え、同一公式ドメインの会社概要・運営会社・施設概要も優先候補にし、トップページから最大4ページまで限定巡回する。
+- 高優先ページが一時的に取得失敗しても残りの候補を継続し、1ページの障害で連絡先探索全体を終了しない。
+- Cloudflareの `data-cfemail`、`data-user` / `data-domain` 属性、URLエンコードされた `mailto:` を復号して有効なメールだけ採用する。
+- Microsoft Forms、フォームメーラー、formOK、HubSpot共有フォームを既知の外部問い合わせフォームとして追加する。
+- 問い合わせフォーム判定をフォーム単位に限定し、サイト内検索・メルマガ・ログイン・予約フォームを誤登録しない。
+- 会社概要の補助巡回は公式サイトと同一ドメインだけに限定し、無関係な外部会社ページへの探索拡大を防止する。
+- 途中取得失敗からの継続、難読化メール、外部フォーム、ニュースレター誤検出防止、外部弱候補の除外、4ページ上限を決定論的HTMLで回帰確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 231を固定Web app URLへ再デプロイ済み。
+- 実サイトへの外部取得と実メール送信は検証時に行っていない。
 
 ## v229 SearXNG・Serper検索フェイルオーバー
 

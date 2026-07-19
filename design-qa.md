@@ -164,3 +164,14 @@ final result: code paths verified; authenticated timing comparison pending
 - Permanent HTTP/configuration errors stop retrying; rate limits, timeouts, connection failures, and server errors remain resumable.
 - Automated coverage verifies provider priority, empty-result fallback, fallback failure, configuration-only failure, and typed retry behavior.
 - External search calls were not executed during verification; provider behavior was validated with deterministic response fixtures.
+
+## v230 follow-up
+
+- Contact discovery now checks up to four successful pages, prioritizing contact pages and same-domain company/operator pages while keeping a six-candidate queue bound.
+- A failed high-priority page no longer prevents remaining candidates from being inspected.
+- Cloudflare, split data-attribute, and percent-encoded mail addresses are decoded before the existing email validity filter.
+- Known external form coverage includes Microsoft Forms, Form Mailer, formOK, and HubSpot shared forms.
+- Form detection is scoped to each form and rejects newsletter, search, login, and booking forms.
+- Weak company/profile discovery is restricted to the official domain so it cannot expand into unrelated external sites.
+- Automated fixtures verify discovery depth, failure continuation, obfuscation decoding, false-positive rejection, and hard page bounds.
+- Fixed deployment updated to `@231`; no live external crawl or email delivery was performed during verification.
