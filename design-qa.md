@@ -418,3 +418,13 @@ final result: code paths verified; authenticated timing comparison pending
 - The first uncached call still opens the Spreadsheet, preserving detection of unavailable or unauthorized storage.
 - Automated coverage verifies startup argument reuse, placeholder wiring, cache key, TTL, and setup invalidation.
 - Fixed deployment updated to `@258`; no live search, mail, or sales-data mutation was run during verification.
+
+## v258 follow-up
+
+- Lead repair jobs now release the global script lock after at most twenty-five targets and one hundred rows of verification scope.
+- Large repair runs are capped and resumable, preventing a maintenance pass from monopolizing review and send-NG updates.
+- Every target row is revalidated by lead ID immediately before mutation so concurrent row movement cannot update another facility.
+- Non-advertiser cleanup explicitly loads send, reply, deal, and archive safety fields before deciding that a lead is removable.
+- Overreach restoration uses the current send-NG value rather than the pre-lock snapshot.
+- Automated coverage verifies batch limits, sent-lead protection, and row-identity conflict handling.
+- Fixed deployment updated to `@259`; no live search, mail, or sales-data mutation was run during verification.

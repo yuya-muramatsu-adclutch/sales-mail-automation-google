@@ -2861,7 +2861,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v257_startup_metadata_cache'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v258_batched_lead_repairs'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2895,6 +2895,97 @@ assert(codeSource.includes('function updateReviewLeadDecision'));
 assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
 assert(codeSource.includes('function repairNonAdvertiserReviewLeads'));
 assert(codeSource.includes('function repairNonAdvertiserCleanupOverreach'));
+const repairTargetBatches = JSON.parse(JSON.stringify(context.partitionLeadRepairTargets_([
+  { rowNumber: 2, id: 'a' },
+  { rowNumber: 51, id: 'b' },
+  { rowNumber: 252, id: 'c' },
+  { rowNumber: 253, id: 'd' },
+], { maxItems: 2, maxRowSpan: 250 })));
+assert.deepStrictEqual(repairTargetBatches.map((batch) => batch.map((target) => target.id)), [['a', 'b'], ['c', 'd']]);
+const repairByCountBatches = context.partitionLeadRepairTargets_(Array.from({ length: 51 }, (_value, index) => ({
+  rowNumber: index + 2,
+  id: 'row-' + index,
+})));
+assert.deepStrictEqual(JSON.parse(JSON.stringify(repairByCountBatches.map((batch) => batch.length))), [25, 25, 1], 'lead repair locks must be capped at 25 targets');
+const nonAdvertiserRepairStart = codeSource.indexOf('function repairNonAdvertiserReviewLeads(options)');
+const nonAdvertiserRepairEnd = codeSource.indexOf('\nfunction ', nonAdvertiserRepairStart + 10);
+const nonAdvertiserRepairBody = codeSource.slice(nonAdvertiserRepairStart, nonAdvertiserRepairEnd);
+const nonAdvertiserRequiredHeaders = nonAdvertiserRepairBody.slice(
+  nonAdvertiserRepairBody.indexOf('const requiredHeaders = ['),
+  nonAdvertiserRepairBody.indexOf('];', nonAdvertiserRepairBody.indexOf('const requiredHeaders = ['))
+);
+['last_sent_at', 'send_count', 'reply_checked', 'deal_status'].forEach((header) => {
+  assert(nonAdvertiserRequiredHeaders.includes("'" + header + "'"), 'non-advertiser cleanup must load protected history field ' + header);
+});
+assert(nonAdvertiserRepairBody.includes("withScriptLock_('repairNonAdvertiserReviewLeads:batch'"));
+assert(!nonAdvertiserRepairBody.includes('sheet.getRange(startRow, 1, Math.max(lastScannedRow'), 'lead cleanup must not re-read the full scan while locked');
+const repairSafetyContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), repairSafetyContext, { filename: file });
+});
+const repairSafetyHeaders = [
+  'id', 'source', 'company_name', 'facility_name', 'status', 'website_url', 'form_url',
+  'last_sent_at', 'send_count', 'reply_checked', 'deal_status', 'form_status', 'next_send_at',
+  'no_action_reason', 'no_action_memo', 'archived_at', 'updated_at',
+];
+const repairSafetyRows = [
+  ['sent', 'source_page', '送信済み会社', '送信済み施設', '初回メール送信済み', 'https://directory.example/sent', '', '2026-07-19T00:00:00+09:00', 1, false, '未設定', '未対応', '', '', '', '', ''],
+  ['unsent', 'source_page', '未送信会社', '未送信施設', '未対応', 'https://directory.example/unsent', '', '', 0, false, '未設定', '未対応', '', '', '', '', ''],
+];
+const repairSafetySheet = {
+  getLastRow: () => repairSafetyRows.length + 1,
+  getRange: (row, _column, rowCount) => ({
+    getValues: () => repairSafetyRows.slice(row - 2, row - 2 + rowCount),
+  }),
+};
+repairSafetyContext.getOrCreateSpreadsheet_ = () => ({});
+repairSafetyContext.ensureSheet_ = () => repairSafetySheet;
+repairSafetyContext.getHeaders_ = () => repairSafetyHeaders.slice();
+repairSafetyContext.getLeadCollectionExcludedDomainRecords_ = () => [{ domain: 'directory.example' }];
+const repairSafetyDryRun = JSON.parse(JSON.stringify(repairSafetyContext.repairNonAdvertiserReviewLeads({
+  dryRun: true,
+  scanLimit: 10,
+  maxUpdates: 10,
+})));
+assert.strictEqual(repairSafetyDryRun.matched, 1, 'sent leads must be excluded from non-advertiser cleanup before locking');
+assert.strictEqual(repairSafetyDryRun.items[0].id, 'unsent');
+const repairIdentityContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), repairIdentityContext, { filename: file });
+});
+const repairIdentityHeaders = [
+  'id', 'source', 'status', 'website_url', 'email', 'form_url', 'form_status', 'next_send_at',
+  'last_sent_at', 'send_count', 'reply_checked', 'deal_status', 'no_action_reason', 'no_action_memo', 'updated_at',
+];
+const reviewRow = ['lead-before', 'source_page', '未対応', '', '', '', '未対応', '', '', 0, false, '未設定', '', '', ''];
+const shiftedRow = ['lead-after', 'source_page', '未対応', '', '', '', '未対応', '', '', 0, false, '未設定', '', '', ''];
+let repairIdentityReads = 0;
+let repairIdentityWrites = 0;
+const repairIdentitySheet = {
+  getLastRow: () => 2,
+  getRange: () => ({
+    getValues: () => {
+      repairIdentityReads += 1;
+      return [repairIdentityReads === 1 ? reviewRow.slice() : shiftedRow.slice()];
+    },
+  }),
+  getRangeList: () => ({
+    setValue: () => { repairIdentityWrites += 1; },
+  }),
+};
+repairIdentityContext.getOrCreateSpreadsheet_ = () => ({});
+repairIdentityContext.ensureSheet_ = () => repairIdentitySheet;
+repairIdentityContext.getHeaders_ = () => repairIdentityHeaders.slice();
+repairIdentityContext.withScriptLock_ = (_operation, callback) => callback();
+repairIdentityContext.SpreadsheetApp = { flush: () => {} };
+const repairIdentityResult = JSON.parse(JSON.stringify(repairIdentityContext.repairReviewLeadsWithoutContact({
+  dryRun: false,
+  scanLimit: 10,
+  maxUpdates: 10,
+})));
+assert.strictEqual(repairIdentityResult.matched, 1);
+assert.strictEqual(repairIdentityResult.updated, 0, 'a shifted row must not update a different lead after the pre-lock scan');
+assert.strictEqual(repairIdentityWrites, 0);
 assert.strictEqual(context.isSafeNonAdvertiserLeadCleanupTarget_({
   source: 'source_page', status: '送信NG', send_count: 0, last_sent_at: '', reply_checked: false, deal_status: '未設定', archived_at: '',
 }), true, 'unsent automated non-advertiser leads should be safe to archive regardless of review status');
@@ -3471,4 +3562,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v257 startup metadata cache regression tests passed.');
+console.log('v258 batched lead repair regression tests passed.');

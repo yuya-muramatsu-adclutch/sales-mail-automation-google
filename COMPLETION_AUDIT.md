@@ -5,9 +5,20 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @258 / production code v257: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @259 / production code v258: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v257_startup_metadata_cache`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v258_batched_lead_repairs`
+
+## v258 一括修復のロック分割と送信履歴保護
+
+- 連絡先なし候補、収集対象外サイト、誤除外復元の一括修復が、最大2万行をグローバルロック中に再読込していた経路を廃止した。
+- 修復対象はロック1回あたり最大25件・最大100行幅へ分割し、各バッチの間でロックを解放する。1回の実行も最大500件、通常250件に制限する。
+- スキャン後に行挿入や並べ替えが発生しても別リードを更新しないよう、更新直前に行IDの一致を確認する。
+- 収集対象外サイトの除外判定で `last_sent_at`、`send_count`、`reply_checked`、`deal_status` を必須読込し、送信済み・返信済み・商談中リードを保護する。
+- 誤除外復元では更新直前の `send_ng` を再取得し、スキャン後の変更を上書きしない。
+- 送信済みリード保護、25件分割、行ID不一致時の更新中止を決定的フィクスチャで回帰テストした。
+- `node scripts/smoke-test.js`、`node --check scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 259を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@259` であることを確認した。未認証HTTP確認はGoogleログインへ遷移するため、認証済み画面の動作確認は行っていない。外部検索、メール送信、営業データ変更も検証中に実行していない。
 
 ## v257 起動メタ情報の共有キャッシュ
 

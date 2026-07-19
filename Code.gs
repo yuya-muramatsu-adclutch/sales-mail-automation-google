@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v257_startup_metadata_cache';
+const APP_VERSION = '20260719_apps_script_full_workflow_v258_batched_lead_repairs';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -1026,15 +1026,40 @@ function hasLeadReviewDestination_(lead) {
   );
 }
 
+function partitionLeadRepairTargets_(targets, options) {
+  const source = Array.isArray(targets) ? targets.slice() : [];
+  const input = options && typeof options === 'object' ? options : {};
+  const maxItems = Math.min(Math.max(Number(input.maxItems) || 25, 1), 100);
+  const maxRowSpan = Math.min(Math.max(Number(input.maxRowSpan) || 100, 1), 500);
+  const normalized = source.filter(function (target) {
+    return target && Number(target.rowNumber) >= 2;
+  }).sort(function (left, right) {
+    return Number(left.rowNumber) - Number(right.rowNumber);
+  });
+  const batches = [];
+  normalized.forEach(function (target) {
+    const current = batches.length ? batches[batches.length - 1] : null;
+    const rowNumber = Number(target.rowNumber);
+    const firstRow = current && current.length ? Number(current[0].rowNumber) : rowNumber;
+    if (!current || current.length >= maxItems || rowNumber - firstRow + 1 > maxRowSpan) {
+      batches.push([target]);
+      return;
+    }
+    current.push(target);
+  });
+  return batches;
+}
+
 function repairReviewLeadsWithoutContact(options) {
   const input = options && typeof options === 'object' ? options : {};
   const dryRun = input.dryRun !== false && input.dry_run !== false;
   const startRow = Math.max(Number(input.startRow || input.start_row) || 2, 2);
   const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 20000, 1), 20000);
-  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 500, 1), 2000);
+  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 250, 1), 500);
   const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
   const headers = getHeaders_(sheet);
   const requiredHeaders = [
+    'id',
     'source',
     'status',
     'website_url',
@@ -1074,7 +1099,7 @@ function repairReviewLeadsWithoutContact(options) {
   const values = sheet.getRange(startRow, 1, rowCount, headers.length).getValues();
   const indexes = {};
   requiredHeaders.forEach(function (header) { indexes[header] = headers.indexOf(header); });
-  const targetRows = [];
+  const targets = [];
   let eligible = 0;
   let lastScannedRow = startRow - 1;
   for (let index = 0; index < values.length; index += 1) {
@@ -1090,8 +1115,11 @@ function repairReviewLeadsWithoutContact(options) {
     if (!isReviewLeadSource_(lead) || String(lead.status || '') !== '未対応') continue;
     eligible += 1;
     if (hasLeadReviewDestination_(lead)) continue;
-    targetRows.push(rowNumber);
-    if (targetRows.length >= maxUpdates) break;
+    targets.push({
+      rowNumber: rowNumber,
+      id: String(values[index][indexes.id] || ''),
+    });
+    if (targets.length >= maxUpdates) break;
   }
 
   const baseResult = {
@@ -1102,50 +1130,59 @@ function repairReviewLeadsWithoutContact(options) {
     lastRow: lastRow,
     scanned: Math.max(lastScannedRow - startRow + 1, 0),
     eligible: eligible,
-    matched: targetRows.length,
+    matched: targets.length,
     updated: 0,
+    lockBatches: 0,
     done: lastScannedRow >= lastRow,
   };
-  if (dryRun || !targetRows.length) return baseResult;
+  if (dryRun || !targets.length) return baseResult;
 
-  return withScriptLock_('repairReviewLeadsWithoutContact', function () {
-    const verifyCount = Math.max(lastScannedRow - startRow + 1, 0);
-    const currentValues = sheet.getRange(startRow, 1, verifyCount, headers.length).getValues();
-    const verifiedRows = [];
-    for (let index = 0; index < currentValues.length; index += 1) {
-      if (verifiedRows.length >= maxUpdates) break;
-      const lead = {
-        source: currentValues[index][indexes.source],
-        status: currentValues[index][indexes.status],
-        website_url: currentValues[index][indexes.website_url],
-        email: currentValues[index][indexes.email],
-        form_url: currentValues[index][indexes.form_url],
-      };
-      if (!isReviewLeadSource_(lead) || String(lead.status || '') !== '未対応' || hasLeadReviewDestination_(lead)) continue;
-      verifiedRows.push(startRow + index);
-    }
+  let updated = 0;
+  const batches = partitionLeadRepairTargets_(targets);
+  batches.forEach(function (batch) {
+    updated += withScriptLock_('repairReviewLeadsWithoutContact:batch', function () {
+      const firstRow = Number(batch[0].rowNumber);
+      const lastBatchRow = Number(batch[batch.length - 1].rowNumber);
+      const currentValues = sheet.getRange(firstRow, 1, lastBatchRow - firstRow + 1, headers.length).getValues();
+      const verifiedRows = [];
+      batch.forEach(function (target) {
+        const current = currentValues[Number(target.rowNumber) - firstRow] || [];
+        if (String(current[indexes.id] || '') !== String(target.id || '')) return;
+        const lead = {
+          source: current[indexes.source],
+          status: current[indexes.status],
+          website_url: current[indexes.website_url],
+          email: current[indexes.email],
+          form_url: current[indexes.form_url],
+        };
+        if (!isReviewLeadSource_(lead) || String(lead.status || '') !== '未対応' || hasLeadReviewDestination_(lead)) return;
+        verifiedRows.push(Number(target.rowNumber));
+      });
 
-    if (verifiedRows.length) {
-      const setColumnValue = function (header, value) {
-        const columnA1 = columnNumberToA1_(indexes[header] + 1);
-        sheet.getRangeList(verifiedRows.map(function (rowNumber) {
-          return columnA1 + rowNumber;
-        })).setValue(value);
-      };
-      setColumnValue('status', '対応不要');
-      setColumnValue('form_status', '対応不要');
-      setColumnValue('next_send_at', '');
-      setColumnValue('no_action_reason', '問い合わせ不可');
-      setColumnValue('no_action_memo', 'WEBサイト・メール・フォーム未取得のため自動除外');
-      setColumnValue('updated_at', nowIso_());
-      clearRuntimeCaches_('leads');
-      SpreadsheetApp.flush();
-    }
+      if (verifiedRows.length) {
+        const setColumnValue = function (header, value) {
+          const columnA1 = columnNumberToA1_(indexes[header] + 1);
+          sheet.getRangeList(verifiedRows.map(function (rowNumber) {
+            return columnA1 + rowNumber;
+          })).setValue(value);
+        };
+        setColumnValue('status', '対応不要');
+        setColumnValue('form_status', '対応不要');
+        setColumnValue('next_send_at', '');
+        setColumnValue('no_action_reason', '問い合わせ不可');
+        setColumnValue('no_action_memo', 'WEBサイト・メール・フォーム未取得のため自動除外');
+        setColumnValue('updated_at', nowIso_());
+        clearRuntimeCaches_('leads');
+        SpreadsheetApp.flush();
+      }
+      return verifiedRows.length;
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+  });
 
-    return Object.assign({}, baseResult, {
-      updated: verifiedRows.length,
-    });
-  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+  return Object.assign({}, baseResult, {
+    updated: updated,
+    lockBatches: batches.length,
+  });
 }
 
 function repairNonAdvertiserReviewLeads(options) {
@@ -1153,8 +1190,8 @@ function repairNonAdvertiserReviewLeads(options) {
   const dryRun = input.dryRun !== false && input.dry_run !== false;
   const startRow = Math.max(Number(input.startRow || input.start_row) || 2, 2);
   const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 20000, 1), 20000);
-  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 2000, 1), 5000);
-  const lockWaitMs = Math.min(Math.max(Number(input.lockWaitMs || input.lock_wait_ms) || 90000, 1000), 90000);
+  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 250, 1), 500);
+  const lockWaitMs = Math.min(Math.max(Number(input.lockWaitMs || input.lock_wait_ms) || 6000, 1000), 6000);
   const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
   const headers = getHeaders_(sheet);
   const requiredHeaders = [
@@ -1165,6 +1202,10 @@ function repairNonAdvertiserReviewLeads(options) {
     'status',
     'website_url',
     'form_url',
+    'last_sent_at',
+    'send_count',
+    'reply_checked',
+    'deal_status',
     'form_status',
     'next_send_at',
     'no_action_reason',
@@ -1239,61 +1280,71 @@ function repairNonAdvertiserReviewLeads(options) {
     scanned: Math.max(lastScannedRow - startRow + 1, 0),
     matched: targets.length,
     deleted: 0,
+    lockBatches: 0,
     done: lastScannedRow >= lastRow,
     items: targets.slice(0, 50),
   };
   if (dryRun || !targets.length) return baseResult;
 
-  return withScriptLock_('repairNonAdvertiserReviewLeads', function () {
-    const currentValues = sheet.getRange(startRow, 1, Math.max(lastScannedRow - startRow + 1, 1), headers.length).getValues();
-    const verifiedRows = [];
-    targets.forEach(function (target) {
-      const valueIndex = target.rowNumber - startRow;
-      const current = currentValues[valueIndex] || [];
-      const lead = {
-        source: current[indexes.source],
-        status: current[indexes.status],
-        website_url: current[indexes.website_url],
-        form_url: current[indexes.form_url],
-        last_sent_at: current[indexes.last_sent_at],
-        send_count: current[indexes.send_count],
-        reply_checked: current[indexes.reply_checked],
-        deal_status: current[indexes.deal_status],
-        archived_at: current[indexes.archived_at],
-      };
-      if (isNonAdvertiserCleanupCandidate_(lead, excludedDomains)) verifiedRows.push(target.rowNumber);
-    });
+  let deleted = 0;
+  const batches = partitionLeadRepairTargets_(targets);
+  batches.forEach(function (batch) {
+    deleted += withScriptLock_('repairNonAdvertiserReviewLeads:batch', function () {
+      const firstRow = Number(batch[0].rowNumber);
+      const lastBatchRow = Number(batch[batch.length - 1].rowNumber);
+      const currentValues = sheet.getRange(firstRow, 1, lastBatchRow - firstRow + 1, headers.length).getValues();
+      const verifiedRows = [];
+      batch.forEach(function (target) {
+        const current = currentValues[Number(target.rowNumber) - firstRow] || [];
+        if (String(current[indexes.id] || '') !== String(target.id || '')) return;
+        const lead = {
+          source: current[indexes.source],
+          status: current[indexes.status],
+          website_url: current[indexes.website_url],
+          form_url: current[indexes.form_url],
+          last_sent_at: current[indexes.last_sent_at],
+          send_count: current[indexes.send_count],
+          reply_checked: current[indexes.reply_checked],
+          deal_status: current[indexes.deal_status],
+          archived_at: current[indexes.archived_at],
+        };
+        if (isNonAdvertiserCleanupCandidate_(lead, excludedDomains)) verifiedRows.push(Number(target.rowNumber));
+      });
 
-    if (verifiedRows.length) {
-      const now = nowIso_();
-      const setColumnValue = function (header, value) {
-        const columnA1 = columnNumberToA1_(indexes[header] + 1);
-        sheet.getRangeList(verifiedRows.map(function (rowNumber) {
-          return columnA1 + rowNumber;
-        })).setValue(value);
-      };
-      setColumnValue('status', '対応不要');
-      setColumnValue('form_status', '対応不要');
-      setColumnValue('next_send_at', '');
-      setColumnValue('no_action_reason', '収集対象外サイト');
-      setColumnValue('no_action_memo', '広告主の公式サイトではないポータル・比較・観光情報ページのため自動削除');
-      setColumnValue('archived_at', now);
-      setColumnValue('updated_at', now);
-      clearRuntimeCaches_('leads');
-      SpreadsheetApp.flush();
-    }
+      if (verifiedRows.length) {
+        const now = nowIso_();
+        const setColumnValue = function (header, value) {
+          const columnA1 = columnNumberToA1_(indexes[header] + 1);
+          sheet.getRangeList(verifiedRows.map(function (rowNumber) {
+            return columnA1 + rowNumber;
+          })).setValue(value);
+        };
+        setColumnValue('status', '対応不要');
+        setColumnValue('form_status', '対応不要');
+        setColumnValue('next_send_at', '');
+        setColumnValue('no_action_reason', '収集対象外サイト');
+        setColumnValue('no_action_memo', '広告主の公式サイトではないポータル・比較・観光情報ページのため自動削除');
+        setColumnValue('archived_at', now);
+        setColumnValue('updated_at', now);
+        clearRuntimeCaches_('leads');
+        SpreadsheetApp.flush();
+      }
+      return verifiedRows.length;
+    }, { waitMs: lockWaitMs, attempts: 5, retryDelayMs: 400 });
+  });
 
-    return Object.assign({}, baseResult, {
-      deleted: verifiedRows.length,
-    });
-  }, { waitMs: lockWaitMs, attempts: lockWaitMs >= 10000 ? 5 : 1, retryDelayMs: 400 });
+  return Object.assign({}, baseResult, {
+    deleted: deleted,
+    lockBatches: batches.length,
+  });
 }
 
 function repairNonAdvertiserCleanupOverreach(options) {
   const input = options && typeof options === 'object' ? options : {};
   const dryRun = input.dryRun !== false && input.dry_run !== false;
   const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 20000, 1), 20000);
-  const lockWaitMs = Math.min(Math.max(Number(input.lockWaitMs || input.lock_wait_ms) || 90000, 1000), 90000);
+  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 250, 1), 500);
+  const lockWaitMs = Math.min(Math.max(Number(input.lockWaitMs || input.lock_wait_ms) || 6000, 1000), 6000);
   const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
   const headers = getHeaders_(sheet);
   const requiredHeaders = [
@@ -1313,13 +1364,16 @@ function repairNonAdvertiserCleanupOverreach(options) {
   const cleanupMemo = '広告主の公式サイトではないポータル・比較・観光情報ページのため自動削除';
   const values = sheet.getRange(2, 1, rowCount, headers.length).getValues();
   const targets = [];
-  values.forEach(function (row, index) {
+  let lastScannedRow = 1;
+  for (let index = 0; index < values.length; index += 1) {
+    const row = values[index];
+    lastScannedRow = index + 2;
     const websiteUrl = row[indexes.website_url];
     const formUrl = row[indexes.form_url];
     const urls = [websiteUrl, formUrl].filter(Boolean);
-    if (!row[indexes.archived_at] || row[indexes.no_action_memo] !== cleanupMemo) return;
-    if (!isAutomatedLeadCollectionSource_(row[indexes.source])) return;
-    if (urls.some(function (url) { return isKnownNonAdvertiserLeadUrl_(url); })) return;
+    if (!row[indexes.archived_at] || row[indexes.no_action_memo] !== cleanupMemo) continue;
+    if (!isAutomatedLeadCollectionSource_(row[indexes.source])) continue;
+    if (urls.some(function (url) { return isKnownNonAdvertiserLeadUrl_(url); })) continue;
     targets.push({
       rowNumber: index + 2,
       id: String(row[indexes.id] || ''),
@@ -1327,53 +1381,71 @@ function repairNonAdvertiserCleanupOverreach(options) {
       domain: normalizeDomain_(websiteUrl || formUrl),
       sendNg: normalizeBooleanLike_(row[indexes.send_ng]),
     });
-  });
+    if (targets.length >= maxUpdates) break;
+  }
   const result = {
     ok: true,
     dryRun: dryRun,
-    scanned: rowCount,
+    scanned: Math.max(lastScannedRow - 1, 0),
     matched: targets.length,
     restored: 0,
-    done: rowCount >= Math.max(lastRow - 1, 0),
+    lockBatches: 0,
+    done: lastScannedRow >= lastRow,
     items: targets.slice(0, 50),
   };
   if (dryRun || !targets.length) return result;
 
-  return withScriptLock_('repairNonAdvertiserCleanupOverreach', function () {
-    const currentValues = sheet.getRange(2, 1, rowCount, headers.length).getValues();
-    const verified = targets.filter(function (target) {
-      const row = currentValues[target.rowNumber - 2] || [];
-      const urls = [row[indexes.website_url], row[indexes.form_url]].filter(Boolean);
-      return Boolean(row[indexes.archived_at]) && row[indexes.no_action_memo] === cleanupMemo &&
-        isAutomatedLeadCollectionSource_(row[indexes.source]) &&
-        !urls.some(function (url) { return isKnownNonAdvertiserLeadUrl_(url); });
-    });
-    if (verified.length) {
-      const rowsFor = function (items) { return items.map(function (target) { return target.rowNumber; }); };
-      const setRows = function (header, rows, value) {
-        if (!rows.length) return;
-        const columnA1 = columnNumberToA1_(indexes[header] + 1);
-        sheet.getRangeList(rows.map(function (rowNumber) { return columnA1 + rowNumber; })).setValue(value);
-      };
-      const allRows = rowsFor(verified);
-      setRows('status', rowsFor(verified.filter(function (target) { return target.sendNg; })), '送信NG');
-      setRows('status', rowsFor(verified.filter(function (target) { return !target.sendNg; })), '未対応');
-      setRows('form_status', allRows, '未対応');
-      setRows('next_send_at', allRows, '');
-      setRows('no_action_reason', allRows, '');
-      setRows('no_action_memo', allRows, '');
-      setRows('archived_at', allRows, '');
-      setRows('updated_at', allRows, nowIso_());
-      clearRuntimeCaches_('leads');
-      SpreadsheetApp.flush();
-    }
-    return Object.assign({}, result, { restored: verified.length });
-  }, { waitMs: lockWaitMs, attempts: lockWaitMs >= 10000 ? 5 : 1, retryDelayMs: 400 });
+  let restored = 0;
+  const batches = partitionLeadRepairTargets_(targets);
+  batches.forEach(function (batch) {
+    restored += withScriptLock_('repairNonAdvertiserCleanupOverreach:batch', function () {
+      const firstRow = Number(batch[0].rowNumber);
+      const lastBatchRow = Number(batch[batch.length - 1].rowNumber);
+      const currentValues = sheet.getRange(firstRow, 1, lastBatchRow - firstRow + 1, headers.length).getValues();
+      const verified = batch.reduce(function (items, target) {
+        const row = currentValues[Number(target.rowNumber) - firstRow] || [];
+        if (String(row[indexes.id] || '') !== String(target.id || '')) return items;
+        const urls = [row[indexes.website_url], row[indexes.form_url]].filter(Boolean);
+        if (!row[indexes.archived_at] || row[indexes.no_action_memo] !== cleanupMemo ||
+          !isAutomatedLeadCollectionSource_(row[indexes.source]) ||
+          urls.some(function (url) { return isKnownNonAdvertiserLeadUrl_(url); })) return items;
+        items.push(Object.assign({}, target, {
+          sendNg: normalizeBooleanLike_(row[indexes.send_ng]),
+        }));
+        return items;
+      }, []);
+      if (verified.length) {
+        const rowsFor = function (items) { return items.map(function (target) { return Number(target.rowNumber); }); };
+        const setRows = function (header, rows, value) {
+          if (!rows.length) return;
+          const columnA1 = columnNumberToA1_(indexes[header] + 1);
+          sheet.getRangeList(rows.map(function (rowNumber) { return columnA1 + rowNumber; })).setValue(value);
+        };
+        const allRows = rowsFor(verified);
+        setRows('status', rowsFor(verified.filter(function (target) { return target.sendNg; })), '送信NG');
+        setRows('status', rowsFor(verified.filter(function (target) { return !target.sendNg; })), '未対応');
+        setRows('form_status', allRows, '未対応');
+        setRows('next_send_at', allRows, '');
+        setRows('no_action_reason', allRows, '');
+        setRows('no_action_memo', allRows, '');
+        setRows('archived_at', allRows, '');
+        setRows('updated_at', allRows, nowIso_());
+        clearRuntimeCaches_('leads');
+        SpreadsheetApp.flush();
+      }
+      return verified.length;
+    }, { waitMs: lockWaitMs, attempts: 5, retryDelayMs: 400 });
+  });
+
+  return Object.assign({}, result, {
+    restored: restored,
+    lockBatches: batches.length,
+  });
 }
 
 function runLeadCollectionQualityMigrationV215_(options) {
   const input = options && typeof options === 'object' ? options : {};
-  const lockWaitMs = input.interactive === true ? 2000 : 90000;
+  const lockWaitMs = input.interactive === true ? 2000 : 6000;
   const properties = PropertiesService.getScriptProperties();
   const completedAt = properties.getProperty(PROPERTY_KEYS.LEAD_COLLECTION_QUALITY_MIGRATION_V215);
   if (completedAt) {
@@ -1391,7 +1463,7 @@ function runLeadCollectionQualityMigrationV215_(options) {
   const cleanup = repairNonAdvertiserReviewLeads({
     dryRun: false,
     scanLimit: 20000,
-    maxUpdates: 2000,
+    maxUpdates: 250,
     lockWaitMs: lockWaitMs,
   });
   let nextCompletedAt = '';
