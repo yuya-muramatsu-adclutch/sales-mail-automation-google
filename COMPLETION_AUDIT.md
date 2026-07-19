@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @231 / production code v230: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @232 / production code v231: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v230_contact_discovery_depth`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v231_duplicate_url_guard`
+
+## v231 同一URLの重複登録防止
+
+- 新規営業先の重複判定候補へ公式サイト／フォームのドメインを追加し、施設名の表記が違っても同一URLなら登録を止める。
+- URL比較では `http/https`、`www`、末尾スラッシュ、フラグメント、UTM・広告クリックID等の計測パラメータ差を吸収する。
+- URLの実パスと業務上必要なクエリは残し、同一ドメイン配下の別施設や、同じフォームサービス上の別フォームIDを誤って重複扱いしない。
+- 既存のメール一致、追加元ID一致、会社名＋ドメイン一致の判定は維持する。
+- サイト収集の事前インデックスにも同じURL正規化を使い、作成直前と作成処理の二段階で判定基準をそろえる。
+- 表記差を含む同一公式URL、共有ドメインの別施設、同一フォーム、別フォームIDを回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 232を固定Web app URLへ再デプロイ済み。
 
 ## v230 公式サイト内の連絡先探索強化
 

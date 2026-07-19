@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v230_contact_discovery_depth';
+const APP_VERSION = '20260719_apps_script_full_workflow_v231_duplicate_url_guard';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -2366,6 +2366,7 @@ function assertNoDuplicateLead_(sheet, lead) {
   collectCandidateRows('email', lead.email, false);
   collectCandidateRows('source_id', lead.source_id, true);
   collectCandidateRows('normalized_company_name', lead.normalized_company_name, false);
+  collectCandidateRows('website_domain', lead.website_domain, false);
 
   const duplicate = Object.keys(candidateRows).map(Number).sort(function (left, right) {
     return left - right;
@@ -2373,28 +2374,66 @@ function assertNoDuplicateLead_(sheet, lead) {
     const row = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
     return rowToRecord_(headers, row);
   }).find(function (existing) {
-    if (isArchivedLead_(existing)) {
-      return false;
-    }
-
-    const existingEmail = String(existing.email || '').trim().toLowerCase();
-    if (lead.email && existingEmail && existingEmail === lead.email) {
-      return true;
-    }
-
-    const existingSource = String(existing.source || '').trim();
-    const existingSourceId = String(existing.source_id || '').trim();
-    if (lead.source && lead.source_id && existingSource === lead.source && existingSourceId === lead.source_id) {
-      return true;
-    }
-
-    const sameCompany = String(existing.normalized_company_name || '') === String(lead.normalized_company_name || '');
-    const sameDomain = String(existing.website_domain || '') && String(existing.website_domain || '') === String(lead.website_domain || '');
-    return sameCompany && sameDomain;
+    return areLeadRecordsDuplicateForCreate_(existing, lead);
   });
 
   if (duplicate) {
     throw createExpectedOperationError_('Duplicate lead exists: ' + duplicate.id, 'DUPLICATE_LEAD');
+  }
+}
+
+function areLeadRecordsDuplicateForCreate_(existing, candidate) {
+  const current = existing && typeof existing === 'object' ? existing : {};
+  const lead = candidate && typeof candidate === 'object' ? candidate : {};
+  if (isArchivedLead_(current)) return false;
+
+  const existingEmail = String(current.email || '').trim().toLowerCase();
+  const candidateEmail = String(lead.email || '').trim().toLowerCase();
+  if (candidateEmail && existingEmail && existingEmail === candidateEmail) return true;
+
+  const existingSource = String(current.source || '').trim();
+  const existingSourceId = String(current.source_id || '').trim();
+  const candidateSource = String(lead.source || '').trim();
+  const candidateSourceId = String(lead.source_id || '').trim();
+  if (candidateSource && candidateSourceId && existingSource === candidateSource && existingSourceId === candidateSourceId) return true;
+
+  const existingWebsite = normalizeLeadComparableUrl_(current.website_url || '');
+  const candidateWebsite = normalizeLeadComparableUrl_(lead.website_url || '');
+  if (existingWebsite && candidateWebsite && existingWebsite === candidateWebsite) return true;
+
+  const existingForm = normalizeLeadComparableUrl_(current.form_url || '');
+  const candidateForm = normalizeLeadComparableUrl_(lead.form_url || '');
+  if (existingForm && candidateForm && existingForm === candidateForm) return true;
+
+  const sameCompany = String(current.normalized_company_name || '') === String(lead.normalized_company_name || '');
+  const sameDomain = String(current.website_domain || '') && String(current.website_domain || '') === String(lead.website_domain || '');
+  return sameCompany && sameDomain;
+}
+
+function normalizeLeadComparableUrl_(value) {
+  const normalized = normalizeUrl_(value);
+  if (!normalized) return '';
+  try {
+    const parsed = new URL(normalized);
+    const domain = normalizeDomain_(normalized);
+    if (!domain) return '';
+    const path = (String(parsed.pathname || '/').replace(/\/{2,}/g, '/').replace(/\/+$/, '') || '/').toLowerCase();
+    const queryParts = String(parsed.search || '').replace(/^\?/, '').split('&').filter(function (part) {
+      if (!part) return false;
+      const key = decodeLeadComparableUrlComponent_(part.split('=')[0] || '').toLowerCase();
+      return !/^(?:utm_.+|gclid|fbclid|yclid|msclkid|ref|source)$/.test(key);
+    }).sort();
+    return domain + path + (queryParts.length ? '?' + queryParts.join('&') : '');
+  } catch (error) {
+    return normalized.replace(/#.*$/, '').replace(/\/+$/, '').toLowerCase();
+  }
+}
+
+function decodeLeadComparableUrlComponent_(value) {
+  try {
+    return decodeURIComponent(String(value || '').replace(/\+/g, '%20'));
+  } catch (error) {
+    return String(value || '');
   }
 }
 

@@ -5,7 +5,7 @@ const vm = require('vm');
 
 const root = process.env.APP_ROOT || path.resolve(__dirname, '..');
 const files = ['Code.gs', 'Email.gs', 'Masters.gs', 'Operations.gs', 'Repository.gs', 'Serper.gs', 'WebApp.gs'];
-const context = vm.createContext({ console });
+const context = vm.createContext({ console, URL });
 files.forEach((file) => {
   const source = fs.readFileSync(path.join(root, file), 'utf8');
   new Function(source);
@@ -858,6 +858,42 @@ assert.strictEqual(calendarLead.calendar_event_id, 'orphan-event');
 
 assert.doesNotThrow(() => context.normalizeLeadInput_({ facility_name: '屋号のみ' }, true));
 assert.throws(() => context.normalizeLeadInput_({}, true), /company_name, facility_name, email, or form_url is required/);
+assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
+  website_url: 'http://www.shared.example/facility/?utm_source=listing',
+  website_domain: 'shared.example',
+  normalized_company_name: '旧表記',
+}, {
+  website_url: 'https://shared.example/facility',
+  website_domain: 'shared.example',
+  normalized_company_name: '新表記',
+}), true, 'the same official URL must be a duplicate even when the facility name and tracking parameters differ');
+assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
+  website_url: 'https://shared.example/facility-a',
+  website_domain: 'shared.example',
+  normalized_company_name: '施設A',
+}, {
+  website_url: 'https://shared.example/facility-b',
+  website_domain: 'shared.example',
+  normalized_company_name: '施設B',
+}), false, 'different facility paths on a shared domain must remain allowed');
+assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
+  form_url: 'https://forms.example/response?id=abc&utm_campaign=test',
+  website_domain: 'forms.example',
+  normalized_company_name: '施設A',
+}, {
+  form_url: 'https://forms.example/response?id=abc',
+  website_domain: 'forms.example',
+  normalized_company_name: '施設B',
+}), true, 'the same form URL must be a duplicate after tracking parameters are removed');
+assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
+  form_url: 'https://forms.example/response?id=abc',
+  website_domain: 'forms.example',
+  normalized_company_name: '施設A',
+}, {
+  form_url: 'https://forms.example/response?id=xyz',
+  website_domain: 'forms.example',
+  normalized_company_name: '施設B',
+}), false, 'different form identifiers on a shared form host must remain allowed');
 const syncInput = JSON.parse(JSON.stringify(context.buildSyncLeadInput_({
   company_name: 'Example',
   email: 'https://example.com/contact',
@@ -2138,7 +2174,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v230_contact_discovery_depth'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v231_duplicate_url_guard'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
@@ -2448,4 +2484,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v230 contact discovery depth regression tests passed.');
+console.log('v231 duplicate URL guard regression tests passed.');

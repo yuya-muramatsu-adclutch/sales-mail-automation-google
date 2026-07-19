@@ -175,3 +175,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Weak company/profile discovery is restricted to the official domain so it cannot expand into unrelated external sites.
 - Automated fixtures verify discovery depth, failure continuation, obfuscation decoding, false-positive rejection, and hard page bounds.
 - Fixed deployment updated to `@231`; no live external crawl or email delivery was performed during verification.
+
+## v231 follow-up
+
+- Create-time duplicate checks now compare normalized official-site and form URLs even when facility names differ.
+- URL identity ignores protocol, `www`, trailing slash, fragment, and known tracking parameters while preserving facility paths and meaningful form query identifiers.
+- Shared-domain facilities with different paths remain valid, and different forms on the same hosted-form domain remain distinct.
+- Source-page preflight and final create validation now use the same URL identity rule.
+- Automated fixtures verify same-URL blocking and shared-domain false-positive prevention.
+- Fixed deployment updated to `@232`; no production records were rewritten during verification.

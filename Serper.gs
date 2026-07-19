@@ -1933,12 +1933,7 @@ function findExistingSourcePageLead_(candidate, facilityName, officialUrl, leadI
 }
 
 function normalizeSourcePageComparableUrl_(url) {
-  const normalized = normalizeUrl_(url);
-  if (!normalized) return '';
-  return normalized
-    .replace(/[?#].*$/, '')
-    .replace(/\/+$/, '')
-    .toLowerCase();
+  return normalizeLeadComparableUrl_(url);
 }
 
 function parseSourcePageJobPayloadForStatus_(job) {
