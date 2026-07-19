@@ -356,3 +356,11 @@ final result: code paths verified; authenticated timing comparison pending
 - Daily, monthly, and lead filters plus the credits/request-count/default-one precedence are preserved.
 - Automated coverage validates a 1,002-row aggregate, projected fallback fields, one fallback read, and shared manager input.
 - Fixed deployment updated to `@251`; no live Serper request or usage-log mutation was run during verification.
+
+## v251 follow-up
+
+- Generic sheet lists can now request only schema-allowed fields while preserving totals, updated-time ordering, and paging.
+- Search-result loading omits the unused large `raw_json` field; search-usage loading requests five displayed fields only.
+- Projected search operates on returned fields, and an all-invalid field request fails closed instead of falling back to every column.
+- Automated coverage verifies total count, newest-first paging, projected output, large-payload omission, and invalid-field rejection.
+- Fixed deployment updated to `@252`; no live search, result review, or lead creation was run during verification.

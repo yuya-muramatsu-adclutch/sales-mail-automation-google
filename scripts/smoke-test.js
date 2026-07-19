@@ -697,6 +697,33 @@ const pagedActiveRecords = context.listSheetRecords('ng_masters', { limit: 5000 
 assert.strictEqual(pagedActiveRecords.total, 1001);
 assert.strictEqual(pagedActiveRecords.items.length, 1000);
 assert.strictEqual(context.readAllSheetRecordsByName_('ng_masters', { includeInactive: true }).length, 1002);
+let projectedListRead = null;
+context.readSheetRecordFields_ = (sheetName, fields, options) => {
+  projectedListRead = {
+    sheetName,
+    fields: JSON.parse(JSON.stringify(fields)),
+    options: JSON.parse(JSON.stringify(options)),
+  };
+  return [
+    { id: 'result-old', title: 'Old', raw_json: '{"large":true}', created_at: '2026-07-15T00:01:00.000Z', updated_at: '2026-07-15T00:01:00.000Z' },
+    { id: 'result-new', title: 'New', raw_json: '{"large":true}', created_at: '2026-07-15T00:02:00.000Z', updated_at: '2026-07-15T00:02:00.000Z' },
+  ];
+};
+const projectedList = context.listSheetRecords('search_results', {
+  limit: 1,
+  includeInactive: true,
+  includeArchived: true,
+  fields: ['id', 'title', 'created_at'],
+});
+assert.deepStrictEqual(projectedListRead, {
+  sheetName: 'search_results',
+  fields: ['id', 'title', 'created_at', 'updated_at'],
+  options: { maxGapColumns: 0 },
+});
+assert.strictEqual(projectedList.total, 2);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(projectedList.items)), [{ id: 'result-new', title: 'New', created_at: '2026-07-15T00:02:00.000Z' }]);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(projectedList.items[0], 'raw_json'), false);
+assert.throws(() => context.listSheetRecords('search_results', { fields: ['missing_field'] }), /No valid fields requested/);
 const usageFixture = Array.from({ length: 1002 }, () => ({ created_at: '2026-07-15T00:00:00.000Z', credits: 1 }));
 assert.strictEqual(context.getSerperUsageCount_({ day: '2026-07-15' }, usageFixture), 1002);
 let serperUsageProjectionReads = 0;
@@ -2834,7 +2861,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v250_serper_usage_projection'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v251_search_support_projection'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3039,6 +3066,14 @@ assert(webAppSource.includes("readSheetRecordFields_('search_jobs', ['status'])"
 assert(webAppSource.includes("readSheetRecordFields_('search_usage_logs', ['created_at', 'credits', 'request_count'])"));
 assert(repositorySource.includes('function readSheetRecordFields_'));
 assert(repositorySource.includes('function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values, resultFieldNames)'));
+assert(repositorySource.includes("const projectionRequested = Array.isArray(query.fields) && query.fields.length > 0"));
+const searchSupportIndexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
+const searchSupportLoadStart = searchSupportIndexSource.indexOf('async function loadSearchResults()');
+const searchSupportLoadEnd = searchSupportIndexSource.indexOf('\n      function ', searchSupportLoadStart + 20);
+const searchSupportLoadBody = searchSupportIndexSource.slice(searchSupportLoadStart, searchSupportLoadEnd);
+assert(searchSupportLoadBody.includes("fields: ['id', 'job_id', 'lead_id', 'query', 'result_type', 'title', 'url', 'snippet', 'rank', 'review_status', 'review_action', 'reviewed_at', 'created_at', 'updated_at']"));
+assert(searchSupportLoadBody.includes("fields: ['created_at', 'purpose', 'query', 'result_count', 'status']"));
+assert(!searchSupportLoadBody.includes("'raw_json'"));
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
 assert(!webAppSource.includes("readAllSheetRecordsByName_('dashboard_cache'"), 'dashboard cache paths must not transfer every cached payload');
 assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5')"));
@@ -3333,4 +3368,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v250 Serper usage projection regression tests passed.');
+console.log('v251 search support projection regression tests passed.');

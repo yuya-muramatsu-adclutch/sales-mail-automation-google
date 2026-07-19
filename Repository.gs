@@ -1,6 +1,39 @@
 function listSheetRecords(sheetName, options) {
   const query = options && typeof options === 'object' ? options : {};
-  const records = readAllSheetRecordsByName_(sheetName, query);
+  const schemaFields = Array.isArray(SHEET_DEFINITIONS[sheetName]) ? SHEET_DEFINITIONS[sheetName] : [];
+  const projectionRequested = Array.isArray(query.fields) && query.fields.length > 0;
+  const requestedFields = projectionRequested
+    ? Array.from(new Set(query.fields.map(function (fieldName) {
+      return String(fieldName || '').trim();
+    }).filter(function (fieldName) {
+      return fieldName && schemaFields.indexOf(fieldName) !== -1;
+    })))
+    : [];
+  if (projectionRequested && !requestedFields.length) {
+    throw new Error('No valid fields requested for ' + sheetName + '.');
+  }
+  const internalFields = projectionRequested
+    ? Array.from(new Set(requestedFields.concat([
+      'id',
+      'created_at',
+      'updated_at',
+      query.includeInactive === true ? '' : 'active',
+      query.includeArchived === true ? '' : 'archived_at',
+    ]))).filter(function (fieldName) {
+      return fieldName && schemaFields.indexOf(fieldName) !== -1;
+    })
+    : [];
+  const records = (projectionRequested
+    ? readSheetRecordFields_(sheetName, internalFields, { maxGapColumns: 0 })
+    : readAllSheetRecordsByName_(sheetName, query)).filter(function (record) {
+    if (projectionRequested && query.includeInactive !== true && Object.prototype.hasOwnProperty.call(record, 'active') && normalizeBooleanLike_(record.active) === false) {
+      return false;
+    }
+    if (projectionRequested && query.includeArchived !== true && Object.prototype.hasOwnProperty.call(record, 'archived_at') && record.archived_at) {
+      return false;
+    }
+    return true;
+  });
   const search = String(query.search || '').trim().toLowerCase();
   const limit = Math.min(Math.max(Number(query.limit) || 200, 1), 1000);
   const offset = Math.max(Number(query.offset) || 0, 0);
@@ -9,7 +42,8 @@ function listSheetRecords(sheetName, options) {
     if (!search) {
       return true;
     }
-    return Object.keys(record).some(function (key) {
+    const searchableFields = projectionRequested ? requestedFields : Object.keys(record);
+    return searchableFields.some(function (key) {
       return String(record[key] || '').toLowerCase().indexOf(search) !== -1;
     });
   });
@@ -18,11 +52,17 @@ function listSheetRecords(sheetName, options) {
     return String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
   });
 
+  const items = filtered.slice(offset, offset + limit);
   return {
     total: filtered.length,
     offset: offset,
     limit: limit,
-    items: filtered.slice(offset, offset + limit),
+    items: projectionRequested ? items.map(function (record) {
+      return requestedFields.reduce(function (projected, fieldName) {
+        projected[fieldName] = record[fieldName] === null || record[fieldName] === undefined ? '' : record[fieldName];
+        return projected;
+      }, {});
+    }) : items,
   };
 }
 

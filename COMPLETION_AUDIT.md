@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @251 / production code v250: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @252 / production code v251: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v250_serper_usage_projection`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v251_search_support_projection`
+
+## v251 検索関連一覧の必要列取得
+
+- 汎用一覧取得へシート定義で許可された列だけを返す射影オプションを追加し、件数・更新順・ページ上限を維持したまま全列転送を避けられるようにした。
+- 検索結果一覧は15列中14列を取得し、画面で使わない大きな `raw_json` を読み込まない。
+- 検索利用履歴一覧は15列中、作成日時・用途・検索語・結果件数・状態の5列だけを取得する。
+- 射影時の検索は返却対象列だけを対象にし、無効な列しか指定されていない要求は全列へフォールバックせずエラーにする。
+- 総件数、最新更新順、1件ページ、返却列限定、巨大JSON非返却、無効列拒否を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 252を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@252` であることを確認した。実検索・検索結果レビュー・営業先追加は検証中に実行していない。
 
 ## v250 Serper使用量集計の一回・必要列取得
 

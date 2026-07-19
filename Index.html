@@ -19051,8 +19051,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function loadSearchResults() {
         const settled = await Promise.allSettled([
-          api('listSheetRecords', 'search_results', { limit: 100, includeInactive: true }),
-          api('listSheetRecords', 'search_usage_logs', { limit: 100, includeInactive: true }),
+          api('listSheetRecords', 'search_results', {
+            limit: 100,
+            includeInactive: true,
+            fields: ['id', 'job_id', 'lead_id', 'query', 'result_type', 'title', 'url', 'snippet', 'rank', 'review_status', 'review_action', 'reviewed_at', 'created_at', 'updated_at'],
+          }),
+          api('listSheetRecords', 'search_usage_logs', {
+            limit: 100,
+            includeInactive: true,
+            fields: ['created_at', 'purpose', 'query', 'result_count', 'status'],
+          }),
           api('listSheetRecords', 'search_jobs', { limit: 100, includeInactive: true }),
         ]);
         const failures = [];
