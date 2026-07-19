@@ -390,3 +390,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Normal sync, progress, and background views retain status, counts, messages, ordering, and totals without transferring debug payloads.
 - Automated coverage verifies the initial projection, detail projection, omitted fields, and error/admin lazy-load wiring.
 - Fixed deployment updated to `@255`; no live log or sales-data mutation was run during verification.
+
+## v255 follow-up
+
+- Operations job loading now requests nineteen displayed/runtime-summary fields from `jobs` instead of all twenty-five columns.
+- Search and operations loading request thirteen displayed/progress fields from `search_jobs` instead of all twenty columns.
+- Request keys, lock tokens, lock timestamps, heartbeats, attempt counts, and the unused large `jobs.payload_json` are omitted from list transfer.
+- Current query, progress, result counters, errors, added-lead samples, and source-page facility progress remain available.
+- Automated coverage verifies both projections and the absence of internal lock fields and unused payload data.
+- Fixed deployment updated to `@256`; no live job execution, external search, or sales-data mutation was run during verification.

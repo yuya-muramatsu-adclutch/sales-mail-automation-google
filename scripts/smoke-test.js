@@ -2861,7 +2861,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v254_sync_log_details_on_demand'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v255_job_list_projection'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3079,6 +3079,9 @@ const searchSupportLoadBody = searchSupportIndexSource.slice(searchSupportLoadSt
 assert(searchSupportLoadBody.includes("fields: ['id', 'job_id', 'lead_id', 'query', 'result_type', 'title', 'url', 'snippet', 'rank', 'review_status', 'review_action', 'reviewed_at', 'created_at', 'updated_at']"));
 assert(searchSupportLoadBody.includes("fields: ['created_at', 'purpose', 'query', 'result_count', 'status']"));
 assert(!searchSupportLoadBody.includes("'raw_json'"));
+assert(searchSupportLoadBody.includes("fields: ['id', 'job_type', 'status', 'query_json', 'total_count', 'processed_count', 'cursor_json', 'last_error', 'error_count', 'started_at', 'finished_at', 'created_at', 'updated_at']"));
+assert(!searchSupportLoadBody.includes("'request_key'"), 'search screen job list must not transfer request keys');
+assert(!searchSupportLoadBody.includes("'lock_token'"), 'search screen job list must not transfer job lock tokens');
 const opsLoadStart = searchSupportIndexSource.indexOf('async function loadOpsData(options)');
 const opsLoadEnd = searchSupportIndexSource.indexOf('\n      async function loadHistories()', opsLoadStart + 20);
 const opsLoadBody = searchSupportIndexSource.slice(opsLoadStart, opsLoadEnd);
@@ -3087,6 +3090,11 @@ assert(!opsLoadBody.includes("'body'"), 'initial operations load must not transf
 assert(opsLoadBody.includes("fields: ['id', 'event_type', 'operation', 'source', 'status', 'level', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'message', 'created_at']"));
 assert(!opsLoadBody.includes("'stack'"), 'initial operations load must not transfer sync-log stacks');
 assert(!opsLoadBody.includes("'context_json'"), 'initial operations load must not transfer sync-log contexts');
+assert(opsLoadBody.includes("fields: ['id', 'job_type', 'status', 'source', 'cursor_json', 'total_count', 'processed_count', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'found_results_json', 'current_query', 'last_error', 'started_at', 'finished_at', 'created_at', 'updated_at']"));
+assert(opsLoadBody.includes("fields: ['id', 'job_type', 'status', 'query_json', 'total_count', 'processed_count', 'cursor_json', 'last_error', 'error_count', 'started_at', 'finished_at', 'created_at', 'updated_at']"));
+assert(!opsLoadBody.includes("'payload_json'"), 'operations job list must not transfer unused job payloads');
+assert(!opsLoadBody.includes("'request_key'"), 'operations job list must not transfer request keys');
+assert(!opsLoadBody.includes("'lock_token'"), 'operations job list must not transfer job lock tokens');
 assert(searchSupportIndexSource.includes('async function loadSendHistoryBody(id)'));
 assert(searchSupportIndexSource.includes("fields: ['id', 'body']"));
 assert(searchSupportIndexSource.includes("apiQuiet('getSendHistoryDetail', historyId)"));
@@ -3440,4 +3448,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v254 sync log details on-demand regression tests passed.');
+console.log('v255 background job list projection regression tests passed.');

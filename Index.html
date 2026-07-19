@@ -19070,7 +19070,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             includeInactive: true,
             fields: ['created_at', 'purpose', 'query', 'result_count', 'status'],
           }),
-          api('listSheetRecords', 'search_jobs', { limit: 100, includeInactive: true }),
+          api('listSheetRecords', 'search_jobs', {
+            limit: 100,
+            includeInactive: true,
+            fields: ['id', 'job_type', 'status', 'query_json', 'total_count', 'processed_count', 'cursor_json', 'last_error', 'error_count', 'started_at', 'finished_at', 'created_at', 'updated_at'],
+          }),
         ]);
         const failures = [];
         const results = settledPageResult(settled[0], '検索結果', state.searchResults, state.searchResultTotal, failures);
@@ -20946,8 +20950,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             includeInactive: true,
             fields: ['id', 'event_type', 'operation', 'source', 'status', 'level', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'message', 'created_at'],
           }),
-          request('listSheetRecords', 'jobs', { limit: 100, includeInactive: true }),
-          request('listSheetRecords', 'search_jobs', { limit: 100, includeInactive: true }),
+          request('listSheetRecords', 'jobs', {
+            limit: 100,
+            includeInactive: true,
+            fields: ['id', 'job_type', 'status', 'source', 'cursor_json', 'total_count', 'processed_count', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'found_results_json', 'current_query', 'last_error', 'started_at', 'finished_at', 'created_at', 'updated_at'],
+          }),
+          request('listSheetRecords', 'search_jobs', {
+            limit: 100,
+            includeInactive: true,
+            fields: ['id', 'job_type', 'status', 'query_json', 'total_count', 'processed_count', 'cursor_json', 'last_error', 'error_count', 'started_at', 'finished_at', 'created_at', 'updated_at'],
+          }),
         ]);
         const failures = [];
         const histories = settledPageResult(settled[0], '送信履歴', state.histories, state.historyTotal, failures);

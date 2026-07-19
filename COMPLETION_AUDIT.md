@@ -5,9 +5,20 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @255 / production code v254: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @256 / production code v255: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v254_sync_log_details_on_demand`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v255_job_list_projection`
+
+## v255 バックグラウンドジョブ一覧の必要列取得
+
+- 通常の運用画面では `jobs` 25列中、進捗・追加先・集計・エラー表示に必要な19列だけを取得する。
+- 検索画面と運用画面の `search_jobs` は20列中、検索計画・進捗・エラー・日時に必要な13列だけを取得する。
+- 画面で使わない要求キー、ロックトークン、ロック日時、ハートビート、試行回数を一覧取得から除外した。
+- `jobs` の大きな `payload_json` も通常一覧から除外し、処理本体が保存・更新するジョブデータと再開APIは変更しない。
+- 現在の検索語、進捗率、件数内訳、最終エラー、追加された営業先サンプル、まとめサイト型ジョブの施設進捗は従来どおり表示する。
+- 検索画面・運用画面の取得列と、内部管理列・未使用ペイロードの非取得を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 256を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@256` であることを確認した。ジョブ実行、外部検索、営業データ変更は検証中に実行していない。
 
 ## v254 同期ログ詳細のオンデマンド取得
 
