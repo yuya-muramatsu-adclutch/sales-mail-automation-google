@@ -270,6 +270,14 @@ function addSearchResultToLead(resultId, input) {
   const overrides = input && typeof input === 'object' ? input : {};
   const initialResult = findSheetRecordById_('search_results', id);
   if (!initialResult) throw new Error('Search result not found: ' + id);
+  const requestedUrl = String(overrides.website_url || overrides.form_url || initialResult.url || '').trim();
+  if (requestedUrl && isLeadCollectionExcludedUrl_(requestedUrl)) {
+    reviewSearchResults({ ids: [id], action: 'exclude' });
+    throw createExpectedOperationError_(
+      '広告主の公式サイトではないため収集対象から除外しました: ' + normalizeDomain_(requestedUrl),
+      'NON_ADVERTISER_SITE'
+    );
+  }
 
   const recoveryLead = initialResult.lead_id
     ? null
@@ -1104,7 +1112,10 @@ function processLeadSearchItem_(item, jobType, jobId) {
   });
   const selected = selectLeadSearchResult_(response.organic, jobType, lead);
 
-  response.organic.forEach(function (result, index) {
+  const excludedDomains = getLeadCollectionExcludedDomainRecords_();
+  response.organic.filter(function (result) {
+    return !isLeadCollectionExcludedUrl_(result.link || '', excludedDomains);
+  }).forEach(function (result, index) {
     appendSheetRecord_('search_results', {
       job_id: jobId || '',
       lead_id: lead.id,
@@ -1153,7 +1164,10 @@ function processProspectingSearchItem_(item, payload, jobId) {
     source: 'prospecting',
   });
 
-  response.organic.forEach(function (result, index) {
+  const excludedDomains = getLeadCollectionExcludedDomainRecords_();
+  response.organic.filter(function (result) {
+    return !isLeadCollectionExcludedUrl_(result.link || '', excludedDomains);
+  }).forEach(function (result, index) {
     appendSheetRecord_('search_results', {
       job_id: jobId || '',
       lead_id: '',
@@ -1657,6 +1671,10 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
     deriveSearchResultCompanyName_(candidate.official_url || candidate.detail_url || sourceUrl);
   let officialUrl = candidate.official_url || '';
   let discoveryMode = officialUrl ? 'direct_official_link' : 'unresolved';
+  if (officialUrl && isLeadCollectionExcludedUrl_(officialUrl)) {
+    officialUrl = '';
+    discoveryMode = 'excluded_non_advertiser_url';
+  }
   let serperResult = null;
   const sourceId = candidate.source_id || sourcePageLeadSourceId_(jobId, index, facilityName, officialUrl || candidate.detail_url || sourceUrl);
   const leadIndex = runtimeContext && runtimeContext.leadIndex;
@@ -1687,7 +1705,12 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
     try {
       const detailPage = fetchProspectingHtml_(candidate.detail_url);
       officialUrl = extractFirstOfficialLinkFromHtml_(detailPage.html, candidate.detail_url, sourceDomain);
-      if (officialUrl) discoveryMode = 'detail_page_official_link';
+      if (officialUrl && isLeadCollectionExcludedUrl_(officialUrl)) {
+        officialUrl = '';
+        discoveryMode = 'excluded_non_advertiser_url';
+      } else if (officialUrl) {
+        discoveryMode = 'detail_page_official_link';
+      }
     } catch (error) {
       candidate.detail_error = error.message || String(error);
     }
@@ -1725,6 +1748,11 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
         error: error.message || String(error),
       };
     }
+  }
+
+  if (officialUrl && isLeadCollectionExcludedUrl_(officialUrl)) {
+    officialUrl = '';
+    discoveryMode = 'excluded_non_advertiser_url';
   }
 
   if (officialUrl) {
@@ -2406,17 +2434,7 @@ function isLikelyOfficialCandidateUrl_(url, sourceDomain) {
 }
 
 function isKnownLeadListingDirectoryDomain_(domainOrUrl) {
-  const domain = normalizeDomain_(domainOrUrl);
-  return [
-    'nap-camp.com',
-    'camp-go.com',
-    'campla.jp',
-    'campiii.com',
-    'hatinosu.net',
-    'my-kagawa.jp',
-  ].some(function (host) {
-    return isDomainOrSubdomain_(domain, host);
-  });
+  return isKnownNonAdvertiserLeadUrl_(domainOrUrl);
 }
 
 function isSourcePageCandidateText_(text) {
@@ -2480,12 +2498,13 @@ function buildLeadSearchQuery_(lead, jobType) {
 function selectLeadSearchResult_(results, jobType, context) {
   const organic = Array.isArray(results) ? results : [];
   const excludedHosts = ['facebook.com', 'instagram.com', 'x.com', 'twitter.com', 'linkedin.com', 'youtube.com', 'map.yahoo.co.jp', 'google.com', 'nap-camp.com'];
+  const excludedDomains = getLeadCollectionExcludedDomainRecords_();
   const contactPattern = /(contact|inquiry|お問い合わせ|問い合わせ|お問合せ|toiawase|otoiawase)/i;
   const source = context && typeof context === 'object' ? context : {};
   const expectedName = normalizeCompanyName_(source.company_name || source.facility_name || '');
   const candidates = organic.filter(function (result) {
     const domain = normalizeDomain_(result.link || '');
-    return domain && !isKnownLeadListingDirectoryDomain_(domain) && !excludedHosts.some(function (host) { return isDomainOrSubdomain_(domain, host); });
+    return domain && !isLeadCollectionExcludedUrl_(result.link || domain, excludedDomains) && !excludedHosts.some(function (host) { return isDomainOrSubdomain_(domain, host); });
   }).map(function (result, index) {
     const searchableText = [result.title, result.snippet, result.link].join(' ');
     const normalizedText = normalizeCompanyName_(searchableText);
@@ -2517,13 +2536,15 @@ function updateLeadFromSearchResult_(lead, result, jobType) {
   return withScriptLock_('updateLeadFromSearchResult', function () {
     const current = getLeadById(leadId);
     const patch = {};
-    const candidateWebsite = String(searchResult.website_url || (jobType !== 'lead_form_url' ? searchResult.url : '') || '').trim();
-    const candidateForm = String(
+    let candidateWebsite = String(searchResult.website_url || (jobType !== 'lead_form_url' ? searchResult.url : '') || '').trim();
+    let candidateForm = String(
       searchResult.form_url ||
       (jobType === 'lead_form_url' && searchResult.contact_verified !== true ? searchResult.url || searchResult.website_url : '') ||
       ''
     ).trim();
     const candidateEmail = String(searchResult.email || '').trim().toLowerCase();
+    if (candidateWebsite && isLeadCollectionExcludedUrl_(candidateWebsite)) candidateWebsite = '';
+    if (candidateForm && isLeadCollectionExcludedUrl_(candidateForm)) candidateForm = '';
 
     if (candidateWebsite && !String(current.website_url || '').trim()) patch.website_url = candidateWebsite;
     if (candidateEmail && isValidEmailAddress_(candidateEmail) && !isValidEmailAddress_(current.email)) patch.email = candidateEmail;

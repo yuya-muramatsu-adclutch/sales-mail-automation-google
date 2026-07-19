@@ -1432,12 +1432,19 @@ assert.strictEqual(sourceLockContext.isLeadReviewPending_({
   source: 'source_page', status: '未対応', website_url: 'https://camp.example/', email: '', form_url: '',
 }), true);
 assert.strictEqual(sourceLockContext.isLikelyOfficialCandidateUrl_('https://camp-go.com/camps/example', ''), false);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://yamagatakanko.com/attractions/detail_234.html'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.town.nishikawa.yamagata.jp/site/kanko/'), false);
 assert.strictEqual(sourceLockContext.isLikelyOfficialCandidateUrl_('https://facility.example/', ''), true);
 const selectedOfficial = sourceLockContext.selectLeadSearchResult_([
   { title: '施設まとめ', link: 'https://camp-go.com/camps/example', snippet: '一覧' },
   { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora.example/', snippet: '星空キャンプ場' },
 ], 'lead_official_site', { company_name: '星空キャンプ場' });
 assert.strictEqual(selectedOfficial.url, 'https://hoshizora.example/');
+const selectedAdvertiserSite = sourceLockContext.selectLeadSearchResult_([
+  { title: '大沼キャンプ場 観光スポット', link: 'https://yamagatakanko.com/attractions/detail_234.html', snippet: '山形県観光情報ポータル' },
+  { title: '大沼キャンプ場 公式案内', link: 'https://www.town.nishikawa.yamagata.jp/site/kanko/', snippet: '西川町公式サイト' },
+], 'lead_official_site', { company_name: '大沼キャンプ場' });
+assert.strictEqual(selectedAdvertiserSite.url, 'https://www.town.nishikawa.yamagata.jp/site/kanko/');
 const contactPages = {
   'https://camp.example/': '<a href="/privacy">プライバシー</a><a href="/contact">お問い合わせ</a>',
   'https://camp.example/contact': '<div class="wpcf7">お問い合わせ</div><p>sales (at) camp (dot) example</p><form><input type="email"><textarea name="message"></textarea></form>',
@@ -1612,7 +1619,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v214_compact_lead_menu_clean_facility_cell'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v218_non_advertiser_review_cleanup_guard'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1625,6 +1632,29 @@ assert(codeSource.includes('function findActiveLeadBySourceReference_'));
 assert(codeSource.includes('function listEmailSendCandidates'));
 assert(codeSource.includes('function updateReviewLeadDecision'));
 assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
+assert(codeSource.includes('function repairNonAdvertiserReviewLeads'));
+assert(codeSource.includes('function repairNonAdvertiserCleanupOverreach'));
+assert.strictEqual(context.isSafeNonAdvertiserLeadCleanupTarget_({
+  source: 'source_page', status: '送信NG', send_count: 0, last_sent_at: '', reply_checked: false, deal_status: '未設定', archived_at: '',
+}), true, 'unsent automated non-advertiser leads should be safe to archive regardless of review status');
+assert.strictEqual(context.isSafeNonAdvertiserLeadCleanupTarget_({
+  source: 'source_page', status: '初回メール送信済み', send_count: 1, last_sent_at: '2026-07-19T00:00:00+09:00', reply_checked: false, deal_status: '未設定', archived_at: '',
+}), false, 'sent leads must be retained for history');
+assert.strictEqual(context.isSafeNonAdvertiserLeadCleanupTarget_({
+  source: 'manual', status: '未対応', send_count: 0, last_sent_at: '', reply_checked: false, deal_status: '未設定', archived_at: '',
+}), false, 'manual leads must not be removed by automated collection cleanup');
+const excludedPortalDomains = [{ domain: 'directory.example' }];
+assert.strictEqual(context.isNonAdvertiserCleanupCandidate_({
+  source: 'source_page', status: '未対応', website_url: 'https://directory.example/spot/1', send_count: 0, last_sent_at: '', reply_checked: false, deal_status: '未設定', archived_at: '',
+}, excludedPortalDomains), true, 'review candidates from configured excluded domains should be archived');
+assert.strictEqual(context.isNonAdvertiserCleanupCandidate_({
+  source: 'source_page', status: '送信NG', website_url: 'https://directory.example/spot/1', send_count: 0, last_sent_at: '', reply_checked: false, deal_status: '未設定', archived_at: '',
+}, excludedPortalDomains), false, 'non-review records on custom excluded domains should retain their history');
+assert.strictEqual(context.isNonAdvertiserCleanupCandidate_({
+  source: 'source_page', status: '送信NG', website_url: 'https://yamagatakanko.com/attractions/detail_234.html', send_count: 0, last_sent_at: '', reply_checked: false, deal_status: '未設定', archived_at: '',
+}, []), true, 'known tourism portals should be archived even when previously marked send NG');
+assert(codeSource.includes('function runLeadCollectionQualityMigrationV215_'));
+assert(codeSource.includes('assertLeadCollectionDestinationAllowed_(lead);'));
 assert(codeSource.includes('function classifyLeadListState_'));
 assert(codeSource.includes('function buildLeadListStateBreakdown_'));
 assert(codeSource.includes('function buildLeadListStateGroups_'));
@@ -1690,6 +1720,9 @@ assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
 assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHistories, today)'));
 assert(webAppSource.includes("if (action === 'repairNapCampGenres')"));
 assert(webAppSource.includes("if (action === 'repairReviewLeadsWithoutContact')"));
+assert(webAppSource.includes("if (action === 'repairNonAdvertiserReviewLeads')"));
+assert(webAppSource.includes('runLeadCollectionQualityMigrationV215_({ interactive: true })'));
+assert(emailSource.includes("logError_('runLeadCollectionQualityMigrationV215_:scheduled'"));
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 assert(indexSource.includes('class="nav-more nav-section" data-nav-tabs="leads,reviewLeads,search,backgroundJobs"'));
 assert(indexSource.includes('function renderLeadRowsTable'));
@@ -1842,4 +1875,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v214 compact lead menu and clean facility cell regression tests passed.');
+console.log('v218 non-advertiser site cleanup regression tests passed.');

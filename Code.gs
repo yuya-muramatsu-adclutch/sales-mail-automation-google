@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v214_compact_lead_menu_clean_facility_cell';
+const APP_VERSION = '20260719_apps_script_full_workflow_v218_non_advertiser_review_cleanup_guard';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -680,6 +680,7 @@ function createLeadLocked_(input) {
   lead.archived_at = '';
   applyLeadDerivedFields_(lead);
   applyLeadStatusSideEffects_(lead, explicitFields);
+  assertLeadCollectionDestinationAllowed_(lead);
   if (!allowDuplicate) {
     assertNoDuplicateLead_(sheet, lead);
   }
@@ -954,6 +955,10 @@ function repairReviewLeadsWithoutContact(options) {
     'form_url',
     'form_status',
     'next_send_at',
+    'last_sent_at',
+    'send_count',
+    'reply_checked',
+    'deal_status',
     'no_action_reason',
     'no_action_memo',
     'updated_at',
@@ -1054,6 +1059,264 @@ function repairReviewLeadsWithoutContact(options) {
       updated: verifiedRows.length,
     });
   }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+}
+
+function repairNonAdvertiserReviewLeads(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const dryRun = input.dryRun !== false && input.dry_run !== false;
+  const startRow = Math.max(Number(input.startRow || input.start_row) || 2, 2);
+  const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 20000, 1), 20000);
+  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 2000, 1), 5000);
+  const lockWaitMs = Math.min(Math.max(Number(input.lockWaitMs || input.lock_wait_ms) || 90000, 1000), 90000);
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
+  const headers = getHeaders_(sheet);
+  const requiredHeaders = [
+    'id',
+    'source',
+    'company_name',
+    'facility_name',
+    'status',
+    'website_url',
+    'form_url',
+    'form_status',
+    'next_send_at',
+    'no_action_reason',
+    'no_action_memo',
+    'archived_at',
+    'updated_at',
+  ];
+  requiredHeaders.forEach(function (header) {
+    if (headers.indexOf(header) === -1) throw new Error('leadsシートに' + header + '列が必要です。');
+  });
+
+  const lastRow = sheet.getLastRow();
+  if (startRow > lastRow) {
+    return {
+      ok: true,
+      dryRun: dryRun,
+      startRow: startRow,
+      nextRow: startRow,
+      lastRow: lastRow,
+      scanned: 0,
+      matched: 0,
+      deleted: 0,
+      done: true,
+      items: [],
+    };
+  }
+
+  const rowCount = Math.min(scanLimit, lastRow - startRow + 1);
+  const values = sheet.getRange(startRow, 1, rowCount, headers.length).getValues();
+  const indexes = {};
+  requiredHeaders.forEach(function (header) { indexes[header] = headers.indexOf(header); });
+  const excludedDomains = getLeadCollectionExcludedDomainRecords_();
+  const targets = [];
+  let lastScannedRow = startRow - 1;
+  for (let index = 0; index < values.length; index += 1) {
+    const rowNumber = startRow + index;
+    lastScannedRow = rowNumber;
+    const lead = {
+      id: values[index][indexes.id],
+      source: values[index][indexes.source],
+      company_name: values[index][indexes.company_name],
+      facility_name: values[index][indexes.facility_name],
+      status: values[index][indexes.status],
+      website_url: values[index][indexes.website_url],
+      form_url: values[index][indexes.form_url],
+      last_sent_at: values[index][indexes.last_sent_at],
+      send_count: values[index][indexes.send_count],
+      reply_checked: values[index][indexes.reply_checked],
+      deal_status: values[index][indexes.deal_status],
+      archived_at: values[index][indexes.archived_at],
+    };
+    if (!isNonAdvertiserCleanupCandidate_(lead, excludedDomains)) continue;
+    const blockedUrl = [lead.website_url, lead.form_url].filter(Boolean).find(function (url) {
+      return isLeadCollectionExcludedUrl_(url, excludedDomains);
+    });
+    if (!blockedUrl) continue;
+    targets.push({
+      rowNumber: rowNumber,
+      id: String(lead.id || ''),
+      name: String(lead.facility_name || lead.company_name || ''),
+      domain: normalizeDomain_(blockedUrl),
+    });
+    if (targets.length >= maxUpdates) break;
+  }
+
+  const baseResult = {
+    ok: true,
+    dryRun: dryRun,
+    startRow: startRow,
+    nextRow: lastScannedRow + 1,
+    lastRow: lastRow,
+    scanned: Math.max(lastScannedRow - startRow + 1, 0),
+    matched: targets.length,
+    deleted: 0,
+    done: lastScannedRow >= lastRow,
+    items: targets.slice(0, 50),
+  };
+  if (dryRun || !targets.length) return baseResult;
+
+  return withScriptLock_('repairNonAdvertiserReviewLeads', function () {
+    const currentValues = sheet.getRange(startRow, 1, Math.max(lastScannedRow - startRow + 1, 1), headers.length).getValues();
+    const verifiedRows = [];
+    targets.forEach(function (target) {
+      const valueIndex = target.rowNumber - startRow;
+      const current = currentValues[valueIndex] || [];
+      const lead = {
+        source: current[indexes.source],
+        status: current[indexes.status],
+        website_url: current[indexes.website_url],
+        form_url: current[indexes.form_url],
+        last_sent_at: current[indexes.last_sent_at],
+        send_count: current[indexes.send_count],
+        reply_checked: current[indexes.reply_checked],
+        deal_status: current[indexes.deal_status],
+        archived_at: current[indexes.archived_at],
+      };
+      if (isNonAdvertiserCleanupCandidate_(lead, excludedDomains)) verifiedRows.push(target.rowNumber);
+    });
+
+    if (verifiedRows.length) {
+      const now = nowIso_();
+      const setColumnValue = function (header, value) {
+        const columnA1 = columnNumberToA1_(indexes[header] + 1);
+        sheet.getRangeList(verifiedRows.map(function (rowNumber) {
+          return columnA1 + rowNumber;
+        })).setValue(value);
+      };
+      setColumnValue('status', '対応不要');
+      setColumnValue('form_status', '対応不要');
+      setColumnValue('next_send_at', '');
+      setColumnValue('no_action_reason', '収集対象外サイト');
+      setColumnValue('no_action_memo', '広告主の公式サイトではないポータル・比較・観光情報ページのため自動削除');
+      setColumnValue('archived_at', now);
+      setColumnValue('updated_at', now);
+      clearRuntimeCaches_('leads');
+      SpreadsheetApp.flush();
+    }
+
+    return Object.assign({}, baseResult, {
+      deleted: verifiedRows.length,
+    });
+  }, { waitMs: lockWaitMs, attempts: lockWaitMs >= 10000 ? 5 : 1, retryDelayMs: 400 });
+}
+
+function repairNonAdvertiserCleanupOverreach(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const dryRun = input.dryRun !== false && input.dry_run !== false;
+  const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 20000, 1), 20000);
+  const lockWaitMs = Math.min(Math.max(Number(input.lockWaitMs || input.lock_wait_ms) || 90000, 1000), 90000);
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
+  const headers = getHeaders_(sheet);
+  const requiredHeaders = [
+    'id', 'source', 'company_name', 'facility_name', 'status', 'website_url', 'form_url',
+    'send_ng', 'form_status', 'next_send_at', 'no_action_reason', 'no_action_memo',
+    'archived_at', 'updated_at',
+  ];
+  requiredHeaders.forEach(function (header) {
+    if (headers.indexOf(header) === -1) throw new Error('leadsシートに' + header + '列が必要です。');
+  });
+  const indexes = {};
+  requiredHeaders.forEach(function (header) { indexes[header] = headers.indexOf(header); });
+  const lastRow = sheet.getLastRow();
+  const rowCount = Math.min(scanLimit, Math.max(lastRow - 1, 0));
+  if (!rowCount) return { ok: true, dryRun: dryRun, scanned: 0, matched: 0, restored: 0, done: true, items: [] };
+
+  const cleanupMemo = '広告主の公式サイトではないポータル・比較・観光情報ページのため自動削除';
+  const values = sheet.getRange(2, 1, rowCount, headers.length).getValues();
+  const targets = [];
+  values.forEach(function (row, index) {
+    const websiteUrl = row[indexes.website_url];
+    const formUrl = row[indexes.form_url];
+    const urls = [websiteUrl, formUrl].filter(Boolean);
+    if (!row[indexes.archived_at] || row[indexes.no_action_memo] !== cleanupMemo) return;
+    if (!isAutomatedLeadCollectionSource_(row[indexes.source])) return;
+    if (urls.some(function (url) { return isKnownNonAdvertiserLeadUrl_(url); })) return;
+    targets.push({
+      rowNumber: index + 2,
+      id: String(row[indexes.id] || ''),
+      name: String(row[indexes.facility_name] || row[indexes.company_name] || ''),
+      domain: normalizeDomain_(websiteUrl || formUrl),
+      sendNg: normalizeBooleanLike_(row[indexes.send_ng]),
+    });
+  });
+  const result = {
+    ok: true,
+    dryRun: dryRun,
+    scanned: rowCount,
+    matched: targets.length,
+    restored: 0,
+    done: rowCount >= Math.max(lastRow - 1, 0),
+    items: targets.slice(0, 50),
+  };
+  if (dryRun || !targets.length) return result;
+
+  return withScriptLock_('repairNonAdvertiserCleanupOverreach', function () {
+    const currentValues = sheet.getRange(2, 1, rowCount, headers.length).getValues();
+    const verified = targets.filter(function (target) {
+      const row = currentValues[target.rowNumber - 2] || [];
+      const urls = [row[indexes.website_url], row[indexes.form_url]].filter(Boolean);
+      return Boolean(row[indexes.archived_at]) && row[indexes.no_action_memo] === cleanupMemo &&
+        isAutomatedLeadCollectionSource_(row[indexes.source]) &&
+        !urls.some(function (url) { return isKnownNonAdvertiserLeadUrl_(url); });
+    });
+    if (verified.length) {
+      const rowsFor = function (items) { return items.map(function (target) { return target.rowNumber; }); };
+      const setRows = function (header, rows, value) {
+        if (!rows.length) return;
+        const columnA1 = columnNumberToA1_(indexes[header] + 1);
+        sheet.getRangeList(rows.map(function (rowNumber) { return columnA1 + rowNumber; })).setValue(value);
+      };
+      const allRows = rowsFor(verified);
+      setRows('status', rowsFor(verified.filter(function (target) { return target.sendNg; })), '送信NG');
+      setRows('status', rowsFor(verified.filter(function (target) { return !target.sendNg; })), '未対応');
+      setRows('form_status', allRows, '未対応');
+      setRows('next_send_at', allRows, '');
+      setRows('no_action_reason', allRows, '');
+      setRows('no_action_memo', allRows, '');
+      setRows('archived_at', allRows, '');
+      setRows('updated_at', allRows, nowIso_());
+      clearRuntimeCaches_('leads');
+      SpreadsheetApp.flush();
+    }
+    return Object.assign({}, result, { restored: verified.length });
+  }, { waitMs: lockWaitMs, attempts: lockWaitMs >= 10000 ? 5 : 1, retryDelayMs: 400 });
+}
+
+function runLeadCollectionQualityMigrationV215_(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const lockWaitMs = input.interactive === true ? 2000 : 90000;
+  const migrationKey = 'MIGRATION_V215_NON_ADVERTISER_LEADS';
+  const properties = PropertiesService.getScriptProperties();
+  const completedAt = properties.getProperty(migrationKey);
+  if (completedAt) {
+    return { ok: true, skipped: true, completedAt: completedAt };
+  }
+
+  const exclusions = importExcludedDomains({
+    records: [{
+      domain: 'yamagatakanko.com',
+      reason: '広告主の公式サイトではない観光情報ポータル',
+      active: true,
+    }],
+    lockWaitMs: lockWaitMs,
+  });
+  const cleanup = repairNonAdvertiserReviewLeads({
+    dryRun: false,
+    scanLimit: 20000,
+    maxUpdates: 2000,
+    lockWaitMs: lockWaitMs,
+  });
+  if (cleanup.done) {
+    properties.setProperty(migrationKey, nowIso_());
+  }
+  return {
+    ok: true,
+    skipped: false,
+    exclusions: exclusions,
+    cleanup: cleanup,
+  };
 }
 
 function matchesFormStatusFilter_(lead, formStatus) {
@@ -2155,6 +2418,104 @@ function normalizeDomain_(value) {
     .split('?')[0]
     .split('#')[0]
     .replace(/:.*$/, '');
+}
+
+const NON_ADVERTISER_LEAD_DOMAINS_ = Object.freeze([
+  'yamagatakanko.com',
+  'nap-camp.com',
+  'camp-go.com',
+  'campla.jp',
+  'campiii.com',
+  'hatinosu.net',
+  'my-kagawa.jp',
+  'jalan.net',
+  'rurubu.jp',
+  'rurubu.travel',
+  'mapple.net',
+  'iko-yo.net',
+  'asoview.com',
+  'tripadvisor.jp',
+  'tripadvisor.com',
+  'navitime.co.jp',
+  'travel.yahoo.co.jp',
+  'travel.rakuten.co.jp',
+  'booking.com',
+  'agoda.com',
+]);
+
+function isKnownNonAdvertiserLeadUrl_(value) {
+  const normalizedUrl = normalizeUrl_(value);
+  const domain = normalizeDomain_(normalizedUrl);
+  if (!domain) return false;
+  if (NON_ADVERTISER_LEAD_DOMAINS_.some(function (host) {
+    return isDomainOrSubdomain_(domain, host);
+  })) return true;
+
+  let path = '';
+  try {
+    path = new URL(normalizedUrl).pathname.toLowerCase();
+  } catch (error) {
+    path = String(normalizedUrl || '').toLowerCase();
+  }
+  const tourismPortalDomain = /(?:^|[.-])(?:kanko|tourism|travel)(?:[.-]|$)/i.test(domain);
+  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|guides?|features?|search|detail(?:[_/-]|$))/i.test(path);
+  return tourismPortalDomain && listingPath;
+}
+
+function getLeadCollectionExcludedDomainRecords_() {
+  try {
+    return readAllActiveSheetRecords_('excluded_domains');
+  } catch (error) {
+    return [];
+  }
+}
+
+function isLeadCollectionExcludedUrl_(value, excludedDomains) {
+  if (isKnownNonAdvertiserLeadUrl_(value)) return true;
+  const domain = normalizeDomain_(value);
+  if (!domain) return false;
+  const records = Array.isArray(excludedDomains) ? excludedDomains : getLeadCollectionExcludedDomainRecords_();
+  return records.some(function (record) {
+    return isDomainOrSubdomain_(domain, record.domain);
+  });
+}
+
+function isAutomatedLeadCollectionSource_(source) {
+  return ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(source || '')) !== -1;
+}
+
+function isSafeNonAdvertiserLeadCleanupTarget_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  if (isArchivedLead_(source) || !isAutomatedLeadCollectionSource_(source.source)) return false;
+  if (Number(source.send_count || 0) > 0 || String(source.last_sent_at || '').trim()) return false;
+  if (normalizeBooleanLike_(source.reply_checked)) return false;
+
+  const status = String(source.status || '').trim();
+  if (status === '返信あり' || DEAL_STATUSES.indexOf(status) !== -1) return false;
+  const dealStatus = String(source.deal_status || '未設定').trim() || '未設定';
+  return dealStatus === '未設定';
+}
+
+function isNonAdvertiserCleanupCandidate_(lead, excludedDomains) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  if (!isSafeNonAdvertiserLeadCleanupTarget_(source)) return false;
+  const urls = [source.website_url, source.form_url].filter(Boolean);
+  const knownNonAdvertiser = urls.some(function (url) { return isKnownNonAdvertiserLeadUrl_(url); });
+  if (String(source.status || '') !== '未対応' && !knownNonAdvertiser) return false;
+  return urls.some(function (url) { return isLeadCollectionExcludedUrl_(url, excludedDomains); });
+}
+
+function assertLeadCollectionDestinationAllowed_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  if (!isAutomatedLeadCollectionSource_(source.source)) return true;
+  const blockedUrl = [source.website_url, source.form_url].filter(Boolean).find(function (url) {
+    return isLeadCollectionExcludedUrl_(url);
+  });
+  if (!blockedUrl) return true;
+  throw createExpectedOperationError_(
+    '広告主の公式サイトではないため収集対象から除外しました: ' + normalizeDomain_(blockedUrl),
+    'NON_ADVERTISER_SITE'
+  );
 }
 
 function extractDomain_(url) {

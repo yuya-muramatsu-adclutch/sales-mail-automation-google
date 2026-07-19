@@ -113,6 +113,8 @@ function dispatchPostAction_(action, data) {
   if (action === 'repairBackgroundJobs') return repairBackgroundJobs(data);
   if (action === 'repairNapCampGenres') return repairNapCampGenres(data);
   if (action === 'repairReviewLeadsWithoutContact') return repairReviewLeadsWithoutContact(data);
+  if (action === 'repairNonAdvertiserReviewLeads') return repairNonAdvertiserReviewLeads(data);
+  if (action === 'repairNonAdvertiserCleanupOverreach') return repairNonAdvertiserCleanupOverreach(data);
   if (action === 'installDefaultTriggers') return installDefaultTriggers();
   if (action === 'createSpreadsheetBackup') return createSpreadsheetBackup();
   if (action === 'setSettingValue') return setSettingValue(data.key, data.value, data.valueType || data.value_type, data.description);
@@ -146,6 +148,16 @@ const GMAIL_INTEGRATION_SCOPES = Object.freeze([
 function getInitialData() {
   const appInfo = getAppInfo();
   const serperInfo = getStartupSerperInfo_();
+  let collectionQualityMigration = null;
+  try {
+    collectionQualityMigration = runLeadCollectionQualityMigrationV215_({ interactive: true });
+  } catch (error) {
+    logError_('runLeadCollectionQualityMigrationV215_', error, {});
+    collectionQualityMigration = {
+      ok: false,
+      error: error.message || String(error),
+    };
+  }
   return {
     app: appInfo,
     enums: getClientEnums_(),
@@ -158,6 +170,7 @@ function getInitialData() {
     listViewSettings: [],
     schemaStatus: null,
     serper: serperInfo,
+    collectionQualityMigration: collectionQualityMigration,
   };
 }
 

@@ -276,6 +276,7 @@ function importExcludedDomains(input) {
   if (!records.length) {
     return { ok: true, inserted: 0, updated: 0, skipped: 0, total: 0 };
   }
+  const lockWaitMs = Math.min(Math.max(Number(source.lockWaitMs || source.lock_wait_ms) || 30000, 1000), 90000);
 
   return withScriptLock_('importExcludedDomains', function () {
     const spreadsheet = getOrCreateSpreadsheet_();
@@ -345,7 +346,7 @@ function importExcludedDomains(input) {
       skipped: skipped,
       total: records.length,
     };
-  });
+  }, { waitMs: lockWaitMs, attempts: 1 });
 }
 
 function deleteExcludedDomain(id) {
