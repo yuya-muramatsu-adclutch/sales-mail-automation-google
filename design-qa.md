@@ -312,3 +312,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Human replies still suppress repair candidates, while auto-reply-only records remain repairable with the expected thread ID intact.
 - Automated coverage verifies the query flags, exact log projection, page scoping, candidate classification, and concurrency token.
 - Fixed deployment updated to `@246`; no live Gmail repair mutation was performed during verification.
+
+## v246 follow-up
+
+- Opening a lead no longer triggers an all-column scan of every lead for duplicate candidates.
+- Duplicate checks read twelve identity, destination, status, send-count, and archive fields only.
+- Source payload JSON, custom fields, notes, address, decision detail, meeting detail, and Calendar metadata are omitted.
+- Email, domain, and company-domain matches preserve the same reason labels, archived exclusion, and send-count ordering.
+- Automated coverage compares full large-payload fixtures with projected fixtures and verifies identical candidates and reasons.
+- Fixed deployment updated to `@247`; authenticated editor timing remains a production observation.

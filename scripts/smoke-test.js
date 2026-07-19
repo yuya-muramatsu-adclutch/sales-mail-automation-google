@@ -1900,12 +1900,19 @@ vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), duplicateCo
 duplicateContext.getOrCreateSpreadsheet_ = () => ({});
 duplicateContext.ensureSheet_ = () => ({});
 duplicateContext.isArchivedLead_ = () => false;
-duplicateContext.readSheetRecords_ = () => [
+let duplicateCandidateRequestedFields = [];
+let duplicateCandidateReadOptions = null;
+duplicateContext.readSheetRecordFields_ = (sheetName, fields, options) => {
+  assert.strictEqual(sheetName, 'leads');
+  duplicateCandidateRequestedFields = fields.slice();
+  duplicateCandidateReadOptions = Object.assign({}, options);
+  return [
   { id: 'current', company_name: 'Current' },
   { id: 'candidate-1', company_name: 'A' },
   { id: 'candidate-2', company_name: 'B' },
   { id: 'candidate-3', company_name: 'C' },
-];
+  ];
+};
 duplicateContext.duplicateKeysForLead_ = () => ({});
 duplicateContext.duplicateMatchedKeys_ = () => ['email'];
 duplicateContext.duplicateReasonLabels_ = () => ['メール'];
@@ -1913,6 +1920,56 @@ duplicateContext.duplicateReasonDetail_ = () => 'same@example.com';
 const pagedDuplicates = duplicateContext.listLeadDuplicateCandidates('current', { limit: 2 });
 assert.strictEqual(pagedDuplicates.total, 3);
 assert.strictEqual(pagedDuplicates.items.length, 2);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(duplicateCandidateRequestedFields)), [
+  'id', 'company_name', 'normalized_company_name', 'facility_name', 'email', 'email_domain',
+  'website_url', 'website_domain', 'form_url', 'status', 'send_count', 'archived_at',
+]);
+['custom_fields_json', 'source_payload_json', 'notes', 'address', 'meeting_memo'].forEach((field) => {
+  assert(!duplicateCandidateRequestedFields.includes(field));
+});
+assert.deepStrictEqual(duplicateCandidateReadOptions, { maxGapColumns: 0 });
+
+const duplicateProjectionContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), duplicateProjectionContext, { filename: file });
+});
+const duplicateProjectionFixtures = [
+  {
+    id: 'current-lead', company_name: '株式会社サンプル', normalized_company_name: 'サンプル', facility_name: '本店',
+    email: 'info@sample.example', email_domain: 'sample.example', website_url: 'https://sample.example/',
+    website_domain: 'sample.example', form_url: 'https://sample.example/contact', status: '未対応', send_count: 1,
+    source_payload_json: JSON.stringify({ html: 'large'.repeat(1000) }), notes: 'large'.repeat(1000),
+  },
+  {
+    id: 'same-email', company_name: '別名', normalized_company_name: '別名', facility_name: '支店',
+    email: 'INFO@sample.example', email_domain: 'sample.example', website_url: 'https://other.example/',
+    website_domain: 'other.example', status: '対応中', send_count: 3,
+    source_payload_json: JSON.stringify({ html: 'large'.repeat(1000) }),
+  },
+  {
+    id: 'same-domain', company_name: '株式会社サンプル', normalized_company_name: 'サンプル', facility_name: '別館',
+    email: 'branch@sample.example', email_domain: 'sample.example', website_url: 'https://sample.example/about',
+    website_domain: 'sample.example', status: '未対応', send_count: 0,
+    source_payload_json: JSON.stringify({ html: 'large'.repeat(1000) }),
+  },
+  {
+    id: 'archived-same-domain', company_name: '株式会社サンプル', normalized_company_name: 'サンプル',
+    website_domain: 'sample.example', status: '対応不要', archived_at: '2026-07-01T00:00:00+09:00',
+  },
+  { id: 'unrelated', company_name: '無関係', normalized_company_name: '無関係', email: 'hello@other.example', website_domain: 'other.example', status: '未対応' },
+];
+duplicateProjectionContext.readSheetRecordFields_ = () => duplicateProjectionFixtures.map((lead) => Object.assign({}, lead));
+const fullDuplicateProjectionResult = JSON.parse(JSON.stringify(duplicateProjectionContext.listLeadDuplicateCandidates('current-lead', { limit: 10 })));
+const duplicateProjectionFields = JSON.parse(JSON.stringify(duplicateProjectionContext.leadDuplicateCandidateFields_()));
+duplicateProjectionContext.readSheetRecordFields_ = () => duplicateProjectionFixtures.map((lead) => duplicateProjectionFields.reduce((record, field) => {
+  record[field] = lead[field] === undefined ? '' : lead[field];
+  return record;
+}, {}));
+const projectedDuplicateProjectionResult = JSON.parse(JSON.stringify(duplicateProjectionContext.listLeadDuplicateCandidates('current-lead', { limit: 10 })));
+assert.deepStrictEqual(projectedDuplicateProjectionResult, fullDuplicateProjectionResult);
+assert.deepStrictEqual(projectedDuplicateProjectionResult.items.map((item) => item.id), ['same-email', 'same-domain']);
+assert(projectedDuplicateProjectionResult.items[0].reason.includes('メール'));
+assert(projectedDuplicateProjectionResult.items[1].reason.includes('ドメイン'));
 
 const sparseHeaders = historyContext.getHeaders_({
   getLastColumn: () => 3,
@@ -2660,7 +2717,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v245_reply_repair_columns'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v246_duplicate_candidate_columns'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2685,6 +2742,11 @@ const listEmailCandidatesEnd = codeSource.indexOf('\nfunction ', listEmailCandid
 const listEmailCandidatesBody = codeSource.slice(listEmailCandidatesStart, listEmailCandidatesEnd);
 assert(listEmailCandidatesBody.includes("readSheetRecordFields_('leads', leadListFields_(['contact_name']), { maxGapColumns: 0 })"));
 assert(!listEmailCandidatesBody.includes('readSheetRecords_('), 'manual mail candidates must not read every lead column');
+const duplicateCandidatesStart = codeSource.indexOf('function listLeadDuplicateCandidates(leadId, options)');
+const duplicateCandidatesEnd = codeSource.indexOf('\nfunction ', duplicateCandidatesStart + 10);
+const duplicateCandidatesBody = codeSource.slice(duplicateCandidatesStart, duplicateCandidatesEnd);
+assert(duplicateCandidatesBody.includes("readSheetRecordFields_('leads', leadDuplicateCandidateFields_(), { maxGapColumns: 0 })"));
+assert(!duplicateCandidatesBody.includes('readSheetRecords_('), 'lead detail duplicate checks must not read every lead column');
 assert(codeSource.includes('function updateReviewLeadDecision'));
 assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
 assert(codeSource.includes('function repairNonAdvertiserReviewLeads'));
@@ -3128,4 +3190,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v245 reply repair column regression tests passed.');
+console.log('v246 duplicate candidate column regression tests passed.');

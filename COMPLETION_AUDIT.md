@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @246 / production code v245: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @247 / production code v246: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v245_reply_repair_columns`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v246_duplicate_candidate_columns`
+
+## v246 重複候補検索の軽量化
+
+- 営業先の編集画面で実行する重複候補検索は、営業先全列ではなく判定・表示に必要な12列だけを読む。
+- `source_payload_json`、カスタム項目、メモ、住所、送信NG詳細、商談詳細、Calendar情報を全件比較から除外した。
+- メール一致、ドメイン一致、会社名＋ドメイン一致の判定、アーカイブ済み除外、送信回数が多い順の候補表示は変更しない。
+- 連続列だけをRangeへまとめ、離れた状態・送信回数・アーカイブ列の間にある詳細列を巻き込まない。
+- 巨大JSONを含む全文データと12列データで、候補件数・候補ID・重複理由・並び順が一致する回帰テストを追加した。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 247を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@247` であることを確認した。ログイン済み編集画面の体感速度は運用確認対象とする。
 
 ## v245 返信誤判定候補の安全性・軽量化
 

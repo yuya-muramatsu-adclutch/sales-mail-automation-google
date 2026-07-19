@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v245_reply_repair_columns';
+const APP_VERSION = '20260719_apps_script_full_workflow_v246_duplicate_candidate_columns';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -1748,13 +1748,28 @@ function unmarkLeadFormSent(leadId) {
   });
 }
 
+function leadDuplicateCandidateFields_() {
+  return [
+    'id',
+    'company_name',
+    'normalized_company_name',
+    'facility_name',
+    'email',
+    'email_domain',
+    'website_url',
+    'website_domain',
+    'form_url',
+    'status',
+    'send_count',
+    'archived_at',
+  ];
+}
+
 function listLeadDuplicateCandidates(leadId, options) {
   const recordId = requireId_(leadId);
   const query = options && typeof options === 'object' ? options : {};
   const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
-  const spreadsheet = getOrCreateSpreadsheet_();
-  const sheet = ensureSheet_(spreadsheet, 'leads');
-  const leads = readSheetRecords_(sheet).filter(function (lead) {
+  const leads = readSheetRecordFields_('leads', leadDuplicateCandidateFields_(), { maxGapColumns: 0 }).filter(function (lead) {
     return !isArchivedLead_(lead);
   });
   const current = leads.find(function (lead) {
