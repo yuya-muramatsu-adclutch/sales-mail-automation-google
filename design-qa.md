@@ -339,3 +339,11 @@ final result: code paths verified; authenticated timing comparison pending
 - Expired-row filtering, newest-row selection, short write locking, update-versus-append behavior, and cache response shape are preserved.
 - Automated coverage verifies exact lookup arguments, newest-row selection, write locking, and update of the existing cache ID.
 - Fixed deployment updated to `@249`; no live external search or cache mutation was run during verification.
+
+## v249 follow-up
+
+- Persisted dashboard-cache reads now look up `dashboard_stats_v5` exactly instead of transferring every cached aggregate payload.
+- Normal reads use five fields; update-side existence checks use four metadata fields for the current v5 and legacy v4 keys.
+- Newest-v5 priority, expiry handling, legacy-v4 update fallback, the ten-second write lock, and the two-level CacheService/sheet strategy are preserved.
+- Automated coverage restores the newest of multiple v5 rows and verifies the exact read/write lookup arguments and updated row ID.
+- Fixed deployment updated to `@250`; no live cache rebuild or sales-data mutation was run during verification.

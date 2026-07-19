@@ -711,11 +711,24 @@ assert.deepStrictEqual(
 assert.throws(() => context.normalizeSettingForSave_('gmail_sender_email', 'invalid-address', 'string'), /valid email address/);
 
 let dashboardCacheUpdate = null;
-context.readAllSheetRecordsByName_ = () => [
-  { id: 'legacy-v4', cache_key: 'dashboard_stats_v4', updated_at: '2026-07-15T00:03:00.000Z' },
-  { id: 'old-v5', cache_key: 'dashboard_stats_v5', updated_at: '2026-07-15T00:01:00.000Z' },
-  { id: 'latest-v5', cache_key: 'dashboard_stats_v5', updated_at: '2026-07-15T00:02:00.000Z' },
+const dashboardCacheLookupCalls = [];
+const dashboardCacheFixture = [
+  { id: 'legacy-v4', cache_key: 'dashboard_stats_v4', value_json: '{"leadsTotal":999}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:03:00.000Z' },
+  { id: 'old-v5', cache_key: 'dashboard_stats_v5', value_json: '{"leadsTotal":1001}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:01:00.000Z' },
+  { id: 'latest-v5', cache_key: 'dashboard_stats_v5', value_json: '{"leadsTotal":1002}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:02:00.000Z' },
 ];
+context.findSheetRecordsByExactFieldValues_ = (sheetName, fieldName, values, fields) => {
+  dashboardCacheLookupCalls.push({
+    sheetName,
+    fieldName,
+    values: JSON.parse(JSON.stringify(values)),
+    fields: JSON.parse(JSON.stringify(fields)),
+  });
+  return dashboardCacheFixture.filter((record) => values.includes(record.cache_key));
+};
+const persistedDashboardStats = context.readDashboardStatsSheetCache_({});
+assert.strictEqual(persistedDashboardStats.leadsTotal, 1002);
+assert.strictEqual(persistedDashboardStats.persistedCache, true);
 context.updateSheetRecord_ = (sheetName, id, payload) => {
   dashboardCacheUpdate = { sheetName, id, payload };
   return payload;
@@ -727,6 +740,20 @@ context.upsertDashboardCacheSheet_({ leadsTotal: 1002 });
 assert.strictEqual(dashboardCacheUpdate.sheetName, 'dashboard_cache');
 assert.strictEqual(dashboardCacheUpdate.id, 'latest-v5');
 assert.strictEqual(dashboardCacheUpdate.payload.cache_key, 'dashboard_stats_v5');
+assert.deepStrictEqual(dashboardCacheLookupCalls, [
+  {
+    sheetName: 'dashboard_cache',
+    fieldName: 'cache_key',
+    values: ['dashboard_stats_v5'],
+    fields: ['cache_key', 'value_json', 'expires_at', 'created_at', 'updated_at'],
+  },
+  {
+    sheetName: 'dashboard_cache',
+    fieldName: 'cache_key',
+    values: ['dashboard_stats_v5', 'dashboard_stats_v4'],
+    fields: ['id', 'cache_key', 'created_at', 'updated_at'],
+  },
+]);
 
 let persistedDashboardReads = 0;
 context.CacheService = { getScriptCache: () => ({ get: () => null }) };
@@ -2797,7 +2824,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v248_domain_cache_exact_lookup'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v249_dashboard_cache_exact_lookup'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2991,7 +3018,10 @@ assert(webAppSource.includes("readSheetRecordFields_('search_usage_logs', ['crea
 assert(repositorySource.includes('function readSheetRecordFields_'));
 assert(repositorySource.includes('function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values, resultFieldNames)'));
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
+assert(!webAppSource.includes("readAllSheetRecordsByName_('dashboard_cache'"), 'dashboard cache paths must not transfer every cached payload');
 assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5')"));
+assert(webAppSource.includes("['dashboard_stats_v5'],\n      dashboardStatsCacheReadFields_()"));
+assert(webAppSource.includes("['dashboard_stats_v5', 'dashboard_stats_v4'],\n    dashboardStatsCacheWriteLookupFields_()"));
 assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
 assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
 assert(webAppSource.includes('dailyMailLimit - sentToday - pendingSendReservations.count'));
@@ -3281,4 +3311,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v248 domain cache exact lookup regression tests passed.');
+console.log('v249 dashboard cache exact lookup regression tests passed.');

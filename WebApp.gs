@@ -1257,7 +1257,12 @@ function refreshDashboardStatsCacheIfDue_(options) {
 function readDashboardStatsSheetCache_(options) {
   try {
     const query = options && typeof options === 'object' ? options : {};
-    const records = readAllSheetRecordsByName_('dashboard_cache', { includeInactive: true, includeArchived: true });
+    const records = findSheetRecordsByExactFieldValues_(
+      'dashboard_cache',
+      'cache_key',
+      ['dashboard_stats_v5'],
+      dashboardStatsCacheReadFields_()
+    );
     const cached = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5');
     if (!cached || !cached.value_json) {
       return null;
@@ -1279,7 +1284,12 @@ function readDashboardStatsSheetCache_(options) {
 }
 
 function upsertDashboardCacheSheet_(stats) {
-  const records = readAllSheetRecordsByName_('dashboard_cache', { includeInactive: true, includeArchived: true });
+  const records = findSheetRecordsByExactFieldValues_(
+    'dashboard_cache',
+    'cache_key',
+    ['dashboard_stats_v5', 'dashboard_stats_v4'],
+    dashboardStatsCacheWriteLookupFields_()
+  );
   const existing = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5') ||
     findLatestDashboardCacheRecord_(records, 'dashboard_stats_v4');
   const expiresAt = Utilities.formatDate(new Date(Date.now() + 30 * 60 * 1000), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX");
@@ -1294,6 +1304,14 @@ function upsertDashboardCacheSheet_(stats) {
   } else {
     appendSheetRecord_('dashboard_cache', payload);
   }
+}
+
+function dashboardStatsCacheReadFields_() {
+  return ['cache_key', 'value_json', 'expires_at', 'created_at', 'updated_at'];
+}
+
+function dashboardStatsCacheWriteLookupFields_() {
+  return ['id', 'cache_key', 'created_at', 'updated_at'];
 }
 
 function findLatestDashboardCacheRecord_(records, cacheKey) {

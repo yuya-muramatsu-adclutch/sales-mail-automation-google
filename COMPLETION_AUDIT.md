@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @249 / production code v248: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @250 / production code v249: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v248_domain_cache_exact_lookup`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v249_dashboard_cache_exact_lookup`
+
+## v249 ダッシュボードキャッシュの完全一致取得
+
+- ダッシュボードの永続キャッシュを読むたびに `dashboard_cache` 全行・全列を転送せず、`dashboard_stats_v5` の完全一致行だけを取得する。
+- 通常読取は集計JSON・期限・新旧判定に必要な5列だけを読み、他のキャッシュキーに保存された大きな集計JSONを読み込まない。
+- 更新時の既存確認は現行v5と旧v4のキーだけを対象にし、ID・キー・作成日時・更新日時の4列だけを読む。
+- 最新v5行の優先、期限切れ除外、旧v4行への更新フォールバック、10秒の書込ロック、CacheServiceとの二段キャッシュは維持する。
+- 複数v5行から最新値を復元すること、読取・書込の完全一致引数、最新v5行の更新を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 250を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@250` であることを確認した。実データのキャッシュ再集計や営業データ変更は検証中に実行していない。
 
 ## v248 検索ドメインキャッシュの完全一致取得
 
