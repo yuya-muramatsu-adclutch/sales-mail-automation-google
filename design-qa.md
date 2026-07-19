@@ -155,3 +155,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Automatic-mail results and job messages expose the recovered tracking count without exposing receipt payloads.
 - Automated coverage verifies normal receipt cleanup, successful and failed recovery, exact-count repair, protected statuses, and retry retention.
 - No live email was sent during verification; the next scheduled production run should be observed for receipt recovery and remaining-capacity consistency.
+
+## v229 follow-up
+
+- SearXNG remains the zero-credit primary provider; non-empty results never consume Serper credits.
+- Empty SearXNG results use Serper when available, while a failed secondary lookup preserves the valid empty primary response.
+- Source-page official-site fallback now works in SearXNG-only configurations and labels the actual provider in progress history.
+- Permanent HTTP/configuration errors stop retrying; rate limits, timeouts, connection failures, and server errors remain resumable.
+- Automated coverage verifies provider priority, empty-result fallback, fallback failure, configuration-only failure, and typed retry behavior.
+- External search calls were not executed during verification; provider behavior was validated with deterministic response fixtures.

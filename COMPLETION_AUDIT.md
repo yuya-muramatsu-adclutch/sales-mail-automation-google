@@ -5,9 +5,21 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @229 / production code v228: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @230 / production code v229: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v228_mail_delivery_recovery_visibility`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v229_search_provider_failover`
+
+## v229 SearXNG・Serper検索フェイルオーバー
+
+- SearXNGが正常応答でも検索結果0件の場合、Serper予備キーが利用可能なときだけ追加検索し、連絡先・公式サイトの未検出を削減。
+- SearXNGで1件以上取得できた場合はSerperを呼ばず、不要なAPIクレジット消費を防止。
+- Serper補完が一時障害で失敗しても、正常だったSearXNGの0件結果を維持し、検索ジョブ全体を不必要に停止しない。
+- 公式サイト補完の開始条件を「Serperキーあり」から「SearXNGまたはSerperが利用可能」へ変更し、SearXNGだけの構成でも補完を実行。
+- SearXNGで公式URLを補完した場合は `source_page_searxng`／「PC検索で公式URLを補完」と記録し、Serper利用と区別して可視化。
+- SearXNG設定値が壊れていてもSerperが利用可能なら予備検索へ進み、一方の設定不備で全検索を停止しない。
+- HTTP 400/401/403/404など恒久エラーを再試行不可、408/425/429・5xx・接続失敗を再試行可能として型付き判定し、設定不備による無限再試行を防止。
+- 非空SearXNG優先、0件Serper補完、補完失敗時の0件維持、単独SearXNG構成、恒久/一時エラー分類、全プロバイダー未設定を回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 230を固定Web app URLへ再デプロイ済み。
 
 ## v228 メール送信結果の自動復旧と可視化
 

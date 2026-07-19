@@ -899,6 +899,7 @@ function claimSearchJobRun_(jobId, runtimeBudgetMs) {
 function isRetryableSearchJobError_(error) {
   const code = String((error && error.code) || '').trim();
   if (code === 'SPREADSHEET_UNAVAILABLE') return true;
+  if (error && typeof error.retryable === 'boolean') return error.retryable;
   const message = String((error && error.message) || error || '');
   if (/API key is not configured|query is required|invalid search job|not found|no items/i.test(message)) return false;
   return /lock.*timeout|ロック.*タイムアウト|service invoked too many times|service (?:spreadsheets|sheets|drive|urlfetch).*failed|internal error|timed? out|一時的|try again|exceeded maximum execution time|quota exceeded|検索プロバイダーを利用できません|へ接続できません|HTTP\s+(?:408|425|429|5\d\d)\b/i.test(message);
@@ -1676,7 +1677,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
     officialUrl = '';
     discoveryMode = 'excluded_non_advertiser_url';
   }
-  let serperResult = null;
+  let searchProviderResult = null;
   const sourceId = candidate.source_id || sourcePageLeadSourceId_(jobId, index, facilityName, officialUrl || candidate.detail_url || sourceUrl);
   const leadIndex = runtimeContext && runtimeContext.leadIndex;
   const existingBeforeSearch = findExistingSourcePageLead_(candidate, facilityName, officialUrl, leadIndex);
@@ -1717,7 +1718,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
     }
   }
 
-  if (!officialUrl && payload.use_serper_fallback !== false && getSerperApiKey_()) {
+  if (!officialUrl && payload.use_serper_fallback !== false && hasSearchProviderConfigured_()) {
     if (!hasSearchJobRuntimeAvailable_(runtimeContext, 45000)) return { created: false, deferred: true };
     try {
       const query = candidate.serper_query || [facilityName, candidate.address || '', genre, '公式サイト'].filter(Boolean).join(' ');
@@ -1732,20 +1733,24 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
         facility_name: facilityName,
         address: candidate.address || '',
       });
-      serperResult = {
+      searchProviderResult = {
         query: query,
         selected: selected,
         resultCount: response.organic.length,
+        provider: String(response.provider || ''),
+        fallbackFrom: String(response.fallbackFrom || ''),
+        fallbackError: String(response.fallbackError || ''),
       };
       if (selected.url && !isDomainOrSubdomain_(normalizeDomain_(selected.url), sourceDomain)) {
         officialUrl = selected.url;
-        discoveryMode = 'serper_fallback';
+        discoveryMode = response.provider === 'searxng' ? 'searxng_fallback' : 'serper_fallback';
       }
     } catch (error) {
-      serperResult = {
+      searchProviderResult = {
         query: candidate.serper_query || [facilityName, candidate.address || '', genre, '公式サイト'].filter(Boolean).join(' '),
         selected: null,
         resultCount: 0,
+        provider: '',
         error: error.message || String(error),
       };
     }
@@ -1774,7 +1779,8 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
           source_id: sourceId,
           candidate: candidate,
           official_url: officialUrl,
-          serper: serperResult,
+          serper: searchProviderResult,
+          search_provider: searchProviderResult,
           duplicate_lead_id: existingAfterSearch.id || '',
         },
       });
@@ -1788,7 +1794,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
       resultType: 'source_page_unresolved',
       title: facilityName,
       url: candidate.detail_url || candidate.url || sourceUrl,
-      snippet: payload.use_serper_fallback === false ? '公式URL未検出。Serper補完はOFFです。' : '公式URLを特定できませんでした。',
+      snippet: payload.use_serper_fallback === false ? '公式URL未検出。検索補完はOFFです。' : '公式URLを特定できませんでした。',
       rank: index + 1,
       reviewStatus: 'unconfirmed',
       raw: {
@@ -1796,7 +1802,8 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
         site_preset: sitePreset,
         source_id: sourceId,
         candidate: candidate,
-        serper: serperResult,
+        serper: searchProviderResult,
+        search_provider: searchProviderResult,
       },
     });
     return { created: false, unresolved: true, excludedFromReview: true };
@@ -1835,7 +1842,8 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
         detail_url: candidate.detail_url || '',
         address: candidate.address || '',
         discovery_mode: discoveryMode,
-        serper: serperResult,
+        serper: searchProviderResult,
+        search_provider: searchProviderResult,
         contact_error: contact.errorMessage || '',
       }),
     }, { waitMs: 5000, attempts: 1 });
@@ -1848,13 +1856,15 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
     reviewStatus = error.code === 'DUPLICATE_LEAD' || /^Duplicate lead exists/.test(errorMessage) ? 'duplicate' : 'dismissed';
   }
 
+  const usedSearchProviderFallback = discoveryMode === 'serper_fallback' || discoveryMode === 'searxng_fallback';
+  const searchProviderLabel = discoveryMode === 'searxng_fallback' ? 'PC検索' : 'Serper';
   appendSourcePageResult_(jobId, {
     query: sourceUrl,
-    resultType: officialUrl ? (discoveryMode === 'serper_fallback' ? 'source_page_serper' : 'source_page_direct') : 'source_page_unresolved_added',
+    resultType: officialUrl ? (usedSearchProviderFallback ? (discoveryMode === 'searxng_fallback' ? 'source_page_searxng' : 'source_page_serper') : 'source_page_direct') : 'source_page_unresolved_added',
     title: facilityName,
     url: officialUrl || candidate.detail_url || candidate.url || sourceUrl,
     snippet: errorMessage || [
-      officialUrl ? (discoveryMode === 'serper_fallback' ? 'Serperで公式URLを補完' : '公式URLから直接取得') : '公式URL未確認の施設候補として追加',
+      officialUrl ? (usedSearchProviderFallback ? searchProviderLabel + 'で公式URLを補完' : '公式URLから直接取得') : '公式URL未確認の施設候補として追加',
       contact.email ? 'メールあり' : 'メール未検出',
       contact.formUrl ? 'フォームあり' : 'フォーム未検出',
     ].join(' / '),
@@ -1868,7 +1878,8 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
       candidate: candidate,
       official_url: officialUrl,
       contact: contact,
-      serper: serperResult,
+      serper: searchProviderResult,
+      search_provider: searchProviderResult,
       error: errorMessage,
     },
   });
@@ -2623,15 +2634,32 @@ function buildDomainCacheKey_(lead, jobType) {
 function callSerperSearch_(query, options) {
   const input = options && typeof options === 'object' ? options : {};
   const serperKey = getSerperApiKey_();
-  const searxngConfig = readSearxngConfig_();
+  let searxngConfig = {};
+  let searxngError = null;
+  try {
+    searxngConfig = readSearxngConfig_();
+  } catch (error) {
+    searxngError = createSearchProviderError_(
+      'PC検索の設定を読み込めません: ' + String(error.message || error),
+      'SEARXNG_CONFIG_INVALID',
+      false
+    );
+  }
   const searxngReady = searxngConfig.enabled && searxngConfig.baseUrl && searxngConfig.accessToken;
   const skipSerper = isSerperSearchTemporarilyUnavailable_();
-  let searxngError = null;
   let serperError = null;
+  let searxngResult = null;
 
   if (searxngReady) {
     try {
-      return callSearxngSearch_(query, input);
+      searxngResult = callSearxngSearch_(query, input);
+      if ((searxngResult.organic || []).length > 0 || !serperKey || input.useSerperFallback === false) {
+        return searxngResult;
+      }
+      if (skipSerper) {
+        searxngResult.fallbackError = 'Serper予備は一時停止中です。';
+        return searxngResult;
+      }
     } catch (error) {
       searxngError = error;
     }
@@ -2641,24 +2669,67 @@ function callSerperSearch_(query, options) {
     try {
       const result = callSerperSearchDirect_(query, input);
       clearSerperSearchUnavailable_();
+      if (searxngResult && (searxngResult.organic || []).length === 0) {
+        result.fallbackFrom = 'searxng_empty';
+      }
       return result;
     } catch (error) {
       serperError = error;
-      markSerperSearchUnavailable_(error.message || String(error));
+      if (isSearchProviderErrorRetryable_(error)) {
+        markSerperSearchUnavailable_(error.message || String(error));
+      }
     }
+  }
+
+  if (searxngResult) {
+    searxngResult.fallbackError = serperError ? String(serperError.message || serperError) : (skipSerper ? 'Serper予備は一時停止中です。' : '');
+    return searxngResult;
   }
 
   if (searxngError) {
     const messages = ['PC検索: ' + (searxngError.message || String(searxngError))];
     if (serperError) messages.push('Serper予備: ' + (serperError.message || String(serperError)));
     if (serperKey && skipSerper) messages.push('Serper予備: 一時停止中');
-    throw new Error('検索プロバイダーを利用できません。' + messages.join(' / '));
+    throw createSearchProviderError_(
+      '検索プロバイダーを利用できません。' + messages.join(' / '),
+      'SEARCH_PROVIDERS_UNAVAILABLE',
+      isSearchProviderErrorRetryable_(searxngError) || isSearchProviderErrorRetryable_(serperError) || Boolean(serperKey && skipSerper)
+    );
   }
   if (serperError) throw serperError;
   if (!searxngReady && !serperKey) {
-    throw new Error('PC検索またはSerper予備キーを設定してください。');
+    throw createSearchProviderError_('PC検索またはSerper予備キーを設定してください。', 'SEARCH_PROVIDER_NOT_CONFIGURED', false);
   }
-  throw new Error('検索プロバイダーを利用できません。');
+  throw createSearchProviderError_('検索プロバイダーを一時的に利用できません。', 'SEARCH_PROVIDERS_UNAVAILABLE', true);
+}
+
+function createSearchProviderError_(message, code, retryable) {
+  const error = new Error(String(message || '検索プロバイダーでエラーが発生しました。'));
+  error.code = String(code || 'SEARCH_PROVIDER_ERROR');
+  error.retryable = retryable === true;
+  return error;
+}
+
+function isSearchProviderErrorRetryable_(error) {
+  if (!error) return false;
+  if (typeof error.retryable === 'boolean') return error.retryable;
+  const message = String(error.message || error || '');
+  return /timed? out|timeout|一時的|接続でき|try again|quota exceeded|HTTP\s+(?:408|425|429|5\d\d)\b/i.test(message);
+}
+
+function isSearchProviderRetryableHttpStatus_(statusCode) {
+  const code = Number(statusCode) || 0;
+  return code === 408 || code === 425 || code === 429 || code >= 500;
+}
+
+function hasSearchProviderConfigured_() {
+  if (getSerperApiKey_()) return true;
+  try {
+    const config = readSearxngConfig_();
+    return Boolean(config.enabled && config.baseUrl && config.accessToken);
+  } catch (error) {
+    return false;
+  }
 }
 
 function isSerperSearchTemporarilyUnavailable_() {
@@ -2743,7 +2814,11 @@ function callSerperSearchDirect_(query, options) {
   }
 
   if (code < 200 || code >= 300) {
-    throw new Error('Serper request failed: HTTP ' + code + ' ' + String(data.message || text));
+    throw createSearchProviderError_(
+      'Serper request failed: HTTP ' + code + ' ' + String(data.message || text),
+      'SERPER_HTTP_' + code,
+      isSearchProviderRetryableHttpStatus_(code)
+    );
   }
 
   return {
@@ -2795,7 +2870,11 @@ function callSearxngSearch_(query, options) {
       status: 'error',
       errorMessage: message,
     });
-    throw new Error('PC検索へ接続できません。PC側の検索サービスを確認してください。');
+    throw createSearchProviderError_(
+      'PC検索へ接続できません。PC側の検索サービスを確認してください。',
+      'SEARXNG_CONNECTION_FAILED',
+      true
+    );
   }
 
   const code = response.getResponseCode();
@@ -2821,7 +2900,11 @@ function callSearxngSearch_(query, options) {
       status: 'error',
       errorMessage: errorMessage,
     });
-    throw new Error('PC検索がエラーを返しました: HTTP ' + code + ' ' + errorMessage);
+    throw createSearchProviderError_(
+      'PC検索がエラーを返しました: HTTP ' + code + ' ' + errorMessage,
+      'SEARXNG_HTTP_' + code,
+      isSearchProviderRetryableHttpStatus_(code)
+    );
   }
 
   const rawResults = Array.isArray(data.results) ? data.results : [];
