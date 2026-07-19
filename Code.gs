@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v233_short_lock_policy';
+const APP_VERSION = '20260719_apps_script_full_workflow_v234_write_without_reread';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -1476,7 +1476,7 @@ function updateLeadLocked_(id, patch) {
     throw new Error('Lead not found: ' + leadId);
   }
 
-  const headers = getHeaders_(sheet);
+  const headers = found.headers || getHeaders_(sheet);
   const updates = normalizeLeadPatch_(patch);
   const explicitFields = new Set(Object.keys(updates));
   const nextRecord = Object.assign({}, found.record, updates, {
@@ -1518,7 +1518,7 @@ function deleteLead(id, options) {
       };
     }
 
-    const headers = getHeaders_(sheet);
+    const headers = found.headers || getHeaders_(sheet);
     const now = nowIso_();
     const nextRecord = Object.assign({}, found.record, {
       status: '対応不要',
@@ -1610,7 +1610,7 @@ function markLeadFormSent(leadId, options) {
     }
 
     const now = nowIso_();
-    const headers = getHeaders_(sheet);
+    const headers = found.headers || getHeaders_(sheet);
     const customFields = parseJsonObjectSafe_(found.record.custom_fields_json);
     const events = formSendEventsFromCustomFields_(customFields);
     const body = typeof input.body === 'string' ? input.body : '';
@@ -1643,7 +1643,7 @@ function markLeadFormSent(leadId, options) {
 
     writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
     clearRuntimeCaches_('leads');
-    return getLeadById(id);
+    return nextRecord;
   });
 }
 
@@ -1659,7 +1659,7 @@ function unmarkLeadFormSent(leadId) {
     }
 
     const now = nowIso_();
-    const headers = getHeaders_(sheet);
+    const headers = found.headers || getHeaders_(sheet);
     const customFields = parseJsonObjectSafe_(found.record.custom_fields_json);
     const currentCount = Math.max(0, Number(customFields.form_send_count || 0));
     const hasRecordedFormSend = currentCount > 0 ||
@@ -1706,7 +1706,7 @@ function unmarkLeadFormSent(leadId) {
 
     writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
     clearRuntimeCaches_('leads');
-    return getLeadById(id);
+    return nextRecord;
   });
 }
 
@@ -2066,6 +2066,7 @@ function findRowById_(sheet, id) {
 
   return {
     rowNumber: rowNumber,
+    headers: headers,
     record: rowToRecord_(headers, row),
   };
 }

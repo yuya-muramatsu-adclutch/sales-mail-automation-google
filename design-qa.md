@@ -201,3 +201,12 @@ final result: code paths verified; authenticated timing comparison pending
 - CSV preparation remains chunked at 500 rows and search-result review at 25 records, limiting each lock hold.
 - Automated coverage verifies default retry timing and all previously protected mail, reply, import, and migration paths.
 - Fixed deployment updated to `@234`; authenticated simultaneous-operation timing remains a production observation.
+
+## v234 follow-up
+
+- Shared append/update helpers no longer reread an entire sheet to return a record that was just written.
+- Row lookup now returns its already-read header set, and lead/form/mail update paths reuse it instead of fetching the header row again.
+- Form-send mark and undo actions return the persisted in-memory record rather than performing a second lead-ID search.
+- Lock-time revalidation and post-write cache invalidation remain intact, so the optimization does not weaken stale-write protection.
+- Automated coverage verifies zero post-append searches, one total update-row search, no duplicate update-header read, and returned/written row equality.
+- Fixed deployment updated to `@235`; authenticated wall-clock profiling remains a production observation.

@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @234 / production code v233: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @235 / production code v234: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v233_short_lock_policy`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v234_write_without_reread`
+
+## v234 書込後の不要なSpreadsheet再読込削減
+
+- 共通の1件追加処理は、書込前に全ヘッダーへ展開した保存レコードを返し、追加直後のID再検索を廃止する。
+- 共通の1件更新処理は、ロック内で読み込んだ既存行へ更新値を反映したレコードを返し、書込後の同一ID再検索を廃止する。
+- 行検索結果へ取得済みヘッダーを保持し、営業先更新・削除・フォーム送信状態・メール送信後更新で同じヘッダー行を再取得しない。
+- フォーム送信済み／取消は、書込後に `getLeadById` で全件検索せず、保存した最新レコードをそのまま画面へ返す。
+- 書込前の行再確認・Script Lock・キャッシュ無効化は維持し、古い画面データによる上書き防止と次リクエストの鮮度を保つ。
+- 追加後のID検索0回、更新時の行検索1回、更新時のヘッダー再取得0回、返却レコードと実書込行の一致を回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 235を固定Web app URLへ再デプロイ済み。
 
 ## v233 アプリ全体の短時間ロック方針
 

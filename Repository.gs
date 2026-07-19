@@ -52,12 +52,15 @@ function appendSheetRecord_(sheetName, record) {
     updated_at: record.updated_at || now,
   });
 
-  sheet.appendRow(headers.map(function (header) {
-    return valueOrBlank_(nextRecord[header]);
-  }));
+  const persistedRecord = {};
+  const row = headers.map(function (header) {
+    persistedRecord[header] = valueOrBlank_(nextRecord[header]);
+    return persistedRecord[header];
+  });
+  sheet.appendRow(row);
 
   clearRuntimeCaches_(sheetName);
-  return findRowById_(sheet, nextRecord.id).record;
+  return persistedRecord;
 }
 
 function appendSheetRecords_(sheetName, records) {
@@ -95,7 +98,7 @@ function updateSheetRecord_(sheetName, id, patch) {
     throw new Error(sheetName + ' not found: ' + recordId);
   }
 
-  const headers = getHeaders_(sheet);
+  const headers = found.headers || getHeaders_(sheet);
   const nextRecord = Object.assign({}, found.record, patch, {
     id: found.record.id,
     created_at: found.record.created_at,
@@ -104,7 +107,7 @@ function updateSheetRecord_(sheetName, id, patch) {
 
   writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
   clearRuntimeCaches_(sheetName);
-  return findRowById_(sheet, recordId).record;
+  return nextRecord;
 }
 
 function softDeleteSheetRecord_(sheetName, id) {

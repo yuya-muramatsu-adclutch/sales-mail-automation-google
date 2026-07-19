@@ -1357,7 +1357,7 @@ function updateLeadAfterSend_(leadId, patch) {
   const sheet = ensureSheet_(spreadsheet, 'leads');
   const found = findRowById_(sheet, leadId);
   if (!found) throw new Error('Lead not found: ' + leadId);
-  const headers = getHeaders_(sheet);
+  const headers = found.headers || getHeaders_(sheet);
   const nextRecord = Object.assign({}, found.record, patch, {
     id: found.record.id,
     created_at: found.record.created_at,

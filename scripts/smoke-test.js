@@ -936,6 +936,49 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(capturedSyncPatch)), {
   patch: { facility_name: '補完屋号', email: 'new@example.com' },
 });
 
+const repositoryWriteContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), repositoryWriteContext, { filename: file });
+});
+let repositoryFindCalls = 0;
+let repositoryAppendedRow = null;
+let repositoryWrittenRows = null;
+let repositoryCacheClears = 0;
+let repositoryHeaderReads = 0;
+const repositoryHeaders = ['id', 'name', 'active', 'created_at', 'updated_at'];
+const repositorySheet = {
+  appendRow: (row) => { repositoryAppendedRow = row.slice(); },
+  getRange: () => ({ setValues: (rows) => { repositoryWrittenRows = rows.map((row) => row.slice()); } }),
+};
+repositoryWriteContext.Utilities = { getUuid: () => 'record-new' };
+repositoryWriteContext.nowIso_ = () => '2026-07-19T14:00:00+09:00';
+repositoryWriteContext.getOrCreateSpreadsheet_ = () => ({});
+repositoryWriteContext.ensureSheet_ = () => repositorySheet;
+repositoryWriteContext.getHeaders_ = () => { repositoryHeaderReads += 1; return repositoryHeaders.slice(); };
+repositoryWriteContext.clearRuntimeCaches_ = () => { repositoryCacheClears += 1; };
+repositoryWriteContext.findRowById_ = () => {
+  repositoryFindCalls += 1;
+  return {
+    rowNumber: 2,
+    headers: repositoryHeaders.slice(),
+    record: { id: 'record-existing', name: 'Before', active: true, created_at: 'created-old', updated_at: 'updated-old' },
+  };
+};
+const appendedRepositoryRecord = repositoryWriteContext.appendSheetRecord_('jobs', { name: 'New', active: false });
+assert.strictEqual(repositoryFindCalls, 0, 'append must not reread the sheet after a successful write');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(appendedRepositoryRecord)), {
+  id: 'record-new', name: 'New', active: false, created_at: '2026-07-19T14:00:00+09:00', updated_at: '2026-07-19T14:00:00+09:00',
+});
+assert.deepStrictEqual(repositoryAppendedRow, ['record-new', 'New', false, '2026-07-19T14:00:00+09:00', '2026-07-19T14:00:00+09:00']);
+const updatedRepositoryRecord = repositoryWriteContext.updateSheetRecord_('jobs', 'record-existing', { name: 'After' });
+assert.strictEqual(repositoryFindCalls, 1, 'update must locate the row once and must not reread it after writing');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(updatedRepositoryRecord)), {
+  id: 'record-existing', name: 'After', active: true, created_at: 'created-old', updated_at: '2026-07-19T14:00:00+09:00',
+});
+assert.deepStrictEqual(JSON.parse(JSON.stringify(repositoryWrittenRows)), [['record-existing', 'After', true, 'created-old', '2026-07-19T14:00:00+09:00']]);
+assert.strictEqual(repositoryCacheClears, 2);
+assert.strictEqual(repositoryHeaderReads, 1, 'the update must reuse headers returned by the row lookup');
+
 let importItemLocks = 0;
 let syncLogEntry = null;
 context.Utilities = Object.assign({}, context.Utilities, {
@@ -2211,7 +2254,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v233_short_lock_policy'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v234_write_without_reread'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2528,4 +2571,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v233 short lock policy regression tests passed.');
+console.log('v234 write without reread regression tests passed.');
