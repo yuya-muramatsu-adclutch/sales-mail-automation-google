@@ -41,6 +41,46 @@ function readAllSheetRecordsByName_(sheetName, options) {
   });
 }
 
+function findSheetRecordsByExactFieldValues_(sheetName, fieldName, values) {
+  const normalizedFieldName = String(fieldName || '').trim();
+  const requestedValues = Array.from(new Set((Array.isArray(values) ? values : [values]).map(function (value) {
+    return String(value == null ? '' : value);
+  }).filter(Boolean)));
+  if (!requestedValues.length) return [];
+
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), sheetName);
+  const headers = getHeaders_(sheet);
+  const fieldColumnIndex = headers.indexOf(normalizedFieldName);
+  const lastRow = sheet.getLastRow();
+  if (fieldColumnIndex === -1) {
+    throw new Error(sheetName + ' is missing field header: ' + normalizedFieldName);
+  }
+  if (lastRow < 2) return [];
+
+  const fieldRange = sheet.getRange(2, fieldColumnIndex + 1, lastRow - 1, 1);
+  const rowNumbers = {};
+  requestedValues.forEach(function (value) {
+    fieldRange
+      .createTextFinder(value)
+      .matchEntireCell(true)
+      .matchCase(true)
+      .useRegularExpression(false)
+      .findAll()
+      .forEach(function (match) {
+        rowNumbers[match.getRow()] = true;
+      });
+  });
+
+  return Object.keys(rowNumbers).map(Number).sort(function (left, right) {
+    return left - right;
+  }).map(function (rowNumber) {
+    const row = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+    return rowToRecord_(headers, row);
+  }).filter(function (record) {
+    return requestedValues.indexOf(String(record[normalizedFieldName] == null ? '' : record[normalizedFieldName])) !== -1;
+  });
+}
+
 function appendSheetRecord_(sheetName, record) {
   const spreadsheet = getOrCreateSpreadsheet_();
   const sheet = ensureSheet_(spreadsheet, sheetName);

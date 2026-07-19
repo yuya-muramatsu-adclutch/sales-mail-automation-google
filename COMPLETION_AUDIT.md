@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @236 / production code v235: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @237 / production code v236: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v235_storage_health`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v236_active_job_lookup`
+
+## v236 実行中ジョブだけを読む軽量化
+
+- `search_jobs` / `jobs` のステータス列を完全一致検索し、queued・running・preparingの該当行だけを読み込む共通関数を追加した。
+- バックグラウンド進行、停止検索ジョブ復旧、CSV準備停止復旧、重複ジョブ防止、状態確認、キャンプジャンル修復を軽量読込へ統一した。
+- 完了・失敗済み履歴は、バックグラウンド処理のたびに全列転送しない。履歴自体は削除せず保持する。
+- 状態列の検索後に実行対象行を再確認するため、同時更新やTextFinderの誤一致を処理対象へ含めない。
+- queued／runningだけを取得すること、指定値の重複排除、該当行以外の全列を読まないこと、バックグラウンド処理コードに全履歴読込が残らないことを回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 237を固定Web app URLへ再デプロイ済み。
 
 ## v235 保存容量の安全な可視化
 

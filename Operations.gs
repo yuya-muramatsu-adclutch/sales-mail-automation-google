@@ -1040,9 +1040,8 @@ function buildLeadCsvImportRequestKey_(csvText, options) {
 function findReusableLeadCsvImportJob_(requestKey) {
   const key = String(requestKey || '').trim();
   if (!key) return null;
-  const candidates = readAllSheetRecordsByName_('jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
+  const candidates = findSheetRecordsByExactFieldValues_('jobs', 'status', ['preparing', 'queued', 'running']).filter(function (job) {
     return String(job.job_type || '') === 'csv_import' &&
-      ['preparing', 'queued', 'running'].indexOf(String(job.status || '')) !== -1 &&
       String(job.request_key || '') === key;
   });
   for (let index = 0; index < candidates.length; index += 1) {
@@ -1071,9 +1070,8 @@ function isCsvImportPreparationStale_(job, nowMs) {
 
 function recoverStaleCsvPreparationJobs_() {
   return withScriptLock_('recoverStaleCsvPreparationJobs', function () {
-    const staleJobs = readAllSheetRecordsByName_('jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
+    const staleJobs = findSheetRecordsByExactFieldValues_('jobs', 'status', ['preparing']).filter(function (job) {
       return String(job.job_type || '') === 'csv_import' &&
-        String(job.status || '') === 'preparing' &&
         isCsvImportPreparationStale_(job);
     });
     staleJobs.forEach(function (job) {
@@ -1577,13 +1575,11 @@ function advanceQueuedJobs(options) {
     const recoveredSearchJobs = recoverStaleSearchJobs_();
     const recoveredPreparations = recoverStaleCsvPreparationJobs_();
     const runWindow = buildSearchJobRunWindow_(totalRuntimeBudgetMs, Date.now());
-    const activeSearchJobs = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
-      return job.status === 'queued' || job.status === 'running';
-    }).map(function (job) {
+    const activeSearchJobs = findSheetRecordsByExactFieldValues_('search_jobs', 'status', ['queued', 'running']).map(function (job) {
       return { kind: 'search', job: job };
     });
-    const activeImportJobs = readAllSheetRecordsByName_('jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
-      return String(job.job_type || '') === 'csv_import' && (job.status === 'queued' || job.status === 'running');
+    const activeImportJobs = findSheetRecordsByExactFieldValues_('jobs', 'status', ['queued', 'running']).filter(function (job) {
+      return String(job.job_type || '') === 'csv_import';
     }).map(function (job) {
       return { kind: 'csv_import', job: job };
     });
@@ -1772,7 +1768,7 @@ function recoverStaleSearchJobs_(options) {
   const targetId = String(input.jobId || input.job_id || '').trim();
   const nowMs = Date.now();
   const staleAfterMs = Math.max(Number(input.staleAfterMs || input.stale_after_ms) || 15 * 60 * 1000, 7 * 60 * 1000);
-  const candidates = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
+  const candidates = findSheetRecordsByExactFieldValues_('search_jobs', 'status', ['running']).filter(function (job) {
     if (targetId && String(job.id || '') !== targetId) return false;
     return isStaleSearchJob_(job, nowMs, staleAfterMs);
   });
@@ -1922,9 +1918,7 @@ function getBackgroundWorkerHealth() {
     parseBackgroundWorkerClaim_(properties.getProperty(PROPERTY_KEYS.BACKGROUND_WORKER_CLAIM_JSON) || '{}'),
     Date.now()
   );
-  const activeJobs = readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
-    return ['queued', 'running'].indexOf(String(job.status || '')) !== -1;
-  });
+  const activeJobs = findSheetRecordsByExactFieldValues_('search_jobs', 'status', ['queued', 'running']);
   const triggers = ScriptApp.getProjectTriggers().filter(function (trigger) {
     return trigger.getHandlerFunction() === 'advanceQueuedJobs';
   });

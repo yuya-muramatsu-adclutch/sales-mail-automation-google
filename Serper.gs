@@ -623,9 +623,7 @@ function buildSearchJobRequestKey_(payload) {
 function findReusableSearchJob_(requestKey) {
   const key = String(requestKey || '').trim();
   if (!key) return null;
-  return readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).filter(function (job) {
-    return ['queued', 'running'].indexOf(String(job.status || '')) !== -1;
-  }).find(function (job) {
+  return findSheetRecordsByExactFieldValues_('search_jobs', 'status', ['queued', 'running']).find(function (job) {
     if (String(job.request_key || '') === key) return true;
     try {
       return buildSearchJobRequestKey_(JSON.parse(job.query_json || '{}')) === key;
@@ -1545,8 +1543,7 @@ function normalizeNapCampJobGenrePayload_(value) {
 }
 
 function findNapCampJobGenreRepairCandidates_() {
-  return readAllSheetRecordsByName_('search_jobs', { includeInactive: true, includeArchived: true }).map(function (job) {
-    if (['queued', 'running'].indexOf(String(job.status || '')) === -1) return null;
+  return findSheetRecordsByExactFieldValues_('search_jobs', 'status', ['queued', 'running']).map(function (job) {
     let payload = {};
     try {
       payload = JSON.parse(String(job.query_json || '{}'));

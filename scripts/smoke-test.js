@@ -361,16 +361,18 @@ context.getSettingValue_ = (_key, fallback) => fallback;
 context.buildSearchJobRunWindow_ = (budget, startedAt) => ({ deadlineMs: startedAt + budget, startedAtMs: startedAt });
 context.isSearchJobRuntimeExhausted_ = () => false;
 const originalReadAllSheetRecordsByName = context.readAllSheetRecordsByName_;
+const originalFindSheetRecordsByExactFieldValues = context.findSheetRecordsByExactFieldValues_;
 let queuedJobSheetReads = 0;
-context.readAllSheetRecordsByName_ = () => {
-  queuedJobSheetReads += 1;
-  return [
+const queuedSearchJobs = [
   { id: 'job-1', status: 'queued', query_json: '{}', updated_at: '1' },
   { id: 'job-2', status: 'queued', query_json: '{}', updated_at: '2' },
   { id: 'job-3', status: 'queued', query_json: '{}', updated_at: '3' },
   { id: 'job-4', status: 'queued', query_json: '{}', updated_at: '4' },
   { id: 'job-5', status: 'queued', query_json: '{}', updated_at: '5' },
-  ];
+];
+context.findSheetRecordsByExactFieldValues_ = (sheetName) => {
+  queuedJobSheetReads += 1;
+  return sheetName === 'search_jobs' ? queuedSearchJobs : [];
 };
 let queuedWorkerClaims = 0;
 let queuedWorkerReleases = 0;
@@ -518,7 +520,7 @@ workerClaimProperties.BACKGROUND_WORKER_CLAIM_JSON = JSON.stringify({
   startedAt: new Date(Date.now() - 1000).toISOString(),
   expiresAt: new Date(Date.now() + 60000).toISOString(),
 });
-workerClaimContext.readAllSheetRecordsByName_ = () => [];
+workerClaimContext.findSheetRecordsByExactFieldValues_ = () => [];
 workerClaimContext.ScriptApp = {
   getProjectTriggers: () => [{ getHandlerFunction: () => 'advanceQueuedJobs' }],
 };
@@ -536,6 +538,50 @@ workerClaimProperties.BACKGROUND_WORKER_CLAIM_JSON = JSON.stringify({
 const staleWorkerHealth = workerClaimContext.getBackgroundWorkerHealth();
 assert.strictEqual(staleWorkerHealth.workerClaim.busy, false);
 assert.strictEqual(staleWorkerHealth.workerClaim.stale, true);
+
+const activeJobLookupContext = vm.createContext({ console });
+['Code.gs', 'Repository.gs'].forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), activeJobLookupContext, { filename: file });
+});
+const activeJobLookupHeaders = ['id', 'status', 'query_json'];
+const activeJobLookupRows = {
+  2: ['completed-1', 'completed', '{}'],
+  3: ['queued-1', 'queued', '{"kind":"queued"}'],
+  4: ['running-1', 'running', '{"kind":"running"}'],
+  5: ['failed-1', 'failed', '{}'],
+};
+let activeJobFullRowReads = 0;
+const activeJobLookupSheet = {
+  getLastColumn: () => activeJobLookupHeaders.length,
+  getLastRow: () => 5,
+  getRange: (row, column, rowCount, columnCount) => {
+    if (row === 1) return { getValues: () => [activeJobLookupHeaders] };
+    if (row === 2 && column === 2 && rowCount === 4 && columnCount === 1) {
+      return {
+        createTextFinder: (value) => {
+          const finder = {
+            matchEntireCell: () => finder,
+            matchCase: () => finder,
+            useRegularExpression: () => finder,
+            findAll: () => Object.keys(activeJobLookupRows).map(Number).filter((rowNumber) => activeJobLookupRows[rowNumber][1] === value).map((rowNumber) => ({ getRow: () => rowNumber })),
+          };
+          return finder;
+        },
+      };
+    }
+    activeJobFullRowReads += 1;
+    return { getValues: () => [activeJobLookupRows[row]] };
+  },
+};
+activeJobLookupContext.getOrCreateSpreadsheet_ = () => ({});
+activeJobLookupContext.ensureSheet_ = () => activeJobLookupSheet;
+const activeJobLookup = JSON.parse(JSON.stringify(activeJobLookupContext.findSheetRecordsByExactFieldValues_(
+  'search_jobs',
+  'status',
+  ['queued', 'running', 'queued']
+)));
+assert.deepStrictEqual(activeJobLookup.map((job) => job.id), ['queued-1', 'running-1']);
+assert.strictEqual(activeJobFullRowReads, 2, 'active job lookup must read only matched full rows');
 
 const hardDeleteReferences = context.listLeadHardDeleteReferences_({ id: 'lead-1', calendar_event_id: '' }, {
   send_histories: [],
@@ -557,6 +603,7 @@ context.getOrCreateSpreadsheet_ = () => ({});
 context.ensureSheet_ = () => ({});
 context.readSheetRecords_ = () => activeRecordsFixture;
 context.readAllSheetRecordsByName_ = originalReadAllSheetRecordsByName;
+context.findSheetRecordsByExactFieldValues_ = originalFindSheetRecordsByExactFieldValues;
 const allActiveRecords = context.readAllActiveSheetRecords_('ng_masters');
 assert.strictEqual(allActiveRecords.length, 1001);
 assert.strictEqual(allActiveRecords[allActiveRecords.length - 1].id, 'record-1002');
@@ -1039,6 +1086,7 @@ context.Utilities = Object.assign({}, context.Utilities, {
 context.withScriptLock_ = (_operation, callback) => callback();
 context.ensureBackgroundJobTrigger_ = () => { ensuredCsvTrigger += 1; };
 context.readAllSheetRecordsByName_ = () => [];
+context.findSheetRecordsByExactFieldValues_ = () => [];
 context.appendSheetRecord_ = (sheetName, record) => {
   assert.strictEqual(sheetName, 'jobs');
   queuedJobRecord = Object.assign({}, record);
@@ -1106,7 +1154,7 @@ searchStartContext.withScriptLock_ = (_operation, callback) => {
     searchStartLockDepth -= 1;
   }
 };
-searchStartContext.readAllSheetRecordsByName_ = () => searchStartRecords;
+searchStartContext.findSheetRecordsByExactFieldValues_ = () => searchStartRecords.filter((job) => ['queued', 'running'].includes(job.status));
 searchStartContext.appendSheetRecord_ = (_sheetName, record) => {
   searchStartAppends += 1;
   const saved = Object.assign({ id: 'search-start-1' }, record);
@@ -2254,7 +2302,8 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v235_storage_health'));
+const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
+assert(codeSource.includes('20260719_apps_script_full_workflow_v236_active_job_lookup'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2358,7 +2407,11 @@ assert(emailSource.includes('function reconcileMailDeliveryReceipts_'));
 assert(emailSource.includes('reconcileMailDeliveryReceipts_(histories, { maxItems: 20 })'));
 assert(operationsSource.includes("newTrigger('runScheduledEmailBatch').timeBased().everyMinutes(10)"));
 assert(operationsSource.includes("const guests = sendInvites ? String(source.guests || lead.email || '').trim() : ''"));
-assert(operationsSource.includes("readAllSheetRecordsByName_('search_jobs'"));
+assert(!operationsSource.includes("readAllSheetRecordsByName_('search_jobs'"), 'background worker paths must not scan completed search jobs');
+assert(!operationsSource.includes("readAllSheetRecordsByName_('jobs'"), 'background worker paths must not scan completed import jobs');
+assert(operationsSource.includes("findSheetRecordsByExactFieldValues_('search_jobs', 'status', ['queued', 'running'])"));
+assert(operationsSource.includes("findSheetRecordsByExactFieldValues_('jobs', 'status', ['queued', 'running'])"));
+assert(repositorySource.includes('function findSheetRecordsByExactFieldValues_'));
 assert(operationsSource.includes("readAllSheetRecordsByName_('reply_logs'"));
 assert(operationsSource.includes("withScriptLock_('importLeadsFromCsv:item'"));
 assert(operationsSource.includes('function startLeadCsvImport'));
@@ -2366,7 +2419,6 @@ assert(operationsSource.includes('function advanceLeadCsvImportJob'));
 assert(operationsSource.includes('function buildLeadCsvImportRequestKey_'));
 assert(operationsSource.includes('function recoverStaleCsvPreparationJobs_'));
 assert(operationsSource.includes("withScriptLock_('startLeadCsvImport:appendRawChunk'"));
-assert(operationsSource.includes("readAllSheetRecordsByName_('jobs'"));
 assert(operationsSource.includes('function buildSyncFillPatch_'));
 assert(operationsSource.includes("withScriptLock_('recordDetectedReply'"));
 assert(operationsSource.includes('function findReplyLogByLeadAndThread_'));
@@ -2610,4 +2662,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v235 storage health regression tests passed.');
+console.log('v236 active job lookup regression tests passed.');

@@ -219,3 +219,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Leads, send history, and reply logs are listed separately as protected evidence and cannot be deleted from this panel.
 - No cleanup action was added or run; the UI requires a Drive backup and retention decision before any future temporary-data cleanup.
 - Fixed deployment updated to `@236`; authenticated current row counts remain a production UI observation.
+
+## v236 follow-up
+
+- Background health, stale recovery, duplicate prevention, and queued work now search the status column and read only matching rows.
+- Completed and failed job history remains available but is not transferred on every background-worker check.
+- Both search jobs and CSV import jobs use the same exact-match helper, preventing performance behavior from drifting between workflows.
+- The helper rechecks the returned row status and deduplicates matched row numbers before returning records.
+- Automated coverage proves that only queued/running full rows are read from a mixed-status fixture and that background paths no longer contain full-history job reads.
+- Fixed deployment updated to `@237`; authenticated worker timing remains a production observation.
