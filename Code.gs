@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v232_short_lock_batches';
+const APP_VERSION = '20260719_apps_script_full_workflow_v233_short_lock_policy';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -1400,7 +1400,7 @@ function buildLeadListStats_(rows, masterContext, genre) {
 function updateLead(id, patch) {
   return withScriptLock_('updateLead', function () {
     return updateLeadLocked_(id, patch);
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function updateReviewLeadDecision(id, input) {
@@ -1781,7 +1781,7 @@ function saveSerperApiKey(apiKey) {
       ok: true,
       saved: true,
     };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function debugListLeads() {
@@ -2742,9 +2742,9 @@ function requireId_(id) {
 
 function withScriptLock_(operation, callback, options) {
   const lockOptions = options && typeof options === 'object' ? options : {};
-  const waitMs = Math.min(Math.max(Number(lockOptions.waitMs) || 30000, 1000), 300000);
-  const attempts = Math.min(Math.max(Number(lockOptions.attempts) || 1, 1), 10);
-  const retryDelayMs = Math.min(Math.max(Number(lockOptions.retryDelayMs) || 250, 0), 5000);
+  const waitMs = Math.min(Math.max(Number(lockOptions.waitMs) || 6000, 1000), 300000);
+  const attempts = Math.min(Math.max(Number(lockOptions.attempts) || 5, 1), 10);
+  const retryDelayMs = Math.min(Math.max(Number(lockOptions.retryDelayMs) || 400, 0), 5000);
   let lastError = null;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {

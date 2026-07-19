@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @233 / production code v232: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @234 / production code v233: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v232_short_lock_batches`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v233_short_lock_policy`
+
+## v233 アプリ全体の短時間ロック方針
+
+- Script Lockの共通既定を30秒×1回から6秒×最大5回へ変更し、設定保存・マスター更新などオプション未指定の処理も一時競合から自動回復する。
+- 営業先編集、検索API設定、メール送信準備、テスト送信予約・確定、完全自動送信ジョブ管理の長時間単発待機を短時間再試行へ統一する。
+- Gmail返信反映・誤検知復旧、Calendar予約・確定・取消、CSV取込、停止ジョブ回収、データ移行も同じ方針へ変更する。
+- メール配送・Calendar API呼び出しは引き続きロック外で行い、予約保存前のメール送信禁止、Calendar確定失敗時のイベント削除を維持する。
+- CSV準備は既存の500行単位、検索結果確認は25件単位の分割を維持し、1回のロックで大量処理を抱えない。
+- 明示的な90秒待機が全Apps Scriptコードから消えていること、共通既定の競合再試行、メール・CSV・返信・移行のロック設定を回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 234を固定Web app URLへ再デプロイ済み。
 
 ## v232 検索・補完処理の短時間ロック分割
 

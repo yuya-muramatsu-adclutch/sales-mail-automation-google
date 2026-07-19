@@ -182,7 +182,7 @@ function recordDetectedReply_(leadId, reply) {
       last_gmail_thread_id: threadId,
     });
     return { ok: true, alreadyRecorded: false, lead: updatedLead, log: log };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function findReplyLogByLeadAndThread_(leadId, threadId) {
@@ -385,7 +385,7 @@ function restoreReplyFalsePositiveCandidate_(candidate) {
       conflict: false,
       lead: updatedLead,
     };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function isAutoReplyMessage_(subject, body) {
@@ -544,7 +544,7 @@ function createCalendarEventForLead(leadId, input) {
       recoveryStart: recoveryStart,
       recoveryEnd: recoveryEnd,
     };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 
   let calendar;
   try {
@@ -576,7 +576,7 @@ function createCalendarEventForLead(leadId, input) {
       if (String(currentLead.calendar_event_id || '').trim() === claim.existingEventId) {
         updateLeadLocked_(currentLead.id, { calendar_event_id: '' });
       }
-    }, { waitMs: 90000 });
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
     return createCalendarEventForLead(leadId, Object.assign({}, source, { __staleCalendarRetry: true }));
   }
 
@@ -677,7 +677,7 @@ function createCalendarEventForLead(leadId, input) {
           calendar_event_id: eventId,
         });
       }
-    }, { waitMs: 90000 });
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
   } catch (error) {
     try {
       event.deleteEvent();
@@ -750,7 +750,7 @@ function releaseCalendarEventClaim_(leadId, token) {
       const propertyKey = calendarEventClaimPropertyKey_(leadId);
       const currentClaim = parseCalendarEventClaim_(properties.getProperty(propertyKey));
       if (currentClaim.token === token) properties.deleteProperty(propertyKey);
-    }, { waitMs: 90000 });
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
   } catch (error) {
     logCalendarErrorSafely_('releaseCalendarEventForLead', error, {
       target_sheet: 'leads',
@@ -833,7 +833,7 @@ function importLeadsFromCsv(csvText, options) {
     try {
       const outcome = withScriptLock_('importLeadsFromCsv:item', function () {
         return upsertSyncLeadLocked_(raw, input);
-      }, { waitMs: 90000 });
+      }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
       if (outcome.action === 'added') result.added += 1;
       if (outcome.action === 'filled') {
         result.filled += 1;
@@ -963,7 +963,7 @@ function startLeadCsvImport(csvText, options) {
       finished_at: '',
     });
     return { job: job, reused: false };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 
   if (queued.reused) {
     const reusedTrigger = ensureBackgroundJobTriggerBestEffort_();
@@ -988,7 +988,7 @@ function startLeadCsvImport(csvText, options) {
           last_heartbeat_at: nowIso_(),
           current_query: 'CSV準備 ' + Math.min(offset + chunk.length, rawRecords.length) + ' / ' + rawRecords.length,
         });
-      }, { waitMs: 90000 });
+      }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
     }
     queued.job = withScriptLock_('startLeadCsvImport:finalize', function () {
       return updateSheetRecord_('jobs', queued.job.id, {
@@ -999,7 +999,7 @@ function startLeadCsvImport(csvText, options) {
         locked_at: '',
         last_heartbeat_at: nowIso_(),
       });
-    }, { waitMs: 90000 });
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
   } catch (error) {
     try {
       withScriptLock_('startLeadCsvImport:fail', function () {
@@ -1011,7 +1011,7 @@ function startLeadCsvImport(csvText, options) {
           last_heartbeat_at: nowIso_(),
           finished_at: nowIso_(),
         });
-      }, { waitMs: 90000 });
+      }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
     } catch (finalizeError) {
       console.error('CSV import failure state could not be saved: ' + String(finalizeError.message || finalizeError));
     }
@@ -1087,7 +1087,7 @@ function recoverStaleCsvPreparationJobs_() {
       });
     });
     return staleJobs.length;
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function advanceLeadCsvImportJob(jobId, options) {
@@ -1146,7 +1146,7 @@ function advanceLeadCsvImportJob(jobId, options) {
             error_message: String(error.message || error).slice(0, 4000),
           });
         }
-      }, { waitMs: 90000 });
+      }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
     } catch (error) {
       infrastructureError = String(error.message || error);
       appendSyncError_('advanceLeadCsvImportJob', error, {
@@ -1195,7 +1195,7 @@ function advanceLeadCsvImportJob(jobId, options) {
           stack: '',
           context_json: safeJsonStringify_(summary),
         });
-      }, { waitMs: 90000 });
+      }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
     } catch (error) {
       console.warn('CSV import completion log skipped: ' + String(error.message || error));
     }
@@ -1247,7 +1247,7 @@ function claimLeadCsvImportJobRun_(jobId, runtimeBudgetMs) {
       last_error: '',
     });
     return { claimed: true, busy: false, job: claimedJob, lockToken: lockToken, reason: status === 'running' ? 'stale_recovery' : 'claimed' };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function updateClaimedLeadCsvImportJob_(jobId, lockToken, patch, release) {
@@ -1266,7 +1266,7 @@ function updateClaimedLeadCsvImportJob_(jobId, lockToken, patch, release) {
       owned: true,
       record: updateSheetRecord_('jobs', jobId, nextPatch),
     };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function listRawImportRowsForJob_(jobId) {
@@ -1797,7 +1797,7 @@ function recoverStaleSearchJobs_(options) {
         skippedCandidate: recovery.skippedCandidate,
         staleRecoveryCount: recovery.staleRecoveryCount,
       };
-    }, { waitMs: 90000 });
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
     if (result) recovered.push(result);
   });
   return recovered;
@@ -2122,7 +2122,7 @@ function prepareLeadMigration(input) {
       stagingSheet: LEAD_MIGRATION_STAGING_SHEET_,
       liveDataPreserved: true,
     };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function writeLeadMigrationRows(input) {
@@ -2158,7 +2158,7 @@ function writeLeadMigrationRows(input) {
       endRow: startRow + values.length - 1,
       stagingSheet: LEAD_MIGRATION_STAGING_SHEET_,
     };
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function finalizeLeadMigration(input) {
@@ -2233,7 +2233,7 @@ function finalizeLeadMigration(input) {
     }
     clearRuntimeCaches_('leads');
     return result;
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function getLeadMigrationStagingSheet_(spreadsheet, createIfMissing) {

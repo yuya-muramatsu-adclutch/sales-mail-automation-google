@@ -203,7 +203,7 @@ function sendLeadEmail(leadId, templateId, options) {
   const input = options && typeof options === 'object' ? options : {};
   const prepared = withScriptLock_('prepareLeadEmailSend', function () {
     return prepareLeadEmailSend_(leadId, templateId, input, false);
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
   return deliverPreparedLeadEmail_(prepared);
 }
 
@@ -222,7 +222,7 @@ function sendLeadEmailBatch(leadIds, templateId, options) {
     try {
       const prepared = withScriptLock_('prepareLeadEmailBatchItem', function () {
         return prepareLeadEmailSend_(id, templateId, input, true);
-      }, { waitMs: 90000 });
+      }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
       return deliverPreparedLeadEmail_(prepared);
     } catch (error) {
       if (!isExpectedOperationError_(error)) {
@@ -607,7 +607,7 @@ function claimScheduledEmailJob_() {
         finished_at: '',
       }),
     };
-  }, { waitMs: 30000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function heartbeatScheduledEmailJob_(jobId, processed, total) {
@@ -618,7 +618,7 @@ function heartbeatScheduledEmailJob_(jobId, processed, total) {
       current_query: '完全自動送信 ' + Number(processed || 0) + ' / ' + Number(total || 0) + '件',
       last_heartbeat_at: nowIso_(),
     });
-  }, { waitMs: 30000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function finalizeScheduledEmailJob_(jobId, summary) {
@@ -638,7 +638,7 @@ function finalizeScheduledEmailJob_(jobId, summary) {
       lock_token: '',
       locked_at: '',
     });
-  }, { waitMs: 30000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function prepareLeadEmailSend_(leadId, templateId, input, requireSendWindow) {
@@ -1168,7 +1168,7 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
       gmail_thread_id: '',
       sender_name: senderName,
     });
-  }, { waitMs: 90000 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
   let sendResult = '成功';
   let errorMessage = '';
 
@@ -1206,7 +1206,7 @@ function sendTestEmail(templateId, toEmail, sampleLeadInput) {
         }
       }
       return result;
-    }, { waitMs: 90000 });
+    }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
     history = finalized.history || history;
     Array.prototype.push.apply(trackingErrors, finalized.trackingErrors || []);
   } catch (error) {

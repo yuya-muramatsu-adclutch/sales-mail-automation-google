@@ -43,7 +43,7 @@ const batch = context.sendLeadEmailBatch(['lead-1', 'lead-2', 'lead-1'], 'templa
 assert.strictEqual(batch.total, 2);
 assert.strictEqual(batch.success, 2);
 assert.deepStrictEqual(lockCalls.map((item) => item.operation), ['prepareLeadEmailBatchItem', 'prepareLeadEmailBatchItem']);
-assert(lockCalls.every((item) => item.options.waitMs === 90000));
+assert(lockCalls.every((item) => item.options.waitMs === 6000 && item.options.attempts === 5));
 assert.strictEqual(deliveryChecks, 1);
 assert.strictEqual(masterBuilds, 0);
 
@@ -950,7 +950,8 @@ context.Utilities = Object.assign({}, context.Utilities, {
 });
 context.withScriptLock_ = (operation, callback, options) => {
   assert.strictEqual(operation, 'importLeadsFromCsv:item');
-  assert.strictEqual(options.waitMs, 90000);
+  assert.strictEqual(options.waitMs, 6000);
+  assert.strictEqual(options.attempts, 5);
   importItemLocks += 1;
   return callback();
 };
@@ -1349,7 +1350,8 @@ assert.strictEqual(preparedMigration.liveDataPreserved, true);
 assert.strictEqual(stagingClearCount, 1);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(stagingHeaderWrite)), [JSON.parse(JSON.stringify(migrationHeaders))]);
 assert.strictEqual(liveClearCount, 0);
-assert.strictEqual(migrationLockOptions[0].waitMs, 90000);
+assert.strictEqual(migrationLockOptions[0].waitMs, 6000);
+assert.strictEqual(migrationLockOptions[0].attempts, 5);
 
 const duplicateMigrationRows = [
   (() => { const row = Array(migrationHeaders.length).fill(''); row[migrationHeaders.indexOf('id')] = 'duplicate-id'; row[migrationHeaders.indexOf('company_name')] = 'Company A'; return row; })(),
@@ -1433,7 +1435,8 @@ assert.strictEqual(recordedReply.lead.reply_checked, true);
 assert.strictEqual(replyUpdate.id, 'reply-lead');
 assert.strictEqual(replyUpdate.patch.last_gmail_thread_id, 'thread-1');
 assert.strictEqual(replyRecordLock.operation, 'recordDetectedReply');
-assert.strictEqual(replyRecordLock.options.waitMs, 90000);
+assert.strictEqual(replyRecordLock.options.waitMs, 6000);
+assert.strictEqual(replyRecordLock.options.attempts, 5);
 replyUpdate = null;
 const alreadyRecordedReply = context.recordDetectedReply_('reply-lead', { thread_id: 'thread-1' });
 assert.strictEqual(alreadyRecordedReply.alreadyRecorded, true);
@@ -1792,7 +1795,7 @@ testMailContext.logError_ = () => {};
 const testMailResult = testMailContext.sendTestEmail('template-test', 'ignored@example.com', {});
 assert.strictEqual(testMailResult.ok, true);
 assert.deepStrictEqual(testMailOperations.map((item) => item.operation), ['sendTestEmail:prepare', 'sendTestEmail:finalize']);
-assert(testMailOperations.every((item) => item.options.waitMs === 90000));
+assert(testMailOperations.every((item) => item.options.waitMs === 6000 && item.options.attempts === 5));
 
 const reviewDecisionContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -1875,6 +1878,24 @@ assert.strictEqual(lockRetryResult, 'acquired');
 assert.strictEqual(lockTryCount, 3);
 assert.strictEqual(lockReleaseCount, 1, 'only an acquired lock may be released');
 assert.deepStrictEqual(lockSleepCalls, [10, 20]);
+lockTryCount = 0;
+lockReleaseCount = 0;
+lockSleepCalls.length = 0;
+lockRetryContext.LockService = {
+  getScriptLock: () => ({
+    tryLock: (waitMs) => {
+      assert.strictEqual(waitMs, 6000);
+      lockTryCount += 1;
+      return lockTryCount >= 2;
+    },
+    releaseLock: () => { lockReleaseCount += 1; },
+  }),
+};
+const defaultLockRetryResult = lockRetryContext.withScriptLock_('defaultLockRetryTest', () => 'default-acquired');
+assert.strictEqual(defaultLockRetryResult, 'default-acquired');
+assert.strictEqual(lockTryCount, 2);
+assert.strictEqual(lockReleaseCount, 1);
+assert.deepStrictEqual(lockSleepCalls, [400], 'default lock policy must retry after a short wait');
 assert.strictEqual(lockRetryContext.isScriptLockTimeoutError_(new Error('Exception: ロックのタイムアウト: 別のプロセスがロックを保持しています。')), true);
 assert.strictEqual(lockRetryContext.isScriptLockTimeoutError_(new Error('Lock timed out waiting for another process')), true);
 
@@ -2190,7 +2211,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v232_short_lock_batches'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v233_short_lock_policy'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2248,6 +2269,10 @@ assert(!mastersSource.includes("listSheetRecords('email_templates', { limit: 100
 assert(emailSource.includes("const templates = readAllActiveSheetRecords_('email_templates')"));
 assert(codeSource.includes("'FORM_SEND_NOT_RECORDED'"));
 const operationsSource = fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8');
+assert(!codeSource.includes('waitMs: 90000'), 'lead updates and legacy search settings must not wait on one script lock for 90 seconds');
+assert(!emailSource.includes('waitMs: 90000'), 'mail preparation and tracking must not wait on one script lock for 90 seconds');
+assert(!emailSource.includes('waitMs: 30000'), 'scheduled mail tracking must use the short retry policy');
+assert(!operationsSource.includes('waitMs: 90000'), 'CSV, reply, calendar, and migration operations must not wait on one script lock for 90 seconds');
 assert(emailSource.includes('function runScheduledEmailBatch'));
 assert(emailSource.includes("job_type: 'automatic_email_send'"));
 assert(emailSource.includes('function recordMailDeliveryReceipt_'));
@@ -2503,4 +2528,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v232 short lock batches regression tests passed.');
+console.log('v233 short lock policy regression tests passed.');

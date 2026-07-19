@@ -192,3 +192,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Every review item is re-read after the chunk lock is acquired, preserving conflict detection and preventing stale overwrites.
 - Automated coverage verifies a 26-record selection uses two lock windows and retains idempotent/conflict behavior.
 - Fixed deployment updated to `@233`; authenticated concurrent clicking and Apps Script execution timing remain production observations.
+
+## v233 follow-up
+
+- The default script-lock policy is now five bounded 6-second attempts instead of one 30-second wait.
+- Lead editing, mail reservation/tracking, scheduled-mail job state, replies, Calendar claims, CSV jobs, stale recovery, and migrations no longer use explicit 90-second waits.
+- Network delivery and Calendar creation remain outside the global lock; their reservation and rollback guards are unchanged.
+- CSV preparation remains chunked at 500 rows and search-result review at 25 records, limiting each lock hold.
+- Automated coverage verifies default retry timing and all previously protected mail, reply, import, and migration paths.
+- Fixed deployment updated to `@234`; authenticated simultaneous-operation timing remains a production observation.
