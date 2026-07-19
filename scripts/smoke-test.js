@@ -2881,7 +2881,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v261_lightweight_form_block_rules'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v262_api_response_watchdog'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3441,6 +3441,11 @@ assert(indexSource.includes('function isJobResultReviewActionable'));
 assert(indexSource.includes('別処理で更新済みのため上書きしませんでした'));
 assert(indexSource.includes('Promise.allSettled(['));
 assert(indexSource.includes("window.addEventListener('unhandledrejection'"));
+assert(indexSource.includes('const API_CALL_TIMEOUT_MS = 120000'));
+assert(indexSource.includes('const LONG_API_CALL_TIMEOUT_MS = 330000'));
+assert(indexSource.includes("error.code = 'API_RESPONSE_TIMEOUT'"));
+assert(indexSource.includes('if (timeoutId) window.clearTimeout(timeoutId)'));
+assert(indexSource.includes('結果が反映済みの可能性があるため、再実行前に画面を更新してください'));
 assert(indexSource.includes('if (state.analyticsData) return state.analyticsData;'));
 ['updateLeadFoundLocked_', 'deleteLead', 'markLeadFormSent', 'unmarkLeadFormSent'].forEach((functionName) => {
   const start = codeSource.indexOf(`function ${functionName}`);
@@ -3603,4 +3608,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v261 lightweight form block rule regression tests passed.');
+console.log('v262 API response watchdog regression tests passed.');

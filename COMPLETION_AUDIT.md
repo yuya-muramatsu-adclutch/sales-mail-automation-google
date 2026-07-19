@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @262 / production code v261: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @263 / production code v262: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v261_lightweight_form_block_rules`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v262_api_response_watchdog`
+
+## v262 API応答停止時の画面復旧
+
+- `google.script.run` の成功・失敗コールバックが返らない場合、従来は画面が処理中のまま無期限に残っていた。
+- 通常APIは2分、検索・移行・修復・一括処理などは5分30秒で応答監視し、期限到達時に処理中表示を解除する。
+- 遅延した処理がサーバー側で完了済みの可能性を考慮し、自動再実行せず「画面を更新して結果を確認」と案内する。
+- 正常応答・失敗応答では監視タイマーを必ず解除し、遅れて届いた二重コールバックは既存の完了ガードで無視する。
+- 通常・長時間タイムアウト値、タイマー解除、専用エラーコード、結果不明メッセージを回帰テストし、`Index.html` 内JavaScript構文も確認した。
+- `node scripts/smoke-test.js`、`node --check scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 263を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@263` であることを確認した。外部検索、メール送信、フォーム送信、営業データ変更は検証中に実行していない。
 
 ## v261 フォーム判定の送信履歴読込撤去
 

@@ -453,3 +453,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Email eligibility retains the complete master and delivery-safety context, preserving duplicate-send protection.
 - Automated coverage verifies the lightweight context fields and the absence of mail-history loading in the form-recording path.
 - Fixed deployment updated to `@262`; no live form, mail, search, or sales-data mutation was run during verification.
+
+## v262 follow-up
+
+- Client API calls now release the busy state when Apps Script never returns a success or failure callback.
+- Normal requests use a two-minute watchdog, while known search, migration, repair, and batch actions receive five minutes and thirty seconds.
+- Timeout copy warns that the server-side result may already exist and asks the user to refresh before retrying, avoiding automatic duplicate mutations.
+- Successful and failed requests clear the watchdog, and the existing completion guard ignores late callbacks.
+- Automated coverage verifies both timeout tiers, timer cleanup, error code, and user guidance; inline JavaScript syntax also passes.
+- Fixed deployment updated to `@263`; no live form, mail, search, or sales-data mutation was run during verification.

@@ -13784,17 +13784,55 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return callApi(name, args, { busy: false });
       }
 
+      const API_CALL_TIMEOUT_MS = 120000;
+      const LONG_API_CALL_TIMEOUT_MS = 330000;
+      const LONG_API_ACTIONS = new Set([
+        'setup',
+        'runSmallSearchJob',
+        'advanceSearchJob',
+        'sendLeadEmailBatch',
+        'checkRepliesForLeads',
+        'importEmailTemplates',
+        'importExcludedDomains',
+        'importSendHistories',
+        'importLeadsFromCsv',
+        'startLeadCsvImport',
+        'advanceLeadCsvImportJob',
+        'advanceQueuedJobs',
+        'repairBackgroundJobs',
+        'repairNapCampGenres',
+        'repairReviewLeadsWithoutContact',
+        'repairNonAdvertiserReviewLeads',
+        'repairNonAdvertiserCleanupOverreach',
+        'createSpreadsheetBackup',
+        'prepareLeadMigration',
+        'writeLeadMigrationRows',
+        'finalizeLeadMigration',
+      ]);
+
+      function apiCallTimeoutMs(name) {
+        return LONG_API_ACTIONS.has(String(name || '')) ? LONG_API_CALL_TIMEOUT_MS : API_CALL_TIMEOUT_MS;
+      }
+
       function callApi(name, args, options) {
         const useBusy = !options || options.busy !== false;
         if (useBusy) setBusy(true);
         return new Promise((resolve, reject) => {
           let finished = false;
+          let timeoutId = 0;
           const finish = () => {
             if (finished) return false;
             finished = true;
+            if (timeoutId) window.clearTimeout(timeoutId);
             if (useBusy) setBusy(false);
             return true;
           };
+          timeoutId = window.setTimeout(() => {
+            if (!finish()) return;
+            const error = new Error('処理の応答がありません。結果が反映済みの可能性があるため、再実行前に画面を更新してください。');
+            error.code = 'API_RESPONSE_TIMEOUT';
+            reject(error);
+          }, apiCallTimeoutMs(name));
           try {
             google.script.run
               .withSuccessHandler((result) => {
