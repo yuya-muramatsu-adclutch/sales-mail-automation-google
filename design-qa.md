@@ -284,3 +284,13 @@ final result: code paths verified; authenticated timing comparison pending
 - Each selected lead is still reloaded and revalidated under the send-preparation lock immediately before delivery.
 - Automated coverage verifies identical selected order, exclusions, and template groups between full and projected lead fixtures.
 - Fixed deployment updated to `@243`; authenticated trigger duration remains a production observation.
+
+## v243 follow-up
+
+- Sales-list routes now return twenty-six shared list fields instead of every lead column.
+- Large source payload JSON, decision detail, meeting detail, and Calendar metadata are omitted from initial list rendering.
+- Email, form, deal, and duplicate-manager routes request only their small screen-specific field additions.
+- Opening the lead editor fetches the current complete record by ID before populating the dialog, so projected list data cannot erase hidden fields.
+- Contiguous-only range grouping prevents the omitted source payload column from being swept into a widened read.
+- Automated coverage verifies the base projection, safe extra-field allowlist, search behavior, omitted payload, route-specific fields, and on-demand detail fetch.
+- Fixed deployment updated to `@244`; authenticated list timing remains a production observation.

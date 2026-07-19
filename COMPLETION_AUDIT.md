@@ -5,9 +5,22 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @243 / production code v242: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @244 / production code v243: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v242_mail_candidate_columns`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v243_lead_list_projection`
+
+## v243 営業リスト初期表示の軽量化
+
+- 営業リストの通常取得は全列ではなく、検索・絞り込み・状態内訳・保存ビュー・CSV出力に必要な26列だけを読む。
+- 巨大な `source_payload_json`、送信NG詳細、商談詳細、Calendar・Meet情報などを一覧の初期表示から除外した。
+- カスタム項目、メモ、住所は保存ビュー・検索・CSVとの互換性を保つため一覧の基本列に残した。
+- メール・フォーム・商談・重複チェックは、共通列に画面固有の必要列だけを追加する。未許可の列名は無視し、任意列取得にはしない。
+- 編集画面は一覧の部分データを使わず、選択したIDの最新完全レコードを取得してから開く。連続クリックや閉じた後の遅延応答も表示しない。
+- 手動メール候補一覧も同じ軽量取得へ切り替え、収集元JSONをメールプレビュー画面へ転送しない。
+- 選択列の間にある巨大列を巻き込まないよう、営業リストでは連続列だけをRangeにまとめる。
+- 軽量列、追加列の許可、検索・並び順、巨大列の非返却、画面別追加列、完全詳細取得を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 244を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@244` であることを確認した。匿名HTTP確認はGoogle認証境界で到達できないため、ログイン済み画面の体感速度は運用確認対象とする。
 
 ## v242 完全自動送信の候補抽出軽量化
 

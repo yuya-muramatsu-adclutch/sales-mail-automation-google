@@ -13667,6 +13667,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         excludedDomainMessage: '',
         excludedDomainMessageKind: '',
         activeLeadHistoryLeadId: '',
+        activeLeadDetailLeadId: '',
         activeLeadFormHistories: [],
         activeLeadDuplicateLeadId: '',
         activeLeadDuplicateCandidates: [],
@@ -15948,6 +15949,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           limit: 100,
           offset: 0,
           includeStats: false,
+          includeFields: ['contact_name'],
         });
         state.emailLeads = result.items || [];
         state.emailTotal = result.total || 0;
@@ -15987,6 +15989,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           limit: 100,
           offset: 0,
           includeStats: false,
+          includeFields: ['meeting_start_at', 'contact_name', 'google_meet_url', 'meeting_memo'],
         });
         state.dealLeads = result.items || [];
         state.dealTotal = result.total || 0;
@@ -16649,14 +16652,28 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function newLead() {
+        state.activeLeadDetailLeadId = '';
         clearLeadForm();
         openLeadDialog();
         document.getElementById('leadCompany').focus();
       }
 
-      function editLead(id) {
-        const lead = findLeadByIdClient(id);
-        if (!lead) return;
+      async function editLead(id) {
+        const summary = findLeadByIdClient(id);
+        if (!summary) return;
+        state.activeLeadDetailLeadId = id;
+        let lead;
+        try {
+          lead = await api('getLead', id);
+        } catch (error) {
+          if (state.activeLeadDetailLeadId === id) {
+            state.activeLeadDetailLeadId = '';
+            message(`営業先の詳細を読み込めませんでした: ${apiErrorText(error)}`, 'error');
+          }
+          return;
+        }
+        if (state.activeLeadDetailLeadId !== id || !lead || lead.id !== id) return;
+        mergeAuthoritativeLeadIntoClientLists(lead);
         document.getElementById('leadFormTitle').textContent = 'リード編集';
         renderLeadDialogStatusPills(lead);
         document.getElementById('leadId').value = lead.id || '';
@@ -16712,6 +16729,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function closeLeadDialog() {
+        state.activeLeadDetailLeadId = '';
         document.getElementById('leadDetailDialog').classList.remove('open');
       }
 
@@ -16848,11 +16866,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         try {
           const result = await api('listLeadSendHistories', leadId, { limit: 20 });
           if (state.activeLeadHistoryLeadId !== leadId) return;
-          const lead = state.leads.find((item) => item.id === leadId);
+          const lead = findLeadByIdClient(leadId);
           renderLeadHistoryPanel(lead, result.items || [], false);
         } catch (error) {
           if (state.activeLeadHistoryLeadId !== leadId) return;
-          renderLeadHistoryPanel(state.leads.find((item) => item.id === leadId), [], false, error.message || String(error));
+          renderLeadHistoryPanel(findLeadByIdClient(leadId), [], false, error.message || String(error));
         }
       }
 
@@ -16861,11 +16879,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         try {
           const result = await api('listLeadDuplicateCandidates', leadId, { limit: 10 });
           if (state.activeLeadDuplicateLeadId !== leadId) return;
-          const lead = state.leads.find((item) => item.id === leadId);
+          const lead = findLeadByIdClient(leadId);
           renderLeadDuplicatePanel(lead, result.items || [], false);
         } catch (error) {
           if (state.activeLeadDuplicateLeadId !== leadId) return;
-          renderLeadDuplicatePanel(state.leads.find((item) => item.id === leadId), [], false, error.message || String(error));
+          renderLeadDuplicatePanel(findLeadByIdClient(leadId), [], false, error.message || String(error));
         }
       }
 
@@ -17228,7 +17246,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function saveLead(event) {
         event.preventDefault();
         const id = document.getElementById('leadId').value;
-        const existingLead = id ? state.leads.find((item) => item.id === id) : null;
+        const existingLead = id ? findLeadByIdClient(id) : null;
         const genreName = document.getElementById('leadEditGenre').value;
         const customFields = parseLeadCustomFieldsFromForm(parseCustomFieldsClient(existingLead && existingLead.custom_fields_json), genreName);
         const payload = {
@@ -17337,7 +17355,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function currentLeadFromDialog() {
         const id = document.getElementById('leadId')?.value || '';
-        return state.leads.find((lead) => lead.id === id) || null;
+        return findLeadByIdClient(id);
       }
 
       function leadPrimaryDomainClient(lead) {
@@ -17966,7 +17984,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           message('送信するリードを選択してください', 'error');
           return;
         }
-        const lead = state.leads.find((item) => item.id === id);
+        const lead = findLeadByIdClient(id);
         const label = lead ? lead.company_name : id;
         if (!confirm(`${label}へメール送信しますか。`)) return;
         try {
@@ -18329,6 +18347,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             limit: Number(document.getElementById('formLimit').value || 25),
             offset: 0,
             includeStats: false,
+            includeFields: ['contact_name'],
           });
           state.formLeads = result.items || [];
           state.formTotal = result.total || state.formLeads.length;
@@ -24591,7 +24610,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           const limit = 2000;
           let total = 0;
           do {
-            const page = await api('listLeads', { limit, offset, includeArchived: false, includeStats: false });
+            const page = await api('listLeads', {
+              limit,
+              offset,
+              includeArchived: false,
+              includeStats: false,
+              includeFields: ['normalized_company_name'],
+            });
             leads.push(...(page.items || []));
             total = page.total || leads.length;
             offset += limit;

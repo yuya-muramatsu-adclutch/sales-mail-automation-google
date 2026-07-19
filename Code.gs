@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v242_mail_candidate_columns';
+const APP_VERSION = '20260719_apps_script_full_workflow_v243_lead_list_projection';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -713,11 +713,51 @@ function getLeadById(id) {
   return found.record;
 }
 
+function getLead(id) {
+  return getLeadById(id);
+}
+
+function leadListFields_(additionalFields) {
+  const baseFields = [
+    'id',
+    'source',
+    'genre',
+    'company_name',
+    'facility_name',
+    'email',
+    'email_domain',
+    'phone',
+    'website_url',
+    'website_domain',
+    'form_url',
+    'address',
+    'status',
+    'send_ng',
+    'reply_checked',
+    'form_status',
+    'next_send_at',
+    'last_sent_at',
+    'send_count',
+    'deal_status',
+    'custom_fields_json',
+    'owner',
+    'notes',
+    'created_at',
+    'updated_at',
+    'archived_at',
+  ];
+  const allowedFields = SHEET_DEFINITIONS.leads;
+  const extras = (Array.isArray(additionalFields) ? additionalFields : [additionalFields]).map(function (fieldName) {
+    return String(fieldName || '').trim();
+  }).filter(function (fieldName) {
+    return fieldName && allowedFields.indexOf(fieldName) !== -1;
+  });
+  return Array.from(new Set(baseFields.concat(extras)));
+}
+
 function listLeads(options) {
-  const spreadsheet = getOrCreateSpreadsheet_();
-  const sheet = ensureSheet_(spreadsheet, 'leads');
-  const rows = readSheetRecords_(sheet);
   const query = normalizeListOptions_(options);
+  const rows = readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: 0 });
   const masterContext = leadListQueryNeedsMasterContext_(query) ? buildMasterBlockContext_() : {};
   const filtered = rows.filter(function (lead) {
     if (!query.includeArchived && isArchivedLead_(lead)) {
@@ -790,10 +830,8 @@ function listEmailSendCandidates(options) {
   const input = options && typeof options === 'object' ? options : {};
   const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
   const genre = String(input.genre || '').trim();
-  const spreadsheet = getOrCreateSpreadsheet_();
-  const sheet = ensureSheet_(spreadsheet, 'leads');
   const masterContext = buildMasterBlockContext_();
-  const candidates = readSheetRecords_(sheet).filter(function (lead) {
+  const candidates = readSheetRecordFields_('leads', leadListFields_(['contact_name']), { maxGapColumns: 0 }).filter(function (lead) {
     if (isArchivedLead_(lead) || !isEmailSendTarget_(lead, masterContext)) return false;
     return !genre || String(lead.genre || '').trim() === genre;
   });
@@ -2682,6 +2720,9 @@ function normalizeListOptions_(options) {
     search: String(input.search || '').trim().toLowerCase(),
     includeArchived: input.includeArchived === true,
     includeStats: input.includeStats !== false,
+    includeFields: Array.isArray(input.includeFields || input.include_fields)
+      ? (input.includeFields || input.include_fields)
+      : [],
   };
 }
 

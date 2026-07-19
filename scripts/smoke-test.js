@@ -212,7 +212,7 @@ let leanListMasterBuilds = 0;
 let leanListStatBuilds = 0;
 leanListContext.getOrCreateSpreadsheet_ = () => ({});
 leanListContext.ensureSheet_ = () => ({});
-leanListContext.readSheetRecords_ = () => [
+leanListContext.readSheetRecordFields_ = () => [
   { id: 'lean-a', company_name: 'A', status: '未対応', updated_at: '2026-07-19T00:00:00Z' },
   { id: 'lean-b', company_name: 'B', status: '対応中', updated_at: '2026-07-18T00:00:00Z' },
 ];
@@ -1723,7 +1723,7 @@ candidateContext.isArchivedLead_ = (lead) => Boolean(lead.archived_at);
 candidateContext.isEmailSendTarget_ = (lead) => Boolean(lead.sendable);
 candidateContext.isValidEmailAddress_ = (email) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email || ''));
 candidateContext.normalizeBooleanLike_ = (value) => value === true;
-candidateContext.readSheetRecords_ = () => [
+candidateContext.readSheetRecordFields_ = () => [
   { id: 'other-genre', email: 'other@example.com', genre: '医療', sendable: true, updated_at: '2026-07-15T00:04:00Z' },
   { id: 'duplicate-old', email: 'same@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-07-15T00:01:00Z' },
   { id: 'duplicate-new', email: 'SAME@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-07-15T00:03:00Z' },
@@ -2053,6 +2053,68 @@ assert.deepStrictEqual(
   JSON.parse(JSON.stringify(fullPayloadCandidateSelection.selected.map((item) => item.lead.id))),
   'automatic candidate order and exclusions must stay identical with projected leads'
 );
+
+const leadListContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), leadListContext, { filename: file });
+});
+const leadListFields = JSON.parse(JSON.stringify(leadListContext.leadListFields_()));
+assert.deepStrictEqual(leadListFields, [
+  'id', 'source', 'genre', 'company_name', 'facility_name', 'email', 'email_domain', 'phone',
+  'website_url', 'website_domain', 'form_url', 'address', 'status', 'send_ng', 'reply_checked',
+  'form_status', 'next_send_at', 'last_sent_at', 'send_count', 'deal_status', 'custom_fields_json',
+  'owner', 'notes', 'created_at', 'updated_at', 'archived_at',
+]);
+['source_payload_json', 'send_ng_reason', 'meeting_start_at', 'contact_name', 'google_meet_url'].forEach((field) => {
+  assert(!leadListFields.includes(field), `sales list base projection must omit ${field}`);
+});
+const leadListFieldsWithExtras = JSON.parse(JSON.stringify(leadListContext.leadListFields_([
+  'contact_name', 'meeting_start_at', 'not_a_lead_field', 'contact_name',
+])));
+assert(leadListFieldsWithExtras.includes('contact_name'));
+assert(leadListFieldsWithExtras.includes('meeting_start_at'));
+assert(!leadListFieldsWithExtras.includes('not_a_lead_field'));
+assert.strictEqual(leadListFieldsWithExtras.filter((field) => field === 'contact_name').length, 1);
+const leadListFixtures = [
+  {
+    id: 'lead-yamagata', source: 'manual', genre: 'キャンプ', company_name: '山形キャンプ', facility_name: '山形の森',
+    email: 'hello@example.com', website_url: 'https://example.com', address: '山形県山形市', status: '未対応',
+    form_status: '未対応', deal_status: '未設定', contact_name: '山田様', custom_fields_json: '{}',
+    notes: '夏季営業', created_at: '2026-07-01T00:00:00+09:00', updated_at: '2026-07-03T00:00:00+09:00',
+    source_payload_json: JSON.stringify({ html: 'large'.repeat(1000) }), meeting_start_at: '2026-08-01T10:00:00+09:00',
+  },
+  {
+    id: 'lead-tokyo', source: 'manual', genre: '美容', company_name: '東京サロン', facility_name: '東京店',
+    email: 'salon@example.com', address: '東京都渋谷区', status: '未対応', form_status: '未対応', deal_status: '未設定',
+    contact_name: '佐藤様', custom_fields_json: '{}', created_at: '2026-07-02T00:00:00+09:00', updated_at: '2026-07-04T00:00:00+09:00',
+    source_payload_json: JSON.stringify({ html: 'large'.repeat(1000) }),
+  },
+];
+let requestedLeadListFields = [];
+let requestedLeadListOptions = null;
+leadListContext.readSheetRecordFields_ = (sheetName, fields, options) => {
+  assert.strictEqual(sheetName, 'leads');
+  requestedLeadListFields = fields.slice();
+  requestedLeadListOptions = Object.assign({}, options);
+  return leadListFixtures.map((lead) => fields.reduce((record, field) => {
+    record[field] = lead[field] === undefined ? '' : lead[field];
+    return record;
+  }, {}));
+};
+const projectedLeadListResult = JSON.parse(JSON.stringify(leadListContext.listLeads({
+  search: '山形',
+  includeStats: false,
+  includeFields: ['contact_name', 'not_a_lead_field'],
+  limit: 50,
+})));
+assert.strictEqual(projectedLeadListResult.total, 1);
+assert.strictEqual(projectedLeadListResult.items[0].id, 'lead-yamagata');
+assert.strictEqual(projectedLeadListResult.items[0].contact_name, '山田様');
+assert.strictEqual(projectedLeadListResult.items[0].source_payload_json, undefined);
+assert(requestedLeadListFields.includes('contact_name'));
+assert(!requestedLeadListFields.includes('not_a_lead_field'));
+assert(!requestedLeadListFields.includes('source_payload_json'));
+assert.deepStrictEqual(requestedLeadListOptions, { maxGapColumns: 0 });
 
 const testMailContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -2512,7 +2574,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v242_mail_candidate_columns'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v243_lead_list_projection'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2527,6 +2589,16 @@ assert(codeSource.includes("'filled_count'"));
 assert(codeSource.includes('function createLeadLocked_'));
 assert(codeSource.includes('function findActiveLeadBySourceReference_'));
 assert(codeSource.includes('function listEmailSendCandidates'));
+const listLeadsStart = codeSource.indexOf('function listLeads(options)');
+const listLeadsEnd = codeSource.indexOf('\nfunction ', listLeadsStart + 10);
+const listLeadsBody = codeSource.slice(listLeadsStart, listLeadsEnd);
+assert(listLeadsBody.includes("readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: 0 })"));
+assert(!listLeadsBody.includes('readSheetRecords_('), 'sales list must not read every lead column');
+const listEmailCandidatesStart = codeSource.indexOf('function listEmailSendCandidates(options)');
+const listEmailCandidatesEnd = codeSource.indexOf('\nfunction ', listEmailCandidatesStart + 10);
+const listEmailCandidatesBody = codeSource.slice(listEmailCandidatesStart, listEmailCandidatesEnd);
+assert(listEmailCandidatesBody.includes("readSheetRecordFields_('leads', leadListFields_(['contact_name']), { maxGapColumns: 0 })"));
+assert(!listEmailCandidatesBody.includes('readSheetRecords_('), 'manual mail candidates must not read every lead column');
 assert(codeSource.includes('function updateReviewLeadDecision'));
 assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
 assert(codeSource.includes('function repairNonAdvertiserReviewLeads'));
@@ -2773,6 +2845,11 @@ assert(indexSource.includes("no_contact: (lead) => !lead.email && !lead.form_url
 assert(!indexSource.includes('function importCsv(event)'));
 assert(indexSource.includes('finish();\n            reject(error);'));
 assert(indexSource.includes("apiQuiet('listEmailSendCandidates', { genre, limit: 100 })"));
+assert(indexSource.includes('async function editLead(id)'));
+assert(indexSource.includes("lead = await api('getLead', id)"));
+assert(indexSource.includes("includeFields: ['contact_name']"));
+assert(indexSource.includes("includeFields: ['meeting_start_at', 'contact_name', 'google_meet_url', 'meeting_memo']"));
+assert(webAppSource.includes("if (action === 'getLead') return getLead(data.id || data.leadId || data.lead_id || data);"));
 assert(indexSource.includes("api('startLeadCsvImport', csvText, options || {})"));
 assert(indexSource.includes("api('advanceLeadCsvImportJob', job.id, { maxItems: 25, runtimeBudgetMs: 90000 })"));
 assert(indexSource.includes("apiQuiet('updateReviewLeadDecision'"));
@@ -2953,4 +3030,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v242 mail candidate column regression tests passed.');
+console.log('v243 lead list projection regression tests passed.');

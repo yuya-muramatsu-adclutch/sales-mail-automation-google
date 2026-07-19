@@ -54,6 +54,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'getAppInfo') return getAppInfo();
   if (action === 'getSchemaStatus') return getSchemaStatus();
   if (action === 'listLeads') return listLeads(data);
+  if (action === 'getLead') return getLead(data.id || data.leadId || data.lead_id || data);
   if (action === 'listEmailSendCandidates') return listEmailSendCandidates(data);
   if (action === 'createLead') return createLead(data);
   if (action === 'updateLead') return updateLead(data.id, data.patch || data);
