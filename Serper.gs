@@ -2696,8 +2696,23 @@ function updateLeadFromSearchResult_(lead, result, jobType) {
   }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
+function domainCacheLookupFields_() {
+  return [
+    'id',
+    'cache_key',
+    'domain',
+    'website_url',
+    'form_url',
+    'confidence',
+    'source_json',
+    'expires_at',
+    'created_at',
+    'updated_at',
+  ];
+}
+
 function readDomainCache_(cacheKey) {
-  const records = readAllSheetRecordsByName_('domain_cache', { includeInactive: true, includeArchived: true });
+  const records = findSheetRecordsByExactFieldValues_('domain_cache', 'cache_key', [cacheKey], domainCacheLookupFields_());
   const now = new Date().getTime();
   const record = records.filter(function (item) {
     if (item.cache_key !== cacheKey) return false;
@@ -2734,9 +2749,12 @@ function writeDomainCache_(cacheKey, lead, selected, jobType) {
     expires_at: expiresAt,
   };
   return withScriptLock_('writeDomainCache', function () {
-    const existing = readAllSheetRecordsByName_('domain_cache', { includeInactive: true, includeArchived: true }).filter(function (item) {
-      return item.cache_key === cacheKey;
-    }).sort(function (left, right) {
+    const existing = findSheetRecordsByExactFieldValues_(
+      'domain_cache',
+      'cache_key',
+      [cacheKey],
+      ['id', 'cache_key', 'created_at', 'updated_at']
+    ).sort(function (left, right) {
       return String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
     })[0] || null;
 

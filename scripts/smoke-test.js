@@ -859,11 +859,26 @@ assert.strictEqual(referenceSheetReads.genres, 3, 'explicit bypass must rebuild 
 
 let domainCacheLock = null;
 let domainCacheUpdate = null;
-context.readAllSheetRecordsByName_ = () => [
+const domainCacheLookupCalls = [];
+context.findSheetRecordsByExactFieldValues_ = (sheetName, fieldName, values, fields) => {
+  domainCacheLookupCalls.push({
+    sheetName,
+    fieldName,
+    values: JSON.parse(JSON.stringify(values)),
+    fields: JSON.parse(JSON.stringify(fields)),
+  });
+  return [
   { id: 'domain-old', cache_key: 'lead-key', website_url: 'https://old.example', updated_at: '2026-07-15T00:01:00.000Z' },
   { id: 'domain-new', cache_key: 'lead-key', website_url: 'https://new.example', updated_at: '2026-07-15T00:02:00.000Z' },
-];
+  ];
+};
 assert.strictEqual(context.readDomainCache_('lead-key').website_url, 'https://new.example');
+assert.deepStrictEqual(domainCacheLookupCalls[0], {
+  sheetName: 'domain_cache',
+  fieldName: 'cache_key',
+  values: ['lead-key'],
+  fields: ['id', 'cache_key', 'domain', 'website_url', 'form_url', 'confidence', 'source_json', 'expires_at', 'created_at', 'updated_at'],
+});
 context.withScriptLock_ = (operation, callback, options) => {
   domainCacheLock = { operation, options };
   return callback();
@@ -878,6 +893,12 @@ assert.strictEqual(domainCacheLock.operation, 'writeDomainCache');
 assert.strictEqual(domainCacheLock.options.waitMs, 6000);
 assert.strictEqual(domainCacheLock.options.attempts, 5);
 assert.strictEqual(domainCacheUpdate.id, 'domain-new');
+assert.deepStrictEqual(domainCacheLookupCalls[1], {
+  sheetName: 'domain_cache',
+  fieldName: 'cache_key',
+  values: ['lead-key'],
+  fields: ['id', 'cache_key', 'created_at', 'updated_at'],
+});
 
 context.withScriptLock_ = (_operation, callback) => callback();
 context.getOrCreateSpreadsheet_ = () => ({});
@@ -2776,7 +2797,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v247_source_page_index_columns'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v248_domain_cache_exact_lookup'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2920,7 +2941,13 @@ assert(falsePositiveListBody.includes("readSheetRecordFields_('reply_logs', repl
 assert(!falsePositiveListBody.includes("readAllSheetRecordsByName_('reply_logs'"));
 assert(operationsSource.includes('function findCalendarEventByClaim_'));
 assert(operationsSource.includes("'管理ID: ' + claimMarker"));
-assert(serperSource.includes("readAllSheetRecordsByName_('domain_cache'"));
+assert(!serperSource.includes("readAllSheetRecordsByName_('domain_cache'"));
+const readDomainCacheStart = serperSource.indexOf('function readDomainCache_(cacheKey)');
+const readDomainCacheEnd = serperSource.indexOf('\nfunction ', readDomainCacheStart + 10);
+assert(serperSource.slice(readDomainCacheStart, readDomainCacheEnd).includes("findSheetRecordsByExactFieldValues_('domain_cache', 'cache_key', [cacheKey], domainCacheLookupFields_())"));
+const writeDomainCacheStart = serperSource.indexOf('function writeDomainCache_(cacheKey, lead, selected, jobType)');
+const writeDomainCacheEnd = serperSource.indexOf('\nfunction ', writeDomainCacheStart + 10);
+assert(serperSource.slice(writeDomainCacheStart, writeDomainCacheEnd).includes("['id', 'cache_key', 'created_at', 'updated_at']"));
 assert(serperSource.includes("readAllSheetRecordsByName_('search_usage_logs'"));
 assert(serperSource.includes("withScriptLock_('writeDomainCache'"));
 assert(serperSource.includes('function buildSearchJobRequestKey_'));
@@ -3254,4 +3281,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v247 source-page lead index column regression tests passed.');
+console.log('v248 domain cache exact lookup regression tests passed.');

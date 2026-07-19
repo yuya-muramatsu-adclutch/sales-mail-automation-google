@@ -330,3 +330,12 @@ final result: code paths verified; authenticated timing comparison pending
 - A discovered official URL is now actually checked against existing website URLs; previously the argument was accepted but not used.
 - Automated coverage verifies identical index keys between full and projected records plus source-ID, detail-URL, official-URL, name, and archived cases.
 - Fixed deployment updated to `@248`; no live external collection was run during verification.
+
+## v248 follow-up
+
+- Domain-cache reads now use an exact `cache_key` lookup instead of transferring every cache row and column.
+- Cache hits read the ten fields needed for response restoration, expiry, and latest-row priority; write-side existence checks read four metadata fields.
+- The matching row still includes `source_json`, while unrelated cached search payloads are omitted.
+- Expired-row filtering, newest-row selection, short write locking, update-versus-append behavior, and cache response shape are preserved.
+- Automated coverage verifies exact lookup arguments, newest-row selection, write locking, and update of the existing cache ID.
+- Fixed deployment updated to `@249`; no live external search or cache mutation was run during verification.

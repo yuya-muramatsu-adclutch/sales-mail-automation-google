@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @248 / production code v247: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @249 / production code v248: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v247_source_page_index_columns`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v248_domain_cache_exact_lookup`
+
+## v248 検索ドメインキャッシュの完全一致取得
+
+- 1件のキャッシュキーを確認するたびに `domain_cache` 全行・全列を読まず、`cache_key` が完全一致する行だけを取得する。
+- キャッシュ読取は復元・期限判定・優先順位に必要な10列、書込時の既存確認はID・キー・作成日時・更新日時の4列だけを読む。
+- キャッシュ結果に含める `source_json` は維持し、該当キー以外の大きな検索結果JSONをApps Scriptへ転送しない。
+- 期限切れ除外、最新更新行の優先、既存行更新と新規行追加、短時間ロックの動作は変更しない。
+- 完全一致検索へ渡す列、複数一致時の最新行選択、書込ロック、既存ID更新を回帰テストした。
+- `Index.html` 内JavaScript構文確認、`node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 249を固定Web app URLへ再デプロイ済み。
+- `clasp deployments` で固定デプロイが `@249` であることを確認した。外部検索や実データのキャッシュ更新は検証中に実行していない。
 
 ## v247 まとめサイト収集の既存営業先索引を軽量化
 
