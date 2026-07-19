@@ -419,6 +419,64 @@ assert.strictEqual(cacheOnlyDashboard.startupPlaceholder, true);
 assert.strictEqual(cacheOnlyDashboard.cacheRefreshPending, true);
 assert.strictEqual(fullDashboardReads, 0);
 
+const referenceContext = vm.createContext({ console });
+['Code.gs', 'Repository.gs', 'Masters.gs', 'WebApp.gs'].forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), referenceContext, { filename: file });
+});
+const referenceCache = {};
+const removedReferenceKeys = [];
+referenceContext.CacheService = {
+  getScriptCache: () => ({
+    get: (key) => referenceCache[key] || null,
+    put: (key, value) => { referenceCache[key] = value; },
+    remove: (key) => { removedReferenceKeys.push(key); delete referenceCache[key]; },
+  }),
+};
+referenceContext.PropertiesService = {
+  getScriptProperties: () => ({ setProperty: () => {} }),
+};
+referenceContext.nowIso_ = () => '2026-07-19T11:00:00+09:00';
+const referenceSheetReads = {};
+referenceContext.readAllSheetRecordsByName_ = (sheetName) => {
+  referenceSheetReads[sheetName] = (referenceSheetReads[sheetName] || 0) + 1;
+  if (sheetName === 'genres') return [
+    { id: 'genre-active', name: 'キャンプ', active: true },
+    { id: 'genre-inactive', name: '旧ジャンル', active: false },
+  ];
+  if (sheetName === 'reasons') return [{ id: 'reason-1', category: 'send_ng_reason', name: '対象外', active: true }];
+  if (sheetName === 'settings') return [{ id: 'setting-1', key: 'gmail_sender_name', value: 'Sender' }];
+  return [];
+};
+referenceContext.listCustomFieldDefinitions = () => ({ items: [{ id: 'custom-1' }] });
+referenceContext.listListViewSettings = () => ({ items: [{ id: 'view-1' }] });
+let referenceSchemaReads = 0;
+referenceContext.getSchemaStatus = (options) => {
+  referenceSchemaReads += 1;
+  assert.strictEqual(options.settingsRecords.length, 1);
+  return { ready: true };
+};
+referenceContext.getSerperApiKeyInfo = () => ({ configured: true });
+const firstReference = referenceContext.getReferenceData();
+assert.strictEqual(firstReference.genres.length, 1);
+assert.strictEqual(firstReference.genreMasters.length, 2);
+assert.strictEqual(referenceSheetReads.genres, 1, 'reference data must read genres once');
+assert.strictEqual(referenceSheetReads.settings, 1);
+assert.strictEqual(referenceSchemaReads, 1);
+referenceContext.getReferenceData();
+assert.strictEqual(referenceSheetReads.genres, 1, 'second reference request must use CacheService');
+assert.strictEqual(referenceSchemaReads, 1);
+referenceContext.clearRuntimeCaches_('leads');
+referenceContext.getReferenceData();
+assert.strictEqual(referenceSheetReads.genres, 1, 'lead mutations must not invalidate reference data');
+assert.strictEqual(referenceContext.shouldInvalidateReferenceDataCache_('settings'), true);
+assert.strictEqual(referenceContext.shouldInvalidateReferenceDataCache_('leads'), false);
+referenceContext.clearRuntimeCaches_('settings');
+referenceContext.getReferenceData();
+assert.strictEqual(referenceSheetReads.genres, 2, 'setting mutations must invalidate reference data');
+assert(removedReferenceKeys.includes(referenceContext.referenceDataCacheKey_()));
+referenceContext.getReferenceData({ bypassCache: true });
+assert.strictEqual(referenceSheetReads.genres, 3, 'explicit bypass must rebuild reference data');
+
 let domainCacheLock = null;
 let domainCacheUpdate = null;
 context.readAllSheetRecordsByName_ = () => [
@@ -1728,7 +1786,7 @@ assert.strictEqual(searchMergeLead.status, '未対応');
 const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v224_deferred_quality_migration'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v225_reference_data_cache'));
 assert(codeSource.includes("key: 'gmail_sender_name'"));
 assert(codeSource.includes("key: 'gmail_sender_email'"));
 assert(emailSource.includes("const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉'"));
@@ -1840,6 +1898,11 @@ const scheduledEmailEnd = emailSource.indexOf('\nfunction ', scheduledEmailStart
 assert(!emailSource.slice(scheduledEmailStart, scheduledEmailEnd).includes('runLeadCollectionQualityMigrationV215_'), 'mail trigger must not run data migrations');
 assert(operationsSource.includes('runLeadCollectionQualityMigrationV215_({ source: input.source || \'trigger\' })'));
 assert(operationsSource.includes('const qualityMigrationMinimumRuntimeMs = 150000'));
+assert(webAppSource.includes("return 'reference_data_' + String(APP_VERSION || 'v1')"));
+assert(webAppSource.includes('getSchemaStatus({ settingsRecords: settings })'));
+assert(codeSource.includes('clearReferenceDataCache_();'));
+assert(serperSource.includes('function writeSerperApiKeyRecords_'));
+assert((serperSource.match(/clearReferenceDataCache_\(\);/g) || []).length >= 3);
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 assert(indexSource.includes('class="workflow-nav" aria-label="主要な業務フロー"'));
 assert(indexSource.includes('data-tab="dashboard" onclick="showTab(\'dashboard\')"'));
@@ -2020,4 +2083,4 @@ assert.strictEqual(sourcePageStatuses.items[1].statusLabel, '調査中');
 assert.strictEqual(sourcePageStatuses.items[1].processed, 124);
 assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 
-console.log('v224 deferred quality migration regression tests passed.');
+console.log('v225 reference data cache regression tests passed.');

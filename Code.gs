@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v224_deferred_quality_migration';
+const APP_VERSION = '20260719_apps_script_full_workflow_v225_reference_data_cache';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -514,6 +514,7 @@ function setup() {
     seedDefaultGenres_(spreadsheet);
     seedDefaultReasons_(spreadsheet);
     removeBlankDefaultSheets_(spreadsheet);
+    clearReferenceDataCache_();
 
     return {
       ok: true,
@@ -539,8 +540,10 @@ function getAppInfo() {
   };
 }
 
-function getSchemaStatus() {
+function getSchemaStatus(options) {
+  const input = options && typeof options === 'object' ? options : {};
   const spreadsheet = getOrCreateSpreadsheet_();
+  const suppliedSettings = Array.isArray(input.settingsRecords) ? input.settingsRecords : null;
   const schemaChecks = [
     {
       key: 'leads-core',
@@ -596,7 +599,7 @@ function getSchemaStatus() {
     });
     let missingSettings = [];
     if (check.settingKeys && check.settingKeys.length) {
-      const records = readSheetRecords_(sheet);
+      const records = check.sheet === 'settings' && suppliedSettings ? suppliedSettings : readSheetRecords_(sheet);
       const keys = records.map(function (record) { return String(record.key || ''); });
       missingSettings = check.settingKeys.filter(function (key) {
         return keys.indexOf(key) === -1;

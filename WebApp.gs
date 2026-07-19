@@ -192,17 +192,57 @@ function getStartupDashboardStats_() {
   return readDashboardStatsCache_({ allowPersisted: true, allowStale: true }) || buildStartupDashboardPlaceholder_();
 }
 
-function getReferenceData() {
-  return {
-    genres: readAllSheetRecordsByName_('genres'),
-    genreMasters: readAllSheetRecordsByName_('genres', { includeInactive: true }).map(normalizeGenreRecord_),
+function getReferenceData(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  if (input.bypassCache !== true) {
+    const cached = readReferenceDataCache_();
+    if (cached) return cached;
+  }
+
+  const genreMasters = readAllSheetRecordsByName_('genres', { includeInactive: true }).map(normalizeGenreRecord_);
+  const settings = readAllSheetRecordsByName_('settings', { includeInactive: true });
+  const reference = {
+    genres: genreMasters.filter(function (genre) { return genre.active !== false; }),
+    genreMasters: genreMasters,
     reasons: readAllSheetRecordsByName_('reasons', { includeInactive: true }).map(normalizeReasonRecord_),
-    settings: readAllSheetRecordsByName_('settings', { includeInactive: true }),
+    settings: settings,
     customFieldDefinitions: listCustomFieldDefinitions({ includeInactive: true }).items,
     listViewSettings: listListViewSettings({}).items,
-    schemaStatus: getSchemaStatus(),
+    schemaStatus: getSchemaStatus({ settingsRecords: settings }),
     serper: getSerperApiKeyInfo(),
   };
+  writeReferenceDataCache_(reference);
+  return reference;
+}
+
+function referenceDataCacheKey_() {
+  return 'reference_data_' + String(APP_VERSION || 'v1');
+}
+
+function readReferenceDataCache_() {
+  try {
+    const cached = CacheService.getScriptCache().get(referenceDataCacheKey_());
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    console.warn('Reference data cache read skipped: ' + error.message);
+    return null;
+  }
+}
+
+function writeReferenceDataCache_(reference) {
+  try {
+    CacheService.getScriptCache().put(referenceDataCacheKey_(), JSON.stringify(reference), 600);
+  } catch (error) {
+    console.warn('Reference data cache write skipped: ' + error.message);
+  }
+}
+
+function clearReferenceDataCache_() {
+  try {
+    CacheService.getScriptCache().remove(referenceDataCacheKey_());
+  } catch (error) {
+    console.warn('Reference data cache clear skipped: ' + error.message);
+  }
 }
 
 function getAuthorizationStatus() {

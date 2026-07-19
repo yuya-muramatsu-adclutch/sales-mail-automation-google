@@ -129,3 +129,10 @@ final result: code paths verified; authenticated timing comparison pending
 - The migration no longer runs during page refreshes or before scheduled-mail safety checks.
 - Pending migration work is deferred to the existing background worker and requires at least 150 seconds of remaining runtime.
 - Regression coverage verifies that startup and scheduled mail cannot execute the migration and that short worker windows defer it.
+
+## v225 follow-up
+
+- Reference data loaded after startup is cached for 10 minutes per application version.
+- Genre records are read once, and the settings already loaded for the UI are reused by schema validation.
+- Lead activity does not evict the reference cache; master, settings, list-view, custom-field, Serper, and PC-search changes do.
+- Automated coverage verifies cache hits, relevant and irrelevant invalidation, and explicit cache bypass.

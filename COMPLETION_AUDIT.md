@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @225 / production code v224: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @226 / production code v225: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v224_deferred_quality_migration`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v225_reference_data_cache`
+
+## v225 参照データAPIのキャッシュ化
+
+- 起動後に読むジャンル・理由・設定・カスタム項目・表示設定・全シート構成・検索設定を、コードバージョン単位で10分キャッシュ。
+- ジャンルを有効分と全件で2回読んでいた処理を1回へ統合し、有効ジャンルをメモリ上で抽出。
+- スキーマ確認へ取得済み設定を渡し、`settings` シートの重複読み取りを削減。
+- 営業リストや送信履歴の更新では参照キャッシュを維持し、ジャンル・理由・設定・カスタム項目・表示設定の変更時だけ即時無効化。
+- Serperキー、残量、PC検索設定、接続状態の変更でも参照キャッシュを無効化し、管理画面へ古い設定を残さない。
+- 2回目のAPI呼び出しでシート・スキーマを再読込しないこと、関連変更だけで無効化されること、明示再取得が機能することを回帰テストで確認。
+- `node scripts/smoke-test.js`、`git diff --check`、`clasp push` が成功。Version 226を固定Web app URLへ再デプロイ済み。
 
 ## v224 起動時データ移行のバックグラウンド化
 

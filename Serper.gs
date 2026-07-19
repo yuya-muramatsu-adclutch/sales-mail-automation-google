@@ -72,6 +72,7 @@ function saveSearxngConfig(input) {
 
     return true;
   }, { waitMs: 90000 });
+  clearReferenceDataCache_();
   return Object.assign({}, buildSerperApiKeyManagerInfo_('PC検索メイン設定を保存しました。'), {
     ok: true,
   });
@@ -2909,6 +2910,7 @@ function recordSearxngStatus_(ok, resultCount, errorMessage) {
     lastError: String(errorMessage || ''),
     lastResultCount: Number(resultCount) || 0,
   }));
+  clearReferenceDataCache_();
 }
 
 function fetchSerperCreditInfo_(apiKey) {
@@ -3330,6 +3332,7 @@ function writeSerperApiKeyRecords_(records) {
     })
     .slice(0, 10);
   PropertiesService.getScriptProperties().setProperty(PROPERTY_KEYS.SERPER_API_KEYS_JSON, JSON.stringify(safeRecords));
+  clearReferenceDataCache_();
 }
 
 function selectPrimarySerperApiKeyRecord_(records) {

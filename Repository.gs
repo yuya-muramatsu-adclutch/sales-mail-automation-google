@@ -631,6 +631,10 @@ function clearRuntimeCaches_(changedSheetName) {
     return;
   }
 
+  if (shouldInvalidateReferenceDataCache_(changedSheetName)) {
+    clearReferenceDataCache_();
+  }
+
   try {
     CacheService.getScriptCache().remove('dashboard_stats_v1');
     CacheService.getScriptCache().remove('dashboard_stats_v2');
@@ -642,6 +646,16 @@ function clearRuntimeCaches_(changedSheetName) {
   }
 
   markDashboardCacheDirty_();
+}
+
+function shouldInvalidateReferenceDataCache_(changedSheetName) {
+  return [
+    'genres',
+    'reasons',
+    'settings',
+    'custom_field_definitions',
+    'list_view_settings',
+  ].indexOf(String(changedSheetName || '')) !== -1;
 }
 
 function markDashboardCacheDirty_() {
