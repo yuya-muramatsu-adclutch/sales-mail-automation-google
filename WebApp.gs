@@ -380,7 +380,7 @@ function getDashboardStats(options) {
     return placeholder;
   }
 
-  const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'));
+  const leads = readSheetRecordFields_('leads', dashboardLeadFields_(), { maxGapColumns: 2 });
   const templates = readAllSheetRecordsByName_('email_templates');
   const searchJobs = readSheetRecordFields_('search_jobs', ['status']);
   const syncLogs = readSheetRecordFields_('sync_logs', [
@@ -553,6 +553,29 @@ function dashboardSendHistoryFields_() {
     'template_name',
     'send_result',
     'created_at',
+  ];
+}
+
+function dashboardLeadFields_() {
+  return [
+    'id',
+    'source',
+    'genre',
+    'company_name',
+    'email',
+    'website_url',
+    'website_domain',
+    'form_url',
+    'status',
+    'send_ng',
+    'reply_checked',
+    'form_status',
+    'last_sent_at',
+    'send_count',
+    'deal_status',
+    'created_at',
+    'updated_at',
+    'archived_at',
   ];
 }
 

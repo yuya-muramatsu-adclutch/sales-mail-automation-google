@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @241 / production code v240: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @242 / production code v241: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v240_mail_history_columns`
+- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v241_dashboard_lead_columns`
+
+## v241 ダッシュボード営業先データの軽量化
+
+- ダッシュボード再集計は営業先45列すべてではなく、送信・フォーム・確認待ち・返信・商談・分析に必要な18列だけを返す。
+- `custom_fields_json`、`source_payload_json`、メモ、住所、施設名など、集計に不要な大きな列を通常の画面更新から除外した。
+- 選択列の間に1〜2列だけ挟まる場合は1つのRangeへまとめ、営業先データを3つのRangeで取得してSpreadsheet API呼出回数を抑える。
+- Rangeには結合用の間隔列を含む場合があるが、返却レコードには指定18列だけを設定し、未指定項目を画面・キャッシュへ露出しない。
+- 全状態内訳、送信可能数、フォーム対象、確認待ち、返信、送信NG、商談、月次・ジャンル分析が全文営業先と一致する回帰テストを追加した。
+- `node scripts/smoke-test.js`、全Apps Script構文確認、`git diff --check`、`clasp push` が成功。Version 242を固定Web app URLへ再デプロイ済み。
 
 ## v240 完全自動送信・返信確認の履歴軽量化
 

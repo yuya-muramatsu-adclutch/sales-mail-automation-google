@@ -265,3 +265,12 @@ final result: code paths verified; authenticated timing comparison pending
 - Send-history import duplicate checks read only the ID column.
 - Automated coverage verifies exact-match column projection, omitted large text fields, and identical safety decisions with or without large historical content.
 - Fixed deployment updated to `@241`; authenticated trigger duration and live quota behavior remain production observations.
+
+## v241 follow-up
+
+- Dashboard lead aggregation returns eighteen required fields instead of all forty-five lead columns.
+- Large custom/source payload JSON, notes, address, and facility-label fields are excluded from routine refresh and cache serialization.
+- Small gaps between requested columns can be merged into one range; the dashboard lead projection now uses three grouped range reads rather than many tiny calls.
+- Gap columns are never copied into returned records, preserving field minimization even when the underlying range is widened for latency.
+- Automated coverage verifies unchanged lead-state/sendability summaries and analytics between full large-payload leads and projected leads.
+- Fixed deployment updated to `@242`; authenticated dashboard timing remains a production observation.

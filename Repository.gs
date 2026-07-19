@@ -41,7 +41,9 @@ function readAllSheetRecordsByName_(sheetName, options) {
   });
 }
 
-function readSheetRecordFields_(sheetName, fieldNames) {
+function readSheetRecordFields_(sheetName, fieldNames, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const maxGapColumns = Math.min(Math.max(Number(input.maxGapColumns || input.max_gap_columns) || 0, 0), 10);
   const requestedNames = Array.from(new Set((Array.isArray(fieldNames) ? fieldNames : [fieldNames]).map(function (fieldName) {
     return String(fieldName || '').trim();
   }).filter(Boolean)));
@@ -64,7 +66,7 @@ function readSheetRecordFields_(sheetName, fieldNames) {
   const columnGroups = [];
   selectedColumns.forEach(function (column) {
     const current = columnGroups[columnGroups.length - 1];
-    if (current && column.columnIndex === current.endColumnIndex + 1) {
+    if (current && column.columnIndex <= current.endColumnIndex + maxGapColumns + 1) {
       current.columns.push(column);
       current.endColumnIndex = column.columnIndex;
       return;

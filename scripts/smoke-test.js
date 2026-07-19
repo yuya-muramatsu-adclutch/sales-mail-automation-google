@@ -660,6 +660,14 @@ assert.strictEqual(selectedFields.length, 2);
 assert.strictEqual(Object.prototype.hasOwnProperty.call(selectedFields[0], 'query_json'), false, 'unrequested payload columns must not be transferred');
 assert.strictEqual(context.getSerperUsageCount_({ day: '2026-07-19' }, selectedFields), 1);
 assert.strictEqual(context.getSerperUsageCount_({ month: '2026-07' }, selectedFields), 3);
+selectedFieldRanges.length = 0;
+const gapMergedSelectedFields = JSON.parse(JSON.stringify(selectedFieldContext.readSheetRecordFields_(
+  'search_usage_logs',
+  ['status', 'created_at', 'credits', 'request_count'],
+  { maxGapColumns: 2 }
+)));
+assert.deepStrictEqual(selectedFieldRanges, [{ column: 2, columnCount: 5 }]);
+assert.strictEqual(Object.prototype.hasOwnProperty.call(gapMergedSelectedFields[0], 'query_json'), false, 'gap merging must not expose unrequested fields');
 
 const hardDeleteReferences = context.listLeadHardDeleteReferences_({ id: 'lead-1', calendar_event_id: '' }, {
   send_histories: [],
@@ -1977,6 +1985,44 @@ assert.deepStrictEqual(
 );
 assert.strictEqual(analyticsWithProjectedHistory.templateRows[0].subject, '現在の件名');
 assert(analyticsWithProjectedHistory.templateRows[0].bodyPreview.startsWith('非常に長い本文'));
+const dashboardLeadFields = JSON.parse(JSON.stringify(analyticsContext.dashboardLeadFields_()));
+assert.deepStrictEqual(dashboardLeadFields, [
+  'id', 'source', 'genre', 'company_name', 'email', 'website_url', 'website_domain', 'form_url', 'status',
+  'send_ng', 'reply_checked', 'form_status', 'last_sent_at', 'send_count', 'deal_status', 'created_at', 'updated_at', 'archived_at',
+]);
+['custom_fields_json', 'source_payload_json', 'notes', 'address', 'facility_name'].forEach((field) => {
+  assert(!dashboardLeadFields.includes(field));
+});
+const dashboardLeadFixtures = [
+  { id: 'lead-email', source: 'manual', genre: 'キャンプ', company_name: 'メール対象', email: 'mail@example.com', website_url: 'https://example.com', status: '未対応', form_status: '未対応', created_at: '2026-07-01T00:00:00+09:00', updated_at: '2026-07-02T00:00:00+09:00' },
+  { id: 'lead-form', source: 'manual', genre: 'キャンプ', company_name: 'フォーム対象', form_url: 'https://form.example/contact', status: '未対応', form_status: '未対応', created_at: '2026-07-03T00:00:00+09:00', updated_at: '2026-07-03T00:00:00+09:00' },
+  { id: 'lead-reply', source: 'csv_upload', genre: '美容', company_name: '返信済み', email: 'reply@example.com', status: '返信あり', reply_checked: true, created_at: '2026-06-01T00:00:00+09:00', updated_at: '2026-07-04T00:00:00+09:00' },
+  { id: 'lead-ng', source: 'source_page', genre: '美容', company_name: '送信NG', email: 'ng@example.com', status: '送信NG', send_ng: true, created_at: '2026-07-05T00:00:00+09:00', updated_at: '2026-07-05T00:00:00+09:00' },
+  { id: 'lead-deal', source: 'prospecting', genre: '介護', company_name: '商談', email: 'deal@example.com', status: '商談予定', deal_status: '商談予定', created_at: '2026-07-06T00:00:00+09:00', updated_at: '2026-07-06T00:00:00+09:00' },
+  { id: 'lead-archived', source: 'manual', genre: '介護', company_name: 'アーカイブ', status: '未対応', archived_at: '2026-07-07T00:00:00+09:00', created_at: '2026-07-01T00:00:00+09:00', updated_at: '2026-07-07T00:00:00+09:00' },
+].map((lead) => Object.assign({}, lead, {
+  custom_fields_json: JSON.stringify({ payload: 'large'.repeat(1000) }),
+  source_payload_json: JSON.stringify({ html: 'large'.repeat(1000) }),
+  notes: 'large note'.repeat(1000),
+  address: '東京都'.repeat(1000),
+  facility_name: '施設名'.repeat(1000),
+}));
+const projectedDashboardLeads = dashboardLeadFixtures.map((lead) => {
+  const projected = {};
+  dashboardLeadFields.forEach((field) => { projected[field] = lead[field] || ''; });
+  return projected;
+});
+const dashboardMasterFixture = { ngMasters: [], excludedDomains: [], mailSendSafety: {} };
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(analyticsContext.buildLeadListStats_(projectedDashboardLeads, dashboardMasterFixture, ''))),
+  JSON.parse(JSON.stringify(analyticsContext.buildLeadListStats_(dashboardLeadFixtures, dashboardMasterFixture, ''))),
+  'lead state and sendability summaries must stay identical with projected dashboard leads'
+);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(analyticsContext.buildAnalyticsSnapshot_(projectedDashboardLeads, [], '2026-07-15', []))),
+  JSON.parse(JSON.stringify(analyticsContext.buildAnalyticsSnapshot_(dashboardLeadFixtures, [], '2026-07-15', []))),
+  'dashboard analytics must stay identical when large lead payload columns are omitted'
+);
 
 const testMailContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -2436,7 +2482,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v240_mail_history_columns'));
+assert(codeSource.includes('20260719_apps_script_full_workflow_v241_dashboard_lead_columns'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2602,6 +2648,8 @@ assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
 assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
 assert(webAppSource.includes('dailyMailLimit - sentToday - pendingSendReservations.count'));
 assert(webAppSource.includes("const sendHistories = readSheetRecordFields_('send_histories', dashboardSendHistoryFields_())"));
+assert(webAppSource.includes("const leads = readSheetRecordFields_('leads', dashboardLeadFields_(), { maxGapColumns: 2 })"));
+assert(!webAppSource.includes("const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'dashboard must not read all lead columns');
 assert(!webAppSource.includes("readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'))"), 'dashboard must not read all send-history columns');
 assert(webAppSource.includes('analytics: buildAnalyticsSnapshot_(leads, sendHistories, today, templates)'));
 const fullSendHistoryRead = "readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'send_histories'))";
@@ -2873,4 +2921,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v240 mail history column regression tests passed.');
+console.log('v241 dashboard lead column regression tests passed.');
