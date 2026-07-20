@@ -793,6 +793,8 @@ const dashboardCacheFixture = [
   { id: 'legacy-v4', cache_key: 'dashboard_stats_v4', value_json: '{"leadsTotal":999}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:03:00.000Z' },
   { id: 'old-v5', cache_key: 'dashboard_stats_v5', value_json: '{"leadsTotal":1001}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:01:00.000Z' },
   { id: 'latest-v5', cache_key: 'dashboard_stats_v5', value_json: '{"leadsTotal":1002}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:02:00.000Z' },
+  { id: 'old-v6', cache_key: 'dashboard_stats_v6', value_json: '{"leadsTotal":1003}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:03:00.000Z' },
+  { id: 'latest-v6', cache_key: 'dashboard_stats_v6', value_json: '{"leadsTotal":1004}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:04:00.000Z' },
 ];
 context.findSheetRecordsByExactFieldValues_ = (sheetName, fieldName, values, fields) => {
   dashboardCacheLookupCalls.push({
@@ -804,7 +806,7 @@ context.findSheetRecordsByExactFieldValues_ = (sheetName, fieldName, values, fie
   return dashboardCacheFixture.filter((record) => values.includes(record.cache_key));
 };
 const persistedDashboardStats = context.readDashboardStatsSheetCache_({});
-assert.strictEqual(persistedDashboardStats.leadsTotal, 1002);
+assert.strictEqual(persistedDashboardStats.leadsTotal, 1004);
 assert.strictEqual(persistedDashboardStats.persistedCache, true);
 context.updateSheetRecord_ = (sheetName, id, payload) => {
   dashboardCacheUpdate = { sheetName, id, payload };
@@ -813,21 +815,21 @@ context.updateSheetRecord_ = (sheetName, id, payload) => {
 context.appendSheetRecord_ = () => { throw new Error('dashboard cache must update instead of append'); };
 context.Utilities = Object.assign({}, context.Utilities, { formatDate: () => '2026-07-15T00:30:00.000Z' });
 context.Session = { getScriptTimeZone: () => 'Asia/Tokyo' };
-context.upsertDashboardCacheSheet_({ leadsTotal: 1002 });
+context.upsertDashboardCacheSheet_({ leadsTotal: 1004 });
 assert.strictEqual(dashboardCacheUpdate.sheetName, 'dashboard_cache');
-assert.strictEqual(dashboardCacheUpdate.id, 'latest-v5');
-assert.strictEqual(dashboardCacheUpdate.payload.cache_key, 'dashboard_stats_v5');
+assert.strictEqual(dashboardCacheUpdate.id, 'latest-v6');
+assert.strictEqual(dashboardCacheUpdate.payload.cache_key, 'dashboard_stats_v6');
 assert.deepStrictEqual(dashboardCacheLookupCalls, [
   {
     sheetName: 'dashboard_cache',
     fieldName: 'cache_key',
-    values: ['dashboard_stats_v5'],
+    values: ['dashboard_stats_v6'],
     fields: ['cache_key', 'value_json', 'expires_at', 'created_at', 'updated_at'],
   },
   {
     sheetName: 'dashboard_cache',
     fieldName: 'cache_key',
-    values: ['dashboard_stats_v5', 'dashboard_stats_v4'],
+    values: ['dashboard_stats_v6', 'dashboard_stats_v5', 'dashboard_stats_v4'],
     fields: ['id', 'cache_key', 'created_at', 'updated_at'],
   },
 ]);
@@ -865,6 +867,7 @@ dashboardContext.CacheService = {
 dashboardContext.clearRuntimeCaches_('leads');
 assert.strictEqual(dashboardProperties.DASHBOARD_CACHE_DIRTY_AT, '2026-07-19T10:05:00+09:00');
 assert(removedDashboardCacheKeys.includes('dashboard_stats_v5'));
+assert(removedDashboardCacheKeys.includes('dashboard_stats_v6'));
 dashboardContext.clearRuntimeCaches_('search_jobs');
 assert(removedDashboardCacheKeys.includes('source_page_site_status_v1'));
 const pendingQualityMigration = dashboardContext.getLeadCollectionQualityMigrationV215Status_();
@@ -2920,7 +2923,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260720_apps_script_full_workflow_v264_optional_company_name'));
+assert(codeSource.includes('20260720_apps_script_full_workflow_v265_error_resolution'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3268,6 +3271,7 @@ assert(!historyLoadBody.includes("'body'"), 'initial history load must not trans
 const syncLogLoadStart = searchSupportIndexSource.indexOf('async function loadSyncLogData(options)');
 const syncLogLoadEnd = searchSupportIndexSource.indexOf('\n      async function loadJobData(options)', syncLogLoadStart + 20);
 const syncLogLoadBody = searchSupportIndexSource.slice(syncLogLoadStart, syncLogLoadEnd);
+assert(syncLogLoadBody.includes("request('listErrorLogs'"));
 assert(syncLogLoadBody.includes("fields: ['id', 'event_type', 'operation', 'source', 'status', 'level', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'message', 'created_at']"));
 assert(!syncLogLoadBody.includes("'stack'"), 'initial sync-log load must not transfer stacks');
 assert(!syncLogLoadBody.includes("'context_json'"), 'initial sync-log load must not transfer contexts');
@@ -3350,9 +3354,9 @@ assert.strictEqual(settingsCacheContext.getSettingValue_('gmail_daily_send_limit
 assert.strictEqual(settingsSheetReads, 2, 'cache invalidation must force a fresh settings read');
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
 assert(!webAppSource.includes("readAllSheetRecordsByName_('dashboard_cache'"), 'dashboard cache paths must not transfer every cached payload');
-assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5')"));
-assert(webAppSource.includes("['dashboard_stats_v5'],\n      dashboardStatsCacheReadFields_()"));
-assert(webAppSource.includes("['dashboard_stats_v5', 'dashboard_stats_v4'],\n    dashboardStatsCacheWriteLookupFields_()"));
+assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v6')"));
+assert(webAppSource.includes("['dashboard_stats_v6'],\n      dashboardStatsCacheReadFields_()"));
+assert(webAppSource.includes("['dashboard_stats_v6', 'dashboard_stats_v5', 'dashboard_stats_v4'],\n    dashboardStatsCacheWriteLookupFields_()"));
 assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
 assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
 assert(webAppSource.includes('dailyMailLimit - sentToday - pendingSendReservations.count'));
@@ -3658,4 +3662,54 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v264 optional company name regression tests passed.');
+const resolvedSettingIssue = context.classifySyncLogIssue_({
+  level: 'error',
+  message: 'Unsupported setting key: gmail_sender_name',
+  created_at: '2026-07-16T15:31:00.000Z',
+}, { gmailSenderConfigured: true });
+assert.strictEqual(resolvedSettingIssue.issue_status, 'resolved');
+const resolvedBootstrapIssue = context.classifySyncLogIssue_({
+  level: 'error',
+  message: 'Unknown action: getAppBootstrap',
+  created_at: '2026-07-16T15:07:00.000Z',
+}, {});
+assert.strictEqual(resolvedBootstrapIssue.issue_status, 'resolved');
+const resolvedDashboardIssue = context.classifySyncLogIssue_({
+  level: 'error',
+  message: 'Unknown action: getDashboardData',
+  created_at: '2026-07-18T13:27:00.000Z',
+}, {});
+assert.strictEqual(resolvedDashboardIssue.issue_status, 'resolved');
+const resolvedGmailIssue = context.classifySyncLogIssue_({
+  level: 'error',
+  message: '指定したアドレスはGmailの送信元に登録されていません。',
+  created_at: '2026-07-18T13:29:00.000Z',
+}, { gmailSenderConfigured: true });
+assert.strictEqual(resolvedGmailIssue.issue_status, 'resolved');
+const currentUnknownIssue = context.classifySyncLogIssue_({
+  level: 'error',
+  message: 'Unknown action: newUnsupportedAction',
+  created_at: '2026-07-20T04:00:00.000Z',
+}, { gmailSenderConfigured: true });
+assert.strictEqual(currentUnknownIssue.issue_status, 'open');
+const resolvedLockIssue = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'updateLead',
+  message: 'ロックのタイムアウト: 別のプロセスがロックを保持している時間が長すぎました。',
+  created_at: '2026-07-15T14:20:00.000Z',
+}, {});
+assert.strictEqual(resolvedLockIssue.issue_status, 'resolved');
+const currentLockIssue = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'updateLead',
+  message: 'ロックのタイムアウト: 別の処理が実行中です。',
+  created_at: '2026-07-20T04:00:00.000Z',
+}, {});
+assert.strictEqual(currentLockIssue.issue_status, 'open');
+assert(webAppSource.includes("if (action === 'getAppBootstrap') return getInitialData();"));
+assert(webAppSource.includes("if (action === 'getDashboardData') return getDashboardStats(data);"));
+assert(webAppSource.includes("if (!isExpectedOperationError_(error))"));
+assert(indexSource.includes('解消済みの履歴'));
+assert(indexSource.includes("logs.filter((log) => appDateKey(log.created_at) === today)"));
+
+console.log('v265 error resolution regression tests passed.');

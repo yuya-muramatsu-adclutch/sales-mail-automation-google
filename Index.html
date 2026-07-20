@@ -13117,6 +13117,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <span class="pill" id="errorsStatusPill">確認中</span>
             </div>
             <div class="table-wrap"><table id="errorDetailsTable"></table></div>
+            <details class="admin-inner-disclosure" id="resolvedErrorDetailsPanel" hidden></details>
           </section>
         </section>
 
@@ -21199,7 +21200,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function loadSyncLogData(options) {
         const config = options || {};
         const request = config.quiet ? apiQuiet : api;
-        const syncLogs = await request('listSheetRecords', 'sync_logs', {
+        const syncLogs = await request('listErrorLogs', {
           limit: 100,
           includeInactive: true,
           fields: ['id', 'event_type', 'operation', 'source', 'status', 'level', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'message', 'created_at'],
@@ -25231,9 +25232,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function getErrorDetailRows() {
         const today = appDateKey();
-        const logs = (state.syncLogs || []).filter((log) => ['error', 'warn'].includes(String(log.level || '').toLowerCase()));
-        const todayLogs = logs.filter((log) => String(log.created_at || '').slice(0, 10) === today);
-        return { logs, todayLogs };
+        const issueLogs = (state.syncLogs || []).filter((log) => ['error', 'warn'].includes(String(log.level || '').toLowerCase()));
+        const resolvedLogs = issueLogs.filter((log) => String(log.issue_status || '') === 'resolved');
+        const logs = issueLogs.filter((log) => String(log.issue_status || 'open') !== 'resolved');
+        const todayLogs = logs.filter((log) => appDateKey(log.created_at) === today);
+        return { logs, resolvedLogs, todayLogs };
       }
 
       function renderErrorDetailsScreen() {
@@ -25241,9 +25244,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!tableTarget) return;
         const detail = getErrorDetailRows();
         document.getElementById('errorsStats').innerHTML = [
-          statCard('本日のエラー発生数', `${formatNumber(detail.todayLogs.length)}件`, 'sync_logs', detail.todayLogs.length ? 'red' : 'green'),
-          statCard('最近の要確認ログ', `${formatNumber(detail.logs.length)}件`, 'warn / error', detail.logs.length ? 'amber' : 'green'),
-          statCard('監視対象', 'sync_logs', 'Apps Script実行ログ', 'blue'),
+          statCard('未解消', `${formatNumber(detail.logs.length)}件`, '対応が必要なログ', detail.logs.length ? 'red' : 'green'),
+          statCard('本日の新規エラー', `${formatNumber(detail.todayLogs.length)}件`, 'sync_logs', detail.todayLogs.length ? 'amber' : 'green'),
+          statCard('解消済み', `${formatNumber(detail.resolvedLogs.length)}件`, '履歴は監査用に保持', 'blue'),
         ].join('');
         const pill = document.getElementById('errorsStatusPill');
         pill.className = `pill ${detail.logs.length ? 'warn' : 'good'}`;
@@ -25255,6 +25258,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['内容', escapeHtml(log.operation || log.event_type || '-')],
           ['詳細', escapeHtml(log.message || log.stack || log.context_json || '-')],
         ])));
+        const resolvedTarget = document.getElementById('resolvedErrorDetailsPanel');
+        if (resolvedTarget) {
+          resolvedTarget.hidden = detail.resolvedLogs.length === 0;
+          resolvedTarget.innerHTML = detail.resolvedLogs.length ? `
+            <summary><span>解消済みの履歴</span><small>${formatNumber(detail.resolvedLogs.length)}件・監査用に保持</small></summary>
+            <div class="admin-detail-body">
+              <p class="muted">過去の記録は削除せず、現在のコードと設定で再発原因が解消されたものとして分離しています。</p>
+              <div class="table-wrap"><table>${table(['日時', '内容', '解消内容'], detail.resolvedLogs.map((log) => row([
+                ['日時', escapeHtml(dateTimeLabel(log.created_at) || '-')],
+                ['内容', escapeHtml(log.message || log.operation || '-')],
+                ['解消内容', escapeHtml(log.resolution || '現在のバージョンで解消済み')],
+              ])).join(''))}</table></div>
+            </div>
+          ` : '';
+        }
       }
 
       function renderAdminScreen() {

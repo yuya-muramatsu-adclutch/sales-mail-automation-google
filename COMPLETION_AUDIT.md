@@ -5,9 +5,20 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @265 / production code v264: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @266 / production code v265: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v264_optional_company_name`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v265_error_resolution`
+
+## v265 7月17日以降のエラー整理と再発防止
+
+- `gmail_sender_name`未対応ログは、差出人名設定に対応済みの現行コードで「解消済み」と判定する。
+- 旧クライアントが送信した`getAppBootstrap`と`getDashboardData`を、現行の初期データ・ダッシュボードAPIへ互換接続し、`Unknown action`の再発を防止した。
+- Gmail差出人が未登録だった7月18日の履歴は、現在の確認済み差出人設定がある場合に「解消済み」と判定する。今後のGmail安全停止は期待された操作エラーとして返し、システム障害ログへ重複記録しない。
+- 7月15日の旧ロックタイムアウトは、短時間ロック・分割書き込み・自動再試行の導入前履歴として「解消済み」に分離する。修正後に新しく発生したロックエラーは未解消のまま表示する。
+- エラー画面を「未解消」「本日の新規エラー」「解消済み」に分け、解消済み履歴は削除せず監査用の折りたたみ欄へ保持する。ダッシュボードのエラー件数も未解消だけを数える。
+- 古い集計結果を再利用しないようダッシュボードキャッシュを`dashboard_stats_v6`へ更新した。
+- `node scripts/smoke-test.js`、`node --check scripts/smoke-test.js`、`Index.html`内JavaScript構文確認、`git diff --check`、`clasp push`が成功。固定Web app URLへ@266として再デプロイした。
+- 外部検索、メール送信、フォーム送信、営業データ変更、既存ログ削除は検証中に実行していない。
 
 ## v264 営業リストの会社名を任意入力化
 

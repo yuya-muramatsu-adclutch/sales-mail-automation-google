@@ -16,10 +16,15 @@ function doPost(e) {
       result: result,
     });
   } catch (error) {
-    logError_('doPost', error, {});
+    if (!isExpectedOperationError_(error)) {
+      logError_('doPost', error, {});
+    }
     return jsonResponse_({
       ok: false,
       error: error.message,
+      errorCode: String(error.code || ''),
+      expected: isExpectedOperationError_(error),
+      retryable: error.retryable === true,
     });
   }
 }
@@ -46,11 +51,13 @@ function parsePostPayload_(e) {
 function dispatchPostAction_(action, data) {
   if (action === 'setup') return setup();
   if (action === 'getInitialData') return getInitialData();
+  if (action === 'getAppBootstrap') return getInitialData();
   if (action === 'getReferenceData') return getReferenceData();
   if (action === 'getAuthorizationStatus') return getAuthorizationStatus();
   if (action === 'getGmailAuthorizationStatus') return getGmailAuthorizationStatus();
   if (action === 'checkGmailIntegration') return checkGmailIntegration();
   if (action === 'getDashboardStats') return getDashboardStats(data);
+  if (action === 'getDashboardData') return getDashboardStats(data);
   if (action === 'getAppInfo') return getAppInfo();
   if (action === 'getSchemaStatus') return getSchemaStatus();
   if (action === 'listLeads') return listLeads(data);
@@ -64,6 +71,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'markLeadFormSent') return markLeadFormSent(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'unmarkLeadFormSent') return unmarkLeadFormSent(data.leadId || data.lead_id || data.id);
   if (action === 'listSheetRecords') return listSheetRecords(data.sheetName || data.sheet_name, data.options || data);
+  if (action === 'listErrorLogs') return listErrorLogs(data);
   if (action === 'getSendHistoryDetail') return getSendHistoryDetail(data.id || data.historyId || data.history_id || data);
   if (action === 'listEmailTemplates') return listEmailTemplates(data);
   if (action === 'saveEmailTemplate') return saveEmailTemplate(data);
@@ -134,6 +142,27 @@ function dispatchPostAction_(action, data) {
   if (action === 'finalizeLeadMigration') return finalizeLeadMigration(data);
 
   throw new Error('Unknown action: ' + action);
+}
+
+function listErrorLogs(options) {
+  const query = options && typeof options === 'object' ? options : {};
+  const requestedFields = Array.isArray(query.fields) ? query.fields : [];
+  const requiredFields = ['id', 'event_type', 'operation', 'source', 'status', 'level', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'message', 'created_at'];
+  const page = listSheetRecords('sync_logs', Object.assign({}, query, {
+    fields: Array.from(new Set(requestedFields.concat(requiredFields))),
+    includeInactive: true,
+  }));
+  const issueContext = buildSyncLogIssueContext_();
+  const items = (page.items || []).map(function (log) {
+    return annotateSyncLogIssue_(log, issueContext);
+  });
+  return Object.assign({}, page, {
+    items: items,
+    issueCounts: {
+      open: items.filter(function (log) { return log.issue_status === 'open'; }).length,
+      resolved: items.filter(function (log) { return log.issue_status === 'resolved'; }).length,
+    },
+  });
 }
 
 function jsonResponse_(object) {
@@ -386,6 +415,7 @@ function getDashboardStats(options) {
   const templates = readAllSheetRecordsByName_('email_templates');
   const searchJobs = readSheetRecordFields_('search_jobs', ['status']);
   const syncLogs = readSheetRecordFields_('sync_logs', [
+    'operation',
     'level',
     'added_count',
     'added',
@@ -393,6 +423,8 @@ function getDashboardStats(options) {
     'skipped',
     'excluded_count',
     'protected_skip_count',
+    'message',
+    'created_at',
   ]);
   const searchUsageLogs = readSheetRecordFields_('search_usage_logs', ['created_at', 'credits', 'request_count']);
   const today = todayText_();
@@ -450,6 +482,13 @@ function getDashboardStats(options) {
       return String(lead.deal_status || '未設定') !== '未設定' && String(lead.updated_at || lead.created_at || '').slice(0, 7) === month;
     }).length,
   };
+  const syncLogIssueContext = buildSyncLogIssueContext_();
+  const unresolvedErrorCount = syncLogs.filter(function (log) {
+    return isUnresolvedSyncLogIssue_(log, syncLogIssueContext);
+  }).length;
+  const resolvedErrorCount = syncLogs.filter(function (log) {
+    return classifySyncLogIssue_(log, syncLogIssueContext).issue_status === 'resolved';
+  }).length;
   thisMonth.replyRate = sentMonth > 0 ? Math.round((thisMonth.replies / sentMonth) * 1000) / 10 : 0;
   const byStatus = {};
   const byGenre = {};
@@ -508,7 +547,8 @@ function getDashboardStats(options) {
     runningJobs: searchJobs.filter(function (job) { return job.status === 'running'; }).length,
     failedJobs: failedSearchJobs.length,
     completedJobs: searchJobs.filter(function (job) { return job.status === 'completed'; }).length,
-    errorCount: syncLogs.filter(function (log) { return log.level === 'error' || log.level === 'warn'; }).length,
+    errorCount: unresolvedErrorCount,
+    resolvedErrorCount: resolvedErrorCount,
     prospectingAddedCount: sumNumericFields_(syncLogs, ['added_count', 'added']),
     prospectingDuplicateCount: sumNumericFields_(syncLogs, ['duplicate_skip_count', 'skipped']),
     prospectingExcludedCount: sumNumericFields_(syncLogs, ['excluded_count', 'protected_skip_count']),
@@ -1146,7 +1186,7 @@ function monthText_() {
 function readDashboardStatsCache_(options) {
   const query = options && typeof options === 'object' ? options : {};
   try {
-    const cached = CacheService.getScriptCache().get('dashboard_stats_v5');
+    const cached = CacheService.getScriptCache().get('dashboard_stats_v6');
     if (!cached) {
       return query.allowPersisted !== false
         ? readDashboardStatsSheetCache_(query)
@@ -1166,7 +1206,7 @@ function readDashboardStatsCache_(options) {
 
 function writeDashboardStatsCache_(stats) {
   try {
-    CacheService.getScriptCache().put('dashboard_stats_v5', JSON.stringify(stats), 600);
+    CacheService.getScriptCache().put('dashboard_stats_v6', JSON.stringify(stats), 600);
   } catch (error) {
     console.warn('Dashboard runtime cache write skipped: ' + error.message);
   }
@@ -1263,10 +1303,10 @@ function readDashboardStatsSheetCache_(options) {
     const records = findSheetRecordsByExactFieldValues_(
       'dashboard_cache',
       'cache_key',
-      ['dashboard_stats_v5'],
+      ['dashboard_stats_v6'],
       dashboardStatsCacheReadFields_()
     );
-    const cached = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5');
+    const cached = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v6');
     if (!cached || !cached.value_json) {
       return null;
     }
@@ -1290,14 +1330,15 @@ function upsertDashboardCacheSheet_(stats) {
   const records = findSheetRecordsByExactFieldValues_(
     'dashboard_cache',
     'cache_key',
-    ['dashboard_stats_v5', 'dashboard_stats_v4'],
+    ['dashboard_stats_v6', 'dashboard_stats_v5', 'dashboard_stats_v4'],
     dashboardStatsCacheWriteLookupFields_()
   );
-  const existing = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5') ||
+  const existing = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v6') ||
+    findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5') ||
     findLatestDashboardCacheRecord_(records, 'dashboard_stats_v4');
   const expiresAt = Utilities.formatDate(new Date(Date.now() + 30 * 60 * 1000), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX");
   const payload = {
-    cache_key: 'dashboard_stats_v5',
+    cache_key: 'dashboard_stats_v6',
     value_json: JSON.stringify(stats),
     expires_at: expiresAt,
   };

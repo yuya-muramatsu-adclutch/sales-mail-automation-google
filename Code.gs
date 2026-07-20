@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260720_apps_script_full_workflow_v264_optional_company_name';
+const APP_VERSION = '20260720_apps_script_full_workflow_v265_error_resolution';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -3105,6 +3105,84 @@ function createExpectedOperationError_(message, code) {
 
 function isExpectedOperationError_(error) {
   return Boolean(error && error.expected === true);
+}
+
+function buildSyncLogIssueContext_() {
+  let gmailSenderConfigured = false;
+  try {
+    gmailSenderConfigured = Boolean(String(getSettingValue_('gmail_sender_email', '') || '').trim());
+  } catch (error) {
+    console.warn('Gmail sender setting lookup skipped while classifying errors: ' + error.message);
+  }
+  return {
+    gmailSenderConfigured: gmailSenderConfigured,
+  };
+}
+
+function classifySyncLogIssue_(log, context) {
+  const source = log && typeof log === 'object' ? log : {};
+  const issueContext = context && typeof context === 'object' ? context : {};
+  const level = String(source.level || '').toLowerCase();
+  const message = String(source.message || source.stack || '');
+  const operation = String(source.operation || source.event_type || '');
+  const createdAtMs = Date.parse(String(source.created_at || ''));
+  const occurredBefore = function (isoText) {
+    const cutoffMs = Date.parse(isoText);
+    return Number.isFinite(createdAtMs) && Number.isFinite(cutoffMs) && createdAtMs <= cutoffMs;
+  };
+  const resolved = function (resolution) {
+    return {
+      issue_status: 'resolved',
+      resolved: true,
+      resolution: resolution,
+      resolved_by_version: APP_VERSION,
+    };
+  };
+
+  if (level !== 'error' && level !== 'warn') {
+    return {
+      issue_status: 'informational',
+      resolved: false,
+      resolution: '',
+      resolved_by_version: '',
+    };
+  }
+  if (/Unsupported setting key:\s*gmail_sender_name/i.test(message)) {
+    return resolved('差出人名設定は現在のバージョンで保存できます。');
+  }
+  if (/Unknown action:\s*getAppBootstrap/i.test(message)) {
+    return resolved('旧getAppBootstrap APIを現行の初期データAPIへ接続しました。');
+  }
+  if (/Unknown action:\s*getDashboardData/i.test(message)) {
+    return resolved('旧getDashboardData APIを現行のダッシュボードAPIへ接続しました。');
+  }
+  if (
+    issueContext.gmailSenderConfigured === true &&
+    occurredBefore('2026-07-18T14:00:00.000Z') &&
+    /指定したアドレスはGmailの送信元に登録されていません|GMAIL_SENDER_ALIAS_UNAVAILABLE/i.test(message)
+  ) {
+    return resolved('確認済みのGmail差出人アドレスが現在設定されています。');
+  }
+  if (
+    occurredBefore('2026-07-19T05:15:00.000Z') &&
+    (isScriptLockTimeoutError_({ message: message }) || /updateLead/i.test(operation) && /ロック/i.test(message))
+  ) {
+    return resolved('短時間ロック・分割書き込み・自動再試行へ変更済みです。');
+  }
+  return {
+    issue_status: 'open',
+    resolved: false,
+    resolution: '',
+    resolved_by_version: '',
+  };
+}
+
+function annotateSyncLogIssue_(log, context) {
+  return Object.assign({}, log || {}, classifySyncLogIssue_(log, context));
+}
+
+function isUnresolvedSyncLogIssue_(log, context) {
+  return classifySyncLogIssue_(log, context).issue_status === 'open';
 }
 
 function logError_(operation, error, context) {

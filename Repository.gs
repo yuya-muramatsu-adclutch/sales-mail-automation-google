@@ -884,6 +884,7 @@ function clearRuntimeCaches_(changedSheetName) {
     cache.remove('dashboard_stats_v3');
     cache.remove('dashboard_stats_v4');
     cache.remove('dashboard_stats_v5');
+    cache.remove('dashboard_stats_v6');
     if (['search_jobs', 'settings'].indexOf(String(changedSheetName || '')) !== -1) {
       cache.remove('source_page_site_status_v1');
     }
