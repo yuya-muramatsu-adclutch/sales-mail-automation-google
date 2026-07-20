@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260720_apps_script_full_workflow_v270_daily_domain_dedupe';
+const APP_VERSION = '20260720_apps_script_full_workflow_v271_non_advertiser_portal_exclusions';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -3037,6 +3037,11 @@ const NON_ADVERTISER_LEAD_DOMAINS_ = Object.freeze([
   'kankou-hamada.or.jp',
   'umimachi-shimanecho.jp',
   'nkk-oki.com',
+  'camping.gr.jp',
+  'e-oki.net',
+  'town-kofu.jp',
+  'katsuragi-kanko.jp',
+  'hokuei-kankou.jp',
   'nap-camp.com',
   'camp-go.com',
   'campla.jp',
@@ -3075,17 +3080,25 @@ function isKnownNonAdvertiserLeadUrl_(value) {
   })) return true;
 
   let path = '';
+  let decodedPath = '';
   try {
     path = new URL(normalizedUrl).pathname.toLowerCase();
+    try {
+      decodedPath = decodeURIComponent(path);
+    } catch (decodeError) {
+      decodedPath = path;
+    }
   } catch (error) {
     path = String(normalizedUrl || '').toLowerCase();
+    decodedPath = path;
   }
   // Tourism associations and regional guides commonly publish one page per facility,
   // then link visitors to a separate operator site. Reject only when both the host
   // and the directory-like path indicate a guide/listing so an operator's ordinary
   // /information or /news page is not removed by the generic rule.
   const tourismPortalDomain = /(?:^|[.-])(?:kanko|kankou|tourism|travel|visit)(?:[.-]|$)/i.test(domain);
-  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|archives?|guides?|guideposts?|features?|information|search|detail(?:[_/-]|$))(?:\/|$)/i.test(path);
+  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|archives?|guides?|guideposts?|features?|information|search|facilit(?:y|ies)|accommodations?|lodgings?|stay|play|leisure|detail(?:[_/-]|$))(?:\/|$)/i.test(path) ||
+    /\/(?:目的で選ぶ|観光スポット|施設|宿泊|遊ぶ)(?:\/|$)/i.test(decodedPath);
   return tourismPortalDomain && listingPath;
 }
 

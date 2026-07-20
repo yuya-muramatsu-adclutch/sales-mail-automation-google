@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @272 / production code v270: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @273 / production code v271: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v270_daily_domain_dedupe`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v271_non_advertiser_portal_exclusions`
+
+## v271 観光協会・自治体・全国検索ポータルの追加除外
+
+- `camping.gr.jp`、`e-oki.net`、`town-kofu.jp`、`katsuragi-kanko.jp`、`hokuei-kankou.jp`を、施設運営者ではない第三者の全国検索・観光協会・自治体ポータルとして収集対象外へ追加した。5ドメインは本番の除外ドメイン管理にも有効状態で登録した。
+- 観光案内系ドメインで`facility`、`accommodation`、`stay`、`play`等の施設紹介パス、または「目的で選ぶ」「遊ぶ」「宿泊」等の日本語カテゴリ型パスを使うページも除外する。施設運営者サイトの同名パスだけでは除外しない。
+- 検索結果のタイトル・説明に「行政サイト」「市・区・町・村役所/役場」等があり、施設紹介型パスの場合は公式サイト候補から除外する。観光協会・公式観光ガイドの既存判定も維持する。
+- 本番10,127件を全件監査し、送信・返信・商談履歴がなく自動収集された第三者ポータル由来12件を`収集対象外サイト`として安全にアーカイブした。指定サイトに対応する`camping.gr.jp`、`e-oki.net`、`town-kofu.jp`、`katsuragi-kanko.jp`、`hokuei-kankou.jp`の既存候補を含み、同種の観光案内サイトも対象にした。
+- 整理後に同じ条件で再監査し、該当0件を確認した。`node scripts/smoke-test.js`、JavaScript構文確認、`git diff --check`、`clasp push`が成功し、固定Web app URLを@273へ更新、本番`getAppInfo`でv271を確認した。
+- 外部検索、メール送信、フォーム送信は実行していない。履歴保全のため物理削除ではなくアーカイブとしている。
 
 ## v270 重複ドメインの日次自動整理
 

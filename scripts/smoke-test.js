@@ -2826,9 +2826,19 @@ assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://yamag
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kankou-hamada.or.jp/guidepost/6434'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://umimachi-shimanecho.jp/archives/546'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://nkk-oki.com/japan/information/shimanebana-campsite/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('http://www.camping.gr.jp/spot.php?campsite_id=38'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.e-oki.net/accommodation/11102/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.town-kofu.jp/2/spot/r681/y128/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.katsuragi-kanko.jp/facility/%E6%96%B0%E5%AD%90%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%91%E3%83%BC%E3%82%BA%E3%83%91%E3%83%BC%E3%82%AF/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.hokuei-kankou.jp/%E7%9B%AE%E7%9A%84%E3%81%A7%E9%81%B8%E3%81%B6/%E9%81%8A%E3%81%B6/%E3%81%8A%E5%8F%B0%E5%A0%B4%E5%85%AC%E5%9C%92/'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kankou-example.or.jp/guidepost/123'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://visit-example.jp/spots/123'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kanko-example.jp/facility/hoshizora-camp/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://visit-example.jp/accommodation/123/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kankou-example.jp/%E7%9B%AE%E7%9A%84%E3%81%A7%E9%81%B8%E3%81%B6/%E9%81%8A%E3%81%B6/hoshizora/'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://official-camp.example/information/'), false);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://official-camp.example/facility/'), false);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://official-hotel.example/accommodation/'), false);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.pref.yamagata.jp/050011/kurashi/shizen/koen/shiduyaeiguide.html'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.town.nishikawa.yamagata.jp/site/kanko/'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.city.sakata.lg.jp/sangyo/kanko/rejyashisetsu/kazokuryokomura.html'), true);
@@ -2852,6 +2862,11 @@ const selectedPastTourismAssociation = sourceLockContext.selectLeadSearchResult_
   { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-camp.example/', snippet: '宿泊予約・お問い合わせ' },
 ], 'lead_official_site', { company_name: '星空キャンプ場' });
 assert.strictEqual(selectedPastTourismAssociation.url, 'https://hoshizora-camp.example/');
+const selectedMunicipalListing = sourceLockContext.selectLeadSearchResult_([
+  { title: '星空キャンプ場 | ○○町行政サイト', link: 'https://portal.example/spot/hoshizora/', snippet: '○○町役場が運営する施設案内' },
+  { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-operator.example/', snippet: '宿泊予約・お問い合わせ' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedMunicipalListing.url, 'https://hoshizora-operator.example/');
 const contactPages = {
   'https://camp.example/': '<a href="/privacy">プライバシー</a><a href="/contact">お問い合わせ</a>',
   'https://camp.example/contact': '<div class="wpcf7">お問い合わせ</div><p>sales (at) camp (dot) example</p><form><input type="email"><textarea name="message"></textarea></form>',
@@ -3073,7 +3088,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260720_apps_script_full_workflow_v270_daily_domain_dedupe'));
+assert(codeSource.includes('20260720_apps_script_full_workflow_v271_non_advertiser_portal_exclusions'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3896,4 +3911,4 @@ assert(webAppSource.includes("if (!isExpectedOperationError_(error))"));
 assert(indexSource.includes('解消済みの履歴'));
 assert(indexSource.includes("logs.filter((log) => appDateKey(log.created_at) === today)"));
 
-console.log('v270 daily domain dedupe regression tests passed.');
+console.log('v271 non-advertiser portal exclusion regression tests passed.');

@@ -2671,14 +2671,22 @@ function isTourismAssociationListingSearchResult_(result) {
   if (isKnownNonAdvertiserLeadUrl_(url)) return true;
 
   let path = '';
+  let decodedPath = '';
   try {
     path = new URL(normalizeUrl_(url)).pathname.toLowerCase();
+    try {
+      decodedPath = decodeURIComponent(path);
+    } catch (decodeError) {
+      decodedPath = path;
+    }
   } catch (error) {
     path = url.toLowerCase();
+    decodedPath = path;
   }
   const text = [source.title, source.snippet].join(' ');
-  const associationText = /(?:観光協会|公式観光(?:ガイド|情報)|観光情報(?:サイト|ポータル)|tourism association|official tourism guide)/i.test(text);
-  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|archives?|guides?|guideposts?|features?|information|detail(?:[_/-]|$))(?:\/|$)/i.test(path);
+  const associationText = /(?:観光協会|公式観光(?:ガイド|情報)|観光情報(?:サイト|ポータル)|行政サイト|(?:市|区|町|村)(?:役所|役場)|tourism association|official tourism guide|municipal(?:ity)? website)/i.test(text);
+  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|archives?|guides?|guideposts?|features?|information|facilit(?:y|ies)|accommodations?|lodgings?|stay|play|leisure|detail(?:[_/-]|$))(?:\/|$)/i.test(path) ||
+    /\/(?:目的で選ぶ|観光スポット|施設|宿泊|遊ぶ)(?:\/|$)/i.test(decodedPath);
   return associationText && listingPath;
 }
 
