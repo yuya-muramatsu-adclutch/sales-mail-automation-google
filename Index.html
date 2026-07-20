@@ -12390,7 +12390,7 @@
                 <section id="leadDuplicatePanel" class="duplicate-resolution-panel"></section>
                 <form id="leadForm" class="grid" onsubmit="saveLead(event)">
                   <input type="hidden" id="leadId">
-                  <label>会社名<input id="leadCompany" required></label>
+                  <label>会社名（任意）<input id="leadCompany" autocomplete="organization"></label>
                   <label>施設名<input id="leadFacility"></label>
                   <label>ジャンル<input id="leadEditGenre" list="genreList" oninput="renderLeadCustomFieldsPanel(null)"></label>
                   <label>メール<input id="leadEmail" type="email"></label>
@@ -16896,7 +16896,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.activeLeadDetailLeadId = '';
         clearLeadForm();
         openLeadDialog();
-        document.getElementById('leadCompany').focus();
+        document.getElementById('leadFacility').focus();
       }
 
       async function editLead(id) {

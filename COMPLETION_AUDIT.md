@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @264 / production code v263: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @265 / production code v264: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v263_lead_filter_latency`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v264_optional_company_name`
+
+## v264 営業リストの会社名を任意入力化
+
+- リード編集フォームの会社名からブラウザ標準の必須入力指定を外し、表示も「会社名（任意）」へ変更した。
+- 会社名が空欄でも、施設名・メール・フォームURLのいずれかがあれば従来どおり保存できる。すべて空欄の新規リードを拒否するサーバー側の安全条件は維持した。
+- 新規作成時は必須でない会社名ではなく、施設名へ最初にフォーカスするよう変更した。
+- 会社名の任意表示、必須属性の撤去、施設名へのフォーカス、会社名空欄・施設名ありの入力を回帰テストへ追加した。
+- `node scripts/smoke-test.js`、`node --check scripts/smoke-test.js`、`Index.html`内JavaScript構文確認、`git diff --check`、`clasp push`が成功。固定Web app URLへ@265として再デプロイした。
+- 外部検索、メール送信、フォーム送信、営業データ変更は検証中に実行していない。
 
 ## v263 営業リスト絞り込みの高速化
 

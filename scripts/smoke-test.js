@@ -2920,7 +2920,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260720_apps_script_full_workflow_v263_lead_filter_latency'));
+assert(codeSource.includes('20260720_apps_script_full_workflow_v264_optional_company_name'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3433,6 +3433,9 @@ assert(indexSource.includes("pending = apiQuiet('getLeadListStats', { genre })")
 assert(indexSource.includes('includeFields: leadListAdditionalFields()'));
 assert(indexSource.includes('oninput="scheduleLeadSearchFilter()"'));
 assert(indexSource.includes('LEAD_LIST_SEARCH_DEBOUNCE_MS = 400'));
+assert(indexSource.includes('<label>会社名（任意）<input id="leadCompany" autocomplete="organization"></label>'));
+assert(!indexSource.includes('<input id="leadCompany" required'));
+assert(indexSource.includes("document.getElementById('leadFacility').focus();"));
 assert(indexSource.includes('function renderLeadRowsTable'));
 assert(indexSource.includes('const columns = getVisibleLeadColumns()'));
 assert(indexSource.includes("['操作', renderLeadActionCell(lead)]"));
@@ -3655,4 +3658,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v263 lead filter latency regression tests passed.');
+console.log('v264 optional company name regression tests passed.');
