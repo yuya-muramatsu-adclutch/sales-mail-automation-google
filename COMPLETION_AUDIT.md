@@ -1,13 +1,25 @@
 # 完成監査メモ
 
-最終更新: 2026-07-19
+最終更新: 2026-07-20
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @263 / production code v262: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @264 / production code v263: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260719_apps_script_full_workflow_v262_api_response_watchdog`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v263_lead_filter_latency`
+
+## v263 営業リスト絞り込みの高速化
+
+- 通常の絞り込みから全件内訳集計を分離し、一覧50件を先に返す。内訳は別APIで遅延取得し、フィルター切替を待たせない。
+- 一覧の基礎取得列を26列から19列へ削減。住所・電話・担当者・メモ・カスタム項目は表示設定で必要な時だけ追加取得し、編集画面は従来どおり`getLead`で全項目を取得する。
+- 一覧判定ではNGマスターと除外ドメインだけを読み、画面表示のために全送信履歴を走査しない。実メール送信時は従来の完全な送信安全判定を維持する。
+- サーバー側に一覧45秒・内訳120秒の短期キャッシュを追加し、リード、送信履歴、NGマスター、除外ドメイン更新時はリビジョンを進めて即時無効化する。
+- ブラウザ側にも45秒キャッシュと同一通信の共有を追加。連続操作では最新リクエストだけを反映し、検索入力は400ms待ってから実行する。
+- 一覧の静的な表示設定・保存ビューは毎回再描画せず、ジャンルや表示項目が変わった時だけ更新する。
+- 回帰テストで通常一覧が集計を実行しないこと、同一条件2回目がシートを再読込しないこと、リビジョン更新後に再読込すること、重い列を標準取得しないことを確認した。
+- `node scripts/smoke-test.js`、`Index.html`内JavaScript構文確認、`git diff --check`、`clasp push`が成功。固定Web app URLへ@264として再デプロイし、`clasp deployments`と`clasp versions`でv263を確認した。
+- Chrome自動接続と`clasp run getAppInfo`は実行環境の権限不足で利用できなかったため、実画面の秒数比較は未実施。外部検索、メール送信、フォーム送信、営業データ変更は検証中に実行していない。
 
 ## v262 API応答停止時の画面復旧
 

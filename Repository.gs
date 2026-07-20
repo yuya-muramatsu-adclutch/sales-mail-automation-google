@@ -873,6 +873,9 @@ function clearRuntimeCaches_(changedSheetName) {
   if (String(changedSheetName || '') === 'settings') {
     clearSettingsRecordsCache_();
   }
+  if (['leads', 'ng_masters', 'excluded_domains', 'send_histories'].indexOf(String(changedSheetName || '')) !== -1) {
+    bumpLeadListCacheRevision_();
+  }
 
   try {
     const cache = CacheService.getScriptCache();

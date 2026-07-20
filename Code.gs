@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260719_apps_script_full_workflow_v262_api_response_watchdog';
+const APP_VERSION = '20260720_apps_script_full_workflow_v263_lead_filter_latency';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -756,12 +756,8 @@ function leadListFields_(additionalFields) {
     'company_name',
     'facility_name',
     'email',
-    'email_domain',
-    'phone',
     'website_url',
-    'website_domain',
     'form_url',
-    'address',
     'status',
     'send_ng',
     'reply_checked',
@@ -770,9 +766,6 @@ function leadListFields_(additionalFields) {
     'last_sent_at',
     'send_count',
     'deal_status',
-    'custom_fields_json',
-    'owner',
-    'notes',
     'created_at',
     'updated_at',
     'archived_at',
@@ -786,10 +779,117 @@ function leadListFields_(additionalFields) {
   return Array.from(new Set(baseFields.concat(extras)));
 }
 
+const LEAD_LIST_CACHE_TTL_SECONDS_ = 45;
+const LEAD_LIST_STATS_CACHE_TTL_SECONDS_ = 120;
+const LEAD_LIST_CACHE_MAX_CHARS_ = 95000;
+const LEAD_LIST_CACHE_REVISION_PROPERTY_ = 'LEAD_LIST_CACHE_REVISION_V1';
+
+function leadListCacheRevision_() {
+  try {
+    if (typeof PropertiesService === 'undefined') return '0';
+    const properties = PropertiesService.getScriptProperties();
+    return String(properties.getProperty(LEAD_LIST_CACHE_REVISION_PROPERTY_) || '0');
+  } catch (error) {
+    return '0';
+  }
+}
+
+function bumpLeadListCacheRevision_() {
+  try {
+    if (typeof PropertiesService === 'undefined') return '';
+    const revision = String(Date.now()) + '_' + Math.random().toString(36).slice(2, 8);
+    PropertiesService.getScriptProperties().setProperty(LEAD_LIST_CACHE_REVISION_PROPERTY_, revision);
+    return revision;
+  } catch (error) {
+    console.warn('Lead list cache revision update skipped: ' + error.message);
+    return '';
+  }
+}
+
+function leadListCacheHash_(value) {
+  const text = String(value || '');
+  let first = 2166136261;
+  let second = 2246822507;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    first = Math.imul(first ^ code, 16777619);
+    second = Math.imul(second ^ code, 3266489909);
+  }
+  return (first >>> 0).toString(36) + (second >>> 0).toString(36);
+}
+
+function leadListCacheKey_(kind, payload) {
+  const source = JSON.stringify({
+    version: String(APP_VERSION || 'v1'),
+    payload: payload || {},
+  });
+  return 'lead_list_' + String(kind || 'page') + '_' + leadListCacheHash_(source);
+}
+
+function readLeadListCache_(kind, payload) {
+  try {
+    if (typeof CacheService === 'undefined') return null;
+    const cached = CacheService.getScriptCache().get(leadListCacheKey_(kind, payload));
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    if (!parsed || typeof parsed !== 'object') return null;
+    parsed.cacheHit = true;
+    return parsed;
+  } catch (error) {
+    console.warn('Lead list cache read skipped: ' + error.message);
+    return null;
+  }
+}
+
+function writeLeadListCache_(kind, payload, value, ttlSeconds) {
+  try {
+    if (typeof CacheService === 'undefined') return false;
+    const serialized = JSON.stringify(value);
+    const serializedSize = typeof Utilities !== 'undefined' && Utilities.newBlob
+      ? Utilities.newBlob(serialized).getBytes().length
+      : serialized.length;
+    if (!serialized || serializedSize > LEAD_LIST_CACHE_MAX_CHARS_) return false;
+    CacheService.getScriptCache().put(
+      leadListCacheKey_(kind, payload),
+      serialized,
+      Math.max(Number(ttlSeconds) || LEAD_LIST_CACHE_TTL_SECONDS_, 1)
+    );
+    return true;
+  } catch (error) {
+    console.warn('Lead list cache write skipped: ' + error.message);
+    return false;
+  }
+}
+
+function leadListCachePayload_(query) {
+  const source = query && typeof query === 'object' ? query : {};
+  return {
+    revision: leadListCacheRevision_(),
+    limit: source.limit,
+    offset: source.offset,
+    status: source.status,
+    genre: source.genre,
+    filter: source.filter,
+    formStatus: source.formStatus,
+    sort: source.sort,
+    search: source.search,
+    includeArchived: source.includeArchived === true,
+    includeStats: source.includeStats === true,
+    includeFields: (source.includeFields || []).slice().sort(),
+  };
+}
+
+function buildLeadListMasterContext_() {
+  return buildMasterBlockRulesContext_();
+}
+
 function listLeads(options) {
   const query = normalizeListOptions_(options);
+  const cachePayload = leadListCachePayload_(query);
+  const cached = readLeadListCache_('page', cachePayload);
+  if (cached) return cached;
   const rows = readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: 0 });
-  const masterContext = leadListQueryNeedsMasterContext_(query) ? buildMasterBlockContext_() : {};
+  const masterContext = leadListQueryNeedsMasterContext_(query) ? buildLeadListMasterContext_() : {};
   const filtered = rows.filter(function (lead) {
     if (!query.includeArchived && isArchivedLead_(lead)) {
       return false;
@@ -812,20 +912,13 @@ function listLeads(options) {
 
     const haystack = [
       lead.company_name,
-      lead.domain,
+      lead.facility_name,
       lead.website_url,
-      lead.website_domain,
       lead.form_url,
       lead.email,
-      lead.email_domain,
-      lead.phone,
-      lead.address,
       lead.genre,
-      lead.facility_name,
       lead.status,
       lead.source,
-      lead.owner,
-      lead.notes,
     ].join(' ').toLowerCase();
 
     return haystack.indexOf(query.search) !== -1;
@@ -846,6 +939,27 @@ function listLeads(options) {
     response.stats = buildLeadListStats_(rows, masterContext, query.genre);
     response.filteredStats = buildLeadListStats_(filtered, masterContext, query.genre);
   }
+  response.cacheHit = false;
+  writeLeadListCache_('page', cachePayload, response, LEAD_LIST_CACHE_TTL_SECONDS_);
+  return response;
+}
+
+function getLeadListStats(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const genre = String(input.genre || '').trim();
+  const cachePayload = { revision: leadListCacheRevision_(), genre: genre };
+  const cached = readLeadListCache_('stats', cachePayload);
+  if (cached) return cached;
+
+  const rows = readSheetRecordFields_('leads', leadListFields_([]), { maxGapColumns: 0 });
+  const stats = buildLeadListStats_(rows, buildLeadListMasterContext_(), genre);
+  const response = {
+    genre: genre,
+    stats: stats,
+    generatedAt: nowIso_(),
+    cacheHit: false,
+  };
+  writeLeadListCache_('stats', cachePayload, response, LEAD_LIST_STATS_CACHE_TTL_SECONDS_);
   return response;
 }
 

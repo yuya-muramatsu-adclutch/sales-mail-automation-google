@@ -12238,7 +12238,7 @@
               <div class="lead-title-row">
                 <h1>営業リスト</h1>
                 <span id="leadHeaderTotal" class="lead-header-total">0件</span>
-                <button type="button" class="lead-title-refresh" onclick="loadLeads(0)" aria-label="営業リストを更新" title="営業リストを更新"><span class="button-icon" data-ui-icon="refreshCw"></span></button>
+                <button type="button" class="lead-title-refresh" onclick="refreshLeadListPage()" aria-label="営業リストを更新" title="営業リストを更新"><span class="button-icon" data-ui-icon="refreshCw"></span></button>
               </div>
             </div>
             <div class="toolbar">
@@ -12248,7 +12248,7 @@
           </header>
           <div class="filter-bar" id="genreBar" hidden></div>
           <div class="list-filter-panel lead-simple-filter-panel">
-            <label>検索<input id="leadSearch" type="search" placeholder="会社名、屋号、メール、URL"></label>
+            <label>検索<input id="leadSearch" type="search" placeholder="会社名、屋号、メール、URL" oninput="scheduleLeadSearchFilter()"></label>
             <label>ジャンル<select id="leadGenreFilter"></select></label>
             <div class="list-filter-actions">
               <button type="button" class="button primary" onclick="filterLeads()"><span class="button-icon" data-ui-icon="search"></span>検索</button>
@@ -13749,6 +13749,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           offset: 0,
           total: 0,
         },
+        leadListStaticUiReady: false,
         templateActionDialog: {
           mode: '',
           templateId: '',
@@ -13782,6 +13783,74 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function apiQuiet(name, ...args) {
         return callApi(name, args, { busy: false });
+      }
+
+      const LEAD_LIST_CLIENT_CACHE_TTL_MS = 45000;
+      const LEAD_LIST_SEARCH_DEBOUNCE_MS = 400;
+      const LEAD_LIST_MUTATING_API_ACTIONS = new Set([
+        'addSearchResultToLead',
+        'advanceLeadCsvImportJob',
+        'advanceQueuedJobs',
+        'advanceSearchJob',
+        'checkRepliesForLeads',
+        'createCalendarEventForLead',
+        'createLead',
+        'deleteLead',
+        'deleteExcludedDomain',
+        'markLeadFormSent',
+        'runSmallSearchJob',
+        'repairBackgroundJobs',
+        'restoreReplyFalsePositiveCandidates',
+        'reviewSearchResults',
+        'saveExcludedDomain',
+        'saveNgMaster',
+        'sendLeadEmail',
+        'sendLeadEmailBatch',
+        'startLeadCsvImport',
+        'unmarkLeadFormSent',
+        'updateLead',
+        'updateReviewLeadDecision',
+      ]);
+      const leadListResponseCache = new Map();
+      const leadListStatsCache = new Map();
+      const leadListInFlightRequests = new Map();
+      const leadListStatsInFlightRequests = new Map();
+      let leadListRequestSequence = 0;
+      let leadListStatsRequestSequence = 0;
+      let leadSearchDebounceTimer = 0;
+
+      function cloneLeadListPayload(value) {
+        return value == null ? value : JSON.parse(JSON.stringify(value));
+      }
+
+      function readLeadListClientCache(cache, key) {
+        const entry = cache.get(key);
+        if (!entry) return null;
+        if (Number(entry.expiresAt || 0) <= Date.now()) {
+          cache.delete(key);
+          return null;
+        }
+        return cloneLeadListPayload(entry.value);
+      }
+
+      function writeLeadListClientCache(cache, key, value) {
+        cache.set(key, {
+          expiresAt: Date.now() + LEAD_LIST_CLIENT_CACHE_TTL_MS,
+          value: cloneLeadListPayload(value),
+        });
+      }
+
+      function clearLeadListClientCaches() {
+        leadListResponseCache.clear();
+        leadListStatsCache.clear();
+        leadListInFlightRequests.clear();
+        leadListStatsInFlightRequests.clear();
+        leadListRequestSequence += 1;
+        leadListStatsRequestSequence += 1;
+        if (state && state.leadPage) {
+          state.leadPage.stats = {};
+          state.leadPage.filteredStats = {};
+        }
       }
 
       const API_CALL_TIMEOUT_MS = 120000;
@@ -13837,6 +13906,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             google.script.run
               .withSuccessHandler((result) => {
                 if (!finish()) return;
+                if (LEAD_LIST_MUTATING_API_ACTIONS.has(String(name || ''))) {
+                  clearLeadListClientCaches();
+                }
                 resolve(result);
               })
               .withFailureHandler((error) => {
@@ -14238,6 +14310,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.reasons = initial.reasons || [];
           state.customFieldDefinitions = initial.customFieldDefinitions || [];
           state.listViewSettings = initial.listViewSettings || [];
+          state.leadListStaticUiReady = false;
           state.schemaStatus = initial.schemaStatus || null;
           state.adminReadinessResult = null;
           document.getElementById('appMeta').textContent = appVersionLabel(initial.app.version);
@@ -14335,6 +14408,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         syncGmailSenderNameUi();
         state.customFieldDefinitions = result.customFieldDefinitions || [];
         state.listViewSettings = result.listViewSettings || [];
+        state.leadListStaticUiReady = false;
         state.schemaStatus = result.schemaStatus || null;
         renderSelects(state.enums, state.genres);
         renderSerper(result.serper || state.serper || {});
@@ -15174,9 +15248,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function filterLeads() {
+        if (leadSearchDebounceTimer) {
+          window.clearTimeout(leadSearchDebounceTimer);
+          leadSearchDebounceTimer = 0;
+        }
         state.leadPage.offset = 0;
         updateLeadLoadModeFromFilter();
         await loadLeads();
+      }
+
+      function scheduleLeadSearchFilter() {
+        if (leadSearchDebounceTimer) window.clearTimeout(leadSearchDebounceTimer);
+        leadSearchDebounceTimer = window.setTimeout(() => {
+          leadSearchDebounceTimer = 0;
+          filterLeads();
+        }, LEAD_LIST_SEARCH_DEBOUNCE_MS);
       }
 
       function clearLeadFilters() {
@@ -15196,6 +15282,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function setLeadGenre(genre) {
         document.getElementById('leadGenreFilter').value = genre || '';
+        state.leadPage.stats = {};
+        state.leadPage.filteredStats = {};
+        state.leadListStaticUiReady = false;
         filterLeads();
       }
 
@@ -15979,6 +16068,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function loadLeads(offset, options) {
         const loadOptions = options || {};
+        const requestSequence = ++leadListRequestSequence;
         if (typeof offset === 'number') {
           state.leadPage.offset = Math.max(offset, 0);
         }
@@ -15997,18 +16087,95 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           sort: document.getElementById('leadSort').value,
           limit: state.leadPage.limit,
           offset: state.leadPage.offset,
+          includeStats: false,
+          includeFields: leadListAdditionalFields(),
         };
-        const result = loadOptions.quiet ? await apiQuiet('listLeads', request) : await api('listLeads', request);
+        const requestKey = JSON.stringify(request);
+        let result = loadOptions.force === true ? null : readLeadListClientCache(leadListResponseCache, requestKey);
+        if (!result) {
+          let pending = loadOptions.force === true ? null : leadListInFlightRequests.get(requestKey);
+          if (!pending) {
+            pending = (loadOptions.quiet ? apiQuiet('listLeads', request) : api('listLeads', request));
+            leadListInFlightRequests.set(requestKey, pending);
+            const clearPending = () => {
+              if (leadListInFlightRequests.get(requestKey) === pending) leadListInFlightRequests.delete(requestKey);
+            };
+            pending.then(clearPending, clearPending);
+          }
+          result = await pending;
+          writeLeadListClientCache(leadListResponseCache, requestKey, result);
+        }
+        if (requestSequence !== leadListRequestSequence) return result;
         state.leads = result.items || [];
         state.leadPage.total = result.total || 0;
         state.leadPage.offset = result.offset || 0;
         state.leadPage.limit = result.limit || state.leadPage.limit;
-        state.leadPage.stats = result.stats || {};
-        state.leadPage.filteredStats = result.filteredStats || {};
+        if (result.stats) state.leadPage.stats = result.stats;
+        if (result.filteredStats) state.leadPage.filteredStats = result.filteredStats;
         renderGenreBar();
         renderLeadQuickViews();
         renderLeads();
         updateLeadLoadPanel();
+        loadLeadListStats({
+          genre: request.genre,
+          force: loadOptions.refreshStats === true || loadOptions.forceStats === true,
+        }).catch((error) => {
+          console.warn('Lead list stats refresh skipped:', apiErrorText(error));
+        });
+        return result;
+      }
+
+      function leadListAdditionalFields() {
+        const fieldMap = {
+          company: 'company_name',
+          email: 'email',
+          website: 'website_url',
+          form_url: 'form_url',
+          phone: 'phone',
+          address: 'address',
+          form_status: 'form_status',
+          deal_status: 'deal_status',
+          owner: 'owner',
+          updated_at: 'updated_at',
+          notes: 'notes',
+        };
+        const fields = getVisibleLeadColumns().map((column) => {
+          if (column.key.indexOf('custom:') === 0) return 'custom_fields_json';
+          return fieldMap[column.key] || '';
+        }).filter(Boolean);
+        return Array.from(new Set(fields)).sort();
+      }
+
+      async function loadLeadListStats(options) {
+        const config = options || {};
+        const genre = String(config.genre !== undefined ? config.genre : (document.getElementById('leadGenreFilter')?.value || ''));
+        const requestSequence = ++leadListStatsRequestSequence;
+        const cacheKey = JSON.stringify({ genre });
+        let result = config.force === true ? null : readLeadListClientCache(leadListStatsCache, cacheKey);
+        if (!result) {
+          let pending = config.force === true ? null : leadListStatsInFlightRequests.get(cacheKey);
+          if (!pending) {
+            pending = apiQuiet('getLeadListStats', { genre });
+            leadListStatsInFlightRequests.set(cacheKey, pending);
+            const clearPending = () => {
+              if (leadListStatsInFlightRequests.get(cacheKey) === pending) leadListStatsInFlightRequests.delete(cacheKey);
+            };
+            pending.then(clearPending, clearPending);
+          }
+          result = await pending;
+          writeLeadListClientCache(leadListStatsCache, cacheKey, result);
+        }
+        const activeGenre = String(document.getElementById('leadGenreFilter')?.value || '');
+        if (requestSequence !== leadListStatsRequestSequence || activeGenre !== genre) return result;
+        state.leadPage.stats = result.stats || {};
+        state.leadPage.filteredStats = {};
+        renderLeadInsights();
+        return result;
+      }
+
+      async function refreshLeadListPage() {
+        clearLeadListClientCaches();
+        await loadLeads(0, { force: true, refreshStats: true });
       }
 
       async function loadEmailLeads() {
@@ -16065,11 +16232,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.dataLoaded.dealLeads = true;
       }
 
-      function renderLeads() {
+      function renderLeads(options) {
+        const config = options || {};
         renderLeadPager();
         renderLeadInsights();
-        renderListViewSettingsPanel();
-        renderLeadSavedViews();
+        if (!state.leadListStaticUiReady || config.refreshStatic === true) {
+          renderListViewSettingsPanel();
+          renderLeadSavedViews();
+          state.leadListStaticUiReady = true;
+        }
         renderLeadBulkActionBar();
         renderLeadRowsTable();
       }
@@ -16202,7 +16373,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           });
           state.listViewSettings = (state.listViewSettings || []).filter((setting) => setting.genre_id !== genre.id);
           state.listViewSettings.push(saved);
-          renderLeads();
+          state.leadListStaticUiReady = false;
+          await loadLeads(state.leadPage.offset || 0, { force: true });
           if (messageTarget) {
             messageTarget.className = 'message ok';
             messageTarget.textContent = '表示項目を保存しました。';

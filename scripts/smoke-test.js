@@ -216,7 +216,7 @@ leanListContext.readSheetRecordFields_ = () => [
   { id: 'lean-a', company_name: 'A', status: '未対応', updated_at: '2026-07-19T00:00:00Z' },
   { id: 'lean-b', company_name: 'B', status: '対応中', updated_at: '2026-07-18T00:00:00Z' },
 ];
-leanListContext.buildMasterBlockContext_ = () => { leanListMasterBuilds += 1; return {}; };
+leanListContext.buildLeadListMasterContext_ = () => { leanListMasterBuilds += 1; return {}; };
 leanListContext.buildLeadListStats_ = (rows) => { leanListStatBuilds += 1; return { totalLeadCount: rows.length }; };
 const leanListResult = leanListContext.listLeads({ filter: 'all', includeStats: false, limit: 10 });
 assert.strictEqual(leanListResult.total, 2);
@@ -227,6 +227,46 @@ const fullListResult = leanListContext.listLeads({ filter: 'all', limit: 10 });
 assert.strictEqual(fullListResult.stats.totalLeadCount, 2);
 assert.strictEqual(leanListMasterBuilds, 1);
 assert.strictEqual(leanListStatBuilds, 2);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(leanListContext.leadListFields_([]))), [
+  'id', 'source', 'genre', 'company_name', 'facility_name', 'email', 'website_url', 'form_url',
+  'status', 'send_ng', 'reply_checked', 'form_status', 'next_send_at', 'last_sent_at', 'send_count',
+  'deal_status', 'created_at', 'updated_at', 'archived_at',
+]);
+assert(!leanListContext.leadListFields_([]).includes('address'));
+assert(!leanListContext.leadListFields_([]).includes('notes'));
+assert(leanListContext.leadListFields_(['address', 'custom_fields_json']).includes('address'));
+assert(leanListContext.leadListFields_(['address', 'custom_fields_json']).includes('custom_fields_json'));
+const cachedLeadListContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), cachedLeadListContext, { filename: file });
+});
+const leadListScriptCache = new Map();
+const leadListProperties = {};
+let cachedLeadListReads = 0;
+cachedLeadListContext.CacheService = {
+  getScriptCache: () => ({
+    get: (key) => leadListScriptCache.get(key) || null,
+    put: (key, value) => { leadListScriptCache.set(key, value); },
+  }),
+};
+cachedLeadListContext.PropertiesService = {
+  getScriptProperties: () => ({
+    getProperty: (key) => leadListProperties[key] || '',
+    setProperty: (key, value) => { leadListProperties[key] = value; },
+  }),
+};
+cachedLeadListContext.readSheetRecordFields_ = () => {
+  cachedLeadListReads += 1;
+  return [{ id: 'cached-lead', company_name: 'Cached', status: '未対応', updated_at: '2026-07-20T00:00:00Z' }];
+};
+const firstCachedLeadList = cachedLeadListContext.listLeads({ includeStats: false, limit: 50 });
+const secondCachedLeadList = cachedLeadListContext.listLeads({ includeStats: false, limit: 50 });
+assert.strictEqual(firstCachedLeadList.cacheHit, false);
+assert.strictEqual(secondCachedLeadList.cacheHit, true);
+assert.strictEqual(cachedLeadListReads, 1, 'identical lead list filters must reuse the server cache');
+cachedLeadListContext.bumpLeadListCacheRevision_();
+cachedLeadListContext.listLeads({ includeStats: false, limit: 50 });
+assert.strictEqual(cachedLeadListReads, 2, 'lead list cache revision changes must invalidate old filter results');
 unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
 unlockedMailContext.ensureSheet_ = () => ({});
 const unlockedMailHistoryFixtures = [
@@ -2281,12 +2321,11 @@ files.forEach((file) => {
 });
 const leadListFields = JSON.parse(JSON.stringify(leadListContext.leadListFields_()));
 assert.deepStrictEqual(leadListFields, [
-  'id', 'source', 'genre', 'company_name', 'facility_name', 'email', 'email_domain', 'phone',
-  'website_url', 'website_domain', 'form_url', 'address', 'status', 'send_ng', 'reply_checked',
-  'form_status', 'next_send_at', 'last_sent_at', 'send_count', 'deal_status', 'custom_fields_json',
-  'owner', 'notes', 'created_at', 'updated_at', 'archived_at',
+  'id', 'source', 'genre', 'company_name', 'facility_name', 'email', 'website_url', 'form_url',
+  'status', 'send_ng', 'reply_checked', 'form_status', 'next_send_at', 'last_sent_at', 'send_count',
+  'deal_status', 'created_at', 'updated_at', 'archived_at',
 ]);
-['source_payload_json', 'send_ng_reason', 'meeting_start_at', 'contact_name', 'google_meet_url'].forEach((field) => {
+['source_payload_json', 'send_ng_reason', 'meeting_start_at', 'contact_name', 'google_meet_url', 'address', 'notes', 'custom_fields_json'].forEach((field) => {
   assert(!leadListFields.includes(field), `sales list base projection must omit ${field}`);
 });
 const leadListFieldsWithExtras = JSON.parse(JSON.stringify(leadListContext.leadListFields_([
@@ -2881,7 +2920,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260719_apps_script_full_workflow_v262_api_response_watchdog'));
+assert(codeSource.includes('20260720_apps_script_full_workflow_v263_lead_filter_latency'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3386,6 +3425,14 @@ assert(indexSource.includes('await loadReviewLeadMenu({ quiet: true, includeStat
 assert(indexSource.includes("request.includeStats = config.includeStats === true"));
 assert(indexSource.includes("await loadLeads(0, {\n          filter: 'review',\n          mode: 'review'"));
 assert((indexSource.match(/includeStats: false/g) || []).length >= 5);
+assert(indexSource.includes('const LEAD_LIST_CLIENT_CACHE_TTL_MS = 45000'));
+assert(indexSource.includes('const leadListResponseCache = new Map()'));
+assert(indexSource.includes('const requestSequence = ++leadListRequestSequence'));
+assert(indexSource.includes('if (requestSequence !== leadListRequestSequence) return result;'));
+assert(indexSource.includes("pending = apiQuiet('getLeadListStats', { genre })"));
+assert(indexSource.includes('includeFields: leadListAdditionalFields()'));
+assert(indexSource.includes('oninput="scheduleLeadSearchFilter()"'));
+assert(indexSource.includes('LEAD_LIST_SEARCH_DEBOUNCE_MS = 400'));
 assert(indexSource.includes('function renderLeadRowsTable'));
 assert(indexSource.includes('const columns = getVisibleLeadColumns()'));
 assert(indexSource.includes("['操作', renderLeadActionCell(lead)]"));
@@ -3608,4 +3655,4 @@ assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
 
-console.log('v262 API response watchdog regression tests passed.');
+console.log('v263 lead filter latency regression tests passed.');
