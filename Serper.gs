@@ -2658,6 +2658,24 @@ function buildLeadSearchQuery_(lead, jobType) {
   return [base, '公式サイト'].filter(Boolean).join(' ');
 }
 
+function isTourismAssociationListingSearchResult_(result) {
+  const source = result && typeof result === 'object' ? result : {};
+  const url = String(source.link || source.url || '').trim();
+  if (!url) return false;
+  if (isKnownNonAdvertiserLeadUrl_(url)) return true;
+
+  let path = '';
+  try {
+    path = new URL(normalizeUrl_(url)).pathname.toLowerCase();
+  } catch (error) {
+    path = url.toLowerCase();
+  }
+  const text = [source.title, source.snippet].join(' ');
+  const associationText = /(?:観光協会|公式観光(?:ガイド|情報)|観光情報(?:サイト|ポータル)|tourism association|official tourism guide)/i.test(text);
+  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|archives?|guides?|guideposts?|features?|information|detail(?:[_/-]|$))(?:\/|$)/i.test(path);
+  return associationText && listingPath;
+}
+
 function selectLeadSearchResult_(results, jobType, context) {
   const organic = Array.isArray(results) ? results : [];
   const excludedHosts = ['facebook.com', 'instagram.com', 'x.com', 'twitter.com', 'linkedin.com', 'youtube.com', 'map.yahoo.co.jp', 'google.com', 'nap-camp.com'];
@@ -2667,7 +2685,9 @@ function selectLeadSearchResult_(results, jobType, context) {
   const expectedName = normalizeCompanyName_(source.company_name || source.facility_name || '');
   const candidates = organic.filter(function (result) {
     const domain = normalizeDomain_(result.link || '');
-    return domain && !isLeadCollectionExcludedUrl_(result.link || domain, excludedDomains) && !excludedHosts.some(function (host) { return isDomainOrSubdomain_(domain, host); });
+    return domain && !isTourismAssociationListingSearchResult_(result) &&
+      !isLeadCollectionExcludedUrl_(result.link || domain, excludedDomains) &&
+      !excludedHosts.some(function (host) { return isDomainOrSubdomain_(domain, host); });
   }).map(function (result, index) {
     const searchableText = [result.title, result.snippet, result.link].join(' ');
     const normalizedText = normalizeCompanyName_(searchableText);

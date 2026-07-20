@@ -5,9 +5,17 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @268 / production code v267: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @269 / production code v268: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v267_display_cache_swr`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v268_tourism_portal_exclusions`
+
+## v268 観光協会・地域観光ガイドの収集除外
+
+- 浜田市観光協会、松江市観光協会島根町支部、西ノ島町観光協会の施設紹介ページを、広告主自身の公式サイトではない収集対象外ドメインとして追加した。
+- `kanko`、`kankou`、`tourism`、`travel`、`visit`を含む観光案内系ドメインと、`guidepost`、`archives`、`information`等の施設一覧型パスが組み合わさる場合を除外する。施設公式サイトの一般的な`/information`ページだけでは除外しない。
+- 検索結果のタイトル・説明に「観光協会」「公式観光ガイド」等があり、一覧型URLの場合も公式サイト候補から除外する。
+- 本番で全10,127件をドライランし、送信・返信・商談履歴がなく自動収集された対象外ページ40件を確認待ちから安全にアーカイブした。再検査の該当件数は0件。
+- 指定3ドメインを除外ドメイン管理へ登録し、回帰テスト、差分検査、`clasp push`が成功。固定Web app URLへ@269として再デプロイした。
 
 ## v267 表示優先キャッシュと先読み
 

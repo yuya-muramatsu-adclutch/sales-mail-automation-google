@@ -2758,6 +2758,12 @@ assert.strictEqual(sourceLockContext.isLeadReviewPending_({
 }), true);
 assert.strictEqual(sourceLockContext.isLikelyOfficialCandidateUrl_('https://camp-go.com/camps/example', ''), false);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://yamagatakanko.com/attractions/detail_234.html'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kankou-hamada.or.jp/guidepost/6434'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://umimachi-shimanecho.jp/archives/546'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://nkk-oki.com/japan/information/shimanebana-campsite/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kankou-example.or.jp/guidepost/123'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://visit-example.jp/spots/123'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://official-camp.example/information/'), false);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.pref.yamagata.jp/050011/kurashi/shizen/koen/shiduyaeiguide.html'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.town.nishikawa.yamagata.jp/site/kanko/'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.city.sakata.lg.jp/sangyo/kanko/rejyashisetsu/kazokuryokomura.html'), true);
@@ -2776,6 +2782,11 @@ const selectedAdvertiserSite = sourceLockContext.selectLeadSearchResult_([
   { title: '志津野営場 申込先 公式サイト', link: 'https://gassan-bunarin.jp/', snippet: '山形県立自然博物園' },
 ], 'lead_official_site', { company_name: '志津野営場' });
 assert.strictEqual(selectedAdvertiserSite.url, 'https://gassan-bunarin.jp/');
+const selectedPastTourismAssociation = sourceLockContext.selectLeadSearchResult_([
+  { title: '星空キャンプ場 | 地域公式観光ガイド', link: 'https://regional-guide.example/information/hoshizora-camp/', snippet: '一般社団法人 地域観光協会' },
+  { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-camp.example/', snippet: '宿泊予約・お問い合わせ' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedPastTourismAssociation.url, 'https://hoshizora-camp.example/');
 const contactPages = {
   'https://camp.example/': '<a href="/privacy">プライバシー</a><a href="/contact">お問い合わせ</a>',
   'https://camp.example/contact': '<div class="wpcf7">お問い合わせ</div><p>sales (at) camp (dot) example</p><form><input type="email"><textarea name="message"></textarea></form>',
@@ -2997,7 +3008,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260720_apps_script_full_workflow_v267_display_cache_swr'));
+assert(codeSource.includes('20260720_apps_script_full_workflow_v268_tourism_portal_exclusions'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3810,4 +3821,4 @@ assert(webAppSource.includes("if (!isExpectedOperationError_(error))"));
 assert(indexSource.includes('解消済みの履歴'));
 assert(indexSource.includes("logs.filter((log) => appDateKey(log.created_at) === today)"));
 
-console.log('v267 display cache regression tests passed.');
+console.log('v268 tourism portal exclusion regression tests passed.');

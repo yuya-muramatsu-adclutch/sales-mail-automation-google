@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260720_apps_script_full_workflow_v267_display_cache_swr';
+const APP_VERSION = '20260720_apps_script_full_workflow_v268_tourism_portal_exclusions';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -2849,6 +2849,9 @@ function normalizeDomain_(value) {
 
 const NON_ADVERTISER_LEAD_DOMAINS_ = Object.freeze([
   'yamagatakanko.com',
+  'kankou-hamada.or.jp',
+  'umimachi-shimanecho.jp',
+  'nkk-oki.com',
   'nap-camp.com',
   'camp-go.com',
   'campla.jp',
@@ -2892,8 +2895,12 @@ function isKnownNonAdvertiserLeadUrl_(value) {
   } catch (error) {
     path = String(normalizedUrl || '').toLowerCase();
   }
-  const tourismPortalDomain = /(?:^|[.-])(?:kanko|tourism|travel)(?:[.-]|$)/i.test(domain);
-  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|guides?|features?|search|detail(?:[_/-]|$))/i.test(path);
+  // Tourism associations and regional guides commonly publish one page per facility,
+  // then link visitors to a separate operator site. Reject only when both the host
+  // and the directory-like path indicate a guide/listing so an operator's ordinary
+  // /information or /news page is not removed by the generic rule.
+  const tourismPortalDomain = /(?:^|[.-])(?:kanko|kankou|tourism|travel|visit)(?:[.-]|$)/i.test(domain);
+  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|archives?|guides?|guideposts?|features?|information|search|detail(?:[_/-]|$))(?:\/|$)/i.test(path);
   return tourismPortalDomain && listingPath;
 }
 
