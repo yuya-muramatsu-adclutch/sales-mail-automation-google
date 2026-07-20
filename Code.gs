@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260720_apps_script_full_workflow_v272_jp_camp_kumano_portal_exclusions';
+const APP_VERSION = '20260720_apps_script_full_workflow_v273_third_party_listing_exclusions';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -3044,6 +3044,14 @@ const NON_ADVERTISER_LEAD_DOMAINS_ = Object.freeze([
   'hokuei-kankou.jp',
   'jpcamp.jp',
   'kumano-area.jp',
+  'kihoku-kanko.com',
+  'minami-ise.jp',
+  'web-odai.info',
+  'gozashirahama.com',
+  'kankomie.or.jp',
+  'bunto.com',
+  'furunavi.jp',
+  'katch.co.jp',
   'nap-camp.com',
   'camp-go.com',
   'campla.jp',
@@ -3099,7 +3107,7 @@ function isKnownNonAdvertiserLeadUrl_(value) {
   // and the directory-like path indicate a guide/listing so an operator's ordinary
   // /information or /news page is not removed by the generic rule.
   const tourismPortalDomain = /(?:^|[.-])(?:kanko|kankou|tourism|travel|visit)(?:[.-]|$)/i.test(domain);
-  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|archives?|guides?|guideposts?|features?|information|search|facilit(?:y|ies)|accommodations?|lodgings?|stay|play|leisure|detail(?:[_/-]|$))(?:\/|$)/i.test(path) ||
+  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|see|articles?|archives?|guides?|guideposts?|features?|information|search|facilit(?:y|ies)|shisetsu|accommodations?|lodgings?|stay(?:ing)?(?:[_-][^/]*)?|play|leisure|detail(?:[_-][^/]*)?)(?:\/|$)/i.test(path) ||
     /\/(?:目的で選ぶ|観光スポット|施設|宿泊|遊ぶ)(?:\/|$)/i.test(decodedPath);
   return tourismPortalDomain && listingPath;
 }

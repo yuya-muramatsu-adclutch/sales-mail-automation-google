@@ -2833,6 +2833,14 @@ assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.k
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.hokuei-kankou.jp/%E7%9B%AE%E7%9A%84%E3%81%A7%E9%81%B8%E3%81%B6/%E9%81%8A%E3%81%B6/%E3%81%8A%E5%8F%B0%E5%A0%B4%E5%85%AC%E5%9C%92/'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.jpcamp.jp/'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.kumano-area.jp/facility/1047/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kihoku-kanko.com/see/747/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.minami-ise.jp/staying_13.html'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://web-odai.info/stay/stay-133.html'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://gozashirahama.com/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.kankomie.or.jp/spot/3483'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.bunto.com/shisetsu/?p=401'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://tp.furunavi.jp/Plan/Detail?plId=10332'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.katch.co.jp/community/kinjo/arekore/arekore324/'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kankou-example.or.jp/guidepost/123'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://visit-example.jp/spots/123'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kanko-example.jp/facility/hoshizora-camp/'), true);
@@ -2874,6 +2882,32 @@ const selectedRegionalTourismListing = sourceLockContext.selectLeadSearchResult_
   { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-regional.example/', snippet: '宿泊予約・お問い合わせ' },
 ], 'lead_official_site', { company_name: '星空キャンプ場' });
 assert.strictEqual(selectedRegionalTourismListing.url, 'https://hoshizora-regional.example/');
+const selectedAfterTourismUnion = sourceLockContext.selectLeadSearchResult_([
+  { title: '星空キャンプ場 | ○○観光組合', link: 'https://regional-union.example/see/123/', snippet: '観光組合による施設案内' },
+  { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-union.example/', snippet: '宿泊予約・お問い合わせ' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedAfterTourismUnion.url, 'https://hoshizora-union.example/');
+const selectedAfterPublicFacilityGuide = sourceLockContext.selectLeadSearchResult_([
+  { title: '星空キャンプ場 | 施設案内', link: 'https://public-foundation.example/shisetsu/?p=401', snippet: '公益財団法人○○文化都市協会が管理する公園施設' },
+  { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-public.example/', snippet: '宿泊予約・お問い合わせ' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedAfterPublicFacilityGuide.url, 'https://hoshizora-public.example/');
+const selectedAfterTravelMarketplace = sourceLockContext.selectLeadSearchResult_([
+  { title: '星空キャンプ場 | ふるなびトラベル', link: 'https://travel-market.example/Plan/Detail?plId=1', snippet: 'ふるさと納税のトラベルポイントが使える提携店' },
+  { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-market.example/', snippet: '宿泊予約・お問い合わせ' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedAfterTravelMarketplace.url, 'https://hoshizora-market.example/');
+const selectedAfterLocalMediaArticle = sourceLockContext.selectLeadSearchResult_([
+  { title: '星空キャンプ場をスタッフが取材', link: 'https://local-media.example/community/kinjo/arekore/123/', snippet: '地域・番組情報の取材記事' },
+  { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-media.example/', snippet: '宿泊予約・お問い合わせ' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedAfterLocalMediaArticle.url, 'https://hoshizora-media.example/');
+assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
+  title: '星空キャンプ場 公式サイト', link: 'https://operator.example/shisetsu/', snippet: '宿泊予約・お問い合わせ',
+}), false, 'an operator facility path without public-facility ownership must remain eligible');
+assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
+  title: '星空キャンプ場のお知らせ', link: 'https://operator.example/community/', snippet: 'ご利用案内と予約',
+}), false, 'an operator community path without editorial context must remain eligible');
 const selectedAfterNationwideDirectory = sourceLockContext.selectLeadSearchResult_([
   { title: 'Best Campsites in Japan | Search 6,200+ Spots', link: 'https://national-directory.example/', snippet: 'Every campsite in Japan on one map' },
   { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-direct.example/', snippet: '宿泊予約・お問い合わせ' },
@@ -3100,7 +3134,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260720_apps_script_full_workflow_v272_jp_camp_kumano_portal_exclusions'));
+assert(codeSource.includes('20260720_apps_script_full_workflow_v273_third_party_listing_exclusions'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3923,4 +3957,4 @@ assert(webAppSource.includes("if (!isExpectedOperationError_(error))"));
 assert(indexSource.includes('解消済みの履歴'));
 assert(indexSource.includes("logs.filter((log) => appDateKey(log.created_at) === today)"));
 
-console.log('v272 jpcamp and Kumano portal exclusion regression tests passed.');
+console.log('v273 third-party listing exclusion regression tests passed.');

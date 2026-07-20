@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @274 / production code v272: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @275 / production code v273: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v272_jp_camp_kumano_portal_exclusions`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v273_third_party_listing_exclusions`
+
+## v273 第三者の観光・公共施設・体験商品・地域記事ページを収集除外
+
+- `kihoku-kanko.com`、`minami-ise.jp`、`web-odai.info`、`gozashirahama.com`、`kankomie.or.jp`を、観光協会・観光組合・観光連盟が複数施設を案内する第三者観光ページとして収集対象外へ追加した。
+- `bunto.com`は公益法人による公共施設案内、`furunavi.jp`はふるさと納税トラベルの提携店商品ページ、`katch.co.jp`は地域メディアの取材記事として収集対象外へ追加した。8ドメインは本番の除外ドメイン管理にも有効状態で登録した。
+- 今後の検索では、「観光協会・観光組合・観光連盟」と施設紹介パス、「公益法人・指定管理者」と施設案内パス、「ふるさと納税トラベル・ポイント」と商品詳細パス、「地域メディア・取材」と記事パスが組み合わさる候補を除外する。施設公式サイトの一般的な`/facility/`、`/shisetsu/`、`/community/`だけでは除外しない。
+- 本番10,127件を全件監査し、確認待ちから8件を検出した。対象は「キャンプMOON」「篠島デューテラス オートキャンプ場」「岩倉峡公園キャンプ場」「新鹿海水浴場キャンプ場」「美浜キャンプ場」「浦谷オートキャンプ場」「浮島パークなんとう」「古里海岸キャンプ場」。送信・返信・商談履歴がなく自動収集されたデータだけを`収集対象外サイト`としてアーカイブした。
+- 整理後の全件再監査は該当0件。`node scripts/smoke-test.js`、`Code.gs`・`Serper.gs`のJavaScript構文確認、`git diff --check`、`clasp push`が成功し、固定Web app URLを@275へ更新、本番`getAppInfo`でv273を確認した。
+- 外部検索、メール送信、フォーム送信は実行していない。履歴保全のため物理削除ではなくアーカイブとしている。
 
 ## v272 jpcamp・熊野エリア観光の収集除外
 

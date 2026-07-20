@@ -2684,11 +2684,21 @@ function isTourismAssociationListingSearchResult_(result) {
     decodedPath = path;
   }
   const text = [source.title, source.snippet].join(' ');
-  const associationText = /(?:観光協会|公式観光(?:ガイド|情報)|観光情報(?:サイト|ポータル)|(?:地域|エリア)観光|観光推進(?:実行)?委員会|行政サイト|(?:市|区|町|村)(?:役所|役場)|tourism association|official tourism guide|municipal(?:ity)? website)/i.test(text);
+  const associationText = /(?:観光(?:協会|連盟|組合)|公式観光(?:ガイド|情報)|観光情報(?:サイト|ポータル)|(?:地域|エリア)観光|観光推進(?:実行)?委員会|行政サイト|(?:市|区|町|村)(?:役所|役場)|tourism association|official tourism guide|municipal(?:ity)? website)/i.test(text);
   const nationwideDirectoryText = /(?:(?:全国|日本全国).{0,24}(?:キャンプ場|キャンプサイト).{0,24}(?:検索|地図|一覧)|(?:every|all).{0,24}campsites?.{0,24}(?:japan|map)|search\s+[\d,]+\+?\s+(?:camp)?sites?)/i.test(text);
-  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|archives?|guides?|guideposts?|features?|information|facilit(?:y|ies)|accommodations?|lodgings?|stay|play|leisure|detail(?:[_/-]|$))(?:\/|$)/i.test(path) ||
+  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|see|articles?|archives?|guides?|guideposts?|features?|information|facilit(?:y|ies)|shisetsu|accommodations?|lodgings?|stay(?:ing)?(?:[_-][^/]*)?|play|leisure|detail(?:[_-][^/]*)?)(?:\/|$)/i.test(path) ||
     /\/(?:目的で選ぶ|観光スポット|施設|宿泊|遊ぶ)(?:\/|$)/i.test(decodedPath);
-  return nationwideDirectoryText || (associationText && listingPath);
+  const marketplaceText = /(?:ふるさと納税.{0,16}(?:旅行|トラベル|体験)|ふるなびトラベル|トラベルポイント|(?:旅行|体験)の提携店)/i.test(text);
+  const marketplacePath = /\/(?:plans?|products?|experiences?)\/(?:detail|show)(?:\/|$)|\/plan\/detail(?:\/|$)/i.test(path);
+  const publicFacilityText = /(?:公益(?:財団|社団)法人|指定管理者|文化都市協会).{0,40}(?:施設|公園|キャンプ場)|(?:施設|公園|キャンプ場).{0,40}(?:公益(?:財団|社団)法人|指定管理者|文化都市協会)/i.test(text);
+  const publicFacilityPath = /\/(?:facilit(?:y|ies)|shisetsu|施設)(?:\/|$)/i.test(path) || /\/(?:施設)(?:\/|$)/i.test(decodedPath);
+  const localMediaText = /(?:地域・番組情報|近所のはなし|地域メディア|コミュニティチャンネル|(?:スタッフ|編集部).{0,20}(?:取材|訪問)|取材(?:記事|レポート))/i.test(text);
+  const localMediaPath = /\/(?:community|kinjo|arekore|articles?|features?)(?:\/|$)/i.test(path);
+  return nationwideDirectoryText ||
+    (associationText && listingPath) ||
+    (marketplaceText && marketplacePath) ||
+    (publicFacilityText && publicFacilityPath) ||
+    (localMediaText && localMediaPath);
 }
 
 function selectLeadSearchResult_(results, jobType, context) {
