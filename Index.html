@@ -11837,6 +11837,53 @@
         font-weight: 900;
       }
 
+      #leads .lead-cache-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 30px;
+        margin-left: auto;
+        padding: 5px 9px;
+        border: 1px solid #dbe3ec;
+        border-radius: 999px;
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      #leads .lead-cache-status[hidden] {
+        display: none;
+      }
+
+      #leads .lead-cache-status-dot {
+        width: 7px;
+        height: 7px;
+        flex: 0 0 auto;
+        border-radius: 999px;
+        background: #22c55e;
+      }
+
+      #leads .lead-cache-status.refreshing .lead-cache-status-dot {
+        background: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+        animation: lead-cache-pulse 1.2s ease-in-out infinite;
+      }
+
+      @keyframes lead-cache-pulse {
+        0%, 100% { opacity: 0.55; transform: scale(0.9); }
+        50% { opacity: 1; transform: scale(1.08); }
+      }
+
+      #leads .lead-cache-status.cached .lead-cache-status-dot {
+        background: #0ea5e9;
+      }
+
+      #leads .lead-cache-status.stale .lead-cache-status-dot {
+        background: #f59e0b;
+      }
+
       #leads .lead-list-limit-control select {
         min-width: 92px;
         min-height: 34px;
@@ -11885,6 +11932,11 @@
 
         #leads .lead-list-limit-control {
           justify-content: flex-end;
+        }
+
+        #leads .lead-cache-status {
+          margin-left: 0;
+          align-self: flex-start;
         }
 
         #leads .lead-advanced-filter-fields,
@@ -12351,6 +12403,10 @@
                       </div>
                     </section>
                   </details>
+                </div>
+                <div id="leadCacheStatus" class="lead-cache-status" role="status" aria-live="polite" hidden>
+                  <span class="lead-cache-status-dot" aria-hidden="true"></span>
+                  <span id="leadCacheStatusText">最新情報を表示中</span>
                 </div>
                 <label class="lead-list-limit-control">表示件数<select id="leadLimit">
                   <option value="50" selected>50件</option>
@@ -13708,6 +13764,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           label: '',
           detail: '',
         },
+        leadCacheStatus: {
+          source: '',
+          refreshing: false,
+          cachedAt: 0,
+        },
         searchResults: [],
         searchResultTotal: 0,
         searchUsageLogs: [],
@@ -13786,7 +13847,19 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return callApi(name, args, { busy: false });
       }
 
-      const LEAD_LIST_CLIENT_CACHE_TTL_MS = 45000;
+      const LEAD_LIST_CLIENT_CACHE_TTL_MS = 120000;
+      const LEAD_LIST_SESSION_CACHE_TTL_MS = 600000;
+      const LEAD_LIST_SESSION_CACHE_PREFIX = 'lead-list-display-v267:';
+      const LEAD_LIST_SESSION_CACHE_MAX_ITEMS = 18;
+      const LEAD_LIST_PRIMARY_PREFETCH_FILTERS = Object.freeze([
+        'group_ready',
+        'all',
+        'group_review',
+        'group_active',
+        'group_no_contact',
+        'group_send_ng',
+        'group_closed',
+      ]);
       const LEAD_LIST_SEARCH_DEBOUNCE_MS = 400;
       const LEAD_LIST_MUTATING_API_ACTIONS = new Set([
         'addSearchResultToLead',
@@ -13816,6 +13889,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       const leadListStatsCache = new Map();
       const leadListInFlightRequests = new Map();
       const leadListStatsInFlightRequests = new Map();
+      const leadListPrefetchSignatures = new Set();
       let leadListRequestSequence = 0;
       let leadListStatsRequestSequence = 0;
       let leadSearchDebounceTimer = 0;
@@ -13824,21 +13898,107 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return value == null ? value : JSON.parse(JSON.stringify(value));
       }
 
-      function readLeadListClientCache(cache, key) {
+      function readLeadListClientCacheEntry(cache, key) {
         const entry = cache.get(key);
         if (!entry) return null;
         if (Number(entry.expiresAt || 0) <= Date.now()) {
           cache.delete(key);
           return null;
         }
-        return cloneLeadListPayload(entry.value);
+        return {
+          value: cloneLeadListPayload(entry.value),
+          cachedAt: Number(entry.cachedAt || 0),
+          source: 'memory',
+        };
       }
 
-      function writeLeadListClientCache(cache, key, value) {
+      function readLeadListClientCache(cache, key) {
+        const entry = readLeadListClientCacheEntry(cache, key);
+        return entry ? entry.value : null;
+      }
+
+      function leadListClientCacheHash(value) {
+        const text = String(value || '');
+        let hash = 2166136261;
+        for (let index = 0; index < text.length; index += 1) {
+          hash = Math.imul(hash ^ text.charCodeAt(index), 16777619);
+        }
+        return (hash >>> 0).toString(36);
+      }
+
+      function leadListSessionCacheKey(requestKey) {
+        return `${LEAD_LIST_SESSION_CACHE_PREFIX}${leadListClientCacheHash(requestKey)}`;
+      }
+
+      function readLeadListSessionCache(requestKey) {
+        try {
+          const storageKey = leadListSessionCacheKey(requestKey);
+          const raw = window.sessionStorage.getItem(storageKey);
+          if (!raw) return null;
+          const entry = JSON.parse(raw);
+          if (!entry || entry.requestKey !== requestKey || !entry.value) return null;
+          if (Number(entry.expiresAt || 0) <= Date.now()) {
+            window.sessionStorage.removeItem(storageKey);
+            return null;
+          }
+          return {
+            value: cloneLeadListPayload(entry.value),
+            cachedAt: Number(entry.cachedAt || 0),
+            source: 'session',
+          };
+        } catch (error) {
+          console.warn('Lead list session cache read skipped:', error.message || error);
+          return null;
+        }
+      }
+
+      function writeLeadListSessionCache(requestKey, value, cachedAt) {
+        try {
+          const storageKey = leadListSessionCacheKey(requestKey);
+          const timestamp = Number(cachedAt || Date.now());
+          const serialized = JSON.stringify({
+            requestKey,
+            cachedAt: timestamp,
+            expiresAt: timestamp + LEAD_LIST_SESSION_CACHE_TTL_MS,
+            value: cloneLeadListPayload(value),
+          });
+          if (serialized.length > 350000) return false;
+          const indexKey = `${LEAD_LIST_SESSION_CACHE_PREFIX}index`;
+          const current = JSON.parse(window.sessionStorage.getItem(indexKey) || '[]');
+          const previousKeys = Array.isArray(current) ? current.filter((key) => key !== storageKey) : [];
+          previousKeys.slice(LEAD_LIST_SESSION_CACHE_MAX_ITEMS - 1).forEach((key) => window.sessionStorage.removeItem(key));
+          const next = [storageKey].concat(previousKeys.slice(0, LEAD_LIST_SESSION_CACHE_MAX_ITEMS - 1));
+          window.sessionStorage.setItem(storageKey, serialized);
+          window.sessionStorage.setItem(indexKey, JSON.stringify(next));
+          return true;
+        } catch (error) {
+          console.warn('Lead list session cache write skipped:', error.message || error);
+          return false;
+        }
+      }
+
+      function clearLeadListSessionCache() {
+        try {
+          for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+            const key = window.sessionStorage.key(index);
+            if (key && key.indexOf(LEAD_LIST_SESSION_CACHE_PREFIX) === 0) {
+              window.sessionStorage.removeItem(key);
+            }
+          }
+        } catch (error) {
+          console.warn('Lead list session cache clear skipped:', error.message || error);
+        }
+      }
+
+      function writeLeadListClientCache(cache, key, value, options) {
+        const config = options || {};
+        const cachedAt = Number(config.cachedAt || Date.now());
         cache.set(key, {
-          expiresAt: Date.now() + LEAD_LIST_CLIENT_CACHE_TTL_MS,
+          cachedAt,
+          expiresAt: cachedAt + LEAD_LIST_CLIENT_CACHE_TTL_MS,
           value: cloneLeadListPayload(value),
         });
+        if (config.persist === true) writeLeadListSessionCache(key, value, cachedAt);
       }
 
       function clearLeadListClientCaches() {
@@ -13846,11 +14006,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         leadListStatsCache.clear();
         leadListInFlightRequests.clear();
         leadListStatsInFlightRequests.clear();
+        leadListPrefetchSignatures.clear();
+        clearLeadListSessionCache();
         leadListRequestSequence += 1;
         leadListStatsRequestSequence += 1;
         if (state && state.leadPage) {
           state.leadPage.stats = {};
           state.leadPage.filteredStats = {};
+        }
+        if (state) {
+          state.leadCacheStatus = { source: '', refreshing: false, cachedAt: 0 };
+          renderLeadCacheStatus();
         }
       }
 
@@ -15500,6 +15666,51 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return `${formatNumber(start)}〜${formatNumber(end)} / ${formatNumber(total)}件`;
       }
 
+      function updateLeadCacheStatus(source, options) {
+        const config = options || {};
+        state.leadCacheStatus = {
+          source: String(source || ''),
+          refreshing: config.refreshing === true,
+          cachedAt: Number(config.cachedAt || Date.now()),
+        };
+        renderLeadCacheStatus();
+      }
+
+      function renderLeadCacheStatus() {
+        const target = document.getElementById('leadCacheStatus');
+        const text = document.getElementById('leadCacheStatusText');
+        if (!target || !text) return;
+        const cacheState = state.leadCacheStatus || {};
+        if (!cacheState.source) {
+          target.hidden = true;
+          return;
+        }
+        const timestamp = Number(cacheState.cachedAt || 0);
+        const timeLabel = timestamp
+          ? new Date(timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          : '';
+        let label = timeLabel ? `最新 ${timeLabel}` : '最新情報';
+        let statusClass = '';
+        if (cacheState.refreshing) {
+          label = cacheState.source === 'loading'
+            ? '条件に合う一覧を読み込み中'
+            : '保存済み表示を使用中・最新情報を確認中';
+          statusClass = 'refreshing';
+        } else if (cacheState.source === 'memory') {
+          label = timeLabel ? `高速表示・${timeLabel}取得` : '高速キャッシュから表示';
+          statusClass = 'cached';
+        } else if (cacheState.source === 'session') {
+          label = timeLabel ? `保存済み表示・${timeLabel}取得` : '保存済み表示を使用中';
+          statusClass = 'stale';
+        } else if (cacheState.source === 'server') {
+          label = timeLabel ? `サーバーキャッシュ・${timeLabel}更新` : 'サーバーキャッシュから表示';
+          statusClass = 'cached';
+        }
+        target.hidden = false;
+        target.className = `lead-cache-status ${statusClass}`.trim();
+        text.textContent = label;
+      }
+
       function updateLeadLoadPanel() {
         const label = document.getElementById('leadLoadModeLabel');
         const detail = document.getElementById('leadLoadModeDetail');
@@ -16067,6 +16278,130 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
       }
 
+      function requestLeadListNetwork(request, requestKey, options) {
+        const config = options || {};
+        let pending = config.force === true ? null : leadListInFlightRequests.get(requestKey);
+        if (pending) return pending;
+        pending = (config.quiet === true ? apiQuiet('listLeads', request) : api('listLeads', request));
+        leadListInFlightRequests.set(requestKey, pending);
+        const clearPending = () => {
+          if (leadListInFlightRequests.get(requestKey) === pending) leadListInFlightRequests.delete(requestKey);
+        };
+        pending.then(clearPending, clearPending);
+        return pending;
+      }
+
+      function applyLeadListResult(result, request, requestSequence, cacheMeta) {
+        if (requestSequence !== leadListRequestSequence) return false;
+        const meta = cacheMeta || {};
+        state.leads = result.items || [];
+        state.leadPage.total = result.total || 0;
+        state.leadPage.offset = result.offset || 0;
+        state.leadPage.limit = result.limit || state.leadPage.limit;
+        if (result.stats) state.leadPage.stats = result.stats;
+        if (result.filteredStats) state.leadPage.filteredStats = result.filteredStats;
+        updateLeadCacheStatus(meta.source || (result.cacheHit ? 'server' : 'network'), {
+          refreshing: meta.refreshing === true,
+          cachedAt: meta.cachedAt || Date.now(),
+        });
+        renderGenreBar();
+        renderLeadQuickViews();
+        renderLeads();
+        updateLeadLoadPanel();
+        return true;
+      }
+
+      function refreshLeadListStatsForRequest(request, options) {
+        const config = options || {};
+        loadLeadListStats({
+          genre: request.genre,
+          force: config.refreshStats === true || config.forceStats === true,
+        }).catch((error) => {
+          console.warn('Lead list stats refresh skipped:', apiErrorText(error));
+        });
+      }
+
+      async function revalidateLeadListInBackground(request, requestKey, requestSequence, loadOptions) {
+        try {
+          const result = await requestLeadListNetwork(request, requestKey, { quiet: true });
+          const cachedAt = Date.now();
+          writeLeadListClientCache(leadListResponseCache, requestKey, result, { persist: true, cachedAt });
+          if (applyLeadListResult(result, request, requestSequence, {
+            source: result.cacheHit ? 'server' : 'network',
+            cachedAt,
+          })) {
+            scheduleLeadListPrefetch(request, result);
+          }
+          return result;
+        } catch (error) {
+          if (requestSequence === leadListRequestSequence) {
+            updateLeadCacheStatus('session', { refreshing: false, cachedAt: state.leadCacheStatus?.cachedAt || Date.now() });
+          }
+          console.warn('Lead list background refresh skipped:', apiErrorText(error));
+          return null;
+        }
+      }
+
+      function canPrefetchLeadPrimaryViews(request) {
+        return Boolean(request) &&
+          Number(request.offset || 0) === 0 &&
+          !request.search &&
+          !request.status &&
+          String(request.sort || 'updated_desc') === 'updated_desc' &&
+          request.includeStats === false;
+      }
+
+      async function prefetchLeadListRequest(request, options) {
+        const config = options || {};
+        const requestKey = JSON.stringify(request);
+        if (readLeadListClientCacheEntry(leadListResponseCache, requestKey)) return null;
+        if (config.allowSessionSkip !== false && readLeadListSessionCache(requestKey)) return null;
+        try {
+          const result = await requestLeadListNetwork(request, requestKey, { quiet: true });
+          writeLeadListClientCache(leadListResponseCache, requestKey, result, { persist: true });
+          return result;
+        } catch (error) {
+          console.warn('Lead list prefetch skipped:', apiErrorText(error));
+          return null;
+        }
+      }
+
+      function scheduleLeadListPrefetch(request, result) {
+        if (!request || !result || document.visibilityState === 'hidden') return;
+        const signature = JSON.stringify({
+          genre: request.genre,
+          filter: request.filter,
+          sort: request.sort,
+          limit: request.limit,
+          offset: request.offset,
+          includeFields: request.includeFields,
+          total: result.total,
+        });
+        if (leadListPrefetchSignatures.has(signature)) return;
+        if (leadListPrefetchSignatures.size > 24) leadListPrefetchSignatures.clear();
+        leadListPrefetchSignatures.add(signature);
+
+        const run = async () => {
+          if (canPrefetchLeadPrimaryViews(request)) {
+            const primaryRequests = LEAD_LIST_PRIMARY_PREFETCH_FILTERS.map((filter) => Object.assign({}, request, {
+              filter,
+              offset: 0,
+            }));
+            await prefetchLeadListRequest(primaryRequests[0], { allowSessionSkip: false });
+            await Promise.all(primaryRequests.slice(1).map(prefetchLeadListRequest));
+          }
+          const nextOffset = Number(request.offset || 0) + Number(request.limit || 0);
+          if (Number(request.limit || 0) <= 100 && nextOffset < Number(result.total || 0)) {
+            await prefetchLeadListRequest(Object.assign({}, request, { offset: nextOffset }));
+          }
+        };
+        if (typeof window.requestIdleCallback === 'function') {
+          window.requestIdleCallback(() => { run(); }, { timeout: 1500 });
+        } else {
+          window.setTimeout(() => { run(); }, 350);
+        }
+      }
+
       async function loadLeads(offset, options) {
         const loadOptions = options || {};
         const requestSequence = ++leadListRequestSequence;
@@ -16092,37 +16427,35 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           includeFields: leadListAdditionalFields(),
         };
         const requestKey = JSON.stringify(request);
-        let result = loadOptions.force === true ? null : readLeadListClientCache(leadListResponseCache, requestKey);
-        if (!result) {
-          let pending = loadOptions.force === true ? null : leadListInFlightRequests.get(requestKey);
-          if (!pending) {
-            pending = (loadOptions.quiet ? apiQuiet('listLeads', request) : api('listLeads', request));
-            leadListInFlightRequests.set(requestKey, pending);
-            const clearPending = () => {
-              if (leadListInFlightRequests.get(requestKey) === pending) leadListInFlightRequests.delete(requestKey);
-            };
-            pending.then(clearPending, clearPending);
-          }
-          result = await pending;
-          writeLeadListClientCache(leadListResponseCache, requestKey, result);
+        const memoryEntry = loadOptions.force === true ? null : readLeadListClientCacheEntry(leadListResponseCache, requestKey);
+        if (memoryEntry) {
+          applyLeadListResult(memoryEntry.value, request, requestSequence, memoryEntry);
+          refreshLeadListStatsForRequest(request, loadOptions);
+          scheduleLeadListPrefetch(request, memoryEntry.value);
+          return memoryEntry.value;
         }
-        if (requestSequence !== leadListRequestSequence) return result;
-        state.leads = result.items || [];
-        state.leadPage.total = result.total || 0;
-        state.leadPage.offset = result.offset || 0;
-        state.leadPage.limit = result.limit || state.leadPage.limit;
-        if (result.stats) state.leadPage.stats = result.stats;
-        if (result.filteredStats) state.leadPage.filteredStats = result.filteredStats;
-        renderGenreBar();
-        renderLeadQuickViews();
-        renderLeads();
-        updateLeadLoadPanel();
-        loadLeadListStats({
-          genre: request.genre,
-          force: loadOptions.refreshStats === true || loadOptions.forceStats === true,
-        }).catch((error) => {
-          console.warn('Lead list stats refresh skipped:', apiErrorText(error));
+
+        const sessionEntry = loadOptions.force === true ? null : readLeadListSessionCache(requestKey);
+        if (sessionEntry) {
+          applyLeadListResult(sessionEntry.value, request, requestSequence, Object.assign({}, sessionEntry, { refreshing: true }));
+          refreshLeadListStatsForRequest(request, loadOptions);
+          revalidateLeadListInBackground(request, requestKey, requestSequence, loadOptions);
+          return sessionEntry.value;
+        }
+
+        updateLeadCacheStatus('loading', { refreshing: true, cachedAt: 0 });
+        const result = await requestLeadListNetwork(request, requestKey, {
+          force: loadOptions.force === true,
+          quiet: loadOptions.quiet === true,
         });
+        const cachedAt = Date.now();
+        writeLeadListClientCache(leadListResponseCache, requestKey, result, { persist: true, cachedAt });
+        applyLeadListResult(result, request, requestSequence, {
+          source: result.cacheHit ? 'server' : 'network',
+          cachedAt,
+        });
+        refreshLeadListStatsForRequest(request, loadOptions);
+        scheduleLeadListPrefetch(request, result);
         return result;
       }
 
@@ -16147,31 +16480,53 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return Array.from(new Set(fields)).sort();
       }
 
-      async function loadLeadListStats(options) {
-        const config = options || {};
-        const genre = String(config.genre !== undefined ? config.genre : (document.getElementById('leadGenreFilter')?.value || ''));
-        const requestSequence = ++leadListStatsRequestSequence;
-        const cacheKey = JSON.stringify({ genre });
-        let result = config.force === true ? null : readLeadListClientCache(leadListStatsCache, cacheKey);
-        if (!result) {
-          let pending = config.force === true ? null : leadListStatsInFlightRequests.get(cacheKey);
-          if (!pending) {
-            pending = apiQuiet('getLeadListStats', { genre });
-            leadListStatsInFlightRequests.set(cacheKey, pending);
-            const clearPending = () => {
-              if (leadListStatsInFlightRequests.get(cacheKey) === pending) leadListStatsInFlightRequests.delete(cacheKey);
-            };
-            pending.then(clearPending, clearPending);
-          }
-          result = await pending;
-          writeLeadListClientCache(leadListStatsCache, cacheKey, result);
-        }
+      function requestLeadListStatsNetwork(genre, cacheKey, force) {
+        let pending = force === true ? null : leadListStatsInFlightRequests.get(cacheKey);
+        if (pending) return pending;
+        pending = apiQuiet('getLeadListStats', { genre });
+        leadListStatsInFlightRequests.set(cacheKey, pending);
+        const clearPending = () => {
+          if (leadListStatsInFlightRequests.get(cacheKey) === pending) leadListStatsInFlightRequests.delete(cacheKey);
+        };
+        pending.then(clearPending, clearPending);
+        return pending;
+      }
+
+      function applyLeadListStatsResult(result, genre, requestSequence) {
         const activeGenre = String(document.getElementById('leadGenreFilter')?.value || '');
         if (requestSequence !== leadListStatsRequestSequence || activeGenre !== genre) return result;
         state.leadPage.stats = result.stats || {};
         state.leadPage.filteredStats = {};
         renderLeadInsights();
         return result;
+      }
+
+      async function loadLeadListStats(options) {
+        const config = options || {};
+        const genre = String(config.genre !== undefined ? config.genre : (document.getElementById('leadGenreFilter')?.value || ''));
+        const requestSequence = ++leadListStatsRequestSequence;
+        const cacheKey = JSON.stringify({ genre });
+        const persistentCacheKey = `stats:${cacheKey}`;
+        const memoryEntry = config.force === true ? null : readLeadListClientCacheEntry(leadListStatsCache, cacheKey);
+        if (memoryEntry) return applyLeadListStatsResult(memoryEntry.value, genre, requestSequence);
+
+        const sessionEntry = config.force === true ? null : readLeadListSessionCache(persistentCacheKey);
+        if (sessionEntry) {
+          applyLeadListStatsResult(sessionEntry.value, genre, requestSequence);
+          requestLeadListStatsNetwork(genre, cacheKey, false).then((freshResult) => {
+            writeLeadListClientCache(leadListStatsCache, cacheKey, freshResult);
+            writeLeadListSessionCache(persistentCacheKey, freshResult);
+            applyLeadListStatsResult(freshResult, genre, requestSequence);
+          }).catch((error) => {
+            console.warn('Lead list stats background refresh skipped:', apiErrorText(error));
+          });
+          return sessionEntry.value;
+        }
+
+        const result = await requestLeadListStatsNetwork(genre, cacheKey, config.force === true);
+        writeLeadListClientCache(leadListStatsCache, cacheKey, result);
+        writeLeadListSessionCache(persistentCacheKey, result);
+        return applyLeadListStatsResult(result, genre, requestSequence);
       }
 
       async function refreshLeadListPage() {

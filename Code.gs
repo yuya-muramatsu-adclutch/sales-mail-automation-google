@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260720_apps_script_full_workflow_v266_lead_filter_batches';
+const APP_VERSION = '20260720_apps_script_full_workflow_v267_display_cache_swr';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -779,8 +779,8 @@ function leadListFields_(additionalFields) {
   return Array.from(new Set(baseFields.concat(extras)));
 }
 
-const LEAD_LIST_CACHE_TTL_SECONDS_ = 120;
-const LEAD_LIST_STATS_CACHE_TTL_SECONDS_ = 120;
+const LEAD_LIST_CACHE_TTL_SECONDS_ = 300;
+const LEAD_LIST_STATS_CACHE_TTL_SECONDS_ = 300;
 const LEAD_LIST_CACHE_MAX_CHARS_ = 95000;
 const LEAD_LIST_CACHE_REVISION_PROPERTY_ = 'LEAD_LIST_CACHE_REVISION_V1';
 const LEAD_LIST_READ_MAX_GAP_COLUMNS_ = 2;

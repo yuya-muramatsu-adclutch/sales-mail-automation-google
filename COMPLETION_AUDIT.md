@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @267 / production code v266: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @268 / production code v267: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v266_lead_filter_batches`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v267_display_cache_swr`
+
+## v267 表示優先キャッシュと先読み
+
+- 営業リストのメモリキャッシュを2分、サーバー側の一覧・内訳キャッシュを5分へ拡張した。リードや送信状態、NGマスター等の更新時はリビジョン更新で即時無効化する。
+- 一覧と内訳をタブ内の`sessionStorage`へ最大10分保存する。画面再読み込みや一度開いた条件へ戻った時は、保存済み表示を先に描画してからバックグラウンドで最新データへ差し替える。
+- 「すべて」「送信準備」「確認待ち」「対応中」「連絡先なし」「送信NG」「完了」をアイドル時に先読みし、標準50/100件表示では次ページも先読みする。大容量500件以上の次ページ先読みは行わない。
+- 一覧上部に「高速表示」「保存済み表示を使用中・最新情報を確認中」「条件に合う一覧を読み込み中」「最新」の表示状態を追加し、古い表示を最新と誤認しないようにした。
+- タブ内保存は最大18条件・1件350KBまでとし、古い条件から自動削除する。更新・送信・除外などのAPI成功時と手動更新時はメモリ・タブ内キャッシュ・先読み状態をすべて破棄する。
+- 回帰テスト、JavaScript構文確認、差分検査、`clasp push`が成功。固定Web app URLへ@268として再デプロイした。
+- 外部検索、メール送信、フォーム送信、営業データ変更は検証中に実行していない。
 
 ## v266 営業リスト絞り込みの追加高速化
 
