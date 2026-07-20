@@ -109,6 +109,41 @@ final result: pending authenticated production screenshot
 
 final result: code paths verified; authenticated timing comparison pending
 
+# Design QA: 確認待ちの施設名・メール編集 v269
+
+## Source visual truth
+
+- User-provided production appshot: `Google Chrome Appshot 2026-07-20T10-50-48.236Z.png`.
+- Existing review card, queue, typography, spacing, buttons, and color system are preserved.
+- Requested behavior is limited to editing facility name and email without leaving the review screen.
+
+## Implementation
+
+- The existing edit action is relabeled `施設名・メールを編集` and opens a compact inline form in the selected review card.
+- The form uses the existing field and button styles, requires the facility name, keeps email optional, and provides save/cancel actions.
+- Saving calls the existing `updateLead` API, replaces the local row with the authoritative returned lead, and keeps the user in the review workflow.
+- Table-mode review actions open the same inline editor instead of navigating to the full Sales List editor.
+
+## Verification
+
+- `node scripts/smoke-test.js`: passed.
+- `Index.html` inline script syntax: passed.
+- `git diff --check`: passed.
+- Fixed deployment updated to `@271`; authenticated `getAppInfo` returned `20260720_apps_script_full_workflow_v269_review_edit_domain_dedupe`.
+- Production domain-repair verification returned zero duplicate domains twice after cleanup.
+
+## Visual comparison evidence
+
+- The reference is available in the current conversation, but not as a readable local image file.
+- Authenticated Chrome screenshot capture/control is not exposed in this task, so a same-viewport implementation screenshot and side-by-side comparison could not be produced.
+
+## Findings
+
+- [P1] Final visual sign-off remains blocked until the deployed review screen is hard-refreshed and captured in the authenticated Chrome session.
+- Static form hierarchy, responsive one-column fallback, save/cancel behavior, and production API/version checks passed.
+
+final result: blocked on authenticated production screenshot; implementation and runtime checks passed
+
 ## v222 follow-up
 
 - Default review startup now requests only the review count and first 50 rows without list-wide aggregate cards.

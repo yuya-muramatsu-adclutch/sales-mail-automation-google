@@ -1953,6 +1953,7 @@ function buildSourcePageLeadIndexFromRecords_(leads) {
     sourceIds: {},
     externalUrls: {},
     websiteUrls: {},
+    websiteDomains: {},
     names: {},
   };
   (leads || []).forEach(function (lead) {
@@ -1963,14 +1964,17 @@ function buildSourcePageLeadIndexFromRecords_(leads) {
 
 function addLeadToSourcePageIndex_(index, lead) {
   if (!index || !lead || isArchivedLead_(lead)) return index;
+  if (!index.websiteDomains) index.websiteDomains = {};
   const source = String(lead.source || '').trim();
   const sourceId = String(lead.source_id || '').trim();
   const externalUrl = normalizeSourcePageComparableUrl_(lead.external_id || '');
   const websiteUrl = normalizeSourcePageComparableUrl_(lead.website_url || '');
+  const websiteDomain = leadDuplicateWebsiteDomain_(lead);
   const name = normalizeCompanyName_(lead.normalized_company_name || lead.company_name || lead.facility_name || '');
   if (source === 'source_page' && sourceId && !index.sourceIds[sourceId]) index.sourceIds[sourceId] = lead;
   if (externalUrl && !index.externalUrls[externalUrl]) index.externalUrls[externalUrl] = lead;
   if (websiteUrl && !index.websiteUrls[websiteUrl]) index.websiteUrls[websiteUrl] = lead;
+  if (websiteDomain && !index.websiteDomains[websiteDomain]) index.websiteDomains[websiteDomain] = lead;
   if (name && name.length >= 4 && !index.names[name]) index.names[name] = lead;
   return index;
 }
@@ -1980,11 +1984,13 @@ function findExistingSourcePageLead_(candidate, facilityName, officialUrl, leadI
   const candidateName = normalizeCompanyName_(facilityName || candidate.facility_name || candidate.text || '');
   const detailUrl = normalizeSourcePageComparableUrl_(candidate.detail_url || candidate.url || '');
   const officialComparableUrl = normalizeSourcePageComparableUrl_(officialUrl || candidate.official_url || '');
+  const officialDomain = normalizeDomain_(officialUrl || candidate.official_url || '');
   const index = leadIndex || buildSourcePageLeadIndex_();
   return (sourceId && index.sourceIds[sourceId]) ||
     (detailUrl && index.externalUrls[detailUrl]) ||
     (detailUrl && index.websiteUrls[detailUrl]) ||
     (officialComparableUrl && index.websiteUrls[officialComparableUrl]) ||
+    (officialDomain && index.websiteDomains[officialDomain]) ||
     (candidateName && candidateName.length >= 4 && index.names[candidateName]) ||
     null;
 }

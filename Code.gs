@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260720_apps_script_full_workflow_v268_tourism_portal_exclusions';
+const APP_VERSION = '20260720_apps_script_full_workflow_v269_review_edit_domain_dedupe';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -1620,6 +1620,183 @@ function repairNonAdvertiserCleanupOverreach(options) {
   });
 }
 
+function leadDuplicateWebsiteDomain_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  return normalizeDomain_(source.website_url || '');
+}
+
+function duplicateDomainKeeperScore_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  const status = String(source.status || '').trim();
+  const dealStatus = String(source.deal_status || '未設定').trim() || '未設定';
+  const displayName = String(source.facility_name || source.company_name || '').trim();
+  let score = 0;
+  if (dealStatus === '受注' || status === '受注') score += 9000000;
+  else if (dealStatus !== '未設定' || DEAL_STATUSES.indexOf(status) !== -1) score += 8000000;
+  if (normalizeBooleanLike_(source.reply_checked) || status === '返信あり') score += 7000000;
+  if (Number(source.send_count || 0) > 0 || String(source.last_sent_at || '').trim() || status.indexOf('送信済み') !== -1) {
+    score += 6000000 + Math.min(Number(source.send_count || 0), 999) * 1000;
+  }
+  if (String(source.source || '').trim() === 'manual') score += 500000;
+  if (isValidEmailAddress_(source.email)) score += 100000;
+  if (String(source.form_url || '').trim()) score += 50000;
+  if (String(source.website_url || '').trim()) score += 20000;
+  if (String(source.phone || '').trim()) score += 10000;
+  if (String(source.address || '').trim()) score += 5000;
+  if (displayName) score += 1000;
+  if (status === '対応不要' || String(source.no_action_reason || '').trim()) score -= 1000000;
+  if (/(?:閉鎖|閉場|閉園|廃止|休止|営業終了|移転の為閉鎖)/.test(displayName)) score -= 2000000;
+  if (/(?:全国\d+件|公式HPをみる|ご利用案内)$/.test(displayName)) score -= 300000;
+  return score;
+}
+
+function sortDuplicateDomainLeadsForKeeper_(leads) {
+  return (leads || []).slice().sort(function (left, right) {
+    const scoreDiff = duplicateDomainKeeperScore_(right) - duplicateDomainKeeperScore_(left);
+    if (scoreDiff) return scoreDiff;
+    const createdDiff = String(left.created_at || '').localeCompare(String(right.created_at || ''));
+    if (createdDiff) return createdDiff;
+    return String(left.id || '').localeCompare(String(right.id || ''));
+  });
+}
+
+function duplicateDomainGroupsFromRecords_(leads) {
+  const groups = {};
+  (leads || []).forEach(function (lead) {
+    if (!lead || isArchivedLead_(lead)) return;
+    const domain = leadDuplicateWebsiteDomain_(lead);
+    if (!domain) return;
+    if (!groups[domain]) groups[domain] = [];
+    groups[domain].push(lead);
+  });
+  return Object.keys(groups).filter(function (domain) {
+    return groups[domain].length > 1;
+  }).sort().map(function (domain) {
+    const sorted = sortDuplicateDomainLeadsForKeeper_(groups[domain]);
+    return {
+      domain: domain,
+      keeper: sorted[0],
+      duplicates: sorted.slice(1),
+      leads: sorted,
+    };
+  });
+}
+
+function mergeDuplicateDomainContactFields_(keeper, duplicates) {
+  const merged = Object.assign({}, keeper || {});
+  const candidates = (duplicates || []).slice();
+  ['email', 'phone', 'form_url', 'address'].forEach(function (field) {
+    if (String(merged[field] || '').trim()) return;
+    const donor = candidates.find(function (lead) { return String(lead[field] || '').trim(); });
+    if (donor) merged[field] = donor[field];
+  });
+  return merged;
+}
+
+function repairDuplicateLeadDomains(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const dryRun = input.dryRun !== false && input.dry_run !== false;
+  const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 20000, 1), 20000);
+  const maxGroups = Math.min(Math.max(Number(input.maxGroups || input.max_groups) || 200, 1), 500);
+  const lockWaitMs = Math.min(Math.max(Number(input.lockWaitMs || input.lock_wait_ms) || 6000, 1000), 6000);
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
+  const headers = getHeaders_(sheet);
+  const requiredHeaders = [
+    'id', 'source', 'company_name', 'facility_name', 'email', 'phone', 'website_url', 'form_url', 'address',
+    'status', 'form_status', 'next_send_at', 'last_sent_at', 'send_count', 'reply_checked', 'deal_status',
+    'no_action_reason', 'no_action_memo', 'created_at', 'updated_at', 'archived_at',
+  ];
+  requiredHeaders.forEach(function (header) {
+    if (headers.indexOf(header) === -1) throw new Error('leadsシートに' + header + '列が必要です。');
+  });
+  const lastRow = sheet.getLastRow();
+  const rowCount = Math.min(scanLimit, Math.max(lastRow - 1, 0));
+  if (!rowCount) {
+    return { ok: true, dryRun: dryRun, scanned: 0, totalGroups: 0, duplicateCount: 0, archived: 0, merged: 0, done: true, items: [] };
+  }
+
+  const values = sheet.getRange(2, 1, rowCount, headers.length).getValues();
+  const records = values.map(function (row, index) {
+    const record = rowToRecord_(headers, row);
+    record.__rowNumber = index + 2;
+    return record;
+  });
+  const allGroups = duplicateDomainGroupsFromRecords_(records);
+  const targetGroups = allGroups.slice(0, maxGroups);
+  const result = {
+    ok: true,
+    dryRun: dryRun,
+    scanned: rowCount,
+    totalGroups: allGroups.length,
+    duplicateCount: allGroups.reduce(function (sum, group) { return sum + group.duplicates.length; }, 0),
+    archived: 0,
+    merged: 0,
+    done: allGroups.length <= maxGroups,
+    items: targetGroups.slice(0, 100).map(function (group) {
+      return {
+        domain: group.domain,
+        keeperId: String(group.keeper.id || ''),
+        keeperName: String(group.keeper.facility_name || group.keeper.company_name || ''),
+        duplicateIds: group.duplicates.map(function (lead) { return String(lead.id || ''); }),
+        duplicateNames: group.duplicates.map(function (lead) { return String(lead.facility_name || lead.company_name || ''); }),
+      };
+    }),
+  };
+  if (dryRun || !targetGroups.length) return result;
+
+  let archived = 0;
+  let merged = 0;
+  targetGroups.forEach(function (targetGroup) {
+    const applied = withScriptLock_('repairDuplicateLeadDomains:group', function () {
+      const currentLeads = targetGroup.leads.map(function (target) {
+        const rowNumber = Number(target.__rowNumber || 0);
+        if (rowNumber < 2) return null;
+        const row = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
+        const current = rowToRecord_(headers, row);
+        current.__rowNumber = rowNumber;
+        if (String(current.id || '') !== String(target.id || '') || isArchivedLead_(current)) return null;
+        return leadDuplicateWebsiteDomain_(current) === targetGroup.domain ? current : null;
+      }).filter(Boolean);
+      if (currentLeads.length < 2) return { archived: 0, merged: 0 };
+
+      const sorted = sortDuplicateDomainLeadsForKeeper_(currentLeads);
+      const keeper = sorted[0];
+      const duplicates = sorted.slice(1);
+      const mergedKeeper = mergeDuplicateDomainContactFields_(keeper, duplicates);
+      const contactMerged = ['email', 'phone', 'form_url', 'address'].some(function (field) {
+        return String(mergedKeeper[field] || '') !== String(keeper[field] || '');
+      });
+      if (contactMerged) {
+        mergedKeeper.updated_at = nowIso_();
+        applyLeadDerivedFields_(mergedKeeper);
+        writeRecordToRow_(sheet, keeper.__rowNumber, headers, mergedKeeper);
+      }
+
+      const now = nowIso_();
+      duplicates.forEach(function (duplicate) {
+        const archivedLead = Object.assign({}, duplicate, {
+          status: '対応不要',
+          form_status: '対応不要',
+          next_send_at: '',
+          no_action_reason: '重複ドメイン',
+          no_action_memo: '同一公式サイトの営業先を1件に統合: ' + targetGroup.domain + ' / 残存ID ' + String(keeper.id || ''),
+          archived_at: now,
+          updated_at: now,
+        });
+        writeRecordToRow_(sheet, duplicate.__rowNumber, headers, archivedLead);
+      });
+      return { archived: duplicates.length, merged: contactMerged ? 1 : 0 };
+    }, { waitMs: lockWaitMs, attempts: 5, retryDelayMs: 400 });
+    archived += Number(applied.archived || 0);
+    merged += Number(applied.merged || 0);
+  });
+  if (archived || merged) {
+    clearRuntimeCaches_('leads');
+    SpreadsheetApp.flush();
+  }
+  return Object.assign({}, result, { archived: archived, merged: merged });
+}
+
 function runLeadCollectionQualityMigrationV215_(options) {
   const input = options && typeof options === 'object' ? options : {};
   const lockWaitMs = input.interactive === true ? 2000 : 6000;
@@ -1817,6 +1994,9 @@ function updateLeadFoundLocked_(sheet, found, patch) {
   applyLeadDerivedFields_(nextRecord);
   if (explicitFields.has('status')) {
     applyLeadStatusSideEffects_(nextRecord, explicitFields);
+  }
+  if (['email', 'website_url', 'form_url'].some(function (field) { return explicitFields.has(field); })) {
+    assertNoDuplicateLead_(sheet, nextRecord, { excludeLeadId: found.record.id });
   }
 
   writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
@@ -2688,9 +2868,11 @@ function applyLeadStatusSideEffects_(lead, explicitFields) {
   return lead;
 }
 
-function assertNoDuplicateLead_(sheet, lead) {
+function assertNoDuplicateLead_(sheet, lead, options) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
+  const input = options && typeof options === 'object' ? options : {};
+  const excludeLeadId = String(input.excludeLeadId || input.exclude_lead_id || '').trim();
   const headers = getHeaders_(sheet);
   const candidateRows = {};
   const collectCandidateRows = function (columnName, value, matchCase) {
@@ -2720,6 +2902,7 @@ function assertNoDuplicateLead_(sheet, lead) {
     const row = sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0];
     return rowToRecord_(headers, row);
   }).find(function (existing) {
+    if (excludeLeadId && String(existing.id || '') === excludeLeadId) return false;
     return areLeadRecordsDuplicateForCreate_(existing, lead);
   });
 
@@ -2747,13 +2930,15 @@ function areLeadRecordsDuplicateForCreate_(existing, candidate) {
   const candidateWebsite = normalizeLeadComparableUrl_(lead.website_url || '');
   if (existingWebsite && candidateWebsite && existingWebsite === candidateWebsite) return true;
 
+  const existingWebsiteDomain = leadDuplicateWebsiteDomain_(current);
+  const candidateWebsiteDomain = leadDuplicateWebsiteDomain_(lead);
+  if (existingWebsiteDomain && candidateWebsiteDomain && existingWebsiteDomain === candidateWebsiteDomain) return true;
+
   const existingForm = normalizeLeadComparableUrl_(current.form_url || '');
   const candidateForm = normalizeLeadComparableUrl_(lead.form_url || '');
   if (existingForm && candidateForm && existingForm === candidateForm) return true;
 
-  const sameCompany = String(current.normalized_company_name || '') === String(lead.normalized_company_name || '');
-  const sameDomain = String(current.website_domain || '') && String(current.website_domain || '') === String(lead.website_domain || '');
-  return sameCompany && sameDomain;
+  return false;
 }
 
 function normalizeLeadComparableUrl_(value) {
@@ -2787,7 +2972,7 @@ function duplicateKeysForLead_(lead) {
   const keys = [];
   const email = String(lead.email || '').trim().toLowerCase();
   const company = normalizeCompanyName_(lead.normalized_company_name || lead.company_name || lead.facility_name || '');
-  const domain = normalizeDomain_(lead.website_domain || lead.email_domain || lead.website_url || lead.form_url || '');
+  const domain = leadDuplicateWebsiteDomain_(lead);
   if (email && email.indexOf('@') !== -1) keys.push('email:' + email);
   if (domain) keys.push('domain:' + domain);
   if (company && domain) keys.push('company_domain:' + company + ':' + domain);

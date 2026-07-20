@@ -1214,7 +1214,7 @@ assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
   website_url: 'https://shared.example/facility-b',
   website_domain: 'shared.example',
   normalized_company_name: '施設B',
-}), false, 'different facility paths on a shared domain must remain allowed');
+}), true, 'different paths on the same official domain must be treated as one sales destination');
 assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
   form_url: 'https://forms.example/response?id=abc&utm_campaign=test',
   website_domain: 'forms.example',
@@ -1233,6 +1233,44 @@ assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
   website_domain: 'forms.example',
   normalized_company_name: '施設B',
 }), false, 'different form identifiers on a shared form host must remain allowed');
+const duplicateDomainGroups = JSON.parse(JSON.stringify(context.duplicateDomainGroupsFromRecords_([
+  {
+    id: 'sent-keeper', source: 'source_page', company_name: '送信履歴あり', facility_name: '本館',
+    website_url: 'https://duplicate.example/main', email: '', send_count: 1, last_sent_at: '2026-07-01T00:00:00+09:00',
+    status: '初回メール送信済み', deal_status: '未設定', created_at: '2026-06-01T00:00:00+09:00', archived_at: '',
+  },
+  {
+    id: 'contact-donor', source: 'source_page', company_name: '未送信', facility_name: '別館',
+    website_url: 'https://www.duplicate.example/annex', email: 'info@duplicate.example', form_url: 'https://duplicate.example/contact',
+    send_count: 0, status: '未対応', deal_status: '未設定', created_at: '2026-07-01T00:00:00+09:00', archived_at: '',
+  },
+  {
+    id: 'email-only', email: 'other@duplicate.example', website_url: '', status: '未対応', archived_at: '',
+  },
+  {
+    id: 'archived-copy', website_url: 'https://duplicate.example/old', status: '対応不要', archived_at: '2026-07-02T00:00:00+09:00',
+  },
+])));
+assert.strictEqual(duplicateDomainGroups.length, 1);
+assert.strictEqual(duplicateDomainGroups[0].domain, 'duplicate.example');
+assert.strictEqual(duplicateDomainGroups[0].keeper.id, 'sent-keeper', 'send and reply history must win the keeper selection');
+assert.deepStrictEqual(duplicateDomainGroups[0].duplicates.map((lead) => lead.id), ['contact-donor']);
+const mergedDuplicateContact = JSON.parse(JSON.stringify(context.mergeDuplicateDomainContactFields_(
+  duplicateDomainGroups[0].keeper,
+  duplicateDomainGroups[0].duplicates
+)));
+assert.strictEqual(mergedDuplicateContact.email, 'info@duplicate.example');
+assert.strictEqual(mergedDuplicateContact.form_url, 'https://duplicate.example/contact');
+assert.strictEqual(context.sortDuplicateDomainLeadsForKeeper_([
+  {
+    id: 'closed', facility_name: '【R7/7 移転の為閉鎖】旧キャンプ場', website_url: 'https://active.example/old',
+    email: 'old@active.example', status: '未対応', deal_status: '未設定', created_at: '2026-01-01',
+  },
+  {
+    id: 'active', facility_name: '営業中キャンプ場', website_url: 'https://active.example/current',
+    status: '未対応', deal_status: '未設定', created_at: '2026-02-01',
+  },
+])[0].id, 'active', 'closed facility labels must not win an otherwise unengaged duplicate group');
 const syncInput = JSON.parse(JSON.stringify(context.buildSyncLeadInput_({
   company_name: 'Example',
   email: 'https://example.com/contact',
@@ -2208,7 +2246,7 @@ sourcePageIndexContext.readSheetRecordFields_ = (sheetName, fields, options) => 
     return record;
   }, {}));
 };
-const summarizeSourcePageIndex = (index) => ['sourceIds', 'externalUrls', 'websiteUrls', 'names'].reduce((summary, key) => {
+const summarizeSourcePageIndex = (index) => ['sourceIds', 'externalUrls', 'websiteUrls', 'websiteDomains', 'names'].reduce((summary, key) => {
   summary[key] = Object.keys(index[key] || {}).sort().map((value) => [value, index[key][value].id]);
   return summary;
 }, {});
@@ -2229,6 +2267,7 @@ assert.deepStrictEqual(sourcePageIndexReadOptions, { maxGapColumns: 0 });
 assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({ source_id: 'site:item:1' }, '', '', projectedSourcePageIndex).id, 'source-id-match');
 assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({ detail_url: 'https://guide.example/detail/1' }, '', '', projectedSourcePageIndex).id, 'source-id-match');
 assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({}, '', 'https://lake.example/path/', projectedSourcePageIndex).id, 'website-match');
+assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({}, '', 'https://lake.example/different-path/', projectedSourcePageIndex).id, 'website-match');
 assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({}, '湖畔リゾート', '', projectedSourcePageIndex).id, 'website-match');
 assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({ source_id: 'archived:item' }, '閉鎖施設', 'https://closed.example/', projectedSourcePageIndex), null);
 
@@ -3008,7 +3047,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260720_apps_script_full_workflow_v268_tourism_portal_exclusions'));
+assert(codeSource.includes('20260720_apps_script_full_workflow_v269_review_edit_domain_dedupe'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3061,6 +3100,16 @@ assert(!masterRulesBody.includes('buildMailSendSafetyContext_'));
 assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
 assert(codeSource.includes('function repairNonAdvertiserReviewLeads'));
 assert(codeSource.includes('function repairNonAdvertiserCleanupOverreach'));
+assert(codeSource.includes('function repairDuplicateLeadDomains'));
+assert(fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8').includes("if (action === 'repairDuplicateLeadDomains')"));
+const reviewEditIndexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
+assert(reviewEditIndexSource.includes('function saveReviewInboxLeadEdit'));
+assert(reviewEditIndexSource.includes('施設名・メールを編集'));
+assert(reviewEditIndexSource.includes("apiQuiet('updateLead', id"));
+const updateLeadFoundStart = codeSource.indexOf('function updateLeadFoundLocked_');
+const updateLeadFoundEnd = codeSource.indexOf('\nfunction ', updateLeadFoundStart + 10);
+const updateLeadFoundBody = codeSource.slice(updateLeadFoundStart, updateLeadFoundEnd);
+assert(updateLeadFoundBody.includes("assertNoDuplicateLead_(sheet, nextRecord, { excludeLeadId: found.record.id })"));
 const repairTargetBatches = JSON.parse(JSON.stringify(context.partitionLeadRepairTargets_([
   { rowNumber: 2, id: 'a' },
   { rowNumber: 51, id: 'b' },
@@ -3821,4 +3870,4 @@ assert(webAppSource.includes("if (!isExpectedOperationError_(error))"));
 assert(indexSource.includes('解消済みの履歴'));
 assert(indexSource.includes("logs.filter((log) => appDateKey(log.created_at) === today)"));
 
-console.log('v268 tourism portal exclusion regression tests passed.');
+console.log('v269 review edit and domain dedupe regression tests passed.');

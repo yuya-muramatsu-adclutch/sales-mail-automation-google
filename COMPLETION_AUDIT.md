@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @269 / production code v268: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @271 / production code v269: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v268_tourism_portal_exclusions`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v269_review_edit_domain_dedupe`
+
+## v269 確認待ちの画面内編集とドメイン重複防止
+
+- 確認待ちの詳細カードと表形式一覧に「施設名・メールを編集」を追加し、営業リストへ移動せず同じ画面内で保存できるようにした。施設名は必須、メールは任意で、保存後はサーバーが返した最新データへ即時差し替える。
+- 新規作成、既存リードの公式サイト・メール・フォーム編集、まとめサイト収集の事前判定で、公式サイトの正規化ドメインが既存リードと一致した場合に重複として拒否する。共有フォームやGmail等のメールドメインだけでは重複扱いしない。
+- 本番10,127件を監査し、262ドメイン・389件の重複リードを検出した。送信・返信・商談履歴、手動登録、連絡先の充実度を優先し、閉鎖・休止表示は減点して残す1件を決定した。
+- 重複389件は物理削除せず、`重複ドメイン`理由でアーカイブした。残すリードにないメール・電話・フォーム・住所は重複側から補完し、既存履歴とUUIDは保持した。
+- 整理後のドライランを2回実行し、全10,127件で重複ドメイン0件・重複リード0件を確認した。
+- `node scripts/smoke-test.js`、`Index.html`内JavaScript構文確認、`git diff --check`が成功。固定Web app URLを@271へ更新し、認証付き`getAppInfo`でv269を確認した。
+- 認証済みChromeを制御する機能がこのセッションでは利用できないため、実画面の最終レイアウト確認は未実施。外部検索・メール送信・フォーム送信は実行していない。
 
 ## v268 観光協会・地域観光ガイドの収集除外
 

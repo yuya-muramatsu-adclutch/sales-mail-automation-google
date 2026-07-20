@@ -10719,6 +10719,38 @@
         overflow-wrap: anywhere;
       }
 
+      .review-inline-edit-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+        align-items: end;
+        gap: 12px;
+        padding: 16px;
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        background: #eff6ff;
+      }
+
+      .review-inline-edit-form label {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+        color: #475569;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .review-inline-edit-form input {
+        width: 100%;
+        min-height: 40px;
+        border-color: #bfdbfe;
+        background: #ffffff;
+      }
+
+      .review-inline-edit-actions {
+        display: flex;
+        gap: 8px;
+      }
+
       .review-inbox-actions {
         display: flex;
         flex-wrap: wrap;
@@ -10974,6 +11006,7 @@
         }
 
         .review-inbox-detail-grid,
+        .review-inline-edit-form,
         .collection-estimate-grid,
         .send-safety-summary-grid {
           grid-template-columns: 1fr;
@@ -13667,6 +13700,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         reviewStats: {},
         reviewLoading: false,
         selectedReviewLeadId: '',
+        reviewEditingLeadId: '',
+        reviewEditSaving: false,
         reviewSessionHandled: readReviewSessionHandled(),
         reviewPendingSaves: 0,
         reviewPendingLeadIds: [],
@@ -14040,6 +14075,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         'repairReviewLeadsWithoutContact',
         'repairNonAdvertiserReviewLeads',
         'repairNonAdvertiserCleanupOverreach',
+        'repairDuplicateLeadDomains',
         'createSpreadsheetBackup',
         'prepareLeadMigration',
         'writeLeadMigrationRows',
@@ -15910,6 +15946,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
         const selectedIndex = Math.max(0, leads.findIndex((lead) => lead.id === selected.id));
         const saving = isReviewLeadPendingSave(selected.id);
+        const editing = state.reviewEditingLeadId === selected.id;
+        const editSaving = editing && state.reviewEditSaving === true;
         const website = selected.website_url
           ? `<a href="${escapeHtml(externalUrl(selected.website_url))}" target="_blank" rel="noopener">WEBサイトを開く</a>`
           : '<strong>未取得</strong>';
@@ -15935,6 +15973,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <div><p class="eyebrow">${escapeHtml(selected.genre || 'ジャンル未設定')}</p><h2>${escapeHtml(selected.facility_name || selected.company_name || '名称未取得')}</h2><p class="muted">${escapeHtml(selected.company_name || '')}</p></div>
               ${statusPill('要確認')}
             </header>
+            ${editing ? `
+              <form class="review-inline-edit-form" onsubmit="saveReviewInboxLeadEdit(event, '${escapeJsString(selected.id)}')">
+                <label>施設名<input id="reviewInlineFacility" value="${escapeHtml(selected.facility_name || selected.company_name || '')}" required autocomplete="organization-title" ${editSaving ? 'disabled' : ''}></label>
+                <label>メールアドレス<input id="reviewInlineEmail" type="email" value="${escapeHtml(selected.email || '')}" autocomplete="email" placeholder="info@example.com" ${editSaving ? 'disabled' : ''}></label>
+                <span class="review-inline-edit-actions">
+                  <button type="submit" class="primary" ${editSaving ? 'disabled' : ''}>${editSaving ? '保存中' : '保存'}</button>
+                  <button type="button" onclick="cancelReviewInboxEdit()" ${editSaving ? 'disabled' : ''}>キャンセル</button>
+                </span>
+              </form>
+            ` : ''}
             <div class="review-inbox-detail-grid">
               <div class="review-inbox-detail-field"><small>WEBサイト</small>${website}</div>
               <div class="review-inbox-detail-field"><small>メール</small><strong>${escapeHtml(selected.email || '未取得')}</strong></div>
@@ -15946,7 +15994,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div class="review-inbox-actions">
               <button type="button" class="primary-action" onclick="reviewInboxUpdate('対応中')" aria-keyshortcuts="A" title="確認済み (A)" ${saving ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}${saving ? '保存中' : '確認済み'}</button>
               <button type="button" onclick="deferReviewInboxLead()" aria-keyshortcuts="ArrowDown" title="次へ (↓)">${legacyUiIcon('arrowRight')}後で</button>
-              <button type="button" onclick="openReviewLeadEditor('${escapeJsString(selected.id)}')">${legacyUiIcon('pencil')}編集</button>
+              <button type="button" onclick="startReviewInboxEdit('${escapeJsString(selected.id)}')">${legacyUiIcon('pencil')}施設名・メールを編集</button>
               <button type="button" class="danger" onclick="reviewInboxUpdate('送信NG')" aria-keyshortcuts="N" title="送信NG (N)" ${saving ? 'disabled' : ''}>${legacyUiIcon('shieldAlert')}送信NG</button>
               <button type="button" class="danger" onclick="reviewInboxUpdate('対応不要')" ${saving ? 'disabled' : ''}>${legacyUiIcon('xCircle')}対応不要</button>
             </div>
@@ -15956,7 +16004,56 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function selectReviewInboxLead(id) {
         state.selectedReviewLeadId = id || '';
+        state.reviewEditingLeadId = '';
+        state.reviewEditSaving = false;
         renderReviewInboxPanel();
+      }
+
+      function startReviewInboxEdit(id) {
+        if (!id) return;
+        state.selectedReviewLeadId = id;
+        state.reviewEditingLeadId = id;
+        state.reviewEditSaving = false;
+        renderReviewInboxPanel();
+        window.setTimeout(() => document.getElementById('reviewInlineFacility')?.focus(), 30);
+        document.getElementById('reviewInboxPanel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      function cancelReviewInboxEdit() {
+        if (state.reviewEditSaving) return;
+        state.reviewEditingLeadId = '';
+        renderReviewInboxPanel();
+      }
+
+      async function saveReviewInboxLeadEdit(event, id) {
+        event.preventDefault();
+        if (state.reviewEditSaving || !id) return;
+        const form = event.currentTarget;
+        if (form && typeof form.reportValidity === 'function' && !form.reportValidity()) return;
+        const facilityName = String(document.getElementById('reviewInlineFacility')?.value || '').trim();
+        const email = String(document.getElementById('reviewInlineEmail')?.value || '').trim().toLowerCase();
+        if (!facilityName) {
+          message('施設名を入力してください', 'error');
+          return;
+        }
+        state.reviewEditSaving = true;
+        Array.from(form.querySelectorAll('input, button')).forEach((control) => { control.disabled = true; });
+        const submit = form.querySelector('button[type="submit"]');
+        if (submit) submit.textContent = '保存中';
+        try {
+          const savedLead = await apiQuiet('updateLead', id, {
+            facility_name: facilityName,
+            email,
+          });
+          mergeAuthoritativeLeadIntoClientLists(savedLead);
+          state.reviewEditingLeadId = '';
+          message('施設名とメールアドレスを保存しました', 'ok');
+        } catch (error) {
+          message(`保存できませんでした: ${apiErrorText(error)}`, 'error');
+        } finally {
+          state.reviewEditSaving = false;
+          renderReviewLeadsScreen();
+        }
       }
 
       function startReviewInbox() {
@@ -15972,6 +16069,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const step = Number(direction || 1) < 0 ? -1 : 1;
         const nextIndex = Math.min(Math.max(currentIndex + step, 0), leads.length - 1);
         state.selectedReviewLeadId = leads[nextIndex].id;
+        state.reviewEditingLeadId = '';
+        state.reviewEditSaving = false;
         renderReviewInboxPanel();
       }
 
@@ -16045,7 +16144,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return `
           <span class="review-action-row">
             <button type="button" class="table-link-button primary-row-action" onclick="updateReviewLeadStatus('${id}', '対応中')" ${saving ? 'disabled' : ''}>${saving ? '保存中' : '確認済み'}</button>
-            <button type="button" class="table-link-button" onclick="openReviewLeadEditor('${id}')">編集</button>
+            <button type="button" class="table-link-button" onclick="startReviewInboxEdit('${id}')">施設名・メール編集</button>
             <button type="button" class="table-link-button danger-row-action" onclick="updateReviewLeadStatus('${id}', '対応不要')" ${saving ? 'disabled' : ''}>対応不要</button>
           </span>
         `;
