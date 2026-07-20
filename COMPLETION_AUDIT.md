@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @271 / production code v269: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @272 / production code v270: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v269_review_edit_domain_dedupe`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v270_daily_domain_dedupe`
+
+## v270 重複ドメインの日次自動整理
+
+- `runDailyDuplicateDomainCleanup`を追加し、毎日3時台に最大20,000件を監査して、最大50ドメイングループの重複側を自動アーカイブする。
+- 残すリードの優先順位、閉鎖施設の減点、連絡先の補完、履歴を保全するアーカイブ方式はv269と共通。物理削除は行わない。
+- `installDefaultTriggers`へ日次トリガーを統合し、再実行時も同じハンドラーを1件だけ維持する。異常終了時は`sync_logs`へエラーを残して次回調査できる。
+- 日次トリガーは送信時間帯と重ならない3時台に設定。バックグラウンド処理、返信確認、自動送信の既存トリガーは変更していない。
+- 本番で既定トリガーを再設定し、`advanceQueuedJobs`、`checkRepliesForLeads`、`runScheduledEmailBatch`、`runDailyDuplicateDomainCleanup`が各1件であることを確認した。
+- 本番`getAppInfo`でv270、重複監査でドメイングループ0件・重複0件、固定Web app URLの@272を確認した。
+- `node scripts/smoke-test.js`、JavaScript構文確認、`git diff --check`が成功。外部検索・メール送信・フォーム送信は実行していない。
 
 ## v269 確認待ちの画面内編集とドメイン重複防止
 

@@ -40,6 +40,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `AppSafetyStrip` / `AppTopShortcutBar` / `AppRouteProgress` に寄せた運用ステータスバー、上部ショートカット、タブ切替進行バー
 - 確認待ち専用メニュー、確認待ち/収集ツールを優先した上部ショートカット、確認待ち候補だけを読む軽量キュー画面、施設名・メールの画面内編集
 - 公式サイトドメイン単位の作成・編集・収集時重複防止、および履歴を保全する既存重複アーカイブ整理
+- 毎日3時台に公式サイトドメインの重複を自動監査し、履歴を優先して重複側をアーカイブする日次トリガー
 - 旧Next/Supabase版の `AppFrame` に寄せたサイドバーのリスト/運用グループ順序
 - 旧Next/Supabase版の `AppNavLink` / `AppTopShortcutBar` に寄せた線アイコン表示と一次メニューのみのサイドバー構成
 - 旧Next/Supabase版の `BackgroundJobWidgets` / `BackgroundJobToasts` / `BackgroundJobCenter` に寄せた共通ジョブ通知と戻るボタン
@@ -97,8 +98,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @271 / production code v269: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
-- Apps Script HEAD / repository code v269: `20260720_apps_script_full_workflow_v269_review_edit_domain_dedupe`
+- Web app deployment @272 / production code v270: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Apps Script HEAD / repository code v270: `20260720_apps_script_full_workflow_v270_daily_domain_dedupe`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。

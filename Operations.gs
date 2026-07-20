@@ -2099,6 +2099,32 @@ function ensureAutomaticMailTrigger_() {
   });
 }
 
+function runDailyDuplicateDomainCleanup() {
+  try {
+    const result = repairDuplicateLeadDomains({
+      dryRun: false,
+      scanLimit: 20000,
+      maxGroups: 50,
+      lockWaitMs: 6000,
+    });
+    return Object.assign({}, result, {
+      scheduled: true,
+      schedule: 'daily',
+    });
+  } catch (error) {
+    appendSyncError_('runDailyDuplicateDomainCleanup', error, {
+      source: 'daily_trigger',
+    });
+    throw error;
+  }
+}
+
+function ensureDailyDuplicateDomainCleanupTrigger_() {
+  return ensureSingleProjectTrigger_('runDailyDuplicateDomainCleanup', function () {
+    return ScriptApp.newTrigger('runDailyDuplicateDomainCleanup').timeBased().atHour(3).everyDays(1).create();
+  });
+}
+
 function getProjectTriggerHandlerCount_(handler) {
   try {
     return ScriptApp.getProjectTriggers().filter(function (trigger) {
@@ -2132,7 +2158,12 @@ function ensureSingleProjectTrigger_(handler, createTrigger) {
 
 function installDefaultTriggers() {
   return withScriptLock_('installDefaultTriggers', function () {
-    const ensured = [ensureBackgroundJobTrigger_(), ensureReplyCheckTrigger_(), ensureAutomaticMailTrigger_()];
+    const ensured = [
+      ensureBackgroundJobTrigger_(),
+      ensureReplyCheckTrigger_(),
+      ensureAutomaticMailTrigger_(),
+      ensureDailyDuplicateDomainCleanupTrigger_(),
+    ];
     clearRuntimeCaches_('triggers');
     return {
       ok: true,

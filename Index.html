@@ -26211,7 +26211,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function installTriggers() {
         const result = await api('installDefaultTriggers');
-        message(`トリガー: ${result.triggers.length}件 / 完全自動送信を有効化しました`, 'ok');
+        message(`トリガー: ${result.triggers.length}件 / 完全自動送信と毎日の重複ドメイン整理を有効化しました`, 'ok');
         await refreshAll();
       }
 

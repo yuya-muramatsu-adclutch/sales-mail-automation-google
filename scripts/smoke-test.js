@@ -2067,8 +2067,11 @@ const triggerContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8'), triggerContext, { filename: 'Operations.gs' });
 const installedTriggers = [];
 let automaticMailCadence = 0;
+let dailyDuplicateCleanupHour = null;
 triggerContext.withScriptLock_ = (_operation, callback) => callback();
 triggerContext.clearRuntimeCaches_ = () => {};
+triggerContext.repairDuplicateLeadDomains = (options) => ({ ok: true, archived: 2, options });
+triggerContext.appendSyncError_ = () => {};
 triggerContext.ScriptApp = {
   getProjectTriggers: () => installedTriggers,
   deleteTrigger: (trigger) => installedTriggers.splice(installedTriggers.indexOf(trigger), 1),
@@ -2079,15 +2082,38 @@ triggerContext.ScriptApp = {
         installedTriggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK' });
       } }),
       everyHours: (_hours) => ({ create: () => installedTriggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK' }) }),
+      atHour: (hour) => ({
+        everyDays: (_days) => ({ create: () => {
+          if (handler === 'runDailyDuplicateDomainCleanup') dailyDuplicateCleanupHour = hour;
+          installedTriggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK' });
+        } }),
+      }),
     }),
   }),
 };
 const installed = triggerContext.installDefaultTriggers();
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(installed.triggers.map((trigger) => trigger.handler).sort())),
-  ['advanceQueuedJobs', 'checkRepliesForLeads', 'runScheduledEmailBatch']
+  ['advanceQueuedJobs', 'checkRepliesForLeads', 'runDailyDuplicateDomainCleanup', 'runScheduledEmailBatch']
+);
+const reinstalled = triggerContext.installDefaultTriggers();
+assert.strictEqual(reinstalled.triggers.length, 4, 'reinstalling defaults must not create duplicate triggers');
+assert.strictEqual(
+  reinstalled.triggers.filter((trigger) => trigger.handler === 'runDailyDuplicateDomainCleanup').length,
+  1
 );
 assert.strictEqual(automaticMailCadence, 10);
+assert.strictEqual(dailyDuplicateCleanupHour, 3);
+const dailyDuplicateCleanup = triggerContext.runDailyDuplicateDomainCleanup();
+assert.strictEqual(dailyDuplicateCleanup.archived, 2);
+assert.strictEqual(dailyDuplicateCleanup.scheduled, true);
+assert.strictEqual(dailyDuplicateCleanup.schedule, 'daily');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(dailyDuplicateCleanup.options)), {
+  dryRun: false,
+  scanLimit: 20000,
+  maxGroups: 50,
+  lockWaitMs: 6000,
+});
 
 const historyContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), historyContext, { filename: 'Code.gs' });
@@ -3047,7 +3073,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260720_apps_script_full_workflow_v269_review_edit_domain_dedupe'));
+assert(codeSource.includes('20260720_apps_script_full_workflow_v270_daily_domain_dedupe'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3870,4 +3896,4 @@ assert(webAppSource.includes("if (!isExpectedOperationError_(error))"));
 assert(indexSource.includes('解消済みの履歴'));
 assert(indexSource.includes("logs.filter((log) => appDateKey(log.created_at) === today)"));
 
-console.log('v269 review edit and domain dedupe regression tests passed.');
+console.log('v270 daily domain dedupe regression tests passed.');
