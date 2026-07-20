@@ -267,6 +267,53 @@ assert.strictEqual(cachedLeadListReads, 1, 'identical lead list filters must reu
 cachedLeadListContext.bumpLeadListCacheRevision_();
 cachedLeadListContext.listLeads({ includeStats: false, limit: 50 });
 assert.strictEqual(cachedLeadListReads, 2, 'lead list cache revision changes must invalidate old filter results');
+const primaryFilterBundleContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), primaryFilterBundleContext, { filename: file });
+});
+const primaryFilterCache = new Map();
+const primaryFilterProperties = {};
+let primaryFilterReads = 0;
+primaryFilterBundleContext.CacheService = {
+  getScriptCache: () => ({
+    get: (key) => primaryFilterCache.get(key) || null,
+    put: (key, value) => { primaryFilterCache.set(key, value); },
+  }),
+};
+primaryFilterBundleContext.PropertiesService = {
+  getScriptProperties: () => ({
+    getProperty: (key) => primaryFilterProperties[key] || '',
+    setProperty: (key, value) => { primaryFilterProperties[key] = value; },
+  }),
+};
+primaryFilterBundleContext.readSheetRecordFields_ = () => {
+  primaryFilterReads += 1;
+  return leadStateFixtures.map((lead, index) => Object.assign({
+    id: `primary-${index}`,
+    source: index === 2 ? 'source_page' : 'manual',
+    genre: 'テスト',
+    form_status: '未対応',
+    deal_status: '未設定',
+    updated_at: `2026-07-20T00:${String(index).padStart(2, '0')}:00Z`,
+  }, lead));
+};
+primaryFilterBundleContext.buildLeadListMasterContext_ = () => ({});
+const readyPrimaryList = primaryFilterBundleContext.listLeads({
+  filter: 'group_ready',
+  genre: 'テスト',
+  includeStats: false,
+  limit: 50,
+});
+const noContactPrimaryList = primaryFilterBundleContext.listLeads({
+  filter: 'group_no_contact',
+  genre: 'テスト',
+  includeStats: false,
+  limit: 50,
+});
+assert.strictEqual(readyPrimaryList.total, 2);
+assert(noContactPrimaryList.items.some((lead) => lead.fixture === 'no_contact'));
+assert.strictEqual(noContactPrimaryList.cacheHit, true, 'switching primary lead filters must reuse the bundled cache');
+assert.strictEqual(primaryFilterReads, 1, 'primary filter bundle must avoid another full lead-sheet read');
 unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
 unlockedMailContext.ensureSheet_ = () => ({});
 const unlockedMailHistoryFixtures = [
@@ -708,6 +755,33 @@ const gapMergedSelectedFields = JSON.parse(JSON.stringify(selectedFieldContext.r
 )));
 assert.deepStrictEqual(selectedFieldRanges, [{ column: 2, columnCount: 5 }]);
 assert.strictEqual(Object.prototype.hasOwnProperty.call(gapMergedSelectedFields[0], 'query_json'), false, 'gap merging must not expose unrequested fields');
+
+const leadProjectionHeaders = JSON.parse(JSON.stringify(vm.runInContext('SHEET_DEFINITIONS.leads', selectedFieldContext)));
+const leadProjectionRanges = [];
+const leadProjectionSheet = {
+  getLastColumn: () => leadProjectionHeaders.length,
+  getLastRow: () => 2,
+  getRange: (row, column, rowCount, columnCount) => {
+    if (row === 1) return { getValues: () => [leadProjectionHeaders] };
+    leadProjectionRanges.push({ column, columnCount });
+    const values = Array.from({ length: leadProjectionHeaders.length }, () => '');
+    values[0] = 'lead-projection';
+    values[15] = '未対応';
+    values[43] = '2026-07-20T00:00:00Z';
+    return { getValues: () => [values.slice(column - 1, column - 1 + columnCount)] };
+  },
+};
+selectedFieldContext.ensureSheet_ = () => leadProjectionSheet;
+selectedFieldContext.readSheetRecordFields_(
+  'leads',
+  selectedFieldContext.leadListFields_([]),
+  { maxGapColumns: vm.runInContext('LEAD_LIST_READ_MAX_GAP_COLUMNS_', selectedFieldContext) }
+);
+assert.deepStrictEqual(leadProjectionRanges, [
+  { column: 1, columnCount: 17 },
+  { column: 22, columnCount: 7 },
+  { column: 43, columnCount: 3 },
+], 'lead list projection must use three Sheets reads instead of ten fragmented reads');
 
 const hardDeleteReferences = context.listLeadHardDeleteReferences_({ id: 'lead-1', calendar_event_id: '' }, {
   send_histories: [],
@@ -2377,7 +2451,7 @@ assert.strictEqual(projectedLeadListResult.items[0].source_payload_json, undefin
 assert(requestedLeadListFields.includes('contact_name'));
 assert(!requestedLeadListFields.includes('not_a_lead_field'));
 assert(!requestedLeadListFields.includes('source_payload_json'));
-assert.deepStrictEqual(requestedLeadListOptions, { maxGapColumns: 0 });
+assert.deepStrictEqual(requestedLeadListOptions, { maxGapColumns: 2 });
 
 const scheduledJobClaimFields = JSON.parse(JSON.stringify(leadListContext.scheduledEmailJobClaimFields_()));
 assert.deepStrictEqual(scheduledJobClaimFields, [
@@ -2923,7 +2997,7 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260720_apps_script_full_workflow_v265_error_resolution'));
+assert(codeSource.includes('20260720_apps_script_full_workflow_v266_lead_filter_batches'));
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -2941,7 +3015,10 @@ assert(codeSource.includes('function listEmailSendCandidates'));
 const listLeadsStart = codeSource.indexOf('function listLeads(options)');
 const listLeadsEnd = codeSource.indexOf('\nfunction ', listLeadsStart + 10);
 const listLeadsBody = codeSource.slice(listLeadsStart, listLeadsEnd);
-assert(listLeadsBody.includes("readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: 0 })"));
+assert(listLeadsBody.includes("readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: LEAD_LIST_READ_MAX_GAP_COLUMNS_ })"));
+assert(codeSource.includes('const LEAD_LIST_READ_MAX_GAP_COLUMNS_ = 2'));
+assert(codeSource.includes('function buildLeadListPrimaryFilterBundle_'));
+assert(codeSource.includes("String(source.filter || '').indexOf('group_') === 0"));
 assert(!listLeadsBody.includes('readSheetRecords_('), 'sales list must not read every lead column');
 const listEmailCandidatesStart = codeSource.indexOf('function listEmailSendCandidates(options)');
 const listEmailCandidatesEnd = codeSource.indexOf('\nfunction ', listEmailCandidatesStart + 10);
@@ -2965,6 +3042,8 @@ const masterRulesEnd = masterRulesSource.indexOf('\nfunction ', masterRulesStart
 const masterRulesBody = masterRulesSource.slice(masterRulesStart, masterRulesEnd);
 assert(masterRulesBody.includes("readAllActiveSheetRecords_('ng_masters')"));
 assert(masterRulesBody.includes("readAllActiveSheetRecords_('excluded_domains')"));
+assert(masterRulesBody.includes('readMasterBlockRulesCache_()'));
+assert(masterRulesBody.includes('writeMasterBlockRulesCache_(context)'));
 assert(!masterRulesBody.includes('buildMailSendSafetyContext_'));
 assert(codeSource.includes('function repairReviewLeadsWithoutContact'));
 assert(codeSource.includes('function repairNonAdvertiserReviewLeads'));
@@ -3095,6 +3174,8 @@ assert(codeSource.includes('countSheetExactMatches_'));
 const mastersSource = fs.readFileSync(path.join(root, 'Masters.gs'), 'utf8');
 assert(mastersSource.includes("ngMasters: readAllActiveSheetRecords_('ng_masters')"));
 assert(mastersSource.includes("excludedDomains: readAllActiveSheetRecords_('excluded_domains')"));
+assert(mastersSource.includes('function clearMasterBlockRulesCache_'));
+assert(repositorySource.includes('clearMasterBlockRulesCache_();'));
 assert(!mastersSource.includes("listSheetRecords('email_templates', { limit: 1000, includeInactive: true })"));
 assert(emailSource.includes("const templates = readAllActiveSheetRecords_('email_templates')"));
 assert(codeSource.includes("'FORM_SEND_NOT_RECORDED'"));
@@ -3712,4 +3793,4 @@ assert(webAppSource.includes("if (!isExpectedOperationError_(error))"));
 assert(indexSource.includes('解消済みの履歴'));
 assert(indexSource.includes("logs.filter((log) => appDateKey(log.created_at) === today)"));
 
-console.log('v265 error resolution regression tests passed.');
+console.log('v266 lead filter batch regression tests passed.');

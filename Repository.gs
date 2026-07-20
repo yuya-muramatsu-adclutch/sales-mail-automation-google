@@ -873,6 +873,9 @@ function clearRuntimeCaches_(changedSheetName) {
   if (String(changedSheetName || '') === 'settings') {
     clearSettingsRecordsCache_();
   }
+  if (['ng_masters', 'excluded_domains'].indexOf(String(changedSheetName || '')) !== -1 && typeof clearMasterBlockRulesCache_ === 'function') {
+    clearMasterBlockRulesCache_();
+  }
   if (['leads', 'ng_masters', 'excluded_domains', 'send_histories'].indexOf(String(changedSheetName || '')) !== -1) {
     bumpLeadListCacheRevision_();
   }

@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260720_apps_script_full_workflow_v265_error_resolution';
+const APP_VERSION = '20260720_apps_script_full_workflow_v266_lead_filter_batches';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -779,10 +779,14 @@ function leadListFields_(additionalFields) {
   return Array.from(new Set(baseFields.concat(extras)));
 }
 
-const LEAD_LIST_CACHE_TTL_SECONDS_ = 45;
+const LEAD_LIST_CACHE_TTL_SECONDS_ = 120;
 const LEAD_LIST_STATS_CACHE_TTL_SECONDS_ = 120;
 const LEAD_LIST_CACHE_MAX_CHARS_ = 95000;
 const LEAD_LIST_CACHE_REVISION_PROPERTY_ = 'LEAD_LIST_CACHE_REVISION_V1';
+const LEAD_LIST_READ_MAX_GAP_COLUMNS_ = 2;
+const LEAD_LIST_PRIMARY_FILTERS_ = Object.freeze(['all'].concat(LEAD_LIST_STATE_GROUP_DEFINITIONS_.map(function (definition) {
+  return 'group_' + definition.key;
+})));
 
 function leadListCacheRevision_() {
   try {
@@ -883,13 +887,72 @@ function buildLeadListMasterContext_() {
   return buildMasterBlockRulesContext_();
 }
 
+function canBuildLeadListPrimaryFilterBundle_(query) {
+  const source = query && typeof query === 'object' ? query : {};
+  return String(source.filter || '').indexOf('group_') === 0 &&
+    LEAD_LIST_PRIMARY_FILTERS_.indexOf(String(source.filter || '')) !== -1 &&
+    Number(source.offset || 0) === 0 &&
+    String(source.sort || 'updated_desc') === 'updated_desc' &&
+    !source.search &&
+    !source.status &&
+    !source.formStatus &&
+    source.includeArchived !== true &&
+    source.includeStats === false;
+}
+
+function buildLeadListPrimaryFilterBundle_(rows, query, masterContext) {
+  if (!canBuildLeadListPrimaryFilterBundle_(query)) return null;
+
+  const groupByState = LEAD_LIST_STATE_GROUP_DEFINITIONS_.reduce(function (result, definition) {
+    definition.states.forEach(function (stateKey) {
+      result[stateKey] = 'group_' + definition.key;
+    });
+    return result;
+  }, {});
+  const buckets = LEAD_LIST_PRIMARY_FILTERS_.reduce(function (result, filter) {
+    result[filter] = [];
+    return result;
+  }, {});
+  const activeRows = (rows || []).filter(function (lead) {
+    if (isArchivedLead_(lead)) return false;
+    return !query.genre || String(lead.genre || '') === query.genre;
+  });
+  sortLeads_(activeRows, 'updated_desc');
+  activeRows.forEach(function (lead) {
+    buckets.all.push(lead);
+    const groupFilter = groupByState[classifyLeadListState_(lead, masterContext)];
+    if (groupFilter && buckets[groupFilter]) buckets[groupFilter].push(lead);
+  });
+
+  let selectedResponse = null;
+  LEAD_LIST_PRIMARY_FILTERS_.forEach(function (filter) {
+    const items = buckets[filter] || [];
+    const variantQuery = Object.assign({}, query, { filter: filter });
+    const response = {
+      total: items.length,
+      offset: 0,
+      limit: query.limit,
+      filter: filter,
+      genre: query.genre,
+      sort: query.sort,
+      items: items.slice(0, query.limit),
+      cacheHit: false,
+    };
+    writeLeadListCache_('page', leadListCachePayload_(variantQuery), response, LEAD_LIST_CACHE_TTL_SECONDS_);
+    if (filter === query.filter) selectedResponse = response;
+  });
+  return selectedResponse;
+}
+
 function listLeads(options) {
   const query = normalizeListOptions_(options);
   const cachePayload = leadListCachePayload_(query);
   const cached = readLeadListCache_('page', cachePayload);
   if (cached) return cached;
-  const rows = readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: 0 });
+  const rows = readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: LEAD_LIST_READ_MAX_GAP_COLUMNS_ });
   const masterContext = leadListQueryNeedsMasterContext_(query) ? buildLeadListMasterContext_() : {};
+  const primaryFilterResponse = buildLeadListPrimaryFilterBundle_(rows, query, masterContext);
+  if (primaryFilterResponse) return primaryFilterResponse;
   const filtered = rows.filter(function (lead) {
     if (!query.includeArchived && isArchivedLead_(lead)) {
       return false;
@@ -951,7 +1014,7 @@ function getLeadListStats(options) {
   const cached = readLeadListCache_('stats', cachePayload);
   if (cached) return cached;
 
-  const rows = readSheetRecordFields_('leads', leadListFields_([]), { maxGapColumns: 0 });
+  const rows = readSheetRecordFields_('leads', leadListFields_([]), { maxGapColumns: LEAD_LIST_READ_MAX_GAP_COLUMNS_ });
   const stats = buildLeadListStats_(rows, buildLeadListMasterContext_(), genre);
   const response = {
     genre: genre,

@@ -5,9 +5,19 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @266 / production code v265: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @267 / production code v266: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v265_error_resolution`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v266_lead_filter_batches`
+
+## v266 営業リスト絞り込みの追加高速化
+
+- 営業リストの標準19項目を列ごとに細かく取得していたため、1回の絞り込みでGoogle Sheetsへの読み取りが約10回発生していた。最大2列の空きをまとめて取得する方式へ変更し、標準表示では3回の範囲取得に削減した。
+- 「送信準備」「確認待ち」「対応中」「連絡先なし」「送信NG」「完了」の主要分類を、最初に選んだ分類の全件走査1回で同時作成する。以後の分類切替は120秒のサーバーキャッシュを使い、同じ営業リストを再読込しない。
+- NGマスターと除外ドメインの判定用データを5分間再利用する。マスターを追加・更新・削除した場合は即時無効化するため、送信可否の安全条件は維持される。
+- リード、NGマスター、除外ドメイン、送信履歴の更新時は従来どおり一覧キャッシュのリビジョンを更新し、古い分類結果を使用しない。
+- 回帰テストで標準取得が10回から3回にまとまること、主要分類を切り替えても2回目はリードシートを再読込しないこと、既存の送信・フォーム・確認待ち分類が維持されることを確認した。
+- `node scripts/smoke-test.js`、`node --check scripts/smoke-test.js`、`Index.html`内JavaScript構文確認、`git diff --check`、`clasp push`が成功。固定Web app URLへ@267として再デプロイした。
+- 外部検索、メール送信、フォーム送信、営業データ変更は検証中に実行していない。
 
 ## v265 7月17日以降のエラー整理と再発防止
 

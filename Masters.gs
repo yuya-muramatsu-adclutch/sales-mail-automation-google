@@ -539,11 +539,61 @@ function isLeadBlockedByMasters_(lead) {
   return isLeadBlockedByMastersInContext_(lead, buildMasterBlockRulesContext_());
 }
 
+const MASTER_BLOCK_RULES_CACHE_TTL_SECONDS_ = 300;
+const MASTER_BLOCK_RULES_CACHE_MAX_CHARS_ = 95000;
+
+function masterBlockRulesCacheKey_() {
+  return 'master_block_rules_' + String(APP_VERSION || 'v1');
+}
+
+function readMasterBlockRulesCache_() {
+  try {
+    if (typeof CacheService === 'undefined') return null;
+    const cached = CacheService.getScriptCache().get(masterBlockRulesCacheKey_());
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    if (!parsed || !Array.isArray(parsed.ngMasters) || !Array.isArray(parsed.excludedDomains)) return null;
+    return parsed;
+  } catch (error) {
+    console.warn('Master block rules cache read skipped: ' + error.message);
+    return null;
+  }
+}
+
+function writeMasterBlockRulesCache_(context) {
+  try {
+    if (typeof CacheService === 'undefined') return false;
+    const serialized = JSON.stringify(context || {});
+    const serializedSize = typeof Utilities !== 'undefined' && Utilities.newBlob
+      ? Utilities.newBlob(serialized).getBytes().length
+      : serialized.length;
+    if (!serialized || serializedSize > MASTER_BLOCK_RULES_CACHE_MAX_CHARS_) return false;
+    CacheService.getScriptCache().put(masterBlockRulesCacheKey_(), serialized, MASTER_BLOCK_RULES_CACHE_TTL_SECONDS_);
+    return true;
+  } catch (error) {
+    console.warn('Master block rules cache write skipped: ' + error.message);
+    return false;
+  }
+}
+
+function clearMasterBlockRulesCache_() {
+  try {
+    if (typeof CacheService === 'undefined') return;
+    CacheService.getScriptCache().remove(masterBlockRulesCacheKey_());
+  } catch (error) {
+    console.warn('Master block rules cache clear skipped: ' + error.message);
+  }
+}
+
 function buildMasterBlockRulesContext_() {
-  return {
+  const cached = readMasterBlockRulesCache_();
+  if (cached) return cached;
+  const context = {
     ngMasters: readAllActiveSheetRecords_('ng_masters'),
     excludedDomains: readAllActiveSheetRecords_('excluded_domains'),
   };
+  writeMasterBlockRulesCache_(context);
+  return context;
 }
 
 function buildMasterBlockContext_() {
