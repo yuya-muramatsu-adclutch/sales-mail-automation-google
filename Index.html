@@ -10721,7 +10721,7 @@
 
       .review-inline-edit-form {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
         align-items: end;
         gap: 12px;
         padding: 16px;
@@ -10739,7 +10739,8 @@
         font-weight: 900;
       }
 
-      .review-inline-edit-form input {
+      .review-inline-edit-form input,
+      .review-inline-edit-form select {
         width: 100%;
         min-height: 40px;
         border-color: #bfdbfe;
@@ -15948,6 +15949,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const saving = isReviewLeadPendingSave(selected.id);
         const editing = state.reviewEditingLeadId === selected.id;
         const editSaving = editing && state.reviewEditSaving === true;
+        const selectedGenreName = String(selected.genre || '').trim();
+        const reviewGenreNames = (state.genres || []).map((genre) => String(genre.name || '').trim()).filter((name, index, names) => name && names.indexOf(name) === index);
+        if (selectedGenreName && reviewGenreNames.indexOf(selectedGenreName) === -1) reviewGenreNames.unshift(selectedGenreName);
+        const reviewGenreOptions = [''].concat(reviewGenreNames).map((name) => `<option value="${escapeHtml(name)}" ${name === selectedGenreName ? 'selected' : ''}>${escapeHtml(name || '未設定')}</option>`).join('');
         const website = selected.website_url
           ? `<a href="${escapeHtml(externalUrl(selected.website_url))}" target="_blank" rel="noopener">WEBサイトを開く</a>`
           : '<strong>未取得</strong>';
@@ -15977,6 +15982,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <form class="review-inline-edit-form" onsubmit="saveReviewInboxLeadEdit(event, '${escapeJsString(selected.id)}')">
                 <label>施設名<input id="reviewInlineFacility" value="${escapeHtml(selected.facility_name || selected.company_name || '')}" required autocomplete="organization-title" ${editSaving ? 'disabled' : ''}></label>
                 <label>メールアドレス<input id="reviewInlineEmail" type="email" value="${escapeHtml(selected.email || '')}" autocomplete="email" placeholder="info@example.com" ${editSaving ? 'disabled' : ''}></label>
+                <label>ジャンル<select id="reviewInlineGenre" ${editSaving ? 'disabled' : ''}>${reviewGenreOptions}</select></label>
                 <span class="review-inline-edit-actions">
                   <button type="submit" class="primary" ${editSaving ? 'disabled' : ''}>${editSaving ? '保存中' : '保存'}</button>
                   <button type="button" onclick="cancelReviewInboxEdit()" ${editSaving ? 'disabled' : ''}>キャンセル</button>
@@ -15994,7 +16000,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             <div class="review-inbox-actions">
               <button type="button" class="primary-action" onclick="reviewInboxUpdate('対応中')" aria-keyshortcuts="A" title="確認済み (A)" ${saving ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}${saving ? '保存中' : '確認済み'}</button>
               <button type="button" onclick="deferReviewInboxLead()" aria-keyshortcuts="ArrowDown" title="次へ (↓)">${legacyUiIcon('arrowRight')}後で</button>
-              <button type="button" onclick="startReviewInboxEdit('${escapeJsString(selected.id)}')">${legacyUiIcon('pencil')}施設名・メールを編集</button>
+              <button type="button" onclick="startReviewInboxEdit('${escapeJsString(selected.id)}')">${legacyUiIcon('pencil')}施設名・メール・ジャンルを編集</button>
               <button type="button" class="danger" onclick="reviewInboxUpdate('送信NG')" aria-keyshortcuts="N" title="送信NG (N)" ${saving ? 'disabled' : ''}>${legacyUiIcon('shieldAlert')}送信NG</button>
               <button type="button" class="danger" onclick="reviewInboxUpdate('対応不要')" ${saving ? 'disabled' : ''}>${legacyUiIcon('xCircle')}対応不要</button>
             </div>
@@ -16032,22 +16038,24 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (form && typeof form.reportValidity === 'function' && !form.reportValidity()) return;
         const facilityName = String(document.getElementById('reviewInlineFacility')?.value || '').trim();
         const email = String(document.getElementById('reviewInlineEmail')?.value || '').trim().toLowerCase();
+        const genre = String(document.getElementById('reviewInlineGenre')?.value || '').trim();
         if (!facilityName) {
           message('施設名を入力してください', 'error');
           return;
         }
         state.reviewEditSaving = true;
-        Array.from(form.querySelectorAll('input, button')).forEach((control) => { control.disabled = true; });
+        Array.from(form.querySelectorAll('input, select, button')).forEach((control) => { control.disabled = true; });
         const submit = form.querySelector('button[type="submit"]');
         if (submit) submit.textContent = '保存中';
         try {
           const savedLead = await apiQuiet('updateLead', id, {
             facility_name: facilityName,
             email,
+            genre,
           });
           mergeAuthoritativeLeadIntoClientLists(savedLead);
           state.reviewEditingLeadId = '';
-          message('施設名とメールアドレスを保存しました', 'ok');
+          message('施設名・メールアドレス・ジャンルを保存しました', 'ok');
         } catch (error) {
           message(`保存できませんでした: ${apiErrorText(error)}`, 'error');
         } finally {
@@ -16144,7 +16152,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return `
           <span class="review-action-row">
             <button type="button" class="table-link-button primary-row-action" onclick="updateReviewLeadStatus('${id}', '対応中')" ${saving ? 'disabled' : ''}>${saving ? '保存中' : '確認済み'}</button>
-            <button type="button" class="table-link-button" onclick="startReviewInboxEdit('${id}')">施設名・メール編集</button>
+            <button type="button" class="table-link-button" onclick="startReviewInboxEdit('${id}')">施設名・メール・ジャンル編集</button>
             <button type="button" class="table-link-button danger-row-action" onclick="updateReviewLeadStatus('${id}', '対応不要')" ${saving ? 'disabled' : ''}>対応不要</button>
           </span>
         `;

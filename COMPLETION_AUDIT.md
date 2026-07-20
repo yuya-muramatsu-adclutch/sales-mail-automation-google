@@ -5,9 +5,17 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @275 / production code v273: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @276 / production code v274: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v273_third_party_listing_exclusions`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v274_review_genre_edit`
+
+## v274 確認待ち画面のジャンル編集
+
+- 確認待ちの詳細カードと表形式一覧から開く編集フォームに「ジャンル」を追加し、施設名・メールアドレス・ジャンルを同時に保存できるようにした。
+- ジャンルは有効なジャンルマスタから選択するプルダウンとし、自由入力による表記ゆれを防止した。現在値が無効化済みのジャンルでも編集時は保持して表示し、「未設定」への変更も可能にした。
+- 保存中は入力・選択・ボタンをまとめて無効化し、二重送信を防止する。保存成功後はサーバーが返した最新リードを確認キュー、詳細カード、表形式一覧へ反映する。
+- `node scripts/smoke-test.js`、`Code.gs`のJavaScript構文確認、`git diff --check`、`clasp push`が成功。固定Web app URLを@276へ更新し、認証付き`getAppInfo`でv274を確認した。
+- 検証では営業データの更新、外部検索、メール送信、フォーム送信を実行していない。
 
 ## v273 第三者の観光・公共施設・体験商品・地域記事ページを収集除外
 
