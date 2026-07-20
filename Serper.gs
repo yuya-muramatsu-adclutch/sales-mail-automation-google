@@ -2684,10 +2684,11 @@ function isTourismAssociationListingSearchResult_(result) {
     decodedPath = path;
   }
   const text = [source.title, source.snippet].join(' ');
-  const associationText = /(?:観光協会|公式観光(?:ガイド|情報)|観光情報(?:サイト|ポータル)|行政サイト|(?:市|区|町|村)(?:役所|役場)|tourism association|official tourism guide|municipal(?:ity)? website)/i.test(text);
+  const associationText = /(?:観光協会|公式観光(?:ガイド|情報)|観光情報(?:サイト|ポータル)|(?:地域|エリア)観光|観光推進(?:実行)?委員会|行政サイト|(?:市|区|町|村)(?:役所|役場)|tourism association|official tourism guide|municipal(?:ity)? website)/i.test(text);
+  const nationwideDirectoryText = /(?:(?:全国|日本全国).{0,24}(?:キャンプ場|キャンプサイト).{0,24}(?:検索|地図|一覧)|(?:every|all).{0,24}campsites?.{0,24}(?:japan|map)|search\s+[\d,]+\+?\s+(?:camp)?sites?)/i.test(text);
   const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|articles?|archives?|guides?|guideposts?|features?|information|facilit(?:y|ies)|accommodations?|lodgings?|stay|play|leisure|detail(?:[_/-]|$))(?:\/|$)/i.test(path) ||
     /\/(?:目的で選ぶ|観光スポット|施設|宿泊|遊ぶ)(?:\/|$)/i.test(decodedPath);
-  return associationText && listingPath;
+  return nationwideDirectoryText || (associationText && listingPath);
 }
 
 function selectLeadSearchResult_(results, jobType, context) {

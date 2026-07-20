@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260720_apps_script_full_workflow_v271_non_advertiser_portal_exclusions';
+const APP_VERSION = '20260720_apps_script_full_workflow_v272_jp_camp_kumano_portal_exclusions';
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -3042,6 +3042,8 @@ const NON_ADVERTISER_LEAD_DOMAINS_ = Object.freeze([
   'town-kofu.jp',
   'katsuragi-kanko.jp',
   'hokuei-kankou.jp',
+  'jpcamp.jp',
+  'kumano-area.jp',
   'nap-camp.com',
   'camp-go.com',
   'campla.jp',

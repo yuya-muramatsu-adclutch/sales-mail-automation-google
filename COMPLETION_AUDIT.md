@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @273 / production code v271: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @274 / production code v272: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v271_non_advertiser_portal_exclusions`
+- Apps Script HEAD / repository code: `20260720_apps_script_full_workflow_v272_jp_camp_kumano_portal_exclusions`
+
+## v272 jpcamp・熊野エリア観光の収集除外
+
+- `jpcamp.jp`を全国のキャンプ場を横断掲載する検索ディレクトリ、`kumano-area.jp`を観光推進実行委員会が複数施設を掲載する地域観光ポータルとして収集対象外へ追加した。2ドメインは本番の除外ドメイン管理にも有効状態で登録した。
+- 検索結果のタイトル・説明に「全国・日本全国のキャンプ場検索/地図」「Every campsite in Japan」「Search 6,200+ sites」等の全国ディレクトリ表現がある場合は、公式サイト候補から除外する。
+- 「地域観光」「エリア観光」「観光推進実行委員会」等の運営表現と、`facility`等の施設紹介パスが組み合わさる場合も除外する。施設運営者の通常ページや、これらの語句だけでは除外しない。
+- 本番10,127件を全件監査し、`kumano-area.jp`の「円満地公園オートキャンプ場」と`jpcamp.jp`の「天空のワイルドキャンプ山」の2件を検出した。送信・返信・商談履歴がなく自動収集されたデータだけを`収集対象外サイト`としてアーカイブした。
+- 整理後の再監査は該当0件。`node scripts/smoke-test.js`、JavaScript構文確認、`git diff --check`、`clasp push`が成功し、固定Web app URLを@274へ更新、本番`getAppInfo`でv272を確認した。
+- 外部検索、メール送信、フォーム送信は実行していない。履歴保全のため物理削除ではなくアーカイブとしている。
 
 ## v271 観光協会・自治体・全国検索ポータルの追加除外
 
