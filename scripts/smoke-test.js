@@ -4225,7 +4225,7 @@ const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-assert(codeSource.includes('20260802_apps_script_full_workflow_v327_productivity_suite'));
+assert(codeSource.includes('20260803_apps_script_full_workflow_v328_compact_review_controls'));
 const appInfoContext = vm.createContext({ console });
 vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
 appInfoContext.PropertiesService = {
@@ -5851,7 +5851,7 @@ const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
   urlFetchRecordedToday: 0,
   batchRuntimeBudgetMs: 240000,
 });
-assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 327);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 328);
 assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
 assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
 assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
@@ -5865,7 +5865,7 @@ const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
     status: 'danger',
   },
 });
-assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 327);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 328);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
@@ -5974,7 +5974,7 @@ assert(webAppSource.includes("if (action === 'getDashboardData') return getDashb
 assert(webAppSource.includes("if (!isExpectedOperationError_(error))"));
 assert(indexSource.includes('解消済みの履歴'));
 assert(indexSource.includes("logs.filter((log) => appDateKey(log.created_at) === today)"));
-const reviewInboxActionsStart = indexSource.indexOf('<div class="review-inbox-actions">');
+const reviewInboxActionsStart = indexSource.indexOf('<div class="review-inbox-actions"');
 const reviewInboxActionsEnd = indexSource.indexOf('</div>', reviewInboxActionsStart);
 assert(reviewInboxActionsStart >= 0 && reviewInboxActionsEnd > reviewInboxActionsStart);
 const reviewInboxActionsSource = indexSource.slice(reviewInboxActionsStart, reviewInboxActionsEnd);
@@ -5986,14 +5986,22 @@ assert(reviewInboxActionsSource.includes('setReviewTriageOverrideClient('));
 assert(reviewInboxActionsSource.includes('openDomainHistory('));
 assert(!reviewInboxActionsSource.includes('deferReviewInboxLead()'));
 assert(!reviewInboxActionsSource.includes("reviewInboxUpdate('対応不要')"));
+assert(reviewInboxActionsSource.includes('aria-label="施設名・メール・ジャンルを編集"'));
+assert(reviewInboxActionsSource.includes('情報を編集'));
 const reviewInboxHeaderStart = indexSource.indexOf('<header class="review-inbox-detail-header">');
 const reviewInboxHeaderEnd = indexSource.indexOf('</header>', reviewInboxHeaderStart);
 assert(reviewInboxHeaderStart >= 0 && reviewInboxHeaderEnd > reviewInboxHeaderStart);
+assert(reviewInboxActionsStart > reviewInboxHeaderEnd, 'review actions must be directly below the facility header');
+assert(reviewInboxActionsStart < indexSource.indexOf('<div class="review-inbox-detail-grid">', reviewInboxActionsStart), 'review actions must appear before lead details');
 const reviewInboxHeaderSource = indexSource.slice(reviewInboxHeaderStart, reviewInboxHeaderEnd);
 assert(reviewInboxHeaderSource.includes('${headerWebsite}'));
 assert(!reviewInboxHeaderSource.includes("selected.company_name || ''"), 'the review detail header must not repeat the company or facility name');
 assert(indexSource.includes('class="review-inbox-detail-url"'));
 assert(indexSource.includes("'<p class=\"muted\">URL未取得</p>'"));
+assert(indexSource.includes('class="review-inbox-detail-meta"'));
+assert(indexSource.includes('class="review-intelligence-disclosure"'));
+assert(indexSource.includes("content: '詳細を表示'"));
+assert(indexSource.includes('position: sticky;'));
 assert(indexSource.includes('id="reviewBulkActionBar"'));
 assert(indexSource.includes('selectedReviewLeadIds: []'));
 assert(indexSource.includes('function toggleReviewLeadSelection(id, checked)'));
@@ -6119,4 +6127,4 @@ assert(indexSource.includes('function renderReviewBulkPreviewDialog()'));
 assert(indexSource.includes('function renderCollectionSourcePerformance()'));
 assert(indexSource.includes('function openDomainHistory(value)'));
 
-console.log('v327 productivity-suite regression tests passed.');
+console.log('v328 compact-review-controls regression tests passed.');

@@ -1,13 +1,22 @@
 # 完成監査メモ
 
-最終更新: 2026-08-02
+最終更新: 2026-08-03
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @335 / production code v326: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @337 / production code v328: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260802_apps_script_full_workflow_v326_review_workspace`
+- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v328_compact_review_controls`
+
+## v328 確認操作のコンパクト化
+
+- 添付画面で操作ボタンが詳細情報の最下部にあり、確認のたびにスクロールが必要だった。操作行を施設名ヘッダー直下へ移動し、ページを動かしても確認操作が見える追従バーへ変更した。
+- ボタン高を36pxへ抑え、長い「施設名・メール・ジャンルを編集」を「情報を編集」へ短縮した。完全な説明は`aria-label`と`title`に残した。
+- ヘッダーと基本情報の余白を縮め、メール・フォーム・住所を3列、追加元と更新日時を1行へ集約した。ヘッダーにあるWeb URLは基本情報側で重複表示しない。
+- 自動判定・重複候補・操作履歴を折りたたみにまとめ、初期表示では仕分け状態と関連件数だけを確認できるようにした。
+- `node scripts/smoke-test.js`、全`.gs`構文確認、`Index.html`インラインJavaScript構文確認、`git diff --check`が成功。Apps Script version `337`を作成し、固定Web appを`@337`へ更新した。
+- UIの認証済み目視確認はブラウザ接続機能が利用できなかったため未実施。営業先更新・収集・メール送信などの本番データ操作は行っていない。
 
 ## v326 確認ワークスペースと収集ジョブ管理
 
