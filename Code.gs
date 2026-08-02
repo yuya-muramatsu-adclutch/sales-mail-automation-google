@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260802_apps_script_full_workflow_v326_review_workspace';
+const APP_VERSION = '20260802_apps_script_full_workflow_v327_productivity_suite';
 const BACKGROUND_JOB_SAFE_RUNTIME_MAX_MS = 240000;
 const BACKGROUND_JOB_DEFAULT_RUNTIME_MS = 240000;
 const BACKGROUND_JOB_IMMEDIATE_DELAY_MS = 5000;
@@ -946,13 +946,76 @@ function reviewLeadReasonItems_(lead) {
   return reasons;
 }
 
-function decorateReviewLeadForList_(lead) {
+function hasReviewTriageOverride_(lead) {
+  const payload = parseJsonObjectSafe_(lead && lead.source_payload_json);
+  return String(payload.review_triage_override || '') === 'review';
+}
+
+function isReviewLeadBaseCandidate_(lead) {
+  return Boolean(lead) &&
+    !isArchivedLead_(lead) &&
+    String(lead.status || '') === '未対応' &&
+    isReviewLeadSource_(lead) &&
+    hasLeadReviewDestination_(lead);
+}
+
+function reviewLeadExclusionReasons_(lead, masterContext) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  const reasons = [];
+  if (isSuppressedReviewDuplicate_(source, masterContext, { ignoreOverride: true })) {
+    reasons.push({ key: 'duplicate', label: '既存営業リストと重複', detail: '同じURL・ドメイン・収集元の登録があります' });
+  }
+  if (isClearlyClosedLead_(source)) {
+    reasons.push({ key: 'closed', label: '閉鎖・休業の可能性', detail: '見出しや取得情報に閉鎖・休業の記載があります' });
+  }
+  if (isLeadLinkDefinitelyBroken_(source)) {
+    reasons.push({ key: 'broken', label: 'リンク切れ', detail: leadSourcePayloadErrorText_(source) || 'サイトにアクセスできません' });
+  }
+  const targetUrl = source.website_url || source.form_url || '';
+  if (targetUrl && isKnownNonAdvertiserLeadUrl_(targetUrl)) {
+    reasons.push({ key: 'non_advertiser', label: '情報・観光・ブログサイト', detail: normalizeDomain_(targetUrl) });
+  }
+  return reasons;
+}
+
+function reviewLeadTriage_(lead, masterContext) {
+  const override = hasReviewTriageOverride_(lead);
+  const exclusions = reviewLeadExclusionReasons_(lead, masterContext);
+  if (override) {
+    return {
+      bucket: 'manual',
+      label: '人が確認',
+      reasons: [{ key: 'override', label: '手動で確認対象へ復元', detail: '自動除外を上書きしています' }].concat(exclusions),
+      overridden: true,
+    };
+  }
+  if (exclusions.length) {
+    return { bucket: 'excluded', label: '自動除外候補', reasons: exclusions, overridden: false };
+  }
   const score = reviewLeadPriorityScore_(lead);
+  if (score >= 70) {
+    return { bucket: 'ready', label: '営業しやすい', reasons: [], overridden: false };
+  }
+  return {
+    bucket: 'manual',
+    label: '人が確認',
+    reasons: [{ key: 'manual', label: '人の確認を推奨', detail: '公式サイト・連絡先・施設情報を確認してください' }],
+    overridden: false,
+  };
+}
+
+function decorateReviewLeadForList_(lead, masterContext) {
+  const score = reviewLeadPriorityScore_(lead);
+  const triage = reviewLeadTriage_(lead, masterContext || {});
   return Object.assign({}, lead, {
     review_priority_score: score,
     review_priority_tier: reviewLeadPriorityTier_(score),
     review_priority_label: reviewLeadPriorityLabel_(score),
     review_reason_items: reviewLeadReasonItems_(lead),
+    review_triage_bucket: triage.bucket,
+    review_triage_label: triage.label,
+    review_triage_reasons: triage.reasons,
+    review_triage_overridden: triage.overridden,
   });
 }
 
@@ -1045,8 +1108,9 @@ function reviewLeadRelatedCandidates_(current, leads, limit) {
 
 function reviewLeadWorkspaceFields_() {
   return [
-    'id', 'source', 'company_name', 'normalized_company_name', 'facility_name', 'email',
-    'website_url', 'website_domain', 'status', 'created_at', 'updated_at', 'archived_at',
+    'id', 'source', 'source_id', 'external_id', 'company_name', 'normalized_company_name', 'facility_name',
+    'email', 'email_domain', 'website_url', 'website_domain', 'form_url', 'status', 'send_ng', 'form_status',
+    'last_sent_at', 'send_count', 'source_payload_json', 'created_at', 'updated_at', 'archived_at',
   ];
 }
 
@@ -1055,7 +1119,8 @@ function getReviewLeadWorkspace(leadId, options) {
   const query = options && typeof options === 'object' ? options : {};
   const current = getLeadById(recordId);
   const leads = readSheetRecordFields_('leads', reviewLeadWorkspaceFields_(), { maxGapColumns: 2 });
-  const decorated = decorateReviewLeadForList_(current);
+  const masterContext = { reviewDuplicateLeadIds: buildReviewDuplicateLeadIds_(leads) };
+  const decorated = decorateReviewLeadForList_(current, masterContext);
   const activities = listReviewActivities({ leadId: recordId, limit: 30 }).items;
   const timeline = [{
     id: 'collected_' + recordId,
@@ -1074,11 +1139,42 @@ function getReviewLeadWorkspace(leadId, options) {
       label: decorated.review_priority_label,
     },
     reasons: decorated.review_reason_items,
+    triage: {
+      bucket: decorated.review_triage_bucket,
+      label: decorated.review_triage_label,
+      reasons: decorated.review_triage_reasons,
+      overridden: decorated.review_triage_overridden,
+    },
     related: reviewLeadRelatedCandidates_(current, leads, query.relatedLimit || query.related_limit || 8),
     timeline: timeline.sort(function (left, right) {
       return String(right.created_at || '').localeCompare(String(left.created_at || ''));
     }),
     generatedAt: nowIso_(),
+  };
+}
+
+function setReviewTriageOverride(leadId, enabled) {
+  const recordId = requireId_(leadId);
+  const shouldEnable = enabled !== false;
+  const updated = withScriptLock_('setReviewTriageOverride', function () {
+    const current = getLeadById(recordId);
+    if (!isReviewLeadSource_(current)) throw new Error('自動収集した営業先だけを仕分け変更できます。');
+    const payload = parseJsonObjectSafe_(current.source_payload_json);
+    if (shouldEnable) payload.review_triage_override = 'review';
+    else delete payload.review_triage_override;
+    payload.review_triage_updated_at = nowIso_();
+    return updateSheetRecord_('leads', recordId, {
+      source_payload_json: safeJsonStringify_(payload),
+      updated_at: nowIso_(),
+    });
+  }, { waitMs: 5000, attempts: 3 });
+  clearReviewLeadCachesBestEffort_();
+  bumpLeadListCacheRevision_();
+  return {
+    ok: true,
+    enabled: shouldEnable,
+    lead: updated,
+    message: shouldEnable ? '人が確認する候補へ戻しました。' : '自動仕分けへ戻しました。',
   };
 }
 
@@ -1364,6 +1460,7 @@ function leadListCachePayload_(query) {
     includeFields: (source.includeFields || []).slice().sort(),
     reviewPriority: source.reviewPriority || 'all',
     reviewContact: source.reviewContact || 'all',
+    reviewBucket: source.reviewBucket || 'all',
   };
 }
 
@@ -1494,7 +1591,7 @@ function listLeads(options) {
   const primaryFilterResponse = buildLeadListPrimaryFilterBundle_(rows, query, masterContext);
   if (primaryFilterResponse) return primaryFilterResponse;
   const preparedRows = query.filter === 'review' ? rows.map(function (lead) {
-    return isLeadReviewPending_(lead) ? decorateReviewLeadForList_(lead) : lead;
+    return isReviewLeadBaseCandidate_(lead) ? decorateReviewLeadForList_(lead, masterContext) : lead;
   }) : rows;
   const filtered = preparedRows.filter(function (lead) {
     if (!query.includeArchived && isArchivedLead_(lead)) {
@@ -1509,10 +1606,9 @@ function listLeads(options) {
     if (query.formStatus && !matchesFormStatusFilter_(lead, query.formStatus)) {
       return false;
     }
-    if (!matchesLeadListFilter_(lead, query.filter, masterContext)) {
-      return false;
-    }
-    if (query.filter === 'review' && !matchesReviewLeadConvenienceFilters_(lead, query)) {
+    if (query.filter === 'review') {
+      if (!matchesReviewLeadTriageFilter_(lead, query, masterContext) || !matchesReviewLeadConvenienceFilters_(lead, query)) return false;
+    } else if (!matchesLeadListFilter_(lead, query.filter, masterContext)) {
       return false;
     }
     if (!query.search) {
@@ -1546,8 +1642,15 @@ function listLeads(options) {
   };
   if (query.filter === 'review') {
     response.reviewOverallTotal = preparedRows.filter(function (lead) {
-      return !isArchivedLead_(lead) && matchesLeadListFilter_(lead, 'review', masterContext);
+      return !isArchivedLead_(lead) && matchesReviewLeadTriageFilter_(lead, { reviewBucket: 'all' }, masterContext);
     }).length;
+    response.reviewTriageSummary = preparedRows.reduce(function (summary, lead) {
+      if (!isReviewLeadBaseCandidate_(lead)) return summary;
+      const triage = lead.review_triage_bucket ? lead : decorateReviewLeadForList_(lead, masterContext);
+      const bucket = String(triage.review_triage_bucket || 'manual');
+      summary[bucket] = Number(summary[bucket] || 0) + 1;
+      return summary;
+    }, { ready: 0, manual: 0, excluded: 0 });
   }
   if (query.includeStats) {
     response.stats = buildLeadListStats_(rows, masterContext, query.genre);
@@ -1653,6 +1756,16 @@ function matchesReviewLeadConvenienceFilters_(lead, query) {
   return true;
 }
 
+function matchesReviewLeadTriageFilter_(lead, query, masterContext) {
+  if (!isReviewLeadBaseCandidate_(lead)) return false;
+  const source = lead.review_triage_bucket ? lead : decorateReviewLeadForList_(lead, masterContext);
+  const bucket = String(source.review_triage_bucket || 'manual');
+  const requested = String(query && query.reviewBucket || 'all');
+  if (requested === 'excluded') return bucket === 'excluded';
+  if (requested === 'ready' || requested === 'manual') return bucket === requested;
+  return bucket !== 'excluded';
+}
+
 function matchesLeadListFilter_(lead, filter, masterContext) {
   const value = String(filter || 'all');
   if (value === 'all') return true;
@@ -1687,7 +1800,7 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   if (value === 'no_contact') return !sendNg && !isValidEmailAddress_(lead.email) && !lead.form_url;
   if (value === 'won') return dealStatus === '受注' || status === '受注';
   if (value === 'lost') return dealStatus === '失注' || status === '失注';
-  if (value === 'review') return isLeadReviewPending_(lead) && !isSuppressedReviewDuplicate_(lead, masterContext);
+  if (value === 'review') return matchesReviewLeadTriageFilter_(lead, { reviewBucket: 'all' }, masterContext);
   return true;
 }
 
@@ -1707,6 +1820,7 @@ function classifyLeadListState_(lead, masterContext) {
   if (isClearlyClosedLead_(source)) return 'no_action';
   if (isLeadLinkDefinitelyBroken_(source)) return 'no_action';
   if (isSuppressedReviewDuplicate_(source, masterContext)) return 'no_action';
+  if (isReviewLeadBaseCandidate_(source) && reviewLeadTriage_(source, masterContext).bucket === 'excluded') return 'no_action';
   if (isLeadReviewPending_(source)) return 'review';
   if (sent) return 'sent';
   if (status === 'フォーム対応済み' || formStatus === '対応済み') return 'form_completed';
@@ -1758,15 +1872,12 @@ function buildLeadListStateGroups_(breakdown) {
 }
 
 function isLeadReviewPending_(lead) {
-  return Boolean(lead) &&
-    String(lead.status || '') === '未対応' &&
-    isReviewLeadSource_(lead) &&
-    hasLeadReviewDestination_(lead) &&
-    !isClearlyClosedLead_(lead) &&
-    !isLeadLinkDefinitelyBroken_(lead);
+  return isReviewLeadBaseCandidate_(lead) &&
+    (hasReviewTriageOverride_(lead) || (!isClearlyClosedLead_(lead) && !isLeadLinkDefinitelyBroken_(lead)));
 }
 
-function isSuppressedReviewDuplicate_(lead, masterContext) {
+function isSuppressedReviewDuplicate_(lead, masterContext, options) {
+  if (!(options && options.ignoreOverride === true) && hasReviewTriageOverride_(lead)) return false;
   const leadId = String(lead && lead.id || '').trim();
   const suppressed = masterContext && masterContext.reviewDuplicateLeadIds;
   return Boolean(leadId && suppressed && suppressed[leadId]);
@@ -4787,6 +4898,7 @@ function normalizeListOptions_(options) {
   const sort = String(input.sort || 'updated_desc').trim() || 'updated_desc';
   const reviewPriority = String(input.reviewPriority || input.review_priority || 'all').trim() || 'all';
   const reviewContact = String(input.reviewContact || input.review_contact || 'all').trim() || 'all';
+  const reviewBucket = String(input.reviewBucket || input.review_bucket || 'all').trim() || 'all';
   const allowedFilters = ['all', 'email', 'has_email', 'form', 'form_all', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'].concat(LEAD_LIST_STATE_DEFINITIONS_.map(function (definition) {
     return 'state_' + definition.key;
   })).concat(LEAD_LIST_STATE_GROUP_DEFINITIONS_.map(function (definition) {
@@ -4812,6 +4924,9 @@ function normalizeListOptions_(options) {
   if (['all', 'contact', 'no_contact', 'email', 'form'].indexOf(reviewContact) === -1) {
     throw new Error('Invalid review contact filter: ' + reviewContact);
   }
+  if (['all', 'ready', 'manual', 'excluded'].indexOf(reviewBucket) === -1) {
+    throw new Error('Invalid review bucket filter: ' + reviewBucket);
+  }
   const includeFields = Array.isArray(input.includeFields || input.include_fields)
     ? (input.includeFields || input.include_fields).slice()
     : [];
@@ -4834,6 +4949,7 @@ function normalizeListOptions_(options) {
     sort: sort,
     reviewPriority: reviewPriority,
     reviewContact: reviewContact,
+    reviewBucket: reviewBucket,
     search: String(input.search || '').trim().toLowerCase(),
     includeArchived: input.includeArchived === true,
     includeStats: input.includeStats !== false,

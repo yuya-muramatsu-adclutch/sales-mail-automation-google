@@ -66,6 +66,9 @@ function dispatchPostAction_(action, data) {
   if (action === 'getReviewLeadWorkspace') return getReviewLeadWorkspace(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'listReviewActivities') return listReviewActivities(data);
   if (action === 'undoReviewActivity') return undoReviewActivity(data.activityId || data.activity_id || data.id || data);
+  if (action === 'setReviewTriageOverride') return setReviewTriageOverride(data.leadId || data.lead_id || data.id, data.enabled);
+  if (action === 'getCollectionSourcePerformance') return getCollectionSourcePerformance(data);
+  if (action === 'getDomainHistory') return getDomainHistory(data.domain || data.url || data.email || data.value || data, data.options || data);
   if (action === 'listEmailSendCandidates') return listEmailSendCandidates(data);
   if (action === 'createLead') return createLead(data);
   if (action === 'updateLead') return updateLead(data.id, data.patch || data);
@@ -425,7 +428,10 @@ function getDashboardStats(options) {
 
   const leads = readSheetRecordFields_('leads', dashboardLeadFields_(), { maxGapColumns: 2 });
   const templates = readAllSheetRecordsByName_('email_templates');
-  const searchJobs = readSheetRecordFields_('search_jobs', ['status']);
+  const searchJobs = readSheetRecordFields_('search_jobs', [
+    'id', 'job_type', 'status', 'query_json', 'progress_json', 'last_error', 'error_count',
+    'total_count', 'processed_count', 'created_at', 'updated_at',
+  ]);
   const syncLogs = readSheetRecordFields_('sync_logs', [
     'operation',
     'level',
@@ -448,7 +454,7 @@ function getDashboardStats(options) {
   const sentMonth = countSuccessfulProductionSends_(sendHistories, month);
   const serperToday = getSerperUsageCount_({ day: today }, searchUsageLogs);
   const serperMonth = getSerperUsageCount_({ month: month }, searchUsageLogs);
-  const masterContext = buildMasterBlockContext_();
+  const masterContext = buildLeadListMasterContext_(leads);
   const listStats = buildLeadListStats_(leads, masterContext, '');
   const sendWindow = buildSendWindowStatus_();
   const dailyMailLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
@@ -484,6 +490,47 @@ function getDashboardStats(options) {
   const failedSearchJobs = searchJobs.filter(function (job) {
     return job.status === 'failed';
   });
+  const reviewWorkItems = leads.filter(function (lead) {
+    return !isArchivedLead_(lead) && matchesReviewLeadTriageFilter_(lead, { reviewBucket: 'all' }, masterContext);
+  }).map(function (lead) {
+    return decorateReviewLeadForList_(lead, masterContext);
+  }).sort(function (left, right) {
+    return Number(right.review_priority_score || 0) - Number(left.review_priority_score || 0) ||
+      String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
+  }).slice(0, 3).map(function (lead) {
+    return {
+      type: 'review',
+      id: String(lead.id || ''),
+      label: String(lead.facility_name || lead.company_name || '名称未取得'),
+      detail: String(lead.review_triage_label || '人が確認') + ' / ' + Number(lead.review_priority_score || 0) + '点',
+      count: 1,
+      tab: 'reviewLeads',
+    };
+  });
+  const dailyWorkItems = reviewWorkItems.slice();
+  if (failedSearchJobs.length) {
+    const failedJob = failedSearchJobs.slice().sort(function (left, right) {
+      return String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
+    })[0];
+    dailyWorkItems.push({
+      type: 'job',
+      id: String(failedJob.id || ''),
+      label: '停止した収集を確認',
+      detail: String(failedJob.last_error || '続きから再開できます'),
+      count: failedSearchJobs.length,
+      tab: 'backgroundJobs',
+    });
+  }
+  if (todayEmailTargets > 0) {
+    dailyWorkItems.push({
+      type: 'send',
+      id: '',
+      label: '本日の送信対象を確認',
+      detail: '送信前に対象とテンプレートを確認します',
+      count: todayEmailTargets,
+      tab: 'emailLeads',
+    });
+  }
   const monthLeads = leads.filter(function (lead) {
     return !isArchivedLead_(lead) && String(lead.created_at || '').slice(0, 7) === month;
   });
@@ -575,6 +622,7 @@ function getDashboardStats(options) {
     prospectingResumeAfter: '',
     prospectingResumeOffset: 0,
     prospectingDetail: 'GAS版では search_jobs / sync_logs から直近成果を集計します。',
+    dailyWorkItems: dailyWorkItems,
     integrations: {
       sheets: true,
       gmail: mailQuota.available,
@@ -617,9 +665,14 @@ function dashboardLeadFields_() {
   return [
     'id',
     'source',
+    'source_id',
+    'external_id',
     'genre',
     'company_name',
+    'normalized_company_name',
+    'facility_name',
     'email',
+    'email_domain',
     'website_url',
     'website_domain',
     'form_url',
@@ -630,10 +683,223 @@ function dashboardLeadFields_() {
     'last_sent_at',
     'send_count',
     'deal_status',
+    'address',
+    'source_payload_json',
     'created_at',
     'updated_at',
     'archived_at',
   ];
+}
+
+function collectionSourceUrlsFromJob_(job) {
+  const payload = parseJsonObjectSafe_(job && job.query_json);
+  const values = [];
+  [payload.source_url, payload.url, payload.list_url].forEach(function (value) {
+    if (String(value || '').trim()) values.push(String(value).trim());
+  });
+  (Array.isArray(payload.source_urls) ? payload.source_urls : []).forEach(function (value) {
+    if (String(value || '').trim()) values.push(String(value).trim());
+  });
+  (Array.isArray(payload.items) ? payload.items : []).forEach(function (item) {
+    const value = item && (item.source_url || item.url || item.list_url);
+    if (String(value || '').trim()) values.push(String(value).trim());
+  });
+  return Array.from(new Set(values.map(function (value) { return normalizeUrl_(value); }).filter(Boolean)));
+}
+
+function collectionSourceResultOutcome_(result) {
+  const source = result && typeof result === 'object' ? result : {};
+  const type = String(source.result_type || '').toLowerCase();
+  const action = String(source.review_action || '').toLowerCase();
+  if (/duplicate/.test(type + ' ' + action)) return 'duplicate';
+  if (/(?:closed|broken|excluded|blocked|non_advertiser|tourism|blog|unresolved|empty)/.test(type + ' ' + action)) return 'excluded';
+  if (source.lead_id || /(?:direct|serper|searxng|unresolved_added)/.test(type) || /added|created/.test(action)) return 'added';
+  return 'processed';
+}
+
+function getCollectionSourcePerformance(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const limit = Math.min(Math.max(Number(input.limit) || 50, 1), 200);
+  const jobs = readSheetRecordFields_('search_jobs', [
+    'id', 'job_type', 'status', 'query_json', 'total_count', 'processed_count', 'progress_json',
+    'last_error', 'error_count', 'created_at', 'updated_at',
+  ]).filter(function (job) { return String(job.job_type || '') === 'source_page'; });
+  const jobIds = jobs.map(function (job) { return String(job.id || ''); }).filter(Boolean);
+  const results = jobIds.length ? findSheetRecordsByExactFieldValues_(
+    'search_results', 'job_id', jobIds,
+    ['id', 'job_id', 'lead_id', 'query', 'result_type', 'review_status', 'review_action', 'created_at', 'updated_at']
+  ) : [];
+  const resultsByJob = {};
+  const leadIds = [];
+  results.forEach(function (result) {
+    const jobId = String(result.job_id || '');
+    if (!resultsByJob[jobId]) resultsByJob[jobId] = [];
+    resultsByJob[jobId].push(result);
+    if (result.lead_id) leadIds.push(String(result.lead_id));
+  });
+  const leads = leadIds.length ? findSheetRecordsByExactFieldValues_(
+    'leads', 'id', Array.from(new Set(leadIds)),
+    ['id', 'email', 'form_url', 'website_url', 'status', 'archived_at']
+  ) : [];
+  const contactByLeadId = leads.reduce(function (index, lead) {
+    index[String(lead.id || '')] = Boolean(isValidEmailAddress_(lead.email) || String(lead.form_url || '').trim());
+    return index;
+  }, {});
+  const groups = {};
+  jobs.forEach(function (job) {
+    const urls = collectionSourceUrlsFromJob_(job);
+    const sourceUrls = urls.length ? urls : ['source-page:' + String(job.id || '')];
+    const jobResults = resultsByJob[String(job.id || '')] || [];
+    sourceUrls.forEach(function (url) {
+      const domain = normalizeDomain_(url) || String(url || 'URL未取得');
+      const comparableUrl = url.indexOf('source-page:') === 0 ? '' : normalizeSourcePageComparableUrl_(url);
+      const key = comparableUrl || reviewRegistrableDomain_(domain) || domain;
+      const sourceResults = sourceUrls.length <= 1 ? jobResults : jobResults.filter(function (result) {
+        return normalizeSourcePageComparableUrl_(result.query || '') === comparableUrl;
+      });
+      const group = groups[key] || {
+        key: key,
+        domain: domain,
+        sourceUrl: url.indexOf('source-page:') === 0 ? '' : url,
+        runs: 0,
+        total: 0,
+        processed: 0,
+        added: 0,
+        duplicates: 0,
+        excluded: 0,
+        errors: 0,
+        contacts: 0,
+        status: '',
+        lastError: '',
+        updatedAt: '',
+      };
+      group.runs += 1;
+      group.total += sourceUrls.length <= 1 ? Math.max(Number(job.total_count || 0), sourceResults.length, 0) : Math.max(sourceResults.length, 1);
+      group.processed += sourceUrls.length <= 1 ? Math.max(Number(job.processed_count || 0), sourceResults.length, 0) : sourceResults.length;
+      sourceResults.forEach(function (result) {
+        const outcome = collectionSourceResultOutcome_(result);
+        if (outcome === 'added') {
+          group.added += 1;
+          if (contactByLeadId[String(result.lead_id || '')]) group.contacts += 1;
+        } else if (outcome === 'duplicate') group.duplicates += 1;
+        else if (outcome === 'excluded') group.excluded += 1;
+      });
+      group.errors += Math.max(Number(job.error_count || 0), String(job.status || '') === 'failed' ? 1 : 0);
+      const updatedAt = String(job.updated_at || job.created_at || '');
+      if (!group.updatedAt || updatedAt > group.updatedAt) {
+        group.updatedAt = updatedAt;
+        group.status = String(job.status || '');
+        group.lastError = String(job.last_error || '');
+        group.sourceUrl = group.sourceUrl || (url.indexOf('source-page:') === 0 ? '' : url);
+      }
+      groups[key] = group;
+    });
+  });
+  const items = Object.keys(groups).map(function (key) {
+    const group = groups[key];
+    group.contactRate = group.added ? Math.round(group.contacts / group.added * 1000) / 10 : 0;
+    group.progressRate = group.status === 'completed'
+      ? 100
+      : group.total ? Math.min(100, Math.round(group.processed / group.total * 1000) / 10) : 0;
+    return group;
+  }).sort(function (left, right) {
+    return String(right.updatedAt || '').localeCompare(String(left.updatedAt || ''));
+  });
+  return { total: items.length, items: items.slice(0, limit), generatedAt: nowIso_() };
+}
+
+function leadMatchesDomainRoot_(lead, root) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  return [source.website_domain, source.website_url, source.form_url, source.email_domain, extractDomainFromEmail_(source.email)].some(function (value) {
+    return reviewRegistrableDomain_(value) === root;
+  });
+}
+
+function domainHistoryTimelineItem_(type, label, detail, at, tone, sourceId) {
+  return {
+    type: type,
+    label: label,
+    detail: detail || '',
+    at: String(at || ''),
+    tone: tone || 'info',
+    sourceId: String(sourceId || ''),
+  };
+}
+
+function getDomainHistory(value, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const root = reviewRegistrableDomain_(value);
+  if (!root) throw new Error('確認するドメインまたはURLを指定してください。');
+  const leads = readSheetRecordFields_('leads', [
+    'id', 'source', 'company_name', 'facility_name', 'email', 'website_url', 'website_domain',
+    'form_url', 'status', 'send_ng', 'send_count', 'last_sent_at', 'created_at', 'updated_at', 'archived_at',
+  ], { maxGapColumns: 2 }).filter(function (lead) { return leadMatchesDomainRoot_(lead, root); });
+  const leadIds = leads.map(function (lead) { return String(lead.id || ''); }).filter(Boolean);
+  const activities = leadIds.length ? findSheetRecordsByExactFieldValues_(
+    'review_activity_logs', 'lead_id', leadIds,
+    ['id', 'lead_id', 'action_type', 'action_label', 'previous_status', 'next_status', 'undone_at', 'created_at', 'updated_at']
+  ) : [];
+  const sendFields = ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'send_result', 'error_message', 'created_at'];
+  const sendsByLead = leadIds.length ? findSheetRecordsByExactFieldValues_(
+    'send_histories', 'lead_id', leadIds,
+    sendFields
+  ) : [];
+  const leadEmails = Array.from(new Set(leads.map(function (lead) { return String(lead.email || '').trim().toLowerCase(); }).filter(Boolean)));
+  const sendsByEmail = leadEmails.length ? findSheetRecordsByExactFieldValues_('send_histories', 'to_email', leadEmails, sendFields) : [];
+  const sendIndex = sendsByLead.concat(sendsByEmail).reduce(function (index, history) {
+    const key = String(history.id || [history.lead_id, history.sent_at, history.to_email].join('|'));
+    index[key] = history;
+    return index;
+  }, {});
+  const sends = Object.keys(sendIndex).map(function (key) { return sendIndex[key]; });
+  const ngRecords = readAllActiveSheetRecords_('ng_masters').filter(function (record) {
+    return reviewRegistrableDomain_(record.domain || extractDomainFromEmail_(record.email)) === root;
+  });
+  const excludedRecords = readAllActiveSheetRecords_('excluded_domains').filter(function (record) {
+    return reviewRegistrableDomain_(record.domain) === root;
+  });
+  const timeline = [];
+  leads.forEach(function (lead) {
+    timeline.push(domainHistoryTimelineItem_(
+      'collected', '営業リストへ追加',
+      [lead.facility_name || lead.company_name || '名称未取得', lead.source || '追加元不明'].join(' / '),
+      lead.created_at, 'info', lead.id
+    ));
+  });
+  activities.forEach(function (activity) {
+    timeline.push(domainHistoryTimelineItem_(
+      'review', activity.undone_at ? '確認操作を取り消し' : (activity.action_label || '確認状態を更新'),
+      [activity.previous_status, activity.next_status].filter(Boolean).join(' → '),
+      activity.updated_at || activity.created_at, activity.undone_at ? 'warn' : 'good', activity.id
+    ));
+  });
+  sends.forEach(function (history) {
+    const success = String(history.send_result || '') === '成功';
+    timeline.push(domainHistoryTimelineItem_(
+      'send', success ? 'メール送信' : 'メール送信エラー',
+      [history.send_type, history.to_email, history.error_message].filter(Boolean).join(' / '),
+      history.sent_at || history.created_at, success ? 'good' : 'bad', history.id
+    ));
+  });
+  ngRecords.forEach(function (record) {
+    timeline.push(domainHistoryTimelineItem_('ng', '送信NGへ登録', record.reason || record.memo || root, record.updated_at || record.created_at, 'bad', record.id));
+  });
+  excludedRecords.forEach(function (record) {
+    timeline.push(domainHistoryTimelineItem_('excluded', '収集除外ドメインへ登録', record.reason || root, record.updated_at || record.created_at, 'bad', record.id));
+  });
+  timeline.sort(function (left, right) { return String(right.at || '').localeCompare(String(left.at || '')); });
+  const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 300);
+  return {
+    rootDomain: root,
+    leadCount: leads.length,
+    sendCount: sends.length,
+    reviewCount: activities.length,
+    isSendNg: ngRecords.length > 0,
+    isCollectionExcluded: excludedRecords.length > 0,
+    leads: leads.sort(function (left, right) { return String(right.updated_at || '').localeCompare(String(left.updated_at || '')); }),
+    timeline: timeline.slice(0, limit),
+    generatedAt: nowIso_(),
+  };
 }
 
 function buildAnalyticsSnapshot_(leadRecords, historyRecords, todayKey, templateRecords) {
@@ -1201,7 +1467,7 @@ function monthText_() {
 function readDashboardStatsCache_(options) {
   const query = options && typeof options === 'object' ? options : {};
   try {
-    const cached = CacheService.getScriptCache().get('dashboard_stats_v6');
+    const cached = CacheService.getScriptCache().get('dashboard_stats_v7');
     if (!cached) {
       return query.allowPersisted !== false
         ? normalizeDashboardGasUsage_(readDashboardStatsSheetCache_(query))
@@ -1244,7 +1510,7 @@ function normalizeDashboardGasUsage_(dashboard) {
 
 function writeDashboardStatsCache_(stats) {
   try {
-    CacheService.getScriptCache().put('dashboard_stats_v6', JSON.stringify(stats), 600);
+    CacheService.getScriptCache().put('dashboard_stats_v7', JSON.stringify(stats), 600);
   } catch (error) {
     console.warn('Dashboard runtime cache write skipped: ' + error.message);
   }
@@ -1341,10 +1607,10 @@ function readDashboardStatsSheetCache_(options) {
     const records = findSheetRecordsByExactFieldValues_(
       'dashboard_cache',
       'cache_key',
-      ['dashboard_stats_v6'],
+      ['dashboard_stats_v7'],
       dashboardStatsCacheReadFields_()
     );
-    const cached = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v6');
+    const cached = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v7');
     if (!cached || !cached.value_json) {
       return null;
     }
@@ -1368,15 +1634,15 @@ function upsertDashboardCacheSheet_(stats) {
   const records = findSheetRecordsByExactFieldValues_(
     'dashboard_cache',
     'cache_key',
-    ['dashboard_stats_v6', 'dashboard_stats_v5', 'dashboard_stats_v4'],
+    ['dashboard_stats_v7', 'dashboard_stats_v6', 'dashboard_stats_v5'],
     dashboardStatsCacheWriteLookupFields_()
   );
-  const existing = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v6') ||
-    findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5') ||
-    findLatestDashboardCacheRecord_(records, 'dashboard_stats_v4');
+  const existing = findLatestDashboardCacheRecord_(records, 'dashboard_stats_v7') ||
+    findLatestDashboardCacheRecord_(records, 'dashboard_stats_v6') ||
+    findLatestDashboardCacheRecord_(records, 'dashboard_stats_v5');
   const expiresAt = Utilities.formatDate(new Date(Date.now() + 30 * 60 * 1000), Session.getScriptTimeZone() || 'Asia/Tokyo', "yyyy-MM-dd'T'HH:mm:ssXXX");
   const payload = {
-    cache_key: 'dashboard_stats_v6',
+    cache_key: 'dashboard_stats_v7',
     value_json: JSON.stringify(stats),
     expires_at: expiresAt,
   };

@@ -903,6 +903,7 @@ const dashboardCacheFixture = [
   { id: 'latest-v5', cache_key: 'dashboard_stats_v5', value_json: '{"leadsTotal":1002}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:02:00.000Z' },
   { id: 'old-v6', cache_key: 'dashboard_stats_v6', value_json: '{"leadsTotal":1003}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:03:00.000Z' },
   { id: 'latest-v6', cache_key: 'dashboard_stats_v6', value_json: '{"leadsTotal":1004}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:04:00.000Z' },
+  { id: 'latest-v7', cache_key: 'dashboard_stats_v7', value_json: '{"leadsTotal":1005}', expires_at: '2999-07-15T00:30:00.000Z', updated_at: '2026-07-15T00:05:00.000Z' },
 ];
 context.findSheetRecordsByExactFieldValues_ = (sheetName, fieldName, values, fields) => {
   dashboardCacheLookupCalls.push({
@@ -914,7 +915,7 @@ context.findSheetRecordsByExactFieldValues_ = (sheetName, fieldName, values, fie
   return dashboardCacheFixture.filter((record) => values.includes(record.cache_key));
 };
 const persistedDashboardStats = context.readDashboardStatsSheetCache_({});
-assert.strictEqual(persistedDashboardStats.leadsTotal, 1004);
+assert.strictEqual(persistedDashboardStats.leadsTotal, 1005);
 assert.strictEqual(persistedDashboardStats.persistedCache, true);
 context.updateSheetRecord_ = (sheetName, id, payload) => {
   dashboardCacheUpdate = { sheetName, id, payload };
@@ -923,21 +924,21 @@ context.updateSheetRecord_ = (sheetName, id, payload) => {
 context.appendSheetRecord_ = () => { throw new Error('dashboard cache must update instead of append'); };
 context.Utilities = Object.assign({}, context.Utilities, { formatDate: () => '2026-07-15T00:30:00.000Z' });
 context.Session = { getScriptTimeZone: () => 'Asia/Tokyo' };
-context.upsertDashboardCacheSheet_({ leadsTotal: 1004 });
+context.upsertDashboardCacheSheet_({ leadsTotal: 1005 });
 assert.strictEqual(dashboardCacheUpdate.sheetName, 'dashboard_cache');
-assert.strictEqual(dashboardCacheUpdate.id, 'latest-v6');
-assert.strictEqual(dashboardCacheUpdate.payload.cache_key, 'dashboard_stats_v6');
+assert.strictEqual(dashboardCacheUpdate.id, 'latest-v7');
+assert.strictEqual(dashboardCacheUpdate.payload.cache_key, 'dashboard_stats_v7');
 assert.deepStrictEqual(dashboardCacheLookupCalls, [
   {
     sheetName: 'dashboard_cache',
     fieldName: 'cache_key',
-    values: ['dashboard_stats_v6'],
+    values: ['dashboard_stats_v7'],
     fields: ['cache_key', 'value_json', 'expires_at', 'created_at', 'updated_at'],
   },
   {
     sheetName: 'dashboard_cache',
     fieldName: 'cache_key',
-    values: ['dashboard_stats_v6', 'dashboard_stats_v5', 'dashboard_stats_v4'],
+    values: ['dashboard_stats_v7', 'dashboard_stats_v6', 'dashboard_stats_v5'],
     fields: ['id', 'cache_key', 'created_at', 'updated_at'],
   },
 ]);
@@ -976,6 +977,7 @@ dashboardContext.clearRuntimeCaches_('leads');
 assert.strictEqual(dashboardProperties.DASHBOARD_CACHE_DIRTY_AT, '2026-07-19T10:05:00+09:00');
 assert(removedDashboardCacheKeys.includes('dashboard_stats_v5'));
 assert(removedDashboardCacheKeys.includes('dashboard_stats_v6'));
+assert(removedDashboardCacheKeys.includes('dashboard_stats_v7'));
 dashboardContext.clearRuntimeCaches_('search_jobs');
 assert(removedDashboardCacheKeys.includes('source_page_site_status_v1'));
 assert(removedDashboardCacheKeys.includes('source_page_site_status_v2'));
@@ -2695,10 +2697,11 @@ assert.strictEqual(analyticsWithProjectedHistory.templateRows[0].subject, '現�
 assert(analyticsWithProjectedHistory.templateRows[0].bodyPreview.startsWith('非常に長い本文'));
 const dashboardLeadFields = JSON.parse(JSON.stringify(analyticsContext.dashboardLeadFields_()));
 assert.deepStrictEqual(dashboardLeadFields, [
-  'id', 'source', 'genre', 'company_name', 'email', 'website_url', 'website_domain', 'form_url', 'status',
-  'send_ng', 'reply_checked', 'form_status', 'last_sent_at', 'send_count', 'deal_status', 'created_at', 'updated_at', 'archived_at',
+  'id', 'source', 'source_id', 'external_id', 'genre', 'company_name', 'normalized_company_name', 'facility_name',
+  'email', 'email_domain', 'website_url', 'website_domain', 'form_url', 'status', 'send_ng', 'reply_checked',
+  'form_status', 'last_sent_at', 'send_count', 'deal_status', 'address', 'source_payload_json', 'created_at', 'updated_at', 'archived_at',
 ]);
-['custom_fields_json', 'source_payload_json', 'notes', 'address', 'facility_name'].forEach((field) => {
+['custom_fields_json', 'notes'].forEach((field) => {
   assert(!dashboardLeadFields.includes(field));
 });
 const dashboardLeadFixtures = [
@@ -4222,7 +4225,7 @@ const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-assert(codeSource.includes('20260802_apps_script_full_workflow_v326_review_workspace'));
+assert(codeSource.includes('20260802_apps_script_full_workflow_v327_productivity_suite'));
 const appInfoContext = vm.createContext({ console });
 vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
 appInfoContext.PropertiesService = {
@@ -5177,7 +5180,8 @@ assert(!sourcePageLeadIndexBody.includes('readSheetRecords_('), 'source-page col
 assert(!webAppSource.includes("readAllSheetRecordsByName_('search_jobs'"), 'dashboard must not read all search-job columns');
 assert(!webAppSource.includes("readAllSheetRecordsByName_('sync_logs'"), 'dashboard must not read all sync-log columns');
 assert(!webAppSource.includes("readAllSheetRecordsByName_('search_usage_logs'"), 'dashboard must not read all search-usage columns');
-assert(webAppSource.includes("readSheetRecordFields_('search_jobs', ['status'])"));
+assert(webAppSource.includes("const searchJobs = readSheetRecordFields_('search_jobs', ["));
+assert(webAppSource.includes("'id', 'job_type', 'status', 'query_json', 'progress_json', 'last_error', 'error_count'"));
 assert(webAppSource.includes("readSheetRecordFields_('search_usage_logs', ['created_at', 'credits', 'request_count'])"));
 assert(webAppSource.includes('getStartupDashboardStats_(serperInfo)'));
 assert(webAppSource.includes('function getStartupDashboardStats_(serperInfo)'));
@@ -5295,9 +5299,9 @@ assert.strictEqual(settingsCacheContext.getSettingValue_('gmail_daily_send_limit
 assert.strictEqual(settingsSheetReads, 2, 'cache invalidation must force a fresh settings read');
 assert(webAppSource.includes("getSerperUsageCount_({ day: today }, searchUsageLogs)"));
 assert(!webAppSource.includes("readAllSheetRecordsByName_('dashboard_cache'"), 'dashboard cache paths must not transfer every cached payload');
-assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v6')"));
-assert(webAppSource.includes("['dashboard_stats_v6'],\n      dashboardStatsCacheReadFields_()"));
-assert(webAppSource.includes("['dashboard_stats_v6', 'dashboard_stats_v5', 'dashboard_stats_v4'],\n    dashboardStatsCacheWriteLookupFields_()"));
+assert(webAppSource.includes("findLatestDashboardCacheRecord_(records, 'dashboard_stats_v7')"));
+assert(webAppSource.includes("['dashboard_stats_v7'],\n      dashboardStatsCacheReadFields_()"));
+assert(webAppSource.includes("['dashboard_stats_v7', 'dashboard_stats_v6', 'dashboard_stats_v5'],\n    dashboardStatsCacheWriteLookupFields_()"));
 assert(!webAppSource.includes("record.cache_key === 'dashboard_stats_v4'"));
 assert(webAppSource.includes("withScriptLock_('writeDashboardStatsCache'"));
 assert(webAppSource.includes('dailyMailLimit - sentToday - pendingSendReservations.count'));
@@ -5847,7 +5851,7 @@ const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
   urlFetchRecordedToday: 0,
   batchRuntimeBudgetMs: 240000,
 });
-assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 326);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 327);
 assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
 assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
 assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
@@ -5861,7 +5865,7 @@ const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
     status: 'danger',
   },
 });
-assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 326);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 327);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
@@ -5974,10 +5978,12 @@ const reviewInboxActionsStart = indexSource.indexOf('<div class="review-inbox-ac
 const reviewInboxActionsEnd = indexSource.indexOf('</div>', reviewInboxActionsStart);
 assert(reviewInboxActionsStart >= 0 && reviewInboxActionsEnd > reviewInboxActionsStart);
 const reviewInboxActionsSource = indexSource.slice(reviewInboxActionsStart, reviewInboxActionsEnd);
-assert.strictEqual((reviewInboxActionsSource.match(/<button /g) || []).length, 3);
+assert.strictEqual((reviewInboxActionsSource.match(/<button /g) || []).length, 5);
 assert(reviewInboxActionsSource.includes("reviewInboxUpdate('対応中')"));
 assert(reviewInboxActionsSource.includes('startReviewInboxEdit('));
 assert(reviewInboxActionsSource.includes("reviewInboxUpdate('送信NG')"));
+assert(reviewInboxActionsSource.includes('setReviewTriageOverrideClient('));
+assert(reviewInboxActionsSource.includes('openDomainHistory('));
 assert(!reviewInboxActionsSource.includes('deferReviewInboxLead()'));
 assert(!reviewInboxActionsSource.includes("reviewInboxUpdate('対応不要')"));
 const reviewInboxHeaderStart = indexSource.indexOf('<header class="review-inbox-detail-header">');
@@ -6067,4 +6073,50 @@ assert(indexSource.includes('function backgroundJobActionMarkup(job)'));
 assert(indexSource.includes("onclick=\"loadJobs()\">最新状態を取得"));
 assert(operationsSource.includes("['failed', 'cancelled'].indexOf(String(job.status || '')) !== -1"));
 
-console.log('v326 review-workspace regression tests passed.');
+const triageMaster = { reviewDuplicateLeadIds: { 'duplicate-review': 'existing-lead' } };
+const readyTriageLead = analyticsContext.decorateReviewLeadForList_({
+  id: 'ready-review', source: 'source_page', status: '未対応', genre: 'キャンプ',
+  website_url: 'https://operator-ready.example/', email: 'info@operator-ready.example',
+  form_url: 'https://operator-ready.example/contact', address: '東京都', source_payload_json: '{}',
+}, triageMaster);
+const manualTriageLead = analyticsContext.decorateReviewLeadForList_({
+  id: 'manual-review', source: 'source_page', status: '未対応', website_url: 'https://operator-manual.example/',
+  source_payload_json: '{}',
+}, triageMaster);
+const duplicateTriageLead = analyticsContext.decorateReviewLeadForList_({
+  id: 'duplicate-review', source: 'source_page', status: '未対応', website_url: 'https://operator-duplicate.example/',
+  source_payload_json: '{}',
+}, triageMaster);
+const restoredTriageLead = analyticsContext.decorateReviewLeadForList_({
+  id: 'duplicate-review', source: 'source_page', status: '未対応', website_url: 'https://operator-duplicate.example/',
+  source_payload_json: JSON.stringify({ review_triage_override: 'review' }),
+}, triageMaster);
+assert.strictEqual(readyTriageLead.review_triage_bucket, 'ready');
+assert.strictEqual(manualTriageLead.review_triage_bucket, 'manual');
+assert.strictEqual(duplicateTriageLead.review_triage_bucket, 'excluded');
+assert(duplicateTriageLead.review_triage_reasons.some((reason) => reason.key === 'duplicate'));
+assert.strictEqual(restoredTriageLead.review_triage_bucket, 'manual');
+assert.strictEqual(restoredTriageLead.review_triage_overridden, true);
+assert.strictEqual(analyticsContext.matchesReviewLeadTriageFilter_(duplicateTriageLead, { reviewBucket: 'all' }, triageMaster), false);
+assert.strictEqual(analyticsContext.matchesReviewLeadTriageFilter_(duplicateTriageLead, { reviewBucket: 'excluded' }, triageMaster), true);
+assert.strictEqual(analyticsContext.normalizeListOptions_({ filter: 'review', reviewBucket: 'excluded' }).reviewBucket, 'excluded');
+assert.throws(() => analyticsContext.normalizeListOptions_({ filter: 'review', reviewBucket: 'unknown' }), /Invalid review bucket filter/);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(analyticsContext.collectionSourceUrlsFromJob_({
+  query_json: JSON.stringify({ source_url: 'https://one.example/list', items: [{ source_url: 'https://two.example/list' }] }),
+}))), ['https://one.example/list', 'https://two.example/list']);
+assert.strictEqual(analyticsContext.collectionSourceResultOutcome_({ lead_id: 'existing', result_type: 'source_page_duplicate' }), 'duplicate');
+assert.strictEqual(analyticsContext.collectionSourceResultOutcome_({ lead_id: 'new', result_type: 'source_page_direct' }), 'added');
+assert.strictEqual(analyticsContext.leadMatchesDomainRoot_({ website_url: 'https://sub.example.co.jp/path' }, 'example.co.jp'), true);
+assert(webAppSource.includes("if (action === 'getCollectionSourcePerformance')"));
+assert(webAppSource.includes("if (action === 'getDomainHistory')"));
+assert(webAppSource.includes("if (action === 'setReviewTriageOverride')"));
+assert(indexSource.includes('id="reviewTriagePanel"'));
+assert(indexSource.includes('id="reviewBulkPreviewHost"'));
+assert(indexSource.includes('id="domainHistoryHost"'));
+assert(indexSource.includes('id="collectionSourcePerformancePanel"'));
+assert(indexSource.includes('function openDailyWorkItem(type, id, tab)'));
+assert(indexSource.includes('function renderReviewBulkPreviewDialog()'));
+assert(indexSource.includes('function renderCollectionSourcePerformance()'));
+assert(indexSource.includes('function openDomainHistory(value)'));
+
+console.log('v327 productivity-suite regression tests passed.');
