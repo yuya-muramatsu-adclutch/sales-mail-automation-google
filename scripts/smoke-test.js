@@ -3073,6 +3073,16 @@ const sendNgDecisionPatch = JSON.parse(JSON.stringify(reviewDecisionContext.buil
 assert.strictEqual(sendNgDecisionPatch.send_ng_reason, '営業対象外');
 assert.strictEqual(JSON.parse(sendNgDecisionPatch.source_payload_json).review_exclude_domain_from_collection, false);
 assert.strictEqual(JSON.parse(sendNgDecisionPatch.source_payload_json).keep, 'value');
+const immediateSendNgMetadata = JSON.parse(JSON.stringify(reviewDecisionContext.normalizeReviewDecisionMetadata_({
+  exclude_domain_from_collection: true,
+}, '送信NG', 'decision')));
+assert.strictEqual(immediateSendNgMetadata.sendNgReason, '', 'immediate send-NG must not require the removed reason dialog');
+assert.strictEqual(immediateSendNgMetadata.excludeDomainFromCollection, true);
+assert.strictEqual(immediateSendNgMetadata.excludeDomainFromCollectionSpecified, true);
+const immediateSendNgPatch = JSON.parse(JSON.stringify(reviewDecisionContext.buildReviewDecisionLeadPatch_({
+  source_payload_json: '{}',
+}, Object.assign({ mode: 'decision', nextStatus: '送信NG' }, immediateSendNgMetadata))));
+assert.strictEqual(JSON.parse(immediateSendNgPatch.source_payload_json).review_exclude_domain_from_collection, true, 'immediate send-NG must exclude the domain from future collection');
 const sendNgUndoPatch = JSON.parse(JSON.stringify(reviewDecisionContext.buildReviewDecisionLeadPatch_({
   source_payload_json: sendNgDecisionPatch.source_payload_json,
 }, { mode: 'undo', nextStatus: '未対応' })));
@@ -4251,7 +4261,7 @@ const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-assert(codeSource.includes('20260803_apps_script_full_workflow_v331_review_efficiency_controls'));
+assert(codeSource.includes('20260803_apps_script_full_workflow_v332_send_ng_immediate_domain_exclusion'));
 const appInfoContext = vm.createContext({ console });
 vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
 appInfoContext.PropertiesService = {
@@ -5880,7 +5890,7 @@ const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
   urlFetchRecordedToday: 0,
   batchRuntimeBudgetMs: 240000,
 });
-assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 331);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 332);
 assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
 assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
 assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
@@ -5894,7 +5904,7 @@ const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
     status: 'danger',
   },
 });
-assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 331);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 332);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
@@ -6043,7 +6053,7 @@ assert(operationsSource.includes("source: source + ':background_safety_net'"));
 assert(indexSource.includes('画面を閉じても自動的に反映します'));
 assert(codeSource.includes('function writeLeadRecordsToRowsGroupedLocked_'));
 assert(indexSource.includes('class="review-lead-select-input"'));
-assert(indexSource.includes('除外対象にする'));
+assert(indexSource.includes('送信NGにする'));
 const reviewStatusUpdateStart = indexSource.indexOf('function updateReviewLeadStatus(id, status, options)');
 const reviewStatusUpdateEnd = indexSource.indexOf('\n      function ', reviewStatusUpdateStart + 10);
 const reviewStatusUpdateSource = indexSource.slice(reviewStatusUpdateStart, reviewStatusUpdateEnd);
@@ -6156,13 +6166,24 @@ assert(indexSource.includes("['all', 'すべて', contactSummary.all]"));
 assert(indexSource.includes("['form_only', 'フォームのみ', contactSummary.form_only]"));
 assert(indexSource.includes("aria-keyshortcuts=\"E\""));
 assert(indexSource.includes("else if (key === 'e')"));
-assert(indexSource.includes('function openReviewSendNgDialog(leads, options)'));
-assert(indexSource.includes('今後このドメインを取得しない'));
-assert(indexSource.includes("const sendNgReasons = ['情報サイト・ブログ', '観光ガイドサイト', '休業・閉鎖', 'リンク切れ', '営業対象外', 'その他']"));
-assert(indexSource.includes('excludeDomainFromCollection: false'));
+const bulkReviewDecisionStart = indexSource.indexOf('function bulkUpdateSelectedReviewLeads(status)');
+const bulkReviewDecisionEnd = indexSource.indexOf('\n      function ', bulkReviewDecisionStart + 10);
+const bulkReviewDecisionSource = indexSource.slice(bulkReviewDecisionStart, bulkReviewDecisionEnd);
+assert(bulkReviewDecisionSource.includes("if (status === '送信NG')"));
+assert(bulkReviewDecisionSource.includes('executeReviewBulkDecision({'));
+assert(bulkReviewDecisionSource.includes('exclude_domain_from_collection: true'));
+const reviewInboxUpdateStart = indexSource.indexOf('function reviewInboxUpdate(status)');
+const reviewInboxUpdateEnd = indexSource.indexOf('\n      function ', reviewInboxUpdateStart + 10);
+const reviewInboxUpdateSource = indexSource.slice(reviewInboxUpdateStart, reviewInboxUpdateEnd);
+assert(reviewInboxUpdateSource.includes("if (status === '送信NG')"));
+assert(reviewInboxUpdateSource.includes('exclude_domain_from_collection: true'));
+assert(!reviewInboxUpdateSource.includes('openReviewSendNgDialog'));
+assert(!indexSource.includes('function openReviewSendNgDialog(leads, options)'));
+assert(!indexSource.includes('今後このドメインを取得しない'));
+assert(!indexSource.includes('review-send-ng-fieldset'));
 assert(codeSource.includes("payload.review_exclude_domain_from_collection !== true"));
 assert(operationsSource.includes('excludeDomainFromCollectionSpecified: record.excludeDomainFromCollectionSpecified === true'));
 assert(indexSource.includes('function renderCollectionSourcePerformance()'));
 assert(indexSource.includes('function openDomainHistory(value)'));
 
-console.log('v331 efficient-review-controls regression tests passed.');
+console.log('v332 immediate-send-ng-domain-exclusion regression tests passed.');

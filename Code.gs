@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260803_apps_script_full_workflow_v331_review_efficiency_controls';
+const APP_VERSION = '20260803_apps_script_full_workflow_v332_send_ng_immediate_domain_exclusion';
 const BACKGROUND_JOB_SAFE_RUNTIME_MAX_MS = 240000;
 const BACKGROUND_JOB_DEFAULT_RUNTIME_MS = 240000;
 const BACKGROUND_JOB_IMMEDIATE_DELAY_MS = 5000;

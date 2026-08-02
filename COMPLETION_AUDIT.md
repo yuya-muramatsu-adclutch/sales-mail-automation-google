@@ -5,9 +5,17 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @340 / production code v331: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @341 / production code v332: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v331_review_efficiency_controls`
+- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v332_send_ng_immediate_domain_exclusion`
+
+## v332 送信NGの即時処理とドメイン除外
+
+- 単件・一括の送信NGから理由選択・確認ダイアログを撤去し、ボタンまたは`N`キーで即時処理して次の候補へ進むよう変更した。
+- すべての送信NG操作へ`exclude_domain_from_collection: true`を付け、対象ドメインを今後の収集対象から外す。ロック競合で保存待ちになった場合も指定を引き継ぐ。
+- 単件の10秒取り消しと一括の最近の確認操作からの取り消しは維持し、取り消し時はドメイン除外フラグも復元する。
+- `node scripts/smoke-test.js`、全`.gs`構文確認、`Index.html`インラインJavaScript構文確認、`git diff --check`が成功。Apps Script version `341`を作成し、固定Web appを`@341`へ更新した。
+- 本番営業リストの更新、収集、ドメイン除外登録、メール送信は行っていない。
 
 ## v331 確認待ちの高速操作
 

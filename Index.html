@@ -11218,96 +11218,6 @@
         color: #475569;
       }
 
-      .review-send-ng-fieldset {
-        display: grid;
-        gap: 10px;
-        margin: 14px 0;
-        padding: 12px;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: #fff;
-      }
-
-      .review-send-ng-fieldset legend {
-        padding: 0 5px;
-        font-size: 12px;
-        font-weight: 900;
-      }
-
-      .required-label {
-        margin-left: 4px;
-        color: #b91c1c;
-        font-size: 10px;
-      }
-
-      .review-send-ng-reasons {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 7px;
-      }
-
-      .review-send-ng-reason {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        min-height: 38px;
-        padding: 8px 9px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #f8fafc;
-        color: #334155;
-        font-size: 11px;
-        font-weight: 800;
-        cursor: pointer;
-      }
-
-      .review-send-ng-reason.active {
-        border-color: #ef4444;
-        background: #fef2f2;
-        color: #991b1b;
-      }
-
-      .review-send-ng-memo {
-        display: grid;
-        gap: 6px;
-        color: #475569;
-        font-size: 11px;
-        font-weight: 900;
-      }
-
-      .review-send-ng-memo textarea {
-        width: 100%;
-        resize: vertical;
-      }
-
-      .review-domain-exclusion-choice {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        margin: 12px 0;
-        padding: 11px 12px;
-        border: 1px solid #fca5a5;
-        border-radius: 9px;
-        background: #fff7ed;
-        cursor: pointer;
-      }
-
-      .review-domain-exclusion-choice span {
-        display: grid;
-        gap: 3px;
-      }
-
-      .review-domain-exclusion-choice small {
-        color: #7c2d12;
-        font-size: 10px;
-        line-height: 1.5;
-      }
-
-      .review-domain-exclusion-choice.disabled {
-        opacity: 0.55;
-        cursor: not-allowed;
-      }
-
       .review-intelligence-disclosure {
         overflow: hidden;
         border: 1px solid #dbeafe;
@@ -19362,7 +19272,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           <div class="bulk-action-controls">
             <button type="button" class="primary compact-button" onclick="bulkUpdateSelectedReviewLeads('対応中')" ${running || !selected.length ? 'disabled' : ''}>${running ? '処理中' : '確認済みにする'}</button>
-            <button type="button" class="danger compact-button" onclick="bulkUpdateSelectedReviewLeads('送信NG')" ${running || !selected.length ? 'disabled' : ''}>除外対象にする</button>
+            <button type="button" class="danger compact-button" onclick="bulkUpdateSelectedReviewLeads('送信NG')" ${running || !selected.length ? 'disabled' : ''}>送信NGにする</button>
             <button type="button" class="compact-button" onclick="clearReviewLeadSelection()" ${running || !selected.length ? 'disabled' : ''}>選択解除</button>
           </div>
         `;
@@ -19379,78 +19289,22 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           message('確認待ちを選択してください', 'error');
           return;
         }
-        const labels = { '対応中': '確認済み', '送信NG': '除外対象（送信NG）' };
+        const labels = { '対応中': '確認済み', '送信NG': '送信NG' };
         const label = labels[status] || status;
+        if (status === '送信NG') {
+          return executeReviewBulkDecision({
+            status,
+            label,
+            leads: selected.slice(),
+            decisionOptions: { exclude_domain_from_collection: true },
+          });
+        }
         state.reviewBulkPreview = {
           status,
           label,
           leads: selected.slice(),
-          single: false,
-          sendNgReason: '',
-          sendNgMemo: '',
-          excludeDomainFromCollection: false,
         };
         renderReviewBulkPreviewDialog();
-      }
-
-      function reviewLeadDomainsClient(leads) {
-        const domains = new Set();
-        (Array.isArray(leads) ? leads : []).forEach((lead) => {
-          [
-            lead && lead.website_domain,
-            domainFromUrlClient(lead && lead.website_url),
-            domainFromUrlClient(lead && lead.form_url),
-            String(lead && lead.email || '').includes('@') ? String(lead.email).split('@').pop().toLowerCase() : '',
-          ].map((value) => String(value || '').trim().replace(/^www\./, '').toLowerCase()).filter(Boolean).forEach((domain) => domains.add(domain));
-        });
-        return Array.from(domains);
-      }
-
-      function openReviewSendNgDialog(leads, options) {
-        const source = Array.isArray(leads) ? leads.filter(Boolean) : [];
-        if (!source.length) return;
-        const config = options || {};
-        state.reviewBulkPreview = {
-          status: '送信NG',
-          label: '送信NG',
-          leads: source,
-          single: config.single === true,
-          sendNgReason: '',
-          sendNgMemo: '',
-          excludeDomainFromCollection: false,
-        };
-        renderReviewBulkPreviewDialog();
-      }
-
-      function setReviewSendNgReason(value) {
-        if (!state.reviewBulkPreview || state.reviewBulkPreview.status !== '送信NG') return;
-        state.reviewBulkPreview.sendNgReason = String(value || '');
-        renderReviewBulkPreviewDialog();
-      }
-
-      function setReviewSendNgMemo(value) {
-        if (!state.reviewBulkPreview || state.reviewBulkPreview.status !== '送信NG') return;
-        state.reviewBulkPreview.sendNgMemo = String(value || '').slice(0, 1000);
-        syncReviewSendNgDialogState();
-      }
-
-      function setReviewExcludeDomainChoice(checked) {
-        if (!state.reviewBulkPreview || state.reviewBulkPreview.status !== '送信NG') return;
-        state.reviewBulkPreview.excludeDomainFromCollection = checked === true;
-        renderReviewBulkPreviewDialog();
-      }
-
-      function reviewSendNgDialogIsValid(preview) {
-        if (!preview || preview.status !== '送信NG') return true;
-        if (!String(preview.sendNgReason || '').trim()) return false;
-        if (preview.sendNgReason === 'その他' && !String(preview.sendNgMemo || '').trim()) return false;
-        return true;
-      }
-
-      function syncReviewSendNgDialogState() {
-        const preview = state.reviewBulkPreview;
-        const submit = document.getElementById('reviewBulkPreviewSubmit');
-        if (submit) submit.disabled = !reviewSendNgDialogIsValid(preview) || state.reviewBulkActionRunning;
       }
 
       function renderReviewBulkPreviewDialog() {
@@ -19465,36 +19319,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const hasEmail = leads.filter((lead) => Boolean(lead.email)).length;
         const hasForm = leads.filter((lead) => Boolean(lead.form_url)).length;
         const noContact = leads.filter((lead) => !lead.email && !lead.form_url).length;
-        const exclusion = preview.status === '送信NG';
-        const domains = reviewLeadDomainsClient(leads);
-        const sendNgReasons = ['情報サイト・ブログ', '観光ガイドサイト', '休業・閉鎖', 'リンク切れ', '営業対象外', 'その他'];
-        const reasonOptions = exclusion ? sendNgReasons.map((reason) => `
-          <label class="review-send-ng-reason ${preview.sendNgReason === reason ? 'active' : ''}">
-            <input type="radio" name="reviewSendNgReason" value="${escapeHtml(reason)}" onchange="setReviewSendNgReason(this.value)" ${preview.sendNgReason === reason ? 'checked' : ''}>
-            <span>${escapeHtml(reason)}</span>
-          </label>`).join('') : '';
-        const submitDisabled = exclusion && !reviewSendNgDialogIsValid(preview);
         target.innerHTML = `
           <div class="dialog-backdrop" onclick="closeReviewBulkPreviewOnBackdrop(event)">
             <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="reviewBulkPreviewTitle" tabindex="-1" onclick="event.stopPropagation()">
-              <div class="quick-dialog-header"><div><p class="eyebrow">${preview.single ? '確認結果を選択' : '一括処理の事前確認'}</p><h2 id="reviewBulkPreviewTitle">${escapeHtml(preview.label)}にしますか？</h2><p class="muted">対象と変更内容を確認してから実行します。</p></div><span class="pill ${exclusion ? 'bad' : 'info'}">${formatNumber(leads.length)}件 / ${formatNumber(domains.length)}ドメイン</span></div>
+              <div class="quick-dialog-header"><div><p class="eyebrow">一括処理の事前確認</p><h2 id="reviewBulkPreviewTitle">${escapeHtml(preview.label)}にしますか？</h2><p class="muted">対象と変更内容を確認してから実行します。</p></div><span class="pill info">${formatNumber(leads.length)}件</span></div>
               <div class="review-preview-metrics"><span><small>メールあり</small><strong>${formatNumber(hasEmail)}件</strong></span><span><small>フォームあり</small><strong>${formatNumber(hasForm)}件</strong></span><span><small>連絡先なし</small><strong>${formatNumber(noContact)}件</strong></span></div>
-              ${exclusion ? `
-                <fieldset class="review-send-ng-fieldset">
-                  <legend>送信NG理由 <span class="required-label">必須</span></legend>
-                  <div class="review-send-ng-reasons">${reasonOptions}</div>
-                  ${preview.sendNgReason === 'その他' ? `<label class="review-send-ng-memo">具体的な理由<textarea rows="2" maxlength="1000" oninput="setReviewSendNgMemo(this.value)" placeholder="理由を入力してください">${escapeHtml(preview.sendNgMemo || '')}</textarea></label>` : ''}
-                </fieldset>
-                <label class="review-domain-exclusion-choice ${domains.length ? '' : 'disabled'}">
-                  <input type="checkbox" onchange="setReviewExcludeDomainChoice(this.checked)" ${preview.excludeDomainFromCollection ? 'checked' : ''} ${domains.length ? '' : 'disabled'}>
-                  <span><strong>今後このドメインを取得しない</strong><small>初期設定はOFFです。共有ドメインの別施設まで除外される可能性があるため、必要な場合だけ選択してください。</small></span>
-                </label>
-              ` : ''}
               <div class="review-bulk-preview-list">
                 ${leads.slice(0, 50).map((lead) => `<article class="review-bulk-preview-item"><strong>${escapeHtml(lead.facility_name || lead.company_name || '名称未取得')}</strong><small>${escapeHtml(lead.website_url || lead.email || '連絡先未取得')}</small><small>未対応 → ${escapeHtml(preview.status)} / ${escapeHtml(lead.review_priority_label || '要確認')}</small></article>`).join('')}
               </div>
-              ${exclusion ? `<p class="message ${preview.excludeDomainFromCollection ? 'error' : 'ok'}">${preview.excludeDomainFromCollection ? `${formatNumber(domains.length)}ドメインを今後の収集対象から外します。` : '営業先だけを送信NGにします。ドメインは収集対象のままです。'}</p>` : '<p class="message ok">実行後も24時間以内は最近の確認操作から元に戻せます。</p>'}
-              <div class="dialog-actions"><button type="button" onclick="closeReviewBulkPreview()">キャンセル</button><button id="reviewBulkPreviewSubmit" type="button" class="${exclusion ? 'danger' : 'primary'}" onclick="executeReviewBulkPreview()" ${submitDisabled ? 'disabled' : ''}>${escapeHtml(preview.label)}を実行</button></div>
+              <p class="message ok">実行後も24時間以内は最近の確認操作から元に戻せます。</p>
+              <div class="dialog-actions"><button type="button" onclick="closeReviewBulkPreview()">キャンセル</button><button id="reviewBulkPreviewSubmit" type="button" class="primary" onclick="executeReviewBulkPreview()">${escapeHtml(preview.label)}を実行</button></div>
             </div>
           </div>`;
         activateDialogFocus(target.querySelector('[role="dialog"]'));
@@ -19514,32 +19348,17 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       async function executeReviewBulkPreview() {
         const preview = state.reviewBulkPreview;
         if (!preview || state.reviewBulkActionRunning) return;
-        if (!reviewSendNgDialogIsValid(preview)) {
-          message(preview.sendNgReason === 'その他' ? '具体的な送信NG理由を入力してください' : '送信NG理由を選択してください', 'error');
-          return;
-        }
+        closeReviewBulkPreview();
+        return executeReviewBulkDecision(preview);
+      }
+
+      async function executeReviewBulkDecision(preview) {
+        if (!preview || state.reviewBulkActionRunning) return;
         const selected = preview.leads || [];
+        if (!selected.length) return;
         const status = preview.status;
         const label = preview.label;
-        const decisionOptions = status === '送信NG' ? {
-          send_ng_reason: String(preview.sendNgReason || '').trim(),
-          send_ng_memo: String(preview.sendNgMemo || '').trim(),
-          exclude_domain_from_collection: preview.excludeDomainFromCollection === true,
-        } : {};
-        closeReviewBulkPreview();
-
-        if (preview.single) {
-          const lead = selected[0];
-          if (lead) {
-            await updateReviewLeadStatus(lead.id, status, {
-              skipConfirm: true,
-              allowUndo: true,
-              lead,
-              decisionOptions,
-            });
-          }
-          return;
-        }
+        const decisionOptions = preview.decisionOptions || {};
 
         const ids = selected.map((lead) => lead.id);
         state.reviewBulkActionRunning = true;
@@ -20087,8 +19906,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const selected = selectedReviewLead();
         if (!selected) return;
         if (status === '送信NG') {
-          openReviewSendNgDialog([selected], { single: true });
-          return;
+          return updateReviewLeadStatus(selected.id, status, {
+            skipConfirm: true,
+            allowUndo: true,
+            lead: selected,
+            decisionOptions: { exclude_domain_from_collection: true },
+          });
         }
         return updateReviewLeadStatus(selected.id, status, { skipConfirm: true, allowUndo: true, lead: selected });
       }
