@@ -2997,47 +2997,6 @@
         justify-content: flex-end;
       }
 
-      .review-triage-panel {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-      }
-
-      .review-triage-card {
-        display: grid;
-        gap: 5px;
-        min-height: 88px;
-        padding: 13px;
-        border: 1px solid var(--line);
-        border-radius: 9px;
-        background: #fff;
-        color: var(--text);
-        text-align: left;
-      }
-
-      .review-triage-card:hover,
-      .review-triage-card.active {
-        border-color: #60a5fa;
-        background: #eff6ff;
-      }
-
-      .review-triage-card strong { font-size: 22px; }
-      .review-triage-card small { color: var(--muted); font-weight: 800; line-height: 1.45; }
-
-      .review-triage-chip {
-        display: inline-flex;
-        width: fit-content;
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: #e0f2fe;
-        color: #075985;
-        font-size: 11px;
-        font-weight: 900;
-      }
-
-      .review-triage-chip.excluded { background: #fee2e2; color: #991b1b; }
-      .review-triage-chip.manual { background: #fef3c7; color: #92400e; }
-
       .review-bulk-preview-list,
       .domain-history-list,
       .collection-source-list {
@@ -11303,10 +11262,6 @@
         background: #ffffff;
       }
 
-      @media (max-width: 800px) {
-        .review-triage-panel { grid-template-columns: 1fr; }
-      }
-
       .review-convenience-filters,
       .background-job-filters {
         display: flex;
@@ -15087,7 +15042,6 @@
           </header>
           <section id="reviewLeadCommandPanel" class="review-command-panel"></section>
           <section id="dailyFocusPanel" class="daily-focus-panel"></section>
-          <section id="reviewTriagePanel" class="review-triage-panel" aria-label="確認待ちの自動仕分け"></section>
           <section id="reviewConvenienceToolbar" class="review-convenience-toolbar" aria-label="確認待ちの絞り込み"></section>
           <div id="reviewLeadStats" class="review-stats-grid"></div>
           <div id="reviewBulkActionBar" class="bulk-action-bar review-bulk-action-bar"></div>
@@ -16687,9 +16641,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         reviewBulkActionRunning: false,
         reviewPriorityFilter: 'all',
         reviewContactFilter: 'all',
-        reviewBucketFilter: 'all',
-        reviewSort: 'review_priority_desc',
-        reviewTriageSummary: { ready: 0, manual: 0, excluded: 0 },
+        reviewSort: 'review_email_first',
         reviewBulkPreview: null,
         reviewWorkspaceByLeadId: {},
         reviewWorkspaceLoadingIds: {},
@@ -16921,7 +16873,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         'updateLead',
         'updateReviewLeadDecision',
         'updateReviewLeadDecisions',
-        'setReviewTriageOverride',
         'undoReviewActivity',
       ]);
       const leadListResponseCache = new Map();
@@ -18552,7 +18503,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function openDailyWorkItem(type, id, tab) {
         if (type === 'review') {
-          state.reviewBucketFilter = 'all';
           state.reviewPriorityFilter = 'all';
           state.reviewContactFilter = 'all';
           state.selectedReviewLeadId = id || '';
@@ -19108,10 +19058,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function getReviewLeadRequest() {
         return {
           filter: 'review',
-          sort: state.reviewSort || 'review_priority_desc',
+          sort: state.reviewSort || 'review_email_first',
           reviewPriority: state.reviewPriorityFilter || 'all',
           reviewContact: state.reviewContactFilter || 'all',
-          reviewBucket: state.reviewBucketFilter || 'all',
           limit: INITIAL_REVIEW_LEAD_LIMIT,
           offset: 0,
           includeStats: false,
@@ -19161,7 +19110,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           state.reviewLeads = result.items || [];
           state.reviewTotal = result.total || 0;
           state.reviewOverallTotal = Number(result.reviewOverallTotal || result.total || 0);
-          state.reviewTriageSummary = result.reviewTriageSummary || state.reviewTriageSummary || { ready: 0, manual: 0, excluded: 0 };
           state.reviewStats = result.filteredStats || result.stats || {};
           state.dataLoaded.reviewLeads = true;
           renderReviewLeadsScreen();
@@ -19177,7 +19125,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function reviewVisibleLeadIds() {
-        return (state.reviewLeads || []).filter((lead) => String(lead && lead.review_triage_bucket || '') !== 'excluded').map((lead) => String(lead && lead.id || '')).filter(Boolean);
+        return (state.reviewLeads || []).map((lead) => String(lead && lead.id || '')).filter(Boolean);
       }
 
       function reconcileReviewLeadSelection() {
@@ -19204,7 +19152,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.querySelectorAll('.review-lead-select-input').forEach((input) => {
           input.checked = selectedIds.has(String(input.dataset.reviewLeadId || ''));
           const lead = (state.reviewLeads || []).find((item) => String(item.id || '') === String(input.dataset.reviewLeadId || ''));
-          input.disabled = state.reviewBulkActionRunning || isReviewLeadPendingSave(input.dataset.reviewLeadId) || (lead && lead.review_triage_bucket === 'excluded');
+          input.disabled = state.reviewBulkActionRunning || isReviewLeadPendingSave(input.dataset.reviewLeadId);
         });
       }
 
@@ -19292,7 +19240,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <div class="quick-dialog-header"><div><p class="eyebrow">一括処理の事前確認</p><h2 id="reviewBulkPreviewTitle">${escapeHtml(preview.label)}にしますか？</h2><p class="muted">対象・変更内容・判定理由を確認してから実行します。</p></div><span class="pill ${exclusion ? 'bad' : 'info'}">${formatNumber(leads.length)}件</span></div>
               <div class="review-preview-metrics"><span><small>メールあり</small><strong>${formatNumber(hasEmail)}件</strong></span><span><small>フォームあり</small><strong>${formatNumber(hasForm)}件</strong></span><span><small>連絡先なし</small><strong>${formatNumber(noContact)}件</strong></span></div>
               <div class="review-bulk-preview-list">
-                ${leads.slice(0, 50).map((lead) => `<article class="review-bulk-preview-item"><strong>${escapeHtml(lead.facility_name || lead.company_name || '名称未取得')}</strong><small>${escapeHtml(lead.website_url || lead.email || '連絡先未取得')}</small><small>未対応 → ${escapeHtml(preview.status)} / ${escapeHtml(lead.review_triage_label || lead.review_priority_label || '人が確認')}</small></article>`).join('')}
+                ${leads.slice(0, 50).map((lead) => `<article class="review-bulk-preview-item"><strong>${escapeHtml(lead.facility_name || lead.company_name || '名称未取得')}</strong><small>${escapeHtml(lead.website_url || lead.email || '連絡先未取得')}</small><small>未対応 → ${escapeHtml(preview.status)} / ${escapeHtml(lead.review_priority_label || '要確認')}</small></article>`).join('')}
               </div>
               ${exclusion ? '<p class="message error">Webサイトのある候補は、同一ドメインも今後の収集対象から外れます。</p>' : '<p class="message ok">実行後も24時間以内は最近の確認操作から元に戻せます。</p>'}
               <div class="dialog-actions"><button type="button" onclick="closeReviewBulkPreview()">キャンセル</button><button type="button" class="${exclusion ? 'danger' : 'primary'}" onclick="executeReviewBulkPreview()">${escapeHtml(preview.label)}を実行</button></div>
@@ -19438,7 +19386,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         tableTarget.innerHTML = table(headers, rows);
         hydrateLegacyUtilityIcons(command);
         renderDailyFocusPanel();
-        renderReviewTriagePanel();
         renderReviewConvenienceToolbar();
         renderReviewBulkActionBar();
         renderReviewInboxPanel();
@@ -19453,42 +19400,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return 'low';
       }
 
-      function renderReviewTriagePanel() {
-        const target = document.getElementById('reviewTriagePanel');
-        if (!target) return;
-        const summary = state.reviewTriageSummary || {};
-        const active = state.reviewBucketFilter || 'all';
-        const cards = [
-          ['ready', '営業しやすい', Number(summary.ready || 0), '公式サイトと連絡先が揃った優先候補'],
-          ['manual', '人が確認', Number(summary.manual || 0), '情報不足や関連候補を目視で確認'],
-          ['excluded', '自動除外候補', Number(summary.excluded || 0), '重複・情報サイト・休業・リンク切れ。削除はしません'],
-        ];
-        target.innerHTML = cards.map(([key, label, count, detail]) => `
-          <button type="button" class="review-triage-card ${active === key ? 'active' : ''}" onclick="setReviewConvenienceFilter('bucket', '${key}')" aria-pressed="${active === key}">
-            <span class="review-triage-chip ${key}">${escapeHtml(label)}</span>
-            <strong>${formatNumber(count)}件</strong>
-            <small>${escapeHtml(detail)}</small>
-          </button>
-        `).join('');
-      }
-
       function renderReviewConvenienceToolbar() {
         const target = document.getElementById('reviewConvenienceToolbar');
         if (!target) return;
         const priority = state.reviewPriorityFilter || 'all';
         const contact = state.reviewContactFilter || 'all';
-        const bucket = state.reviewBucketFilter || 'all';
-        const sort = state.reviewSort || 'review_priority_desc';
+        const sort = state.reviewSort || 'review_email_first';
         target.innerHTML = `
           <div class="review-convenience-filters">
-            <label>仕分け
-              <select onchange="setReviewConvenienceFilter('bucket', this.value)" ${state.reviewLoading ? 'disabled' : ''}>
-                <option value="all" ${bucket === 'all' ? 'selected' : ''}>営業対象すべて</option>
-                <option value="ready" ${bucket === 'ready' ? 'selected' : ''}>営業しやすい</option>
-                <option value="manual" ${bucket === 'manual' ? 'selected' : ''}>人が確認</option>
-                <option value="excluded" ${bucket === 'excluded' ? 'selected' : ''}>自動除外候補</option>
-              </select>
-            </label>
             <label>優先度
               <select onchange="setReviewConvenienceFilter('priority', this.value)" ${state.reviewLoading ? 'disabled' : ''}>
                 <option value="all" ${priority === 'all' ? 'selected' : ''}>すべて</option>
@@ -19508,7 +19427,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             </label>
             <label>並び順
               <select onchange="setReviewConvenienceFilter('sort', this.value)" ${state.reviewLoading ? 'disabled' : ''}>
-                <option value="review_priority_desc" ${sort === 'review_priority_desc' ? 'selected' : ''}>営業しやすい順</option>
+                <option value="review_email_first" ${sort === 'review_email_first' ? 'selected' : ''}>メール取得済みを先頭</option>
                 <option value="updated_desc" ${sort === 'updated_desc' ? 'selected' : ''}>新しく追加した順</option>
               </select>
             </label>
@@ -19518,26 +19437,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function setReviewConvenienceFilter(kind, value) {
-        if (kind === 'bucket') state.reviewBucketFilter = value || 'all';
         if (kind === 'priority') state.reviewPriorityFilter = value || 'all';
         if (kind === 'contact') state.reviewContactFilter = value || 'all';
-        if (kind === 'sort') state.reviewSort = value || 'review_priority_desc';
+        if (kind === 'sort') state.reviewSort = value || 'review_email_first';
         state.selectedReviewLeadId = '';
         state.reviewWorkspaceByLeadId = {};
         await loadReviewLeadMenu({ quiet: true, includeStats: false });
-      }
-
-      async function setReviewTriageOverrideClient(leadId, enabled) {
-        const id = String(leadId || '');
-        if (!id) return;
-        try {
-          const result = await apiQuiet('setReviewTriageOverride', id, enabled !== false);
-          delete state.reviewWorkspaceByLeadId[id];
-          await loadReviewLeadMenu({ quiet: true, includeStats: false });
-          message(result.message || '仕分けを更新しました', 'ok');
-        } catch (error) {
-          message(`仕分けを更新できませんでした: ${apiErrorText(error)}`, 'error');
-        }
       }
 
       function ensureReviewLeadWorkspaceLoaded(leadId) {
@@ -19584,24 +19489,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const reasons = workspace.reasons || [];
         const related = workspace.related || [];
         const timeline = (workspace.timeline || []).slice(0, 5);
-        const triage = workspace.triage || { bucket: lead.review_triage_bucket || 'manual', label: lead.review_triage_label || '人が確認', reasons: lead.review_triage_reasons || [], overridden: lead.review_triage_overridden === true };
         const domainValue = lead.website_url || lead.form_url || lead.email || '';
         return `
           <details class="review-intelligence-disclosure">
-            <summary><span class="review-intelligence-summary">判定・重複・履歴 <span class="review-triage-chip ${escapeHtml(triage.bucket || 'manual')}">${escapeHtml(triage.label || '人が確認')}</span><span class="pill ${related.length ? 'warn' : 'good'}">関連 ${formatNumber(related.length)}件</span></span></summary>
+            <summary><span class="review-intelligence-summary">判定・重複・履歴 <span class="review-priority-badge ${reviewPriorityToneClass(priority.tier)}">${escapeHtml(priority.label)} ${formatNumber(priority.score)}点</span><span class="pill ${related.length ? 'warn' : 'good'}">関連 ${formatNumber(related.length)}件</span></span></summary>
             <div class="review-intelligence-disclosure-body"><section class="review-intelligence-panel">
             <div class="review-intelligence-head">
               <div><h3>判定内容</h3><p class="muted">自動判定の理由と、過去データとの関連を表示します。</p></div>
               <span class="review-priority-badge ${reviewPriorityToneClass(priority.tier)}">${escapeHtml(priority.label)} ${formatNumber(priority.score)}点</span>
             </div>
-            <div class="review-intelligence-head">
-              <div><h3>自動仕分け</h3><p class="muted">削除せず、理由を表示して人が戻せる状態で分類します。</p></div>
-              <span class="review-triage-chip ${escapeHtml(triage.bucket || 'manual')}">${escapeHtml(triage.label || '人が確認')}</span>
-            </div>
-            <div class="review-reason-list">${(triage.reasons || []).map((reason) => `<span class="review-reason-chip"><strong>${escapeHtml(reason.label || '-')}</strong><small>${escapeHtml(reason.detail || '')}</small></span>`).join('')}</div>
             <div class="review-related-actions">
-              ${triage.bucket === 'excluded' ? `<button type="button" class="primary" onclick="setReviewTriageOverrideClient('${escapeJsString(id)}', true)">人の確認へ戻す</button>` : ''}
-              ${triage.overridden ? `<button type="button" onclick="setReviewTriageOverrideClient('${escapeJsString(id)}', false)">自動仕分けへ戻す</button>` : ''}
               ${domainValue ? `<button type="button" onclick="openDomainHistory('${escapeJsString(domainValue)}')">ドメイン履歴</button>` : ''}
             </div>
             <div class="review-reason-list">
@@ -19789,10 +19686,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               return `
                 <div class="review-inbox-item-row ${lead.id === selected.id ? 'active' : ''}">
                   <label class="review-inbox-item-select" title="${escapeHtml(name)}を選択">
-                    <input class="review-lead-select-input" data-review-lead-id="${escapeHtml(lead.id)}" type="checkbox" onchange="toggleReviewLeadSelection('${escapeJsString(lead.id)}', this.checked)" ${state.selectedReviewLeadIds.includes(lead.id) ? 'checked' : ''} ${state.reviewBulkActionRunning || isReviewLeadPendingSave(lead.id) || lead.review_triage_bucket === 'excluded' ? 'disabled' : ''} aria-label="${escapeHtml(name)}を一括操作の対象に選択">
+                    <input class="review-lead-select-input" data-review-lead-id="${escapeHtml(lead.id)}" type="checkbox" onchange="toggleReviewLeadSelection('${escapeJsString(lead.id)}', this.checked)" ${state.selectedReviewLeadIds.includes(lead.id) ? 'checked' : ''} ${state.reviewBulkActionRunning || isReviewLeadPendingSave(lead.id) ? 'disabled' : ''} aria-label="${escapeHtml(name)}を一括操作の対象に選択">
                   </label>
                   <button type="button" class="review-inbox-item ${lead.id === selected.id ? 'active' : ''}" onclick="selectReviewInboxLead('${escapeJsString(lead.id)}')" ${lead.id === selected.id ? 'aria-current="true"' : ''}>
-                    <span><strong>${escapeHtml(name)}</strong><small>${escapeHtml(lead.company_name && lead.company_name !== name ? lead.company_name : lead.genre || 'ジャンル未設定')}</small><em class="review-priority-badge ${reviewPriorityToneClass(lead.review_priority_tier)}">${escapeHtml(lead.review_priority_label || '要確認')} ${formatNumber(lead.review_priority_score || 0)}点</em><em class="review-triage-chip ${escapeHtml(lead.review_triage_bucket || 'manual')}">${escapeHtml(lead.review_triage_label || '人が確認')}</em></span>
+                    <span><strong>${escapeHtml(name)}</strong><small>${escapeHtml(lead.company_name && lead.company_name !== name ? lead.company_name : lead.genre || 'ジャンル未設定')}</small><em class="review-priority-badge ${reviewPriorityToneClass(lead.review_priority_tier)}">${escapeHtml(lead.review_priority_label || '要確認')} ${formatNumber(lead.review_priority_score || 0)}点</em></span>
                     <span class="review-inbox-item-channel">${escapeHtml(channels)}</span>
                   </button>
                 </div>
@@ -19805,7 +19702,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <span class="review-priority-badge ${reviewPriorityToneClass(selected.review_priority_tier)}">${escapeHtml(selected.review_priority_label || '要確認')} ${formatNumber(selected.review_priority_score || 0)}点</span>
             </header>
             <div class="review-inbox-actions" aria-label="確認操作">
-              ${selected.review_triage_bucket === 'excluded' ? `<button type="button" class="primary-action" onclick="setReviewTriageOverrideClient('${escapeJsString(selected.id)}', true)">${legacyUiIcon('checkCircle')}人の確認へ戻す</button><button type="button" onclick="openDomainHistory('${escapeJsString(selected.website_url || selected.form_url || selected.email || '')}')">ドメイン履歴</button>` : `<button type="button" class="primary-action" onclick="reviewInboxUpdate('対応中')" aria-keyshortcuts="A" title="確認済み (A)" ${saving ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}${saving ? '保存中' : '確認済み'}</button><button type="button" onclick="startReviewInboxEdit('${escapeJsString(selected.id)}')" aria-label="施設名・メール・ジャンルを編集" title="施設名・メール・ジャンルを編集">${legacyUiIcon('pencil')}情報を編集</button><button type="button" class="danger" onclick="reviewInboxUpdate('送信NG')" aria-keyshortcuts="N" title="送信NG (N)" ${saving ? 'disabled' : ''}>${legacyUiIcon('shieldAlert')}送信NG</button>`}
+              <button type="button" class="primary-action" onclick="reviewInboxUpdate('対応中')" aria-keyshortcuts="A" title="確認済み (A)" ${saving ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}${saving ? '保存中' : '確認済み'}</button><button type="button" onclick="startReviewInboxEdit('${escapeJsString(selected.id)}')" aria-label="施設名・メール・ジャンルを編集" title="施設名・メール・ジャンルを編集">${legacyUiIcon('pencil')}情報を編集</button><button type="button" class="danger" onclick="reviewInboxUpdate('送信NG')" aria-keyshortcuts="N" title="送信NG (N)" ${saving ? 'disabled' : ''}>${legacyUiIcon('shieldAlert')}送信NG</button>
             </div>
             ${editing ? `
               <form class="review-inline-edit-form" onsubmit="saveReviewInboxLeadEdit(event, '${escapeJsString(selected.id)}')">
@@ -19906,10 +19803,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function reviewInboxUpdate(status) {
         const selected = selectedReviewLead();
         if (!selected) return;
-        if (selected.review_triage_bucket === 'excluded') {
-          message('自動除外候補は「人の確認へ戻す」を押してから判断してください', 'error');
-          return;
-        }
         return updateReviewLeadStatus(selected.id, status, { skipConfirm: true, allowUndo: true, lead: selected });
       }
 
@@ -20053,9 +19946,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const company = lead.facility_name && lead.company_name ? `<small>${escapeHtml(lead.company_name)}</small>` : '';
         const source = lead.source ? `<small>追加元 ${escapeHtml(lead.source)}</small>` : '';
         return `<tr class="row-review">${[
-          ['選択', `<label class="table-checkbox" title="${escapeHtml(name)}を選択"><input class="review-lead-select-input" data-review-lead-id="${escapeHtml(lead.id)}" type="checkbox" onchange="toggleReviewLeadSelection('${escapeJsString(lead.id)}', this.checked)" ${state.selectedReviewLeadIds.includes(lead.id) ? 'checked' : ''} ${state.reviewBulkActionRunning || isReviewLeadPendingSave(lead.id) || lead.review_triage_bucket === 'excluded' ? 'disabled' : ''}><span class="sr-only">${escapeHtml(name)}を選択</span></label>`],
+          ['選択', `<label class="table-checkbox" title="${escapeHtml(name)}を選択"><input class="review-lead-select-input" data-review-lead-id="${escapeHtml(lead.id)}" type="checkbox" onchange="toggleReviewLeadSelection('${escapeJsString(lead.id)}', this.checked)" ${state.selectedReviewLeadIds.includes(lead.id) ? 'checked' : ''} ${state.reviewBulkActionRunning || isReviewLeadPendingSave(lead.id) ? 'disabled' : ''}><span class="sr-only">${escapeHtml(name)}を選択</span></label>`],
           ['No.', `<strong>${formatNumber(rowNumber)}</strong>`],
-          ['営業先', `<span class="review-lead-name-cell"><strong>${escapeHtml(name)}</strong>${company}<em class="review-priority-badge ${reviewPriorityToneClass(lead.review_priority_tier)}">${escapeHtml(lead.review_priority_label || '要確認')} ${formatNumber(lead.review_priority_score || 0)}点</em><em class="review-triage-chip ${escapeHtml(lead.review_triage_bucket || 'manual')}">${escapeHtml(lead.review_triage_label || '人が確認')}</em>${source}</span>`],
+          ['営業先', `<span class="review-lead-name-cell"><strong>${escapeHtml(name)}</strong>${company}<em class="review-priority-badge ${reviewPriorityToneClass(lead.review_priority_tier)}">${escapeHtml(lead.review_priority_label || '要確認')} ${formatNumber(lead.review_priority_score || 0)}点</em>${source}</span>`],
           ['連絡先', renderReviewContactCell(lead)],
           ['ジャンル', escapeHtml(lead.genre || '-')],
           ['WEBサイト', renderReviewWebsiteCell(lead)],
@@ -20084,9 +19977,6 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderReviewLeadActions(lead) {
         const id = escapeJsString(lead.id);
         const saving = isReviewLeadPendingSave(lead.id);
-        if (lead.review_triage_bucket === 'excluded') {
-          return `<span class="review-action-row"><button type="button" class="table-link-button primary-row-action" onclick="setReviewTriageOverrideClient('${id}', true)">人の確認へ戻す</button>${lead.website_url || lead.email ? `<button type="button" class="table-link-button" onclick="openDomainHistory('${escapeJsString(lead.website_url || lead.email)}')">ドメイン履歴</button>` : ''}</span>`;
-        }
         return `
           <span class="review-action-row">
             <button type="button" class="table-link-button primary-row-action" onclick="updateReviewLeadStatus('${id}', '対応中')" ${saving ? 'disabled' : ''}>${saving ? '保存中' : '確認済み'}</button>

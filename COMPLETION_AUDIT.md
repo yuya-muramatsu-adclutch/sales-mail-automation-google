@@ -5,16 +5,24 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @337 / production code v328: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @338 / production code v329: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v328_compact_review_controls`
+- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v329_review_email_first`
+
+## v329 自動仕分けの撤回とメール取得済み優先
+
+- 精度が安定しなかった3分類の自動仕分け、分類タブ、自動除外候補の専用操作、仕分け上書きAPIを撤回し、確認待ちを従来の人が判断する一覧へ戻した。
+- 確認待ちの初期順を、有効なメールアドレスを取得済みの営業先を先頭、各グループ内は更新日時の新しい順へ変更した。ダッシュボードの確認候補も同じ優先順に統一した。
+- 既存営業リストとの重複、休業・閉鎖、確実なリンク切れを確認待ちへ出さない従来の安全策は維持した。
+- `node scripts/smoke-test.js`、全`.gs`構文確認、`Index.html`インラインJavaScript構文確認、`git diff --check`が成功。Apps Script version `338`を作成し、固定Web appを`@338`へ更新した。
+- UIの認証済み目視確認と本番データの更新は行っていない。
 
 ## v328 確認操作のコンパクト化
 
 - 添付画面で操作ボタンが詳細情報の最下部にあり、確認のたびにスクロールが必要だった。操作行を施設名ヘッダー直下へ移動し、ページを動かしても確認操作が見える追従バーへ変更した。
 - ボタン高を36pxへ抑え、長い「施設名・メール・ジャンルを編集」を「情報を編集」へ短縮した。完全な説明は`aria-label`と`title`に残した。
 - ヘッダーと基本情報の余白を縮め、メール・フォーム・住所を3列、追加元と更新日時を1行へ集約した。ヘッダーにあるWeb URLは基本情報側で重複表示しない。
-- 自動判定・重複候補・操作履歴を折りたたみにまとめ、初期表示では仕分け状態と関連件数だけを確認できるようにした。
+- 自動判定・重複候補・操作履歴を折りたたみにまとめ、初期表示では仕分け状態と関連件数だけを確認できるようにした。自動仕分け部分はv329で撤回した。
 - `node scripts/smoke-test.js`、全`.gs`構文確認、`Index.html`インラインJavaScript構文確認、`git diff --check`が成功。Apps Script version `337`を作成し、固定Web appを`@337`へ更新した。
 - UIの認証済み目視確認はブラウザ接続機能が利用できなかったため未実施。営業先更新・収集・メール送信などの本番データ操作は行っていない。
 
@@ -1741,7 +1749,7 @@
 - 確認待ちの一括確認済み・送信NGは、対象、変更内容、連絡先内訳をモーダルで確認してから実行するよう変更した。
 - 一覧ページURL別の進捗、追加、重複、除外、連絡先取得率をバックグラウンド進捗へ追加した。
 - ドメイン単位で営業リスト、確認操作、送信NG、収集除外、送信履歴を横断表示する画面を追加した。
-- 自動仕分けの分類、復元上書き、URL別成果判定、画面要素、既存の確認・送信安全策を回帰テストへ追加した。
+- 自動仕分けの分類、復元上書き、URL別成果判定、画面要素、既存の確認・送信安全策を回帰テストへ追加した。自動仕分けの分類と復元上書きはv329で撤回した。
 
 ## 運用時に確認する外部依存
 

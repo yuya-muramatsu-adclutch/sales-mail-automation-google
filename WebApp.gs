@@ -66,7 +66,6 @@ function dispatchPostAction_(action, data) {
   if (action === 'getReviewLeadWorkspace') return getReviewLeadWorkspace(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'listReviewActivities') return listReviewActivities(data);
   if (action === 'undoReviewActivity') return undoReviewActivity(data.activityId || data.activity_id || data.id || data);
-  if (action === 'setReviewTriageOverride') return setReviewTriageOverride(data.leadId || data.lead_id || data.id, data.enabled);
   if (action === 'getCollectionSourcePerformance') return getCollectionSourcePerformance(data);
   if (action === 'getDomainHistory') return getDomainHistory(data.domain || data.url || data.email || data.value || data, data.options || data);
   if (action === 'listEmailSendCandidates') return listEmailSendCandidates(data);
@@ -491,18 +490,18 @@ function getDashboardStats(options) {
     return job.status === 'failed';
   });
   const reviewWorkItems = leads.filter(function (lead) {
-    return !isArchivedLead_(lead) && matchesReviewLeadTriageFilter_(lead, { reviewBucket: 'all' }, masterContext);
+    return !isArchivedLead_(lead) && isLeadReviewPending_(lead) && !isSuppressedReviewDuplicate_(lead, masterContext);
   }).map(function (lead) {
-    return decorateReviewLeadForList_(lead, masterContext);
+    return decorateReviewLeadForList_(lead);
   }).sort(function (left, right) {
-    return Number(right.review_priority_score || 0) - Number(left.review_priority_score || 0) ||
+    return Number(isValidEmailAddress_(right.email)) - Number(isValidEmailAddress_(left.email)) ||
       String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
   }).slice(0, 3).map(function (lead) {
     return {
       type: 'review',
       id: String(lead.id || ''),
       label: String(lead.facility_name || lead.company_name || '名称未取得'),
-      detail: String(lead.review_triage_label || '人が確認') + ' / ' + Number(lead.review_priority_score || 0) + '点',
+      detail: (isValidEmailAddress_(lead.email) ? 'メール取得済み' : 'メール未取得') + ' / ' + Number(lead.review_priority_score || 0) + '点',
       count: 1,
       tab: 'reviewLeads',
     };

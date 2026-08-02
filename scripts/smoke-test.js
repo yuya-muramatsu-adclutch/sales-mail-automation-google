@@ -4225,7 +4225,7 @@ const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-assert(codeSource.includes('20260803_apps_script_full_workflow_v328_compact_review_controls'));
+assert(codeSource.includes('20260803_apps_script_full_workflow_v329_review_email_first'));
 const appInfoContext = vm.createContext({ console });
 vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
 appInfoContext.PropertiesService = {
@@ -5851,7 +5851,7 @@ const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
   urlFetchRecordedToday: 0,
   batchRuntimeBudgetMs: 240000,
 });
-assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 328);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 329);
 assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
 assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
 assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
@@ -5865,7 +5865,7 @@ const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
     status: 'danger',
   },
 });
-assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 328);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 329);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
@@ -5978,12 +5978,11 @@ const reviewInboxActionsStart = indexSource.indexOf('<div class="review-inbox-ac
 const reviewInboxActionsEnd = indexSource.indexOf('</div>', reviewInboxActionsStart);
 assert(reviewInboxActionsStart >= 0 && reviewInboxActionsEnd > reviewInboxActionsStart);
 const reviewInboxActionsSource = indexSource.slice(reviewInboxActionsStart, reviewInboxActionsEnd);
-assert.strictEqual((reviewInboxActionsSource.match(/<button /g) || []).length, 5);
+assert.strictEqual((reviewInboxActionsSource.match(/<button /g) || []).length, 3);
 assert(reviewInboxActionsSource.includes("reviewInboxUpdate('対応中')"));
 assert(reviewInboxActionsSource.includes('startReviewInboxEdit('));
 assert(reviewInboxActionsSource.includes("reviewInboxUpdate('送信NG')"));
-assert(reviewInboxActionsSource.includes('setReviewTriageOverrideClient('));
-assert(reviewInboxActionsSource.includes('openDomainHistory('));
+assert(!reviewInboxActionsSource.includes('setReviewTriageOverrideClient('));
 assert(!reviewInboxActionsSource.includes('deferReviewInboxLead()'));
 assert(!reviewInboxActionsSource.includes("reviewInboxUpdate('対応不要')"));
 assert(reviewInboxActionsSource.includes('aria-label="施設名・メール・ジャンルを編集"'));
@@ -6058,11 +6057,11 @@ assert.strictEqual(reviewRelations[0].confidence, 'high');
 assert(reviewRelations.some((item) => item.id === 'same-root' && item.confidence === 'caution'));
 const reviewListOptions = context.normalizeListOptions_({
   filter: 'review',
-  sort: 'review_priority_desc',
+  sort: 'review_email_first',
   reviewPriority: 'high',
   reviewContact: 'email',
 });
-assert.strictEqual(reviewListOptions.sort, 'review_priority_desc');
+assert.strictEqual(reviewListOptions.sort, 'review_email_first');
 assert.strictEqual(reviewListOptions.reviewPriority, 'high');
 assert.strictEqual(reviewListOptions.reviewContact, 'email');
 assert(vm.runInContext('SHEET_DEFINITIONS.review_activity_logs.includes("reversible_until")', context));
@@ -6081,34 +6080,26 @@ assert(indexSource.includes('function backgroundJobActionMarkup(job)'));
 assert(indexSource.includes("onclick=\"loadJobs()\">最新状態を取得"));
 assert(operationsSource.includes("['failed', 'cancelled'].indexOf(String(job.status || '')) !== -1"));
 
-const triageMaster = { reviewDuplicateLeadIds: { 'duplicate-review': 'existing-lead' } };
-const readyTriageLead = analyticsContext.decorateReviewLeadForList_({
-  id: 'ready-review', source: 'source_page', status: '未対応', genre: 'キャンプ',
-  website_url: 'https://operator-ready.example/', email: 'info@operator-ready.example',
-  form_url: 'https://operator-ready.example/contact', address: '東京都', source_payload_json: '{}',
-}, triageMaster);
-const manualTriageLead = analyticsContext.decorateReviewLeadForList_({
-  id: 'manual-review', source: 'source_page', status: '未対応', website_url: 'https://operator-manual.example/',
-  source_payload_json: '{}',
-}, triageMaster);
-const duplicateTriageLead = analyticsContext.decorateReviewLeadForList_({
-  id: 'duplicate-review', source: 'source_page', status: '未対応', website_url: 'https://operator-duplicate.example/',
-  source_payload_json: '{}',
-}, triageMaster);
-const restoredTriageLead = analyticsContext.decorateReviewLeadForList_({
-  id: 'duplicate-review', source: 'source_page', status: '未対応', website_url: 'https://operator-duplicate.example/',
-  source_payload_json: JSON.stringify({ review_triage_override: 'review' }),
-}, triageMaster);
-assert.strictEqual(readyTriageLead.review_triage_bucket, 'ready');
-assert.strictEqual(manualTriageLead.review_triage_bucket, 'manual');
-assert.strictEqual(duplicateTriageLead.review_triage_bucket, 'excluded');
-assert(duplicateTriageLead.review_triage_reasons.some((reason) => reason.key === 'duplicate'));
-assert.strictEqual(restoredTriageLead.review_triage_bucket, 'manual');
-assert.strictEqual(restoredTriageLead.review_triage_overridden, true);
-assert.strictEqual(analyticsContext.matchesReviewLeadTriageFilter_(duplicateTriageLead, { reviewBucket: 'all' }, triageMaster), false);
-assert.strictEqual(analyticsContext.matchesReviewLeadTriageFilter_(duplicateTriageLead, { reviewBucket: 'excluded' }, triageMaster), true);
-assert.strictEqual(analyticsContext.normalizeListOptions_({ filter: 'review', reviewBucket: 'excluded' }).reviewBucket, 'excluded');
-assert.throws(() => analyticsContext.normalizeListOptions_({ filter: 'review', reviewBucket: 'unknown' }), /Invalid review bucket filter/);
+const emailFirstReviewLeads = [
+  { id: 'no-email-newest', email: '', updated_at: '2026-08-03T12:00:00+09:00' },
+  { id: 'email-older', email: 'older@operator-test.jp', updated_at: '2026-08-02T12:00:00+09:00' },
+  { id: 'invalid-email', email: 'not-an-email', updated_at: '2026-08-03T11:00:00+09:00' },
+  { id: 'email-newer', email: 'newer@operator-test.jp', updated_at: '2026-08-03T10:00:00+09:00' },
+];
+analyticsContext.sortLeads_(emailFirstReviewLeads, 'review_email_first');
+assert.deepStrictEqual(
+  emailFirstReviewLeads.map((lead) => lead.id),
+  ['email-newer', 'email-older', 'no-email-newest', 'invalid-email'],
+  'valid email leads must be listed first, with newest updates first inside each group'
+);
+assert(!codeSource.includes('function reviewLeadTriage_'));
+assert(!codeSource.includes('function matchesReviewLeadTriageFilter_'));
+assert(!codeSource.includes('reviewBucket'));
+assert(!webAppSource.includes("if (action === 'setReviewTriageOverride')"));
+assert(!indexSource.includes('id="reviewTriagePanel"'));
+assert(!indexSource.includes('review-triage-chip'));
+assert(indexSource.includes('メール取得済みを先頭'));
+assert(webAppSource.includes('Number(isValidEmailAddress_(right.email)) - Number(isValidEmailAddress_(left.email))'));
 assert.deepStrictEqual(JSON.parse(JSON.stringify(analyticsContext.collectionSourceUrlsFromJob_({
   query_json: JSON.stringify({ source_url: 'https://one.example/list', items: [{ source_url: 'https://two.example/list' }] }),
 }))), ['https://one.example/list', 'https://two.example/list']);
@@ -6117,8 +6108,6 @@ assert.strictEqual(analyticsContext.collectionSourceResultOutcome_({ lead_id: 'n
 assert.strictEqual(analyticsContext.leadMatchesDomainRoot_({ website_url: 'https://sub.example.co.jp/path' }, 'example.co.jp'), true);
 assert(webAppSource.includes("if (action === 'getCollectionSourcePerformance')"));
 assert(webAppSource.includes("if (action === 'getDomainHistory')"));
-assert(webAppSource.includes("if (action === 'setReviewTriageOverride')"));
-assert(indexSource.includes('id="reviewTriagePanel"'));
 assert(indexSource.includes('id="reviewBulkPreviewHost"'));
 assert(indexSource.includes('id="domainHistoryHost"'));
 assert(indexSource.includes('id="collectionSourcePerformancePanel"'));
@@ -6127,4 +6116,4 @@ assert(indexSource.includes('function renderReviewBulkPreviewDialog()'));
 assert(indexSource.includes('function renderCollectionSourcePerformance()'));
 assert(indexSource.includes('function openDomainHistory(value)'));
 
-console.log('v328 compact-review-controls regression tests passed.');
+console.log('v329 review-email-first regression tests passed.');

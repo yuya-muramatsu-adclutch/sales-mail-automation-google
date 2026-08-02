@@ -101,8 +101,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @337 / production code v328: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
-- Apps Script HEAD / repository code v328: `20260803_apps_script_full_workflow_v328_compact_review_controls`
+- Web app deployment @338 / production code v329: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Apps Script HEAD / repository code v329: `20260803_apps_script_full_workflow_v329_review_email_first`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -354,16 +354,23 @@ const archived = deleteLead(lead.id);
 
 ## 重要な実装方針
 
+### v329 自動仕分けの撤回とメール取得済み優先
+
+- 精度が安定しなかった「営業しやすい」「人が確認」「自動除外候補」の3分類と、手動で分類を戻す操作を撤回しました。
+- 確認待ちは従来の一覧へ戻し、有効なメールアドレスを取得している営業先を先頭へ表示します。同じグループ内は更新日時の新しい順です。
+- 既存営業リストとの重複、休業・閉鎖、確実なリンク切れを確認待ちへ出さない従来の安全策は維持します。
+- 一括確認、情報編集、送信NG、ドメイン履歴、収集元分析、コンパクトな操作バーはそのまま利用できます。
+
 ### v328 確認操作のコンパクト化
 
 - 確認待ち詳細の「確認済み」「情報を編集」「送信NG」を施設名の直下へ移し、スクロール前に操作できるようにしました。
 - 操作バーは高さを抑えたスクロール追従表示とし、編集ボタンの文言も短縮しました。詳しい編集対象はツールチップと読み上げラベルで維持します。
 - URLの重複表示をなくし、メール・フォーム・住所を3列、追加元・更新日時を1行へ集約しました。
-- 自動判定・重複候補・履歴は件数と仕分け状態だけを初期表示し、必要な場合だけ詳細を展開します。
+- 重複候補・履歴は件数だけを初期表示し、必要な場合だけ詳細を展開します。v328時点の自動仕分け表示はv329で撤回しました。
 
 ### v327 操作支援機能
 
-- 確認待ちを「営業しやすい」「人が確認」「自動除外候補」に理由付きで仕分けます。自動除外候補は削除せず、手動で確認対象へ戻せます。
+- v327で追加した「営業しやすい」「人が確認」「自動除外候補」の自動仕分けは、精度を優先してv329で撤回しました。
 - ダッシュボードの今日の作業に、優先候補名・停止ジョブ・本日の送信確認を表示します。
 - 確認待ちの一括処理は、対象・変更後状態・連絡先内訳をプレビューしてから実行します。
 - バックグラウンド進捗で、収集元URLごとの進捗・追加・重複・除外・連絡先取得率を確認できます。
