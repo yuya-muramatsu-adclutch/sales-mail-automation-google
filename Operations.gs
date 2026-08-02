@@ -2258,6 +2258,10 @@ function processPendingReviewLeadDecisions_(options) {
           mode: record.mode,
           expectedStatus: record.expectedStatus,
           nextStatus: record.status,
+          sendNgReason: record.sendNgReason,
+          sendNgMemo: record.sendNgMemo,
+          excludeDomainFromCollection: record.excludeDomainFromCollection === true,
+          excludeDomainFromCollectionSpecified: record.excludeDomainFromCollectionSpecified === true,
         });
         if (result.write) {
           writes.push(result.write);

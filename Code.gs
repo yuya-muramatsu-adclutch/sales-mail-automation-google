@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260803_apps_script_full_workflow_v330_review_email_first_all_views';
+const APP_VERSION = '20260803_apps_script_full_workflow_v331_review_efficiency_controls';
 const BACKGROUND_JOB_SAFE_RUNTIME_MAX_MS = 240000;
 const BACKGROUND_JOB_DEFAULT_RUNTIME_MS = 240000;
 const BACKGROUND_JOB_IMMEDIATE_DELAY_MS = 5000;
@@ -809,6 +809,10 @@ function normalizePendingReviewDecisionRecord_(propertyKey, value) {
       mode: String(parsed.mode || 'decision'),
       expectedStatus: expectedStatus,
       status: status,
+      sendNgReason: String(parsed.sendNgReason || parsed.send_ng_reason || ''),
+      sendNgMemo: String(parsed.sendNgMemo || parsed.send_ng_memo || ''),
+      excludeDomainFromCollection: parsed.excludeDomainFromCollection === true || parsed.exclude_domain_from_collection === true,
+      excludeDomainFromCollectionSpecified: parsed.excludeDomainFromCollectionSpecified === true || parsed.exclude_domain_from_collection_specified === true,
       requestedAt: String(parsed.requestedAt || parsed.requested_at || ''),
       queuedReason: String(parsed.queuedReason || parsed.queued_reason || ''),
     };
@@ -869,6 +873,10 @@ function enqueuePendingReviewDecision_(leadId, decision, reason, options) {
     mode: String(decision.mode || 'decision'),
     expectedStatus: String(decision.expectedStatus || ''),
     status: String(decision.nextStatus || decision.status || ''),
+    sendNgReason: String(decision.sendNgReason || decision.send_ng_reason || ''),
+    sendNgMemo: String(decision.sendNgMemo || decision.send_ng_memo || ''),
+    excludeDomainFromCollection: decision.excludeDomainFromCollection === true || decision.exclude_domain_from_collection === true,
+    excludeDomainFromCollectionSpecified: decision.excludeDomainFromCollectionSpecified === true || decision.exclude_domain_from_collection_specified === true,
     requestedAt: nowIso_(),
     queuedReason: String(reason || 'lock_timeout'),
   };
@@ -1131,6 +1139,7 @@ function buildReviewActivityRecord_(write, options) {
       next_send_at: String(previous.next_send_at || ''),
       no_action_reason: String(previous.no_action_reason || ''),
       no_action_memo: String(previous.no_action_memo || ''),
+      source_payload_json: String(previous.source_payload_json || '{}'),
     }),
     detail_json: safeJsonStringify_({ source: String(record.source || previous.source || ''), request_id: String(input.requestId || '') }),
     reversible_until: reversible ? new Date(Date.now() + REVIEW_ACTIVITY_UNDO_WINDOW_MS_).toISOString() : '',
@@ -1209,6 +1218,7 @@ function undoReviewActivity(activityId) {
       next_send_at: String(snapshot.next_send_at || ''),
       no_action_reason: String(snapshot.no_action_reason || ''),
       no_action_memo: String(snapshot.no_action_memo || ''),
+      source_payload_json: String(snapshot.source_payload_json || leadFound.record.source_payload_json || '{}'),
     });
     writeLeadRecordsToRowsGroupedLocked_(leadSheet, leadFound.headers || getHeaders_(leadSheet), [{
       rowNumber: leadFound.rowNumber,
@@ -1497,40 +1507,43 @@ function listLeads(options) {
   const preparedRows = query.filter === 'review' ? rows.map(function (lead) {
     return isLeadReviewPending_(lead) ? decorateReviewLeadForList_(lead) : lead;
   }) : rows;
-  const filtered = preparedRows.filter(function (lead) {
-    if (!query.includeArchived && isArchivedLead_(lead)) {
-      return false;
-    }
-    if (query.status && lead.status !== query.status) {
-      return false;
-    }
-    if (query.genre && String(lead.genre || '') !== query.genre) {
-      return false;
-    }
-    if (query.formStatus && !matchesFormStatusFilter_(lead, query.formStatus)) {
-      return false;
-    }
-    if (!matchesLeadListFilter_(lead, query.filter, masterContext)) {
-      return false;
-    }
-    if (query.filter === 'review' && !matchesReviewLeadConvenienceFilters_(lead, query)) return false;
-    if (!query.search) {
-      return true;
-    }
+  const filterPreparedRows = function (filterQuery) {
+    return preparedRows.filter(function (lead) {
+      if (!filterQuery.includeArchived && isArchivedLead_(lead)) {
+        return false;
+      }
+      if (filterQuery.status && lead.status !== filterQuery.status) {
+        return false;
+      }
+      if (filterQuery.genre && String(lead.genre || '') !== filterQuery.genre) {
+        return false;
+      }
+      if (filterQuery.formStatus && !matchesFormStatusFilter_(lead, filterQuery.formStatus)) {
+        return false;
+      }
+      if (!matchesLeadListFilter_(lead, filterQuery.filter, masterContext)) {
+        return false;
+      }
+      if (filterQuery.filter === 'review' && !matchesReviewLeadConvenienceFilters_(lead, filterQuery)) return false;
+      if (!filterQuery.search) {
+        return true;
+      }
 
-    const haystack = [
-      lead.company_name,
-      lead.facility_name,
-      lead.website_url,
-      lead.form_url,
-      lead.email,
-      lead.genre,
-      lead.status,
-      lead.source,
-    ].join(' ').toLowerCase();
+      const haystack = [
+        lead.company_name,
+        lead.facility_name,
+        lead.website_url,
+        lead.form_url,
+        lead.email,
+        lead.genre,
+        lead.status,
+        lead.source,
+      ].join(' ').toLowerCase();
 
-    return haystack.indexOf(query.search) !== -1;
-  });
+      return haystack.indexOf(filterQuery.search) !== -1;
+    });
+  };
+  const filtered = filterPreparedRows(query);
 
   sortLeads_(filtered, query.sort);
 
@@ -1547,6 +1560,10 @@ function listLeads(options) {
     response.reviewOverallTotal = preparedRows.filter(function (lead) {
       return !isArchivedLead_(lead) && matchesLeadListFilter_(lead, 'review', masterContext);
     }).length;
+    const reviewContactRows = query.reviewContact === 'all'
+      ? filtered
+      : filterPreparedRows(Object.assign({}, query, { reviewContact: 'all' }));
+    response.reviewContactSummary = buildReviewContactSummary_(reviewContactRows);
   }
   if (query.includeStats) {
     response.stats = buildLeadListStats_(rows, masterContext, query.genre);
@@ -1651,13 +1668,27 @@ function matchesReviewLeadConvenienceFilters_(lead, query) {
   const contact = String(source.reviewContact || 'all');
   const tier = String(lead.review_priority_tier || reviewLeadPriorityTier_(reviewLeadPriorityScore_(lead)));
   if (priority !== 'all' && tier !== priority) return false;
-  const hasEmail = isValidEmailAddress_(lead.email);
+  const hasEmail = hasLeadEmailForSort_(lead);
   const hasForm = Boolean(String(lead.form_url || '').trim());
   if (contact === 'contact' && !hasEmail && !hasForm) return false;
   if (contact === 'no_contact' && (hasEmail || hasForm)) return false;
   if (contact === 'email' && !hasEmail) return false;
   if (contact === 'form' && !hasForm) return false;
+  if (contact === 'form_only' && (!hasForm || hasEmail)) return false;
   return true;
+}
+
+function buildReviewContactSummary_(rows) {
+  const source = Array.isArray(rows) ? rows : [];
+  return source.reduce(function (summary, lead) {
+    const hasEmail = hasLeadEmailForSort_(lead);
+    const hasForm = Boolean(String(lead && lead.form_url || '').trim());
+    summary.all += 1;
+    if (hasEmail) summary.email += 1;
+    if (hasForm && !hasEmail) summary.form_only += 1;
+    if (!hasEmail && !hasForm) summary.no_contact += 1;
+    return summary;
+  }, { all: 0, email: 0, form_only: 0, no_contact: 0 });
 }
 
 function matchesLeadListFilter_(lead, filter, masterContext) {
@@ -2957,6 +2988,56 @@ function updateLead(id, patch) {
   }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
+function normalizeReviewDecisionMetadata_(source, nextStatus, mode) {
+  const input = source && typeof source === 'object' ? source : {};
+  const isSendNgDecision = String(mode || 'decision') === 'decision' && String(nextStatus || '') === '送信NG';
+  const hasDomainChoice = Object.prototype.hasOwnProperty.call(input, 'excludeDomainFromCollection') ||
+    Object.prototype.hasOwnProperty.call(input, 'exclude_domain_from_collection');
+  if (!isSendNgDecision) {
+    return {
+      sendNgReason: '',
+      sendNgMemo: '',
+      excludeDomainFromCollection: false,
+      excludeDomainFromCollectionSpecified: false,
+    };
+  }
+  const reason = String(input.sendNgReason || input.send_ng_reason || '').trim();
+  const memo = String(input.sendNgMemo || input.send_ng_memo || '').trim();
+  const allowedReasons = ['情報サイト・ブログ', '観光ガイドサイト', '休業・閉鎖', 'リンク切れ', '営業対象外', 'その他'];
+  if (reason && allowedReasons.indexOf(reason) === -1) {
+    throw createExpectedOperationError_('送信NG理由が不正です。', 'REVIEW_SEND_NG_REASON_INVALID');
+  }
+  if (reason === 'その他' && !memo) {
+    throw createExpectedOperationError_('「その他」の理由を入力してください。', 'REVIEW_SEND_NG_MEMO_REQUIRED');
+  }
+  return {
+    sendNgReason: reason.slice(0, 200),
+    sendNgMemo: memo.slice(0, 1000),
+    excludeDomainFromCollection: input.excludeDomainFromCollection === true || input.exclude_domain_from_collection === true,
+    excludeDomainFromCollectionSpecified: hasDomainChoice,
+  };
+}
+
+function buildReviewDecisionLeadPatch_(current, decision) {
+  const source = decision && typeof decision === 'object' ? decision : {};
+  const mode = String(source.mode || 'decision');
+  const nextStatus = String(source.nextStatus || source.status || '');
+  const patch = { status: nextStatus };
+  const payload = parseJsonObjectSafe_(current && current.source_payload_json);
+  if (mode === 'decision' && nextStatus === '送信NG') {
+    if (String(source.sendNgReason || '').trim()) patch.send_ng_reason = String(source.sendNgReason || '').trim();
+    if (String(source.sendNgMemo || '').trim()) patch.send_ng_memo = String(source.sendNgMemo || '').trim();
+    if (source.excludeDomainFromCollectionSpecified === true) {
+      payload.review_exclude_domain_from_collection = source.excludeDomainFromCollection === true;
+      patch.source_payload_json = safeJsonStringify_(payload);
+    }
+  } else if (mode === 'undo') {
+    delete payload.review_exclude_domain_from_collection;
+    patch.source_payload_json = safeJsonStringify_(payload);
+  }
+  return patch;
+}
+
 function updateReviewLeadDecision(id, input) {
   const source = input && typeof input === 'object' ? input : {};
   const mode = String(source.mode || 'decision').trim();
@@ -2974,11 +3055,11 @@ function updateReviewLeadDecision(id, input) {
   }
 
   const leadId = requireId_(id);
-  const decision = {
+  const decision = Object.assign({
     mode: mode,
     expectedStatus: expectedStatus,
     nextStatus: nextStatus,
-  };
+  }, normalizeReviewDecisionMetadata_(source, nextStatus, mode));
   try {
     const outcome = withScriptLock_('updateReviewLeadDecision', function () {
       const spreadsheet = getOrCreateSpreadsheet_();
@@ -3070,7 +3151,7 @@ function buildReviewLeadDecisionOutcome_(found, decision) {
     return { response: buildReviewLeadConflict_(current, 'この営業先はすでに確認待ちではないため更新しませんでした。'), write: null };
   }
 
-  const updated = buildUpdatedLeadRecord_(found, { status: nextStatus });
+  const updated = buildUpdatedLeadRecord_(found, buildReviewDecisionLeadPatch_(current, decision));
   return {
     response: {
       ok: true,
@@ -3128,11 +3209,11 @@ function updateReviewLeadDecisions(input) {
     throw createExpectedOperationError_('確認待ち一括操作で選べない更新内容です。', 'REVIEW_DECISION_INVALID');
   }
 
-  const decision = {
+  const decision = Object.assign({
     mode: mode,
     expectedStatus: expectedStatus,
     nextStatus: nextStatus,
-  };
+  }, normalizeReviewDecisionMetadata_(source, nextStatus, mode));
   let result;
   try {
     result = withScriptLock_('updateReviewLeadDecisions', function () {
@@ -3193,7 +3274,7 @@ function updateReviewLeadDecisions(input) {
         return;
       }
 
-      const lead = buildUpdatedLeadRecord_(found, { status: nextStatus });
+      const lead = buildUpdatedLeadRecord_(found, buildReviewDecisionLeadPatch_(current, decision));
       pendingWrites.push({
         rowNumber: found.rowNumber,
         previous: current,
@@ -4606,10 +4687,13 @@ function getLeadCollectionSendNgDomainRecords_() {
       'email',
       'send_ng',
       'status',
+      'source_payload_json',
     ], { maxGapColumns: 0 });
     leads.forEach(function (lead) {
       const source = lead && typeof lead === 'object' ? lead : {};
       if (!normalizeBooleanLike_(source.send_ng) && String(source.status || '') !== '送信NG') return;
+      const payload = parseJsonObjectSafe_(source.source_payload_json);
+      if (Object.prototype.hasOwnProperty.call(payload, 'review_exclude_domain_from_collection') && payload.review_exclude_domain_from_collection !== true) return;
       [
         normalizeDomain_(source.website_url || ''),
         normalizeDomain_(source.form_url || ''),
@@ -4816,7 +4900,7 @@ function normalizeListOptions_(options) {
   if (['all', 'high', 'medium', 'low'].indexOf(reviewPriority) === -1) {
     throw new Error('Invalid review priority filter: ' + reviewPriority);
   }
-  if (['all', 'contact', 'no_contact', 'email', 'form'].indexOf(reviewContact) === -1) {
+  if (['all', 'contact', 'no_contact', 'email', 'form', 'form_only'].indexOf(reviewContact) === -1) {
     throw new Error('Invalid review contact filter: ' + reviewContact);
   }
   const includeFields = Array.isArray(input.includeFields || input.include_fields)

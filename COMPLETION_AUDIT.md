@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @339 / production code v330: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @340 / production code v331: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v330_review_email_first_all_views`
+- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v331_review_efficiency_controls`
+
+## v331 確認待ちの高速操作
+
+- キーボード操作を`A`（確認済み）、`N`（送信NG）、`E`（編集）、`J / K`（次／前）へ統一し、確認操作後は次の候補を自動選択する。入力中・編集画面・ダイアログ表示中はショートカットを停止する。
+- 連絡先フィルターを件数付き4ボタンへ変更し、「すべて」「メールあり」「フォームのみ」「連絡先なし」をワンクリックで切り替えられる。既定は全件・メール取得済み順で、自動仕分けや自動非表示は行わない。
+- 単件・一括の送信NGに6種類の理由選択を追加した。対象件数と一意ドメイン数を表示し、「今後このドメインを取得しない」は初期OFFの明示選択に分離した。
+- 新しい送信NG判断のドメイン除外選択を`source_payload_json`へ保存し、ロック競合で保存待ちになった場合も再処理へ引き継ぐ。取り消し時は除外フラグも復元し、過去の未設定データは従来挙動を維持する。
+- `node scripts/smoke-test.js`、全`.gs`構文確認、`Index.html`インラインJavaScript構文確認、`git diff --check`が成功。Apps Script version `340`を作成し、固定Web appを`@340`へ更新した。
+- 本番営業リストの更新、収集、ドメイン除外登録、メール送信は行っていない。
 
 ## v330 メール取得済み順を全画面へ統一
 

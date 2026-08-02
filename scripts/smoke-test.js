@@ -3059,6 +3059,25 @@ const reviewDecisionEnd = reviewDecisionCodeSource.indexOf('\nfunction ', review
 const reviewDecisionBody = reviewDecisionCodeSource.slice(reviewDecisionStart, reviewDecisionEnd);
 assert(!reviewDecisionBody.includes('getLeadById('), 'review decisions must not perform a second lead lookup');
 assert(reviewDecisionBody.includes('applyReviewLeadDecisionLocked_(sheet, leadId, decision)'));
+const sendNgDecisionMetadata = JSON.parse(JSON.stringify(reviewDecisionContext.normalizeReviewDecisionMetadata_({
+  send_ng_reason: '営業対象外',
+  send_ng_memo: '対象外を確認',
+  exclude_domain_from_collection: false,
+}, '送信NG', 'decision')));
+assert.strictEqual(sendNgDecisionMetadata.sendNgReason, '営業対象外');
+assert.strictEqual(sendNgDecisionMetadata.excludeDomainFromCollection, false);
+assert.strictEqual(sendNgDecisionMetadata.excludeDomainFromCollectionSpecified, true);
+const sendNgDecisionPatch = JSON.parse(JSON.stringify(reviewDecisionContext.buildReviewDecisionLeadPatch_({
+  source_payload_json: JSON.stringify({ keep: 'value' }),
+}, sendNgDecisionMetadata && Object.assign({ mode: 'decision', nextStatus: '送信NG' }, sendNgDecisionMetadata))));
+assert.strictEqual(sendNgDecisionPatch.send_ng_reason, '営業対象外');
+assert.strictEqual(JSON.parse(sendNgDecisionPatch.source_payload_json).review_exclude_domain_from_collection, false);
+assert.strictEqual(JSON.parse(sendNgDecisionPatch.source_payload_json).keep, 'value');
+const sendNgUndoPatch = JSON.parse(JSON.stringify(reviewDecisionContext.buildReviewDecisionLeadPatch_({
+  source_payload_json: sendNgDecisionPatch.source_payload_json,
+}, { mode: 'undo', nextStatus: '未対応' })));
+assert.strictEqual(Object.prototype.hasOwnProperty.call(JSON.parse(sendNgUndoPatch.source_payload_json), 'review_exclude_domain_from_collection'), false);
+assert.throws(() => reviewDecisionContext.normalizeReviewDecisionMetadata_({ send_ng_reason: 'その他' }, '送信NG', 'decision'), /理由を入力/);
 
 const reviewBulkContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -3214,7 +3233,7 @@ reviewQueueProcessorContext.withScriptLock_ = (_operation, callback, options) =>
   return callback();
 };
 reviewQueueProcessorContext.getOrCreateSpreadsheet_ = () => ({});
-const reviewProcessorHeaders = ['id', 'status', 'source', 'website_url', 'send_ng', 'reply_checked', 'deal_status', 'next_send_at', 'send_ng_reason', 'send_ng_memo', 'updated_at'];
+const reviewProcessorHeaders = ['id', 'status', 'source', 'website_url', 'send_ng', 'reply_checked', 'deal_status', 'next_send_at', 'send_ng_reason', 'send_ng_memo', 'source_payload_json', 'updated_at'];
 const reviewProcessorRecords = [
   { id: 'process-1', status: '未対応', source: 'source_page', website_url: 'https://process-1.example/', send_ng: false, reply_checked: false, deal_status: '未設定' },
   { id: 'process-2', status: '未対応', source: 'serper', website_url: 'https://process-2.example/', send_ng: false, reply_checked: false, deal_status: '未設定' },
@@ -3245,12 +3264,17 @@ reviewQueueProcessorContext.ensurePendingReviewDecisionTriggerBestEffort_ = (del
   return { result: { created: true }, warning: '' };
 };
 reviewQueueProcessorContext.appendSyncError_ = () => {};
-function addReviewProcessorQueueRecord(id, requestId, mode, expectedStatus, status, requestedAt) {
+function addReviewProcessorQueueRecord(id, requestId, mode, expectedStatus, status, requestedAt, metadata) {
   const propertyKey = reviewQueueProcessorContext.reviewDecisionQueuePropertyKey_(id, requestId);
-  reviewProcessorProperties[propertyKey] = JSON.stringify({ id, requestId, mode, expectedStatus, status, requestedAt });
+  reviewProcessorProperties[propertyKey] = JSON.stringify(Object.assign({ id, requestId, mode, expectedStatus, status, requestedAt }, metadata || {}));
 }
 addReviewProcessorQueueRecord('process-1', 'process-request-1', 'decision', '未対応', '対応中', '2026-08-02T22:14:01+09:00');
-addReviewProcessorQueueRecord('process-2', 'process-request-2', 'decision', '未対応', '送信NG', '2026-08-02T22:14:02+09:00');
+addReviewProcessorQueueRecord('process-2', 'process-request-2', 'decision', '未対応', '送信NG', '2026-08-02T22:14:02+09:00', {
+  sendNgReason: '営業対象外',
+  sendNgMemo: '保存待ち経由',
+  excludeDomainFromCollection: false,
+  excludeDomainFromCollectionSpecified: true,
+});
 let processedReviewQueue = reviewQueueProcessorContext.processPendingReviewLeadDecisions_({ maxItems: 10, source: 'test' });
 assert.strictEqual(processedReviewQueue.ok, true);
 assert.strictEqual(processedReviewQueue.updated, 2);
@@ -3258,6 +3282,8 @@ assert.strictEqual(processedReviewQueue.remaining, 0);
 assert.strictEqual(reviewProcessorRecords[0].status, '対応中');
 assert.strictEqual(reviewProcessorRecords[1].status, '送信NG');
 assert.strictEqual(reviewProcessorRecords[1].send_ng, true);
+assert.strictEqual(reviewProcessorRecords[1].send_ng_reason, '営業対象外');
+assert.strictEqual(JSON.parse(reviewProcessorRecords[1].source_payload_json).review_exclude_domain_from_collection, false, 'queued decisions must preserve an explicit domain-exclusion OFF choice');
 assert.strictEqual(reviewProcessorCacheClears, 1);
 assert(reviewProcessorRangeWrites > 0);
 addReviewProcessorQueueRecord('process-undo', 'process-request-confirm', 'decision', '未対応', '対応中', '2026-08-02T22:14:03+09:00');
@@ -4225,7 +4251,7 @@ const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-assert(codeSource.includes('20260803_apps_script_full_workflow_v330_review_email_first_all_views'));
+assert(codeSource.includes('20260803_apps_script_full_workflow_v331_review_efficiency_controls'));
 const appInfoContext = vm.createContext({ console });
 vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
 appInfoContext.PropertiesService = {
@@ -4744,7 +4770,7 @@ collectionBlockContext.readSheetRecordFields_ = (sheetName, fields, options) => 
   assert.strictEqual(sheetName, 'leads');
   assert.deepStrictEqual(
     JSON.parse(JSON.stringify(fields)),
-    ['website_url', 'form_url', 'email', 'send_ng', 'status']
+    ['website_url', 'form_url', 'email', 'send_ng', 'status', 'source_payload_json']
   );
   assert.strictEqual(options.maxGapColumns, 0);
   collectionBlockLeadReads += 1;
@@ -4754,13 +4780,16 @@ collectionBlockContext.readSheetRecordFields_ = (sheetName, fields, options) => 
     { email: 'info@mail-blocked.example', send_ng: true, status: '未対応' },
     { website_url: 'https://allowed.example/', send_ng: false, status: '未対応' },
     { website_url: 'https://www.blocked.example/other', send_ng: true, status: '送信NG' },
+    { website_url: 'https://explicit-allowed.example/', send_ng: true, status: '送信NG', source_payload_json: JSON.stringify({ review_exclude_domain_from_collection: false }) },
+    { website_url: 'https://explicit-blocked.example/', send_ng: true, status: '送信NG', source_payload_json: JSON.stringify({ review_exclude_domain_from_collection: true }) },
   ];
 };
 const collectionBlockedDomains = collectionBlockContext.getLeadCollectionExcludedDomainRecords_();
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(collectionBlockedDomains.map((record) => record.domain).sort())),
-  ['blocked.example', 'configured-block.example', 'forms.blocked-two.example', 'mail-blocked.example']
+  ['blocked.example', 'configured-block.example', 'explicit-blocked.example', 'forms.blocked-two.example', 'mail-blocked.example']
 );
+assert(!collectionBlockedDomains.some((record) => record.domain === 'explicit-allowed.example'), 'an explicit OFF choice must keep the domain available for future collection');
 assert.strictEqual(
   collectionBlockContext.isLeadCollectionExcludedUrl_('https://shop.blocked.example/new-page', collectionBlockedDomains),
   true,
@@ -5851,7 +5880,7 @@ const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
   urlFetchRecordedToday: 0,
   batchRuntimeBudgetMs: 240000,
 });
-assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 330);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 331);
 assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
 assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
 assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
@@ -5865,7 +5894,7 @@ const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
     status: 'danger',
   },
 });
-assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 330);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 331);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
@@ -6064,6 +6093,12 @@ const reviewListOptions = context.normalizeListOptions_({
 assert.strictEqual(reviewListOptions.sort, 'review_email_first');
 assert.strictEqual(reviewListOptions.reviewPriority, 'high');
 assert.strictEqual(reviewListOptions.reviewContact, 'email');
+assert.strictEqual(context.normalizeListOptions_({ filter: 'review', reviewContact: 'form_only' }).reviewContact, 'form_only');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(context.buildReviewContactSummary_([
+  { email: 'mail@example.jp', form_url: 'https://example.jp/contact' },
+  { email: '', form_url: 'https://form-only.example.jp/contact' },
+  { email: '', form_url: '' },
+]))), { all: 3, email: 1, form_only: 1, no_contact: 1 });
 assert(vm.runInContext('SHEET_DEFINITIONS.review_activity_logs.includes("reversible_until")', context));
 assert(codeSource.includes('function getReviewLeadWorkspace(leadId, options)'));
 assert(codeSource.includes('function undoReviewActivity(activityId)'));
@@ -6117,7 +6152,17 @@ assert(indexSource.includes('id="domainHistoryHost"'));
 assert(indexSource.includes('id="collectionSourcePerformancePanel"'));
 assert(indexSource.includes('function openDailyWorkItem(type, id, tab)'));
 assert(indexSource.includes('function renderReviewBulkPreviewDialog()'));
+assert(indexSource.includes("['all', 'すべて', contactSummary.all]"));
+assert(indexSource.includes("['form_only', 'フォームのみ', contactSummary.form_only]"));
+assert(indexSource.includes("aria-keyshortcuts=\"E\""));
+assert(indexSource.includes("else if (key === 'e')"));
+assert(indexSource.includes('function openReviewSendNgDialog(leads, options)'));
+assert(indexSource.includes('今後このドメインを取得しない'));
+assert(indexSource.includes("const sendNgReasons = ['情報サイト・ブログ', '観光ガイドサイト', '休業・閉鎖', 'リンク切れ', '営業対象外', 'その他']"));
+assert(indexSource.includes('excludeDomainFromCollection: false'));
+assert(codeSource.includes("payload.review_exclude_domain_from_collection !== true"));
+assert(operationsSource.includes('excludeDomainFromCollectionSpecified: record.excludeDomainFromCollectionSpecified === true'));
 assert(indexSource.includes('function renderCollectionSourcePerformance()'));
 assert(indexSource.includes('function openDomainHistory(value)'));
 
-console.log('v330 review-email-first-all-views regression tests passed.');
+console.log('v331 efficient-review-controls regression tests passed.');
