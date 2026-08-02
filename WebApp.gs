@@ -61,11 +61,16 @@ function dispatchPostAction_(action, data) {
   if (action === 'getAppInfo') return getAppInfo();
   if (action === 'getSchemaStatus') return getSchemaStatus();
   if (action === 'listLeads') return listLeads(data);
+  if (action === 'getLeadListStats') return getLeadListStats(data);
   if (action === 'getLead') return getLead(data.id || data.leadId || data.lead_id || data);
+  if (action === 'getReviewLeadWorkspace') return getReviewLeadWorkspace(data.leadId || data.lead_id || data.id, data.options || data);
+  if (action === 'listReviewActivities') return listReviewActivities(data);
+  if (action === 'undoReviewActivity') return undoReviewActivity(data.activityId || data.activity_id || data.id || data);
   if (action === 'listEmailSendCandidates') return listEmailSendCandidates(data);
   if (action === 'createLead') return createLead(data);
   if (action === 'updateLead') return updateLead(data.id, data.patch || data);
   if (action === 'updateReviewLeadDecision') return updateReviewLeadDecision(data.id || data.leadId || data.lead_id, data.options || data.decision || data);
+  if (action === 'updateReviewLeadDecisions') return updateReviewLeadDecisions(data);
   if (action === 'deleteLead') return deleteLead(data.id, data.options || {});
   if (action === 'listLeadDuplicateCandidates') return listLeadDuplicateCandidates(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'markLeadFormSent') return markLeadFormSent(data.leadId || data.lead_id || data.id, data.options || data);
@@ -101,6 +106,7 @@ function dispatchPostAction_(action, data) {
   if (action === 'getSearxngConfig') return getSearxngConfig();
   if (action === 'saveSearxngConfig') return saveSearxngConfig(data);
   if (action === 'testSearxngConnection') return testSearxngConnection();
+  if (action === 'startSearchJob') return startSearchJob(data);
   if (action === 'runSmallSearchJob') return runSmallSearchJob(data);
   if (action === 'advanceSearchJob') return advanceSearchJob(data.jobId || data.job_id || data.id, data.options || data);
   if (action === 'addSearchResultToLead') return addSearchResultToLead(data.resultId || data.result_id || data.id, data.options || data);
@@ -125,8 +131,13 @@ function dispatchPostAction_(action, data) {
   if (action === 'repairNapCampGenres') return repairNapCampGenres(data);
   if (action === 'repairReviewLeadsWithoutContact') return repairReviewLeadsWithoutContact(data);
   if (action === 'repairNonAdvertiserReviewLeads') return repairNonAdvertiserReviewLeads(data);
+  if (action === 'repairTourismPortalReviewLeads') return repairTourismPortalReviewLeads(data);
+  if (action === 'repairBlogMediaReviewLeads') return repairBlogMediaReviewLeads(data);
+  if (action === 'repairSuspendedReviewLeads') return repairSuspendedReviewLeads(data);
+  if (action === 'repairBrokenReviewLeads') return repairBrokenReviewLeads(data);
   if (action === 'repairNonAdvertiserCleanupOverreach') return repairNonAdvertiserCleanupOverreach(data);
   if (action === 'repairDuplicateLeadDomains') return repairDuplicateLeadDomains(data);
+  if (action === 'repairHistoricalReviewDomainDuplicates') return repairHistoricalReviewDomainDuplicates(data);
   if (action === 'installDefaultTriggers') return installDefaultTriggers();
   if (action === 'createSpreadsheetBackup') return createSpreadsheetBackup();
   if (action === 'setSettingValue') return setSettingValue(data.key, data.value, data.valueType || data.value_type, data.description);
@@ -462,7 +473,10 @@ function getDashboardStats(options) {
     appMailLimit: dailyMailLimit,
     triggerCount: triggerCount,
     urlFetchRecordedToday: serperToday,
-    batchRuntimeBudgetMs: Number(getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000,
+    batchRuntimeBudgetMs: normalizeBackgroundRuntimeBudgetMs_(
+      getSettingValue_('batch_runtime_budget_ms', BACKGROUND_JOB_DEFAULT_RUNTIME_MS),
+      BACKGROUND_JOB_DEFAULT_RUNTIME_MS
+    ),
   });
   const activeSearchJobs = searchJobs.filter(function (job) {
     return job.status === 'queued' || job.status === 'running';
@@ -1064,7 +1078,7 @@ function buildStartupDashboardPlaceholder_(startupSerperInfo) {
       appMailLimit: dailyMailLimit,
       triggerCount: triggerCount,
       urlFetchRecordedToday: 0,
-      batchRuntimeBudgetMs: 300000,
+      batchRuntimeBudgetMs: BACKGROUND_JOB_DEFAULT_RUNTIME_MS,
       startupPlaceholder: true,
     }),
     thisMonth: {
@@ -1190,19 +1204,42 @@ function readDashboardStatsCache_(options) {
     const cached = CacheService.getScriptCache().get('dashboard_stats_v6');
     if (!cached) {
       return query.allowPersisted !== false
-        ? readDashboardStatsSheetCache_(query)
+        ? normalizeDashboardGasUsage_(readDashboardStatsSheetCache_(query))
         : null;
     }
 
     const parsed = JSON.parse(cached);
     parsed.cached = true;
-    return parsed;
+    return normalizeDashboardGasUsage_(parsed);
   } catch (error) {
     console.warn('Dashboard cache read skipped: ' + error.message);
     return query.allowPersisted !== false
-      ? readDashboardStatsSheetCache_(query)
+      ? normalizeDashboardGasUsage_(readDashboardStatsSheetCache_(query))
       : null;
   }
+}
+
+function normalizeDashboardGasUsage_(dashboard) {
+  const source = dashboard && typeof dashboard === 'object' ? dashboard : null;
+  if (!source || !source.gasUsage || typeof source.gasUsage !== 'object') return source;
+  const gasUsage = source.gasUsage;
+  const alerts = (Array.isArray(gasUsage.alerts) ? gasUsage.alerts : []).filter(function (alert) {
+    return String(alert && alert.key || '') !== 'versions';
+  });
+  const previousVersions = gasUsage.versions && typeof gasUsage.versions === 'object' ? gasUsage.versions : {};
+  const appVersionMatch = String(APP_VERSION || '').match(/_v(\d+)(?:_|$)/);
+  const currentVersion = Math.max(0, Number(appVersionMatch && appVersionMatch[1]) || Number(previousVersions.current || previousVersions.used) || 0);
+  return Object.assign({}, source, {
+    gasUsage: Object.assign({}, gasUsage, {
+      alerts: alerts,
+      status: alerts.some(function (item) { return item && item.tone === 'bad'; }) ? 'danger' : alerts.length ? 'warning' : 'ok',
+      versions: {
+        current: currentVersion,
+        exact: false,
+        quotaComparable: false,
+      },
+    }),
+  });
 }
 
 function writeDashboardStatsCache_(stats) {
@@ -1427,7 +1464,6 @@ function buildConsumerGasUsageStatus_(input) {
     simultaneousExecutionsPerScript: 1000,
     propertyValueKb: 9,
     propertyStoreKb: 500,
-    versionsPerScript: 200,
   };
   const actualMailRemaining = Math.max(0, Number(source.mailQuotaRemaining) || 0);
   const consumerMailRemaining = Math.min(limits.emailRecipientsPerDay, actualMailRemaining);
@@ -1438,7 +1474,11 @@ function buildConsumerGasUsageStatus_(input) {
   );
   const triggerCount = Math.max(0, Number(source.triggerCount) || 0);
   const urlFetchRecordedToday = Math.max(0, Number(source.urlFetchRecordedToday) || 0);
-  const batchRuntimeBudgetMs = Math.min(Math.max(Number(source.batchRuntimeBudgetMs) || 300000, 10000), 330000);
+  const configuredBatchRuntimeBudgetMs = Number(source.batchRuntimeBudgetMs) || BACKGROUND_JOB_DEFAULT_RUNTIME_MS;
+  const batchRuntimeBudgetMs = normalizeBackgroundRuntimeBudgetMs_(
+    configuredBatchRuntimeBudgetMs,
+    BACKGROUND_JOB_DEFAULT_RUNTIME_MS
+  );
   const versionMatch = String(APP_VERSION || '').match(/_v(\d+)(?:_|$)/);
   const codeVersion = versionMatch ? Number(versionMatch[1]) : 0;
   const alerts = [];
@@ -1458,15 +1498,9 @@ function buildConsumerGasUsageStatus_(input) {
   } else if (urlFetchRecordedToday >= 14000) {
     alerts.push({ key: 'urlFetch', tone: 'warn', title: 'URL取得回数が70%を超えました', detail: 'アプリ記録分だけで' + urlFetchRecordedToday + '/20,000回です。' });
   }
-  if (batchRuntimeBudgetMs > 330000) {
-    alerts.push({ key: 'runtime', tone: 'warn', title: '1回の最大処理時間が長すぎます', detail: '6分制限より前に終了できる値へ戻してください。' });
+  if (configuredBatchRuntimeBudgetMs > BACKGROUND_JOB_SAFE_RUNTIME_MAX_MS) {
+    alerts.push({ key: 'runtime', tone: 'warn', title: '1回の最大処理時間が長すぎます', detail: '停止防止のため240秒以下へ戻してください。' });
   }
-  if (codeVersion >= 180) {
-    alerts.push({ key: 'versions', tone: 'bad', title: 'Apps Scriptバージョン上限が近いです', detail: 'コード版v' + codeVersion + ' / 上限200です。新しいスクリプトへの移行準備が必要です。' });
-  } else if (codeVersion >= 140) {
-    alerts.push({ key: 'versions', tone: 'warn', title: 'Apps Scriptバージョンが70%に達しました', detail: 'コード版v' + codeVersion + ' / 上限200です。不要なデプロイを増やさない運用を推奨します。' });
-  }
-
   return {
     accountType: 'consumer',
     accountLabel: '一般Googleアカウント',
@@ -1496,10 +1530,9 @@ function buildConsumerGasUsageStatus_(input) {
       exact: false,
     },
     versions: {
-      used: codeVersion,
-      remaining: Math.max(0, limits.versionsPerScript - codeVersion),
-      limit: limits.versionsPerScript,
+      current: codeVersion,
       exact: false,
+      quotaComparable: false,
     },
     alerts: alerts,
     status: alerts.some(function (item) { return item.tone === 'bad'; }) ? 'danger' : alerts.length ? 'warning' : 'ok',

@@ -154,6 +154,8 @@ function resolveGmailSenderName_(input) {
 
 function getEmailSendTargetBlockReason_(lead, masterContext) {
   if (!lead || isArchivedLead_(lead)) return '営業対象外のため送信できません。';
+  if (isClearlyClosedLead_(lead)) return '閉鎖・営業終了・休業が確認できるため送信できません。';
+  if (isLeadLinkDefinitelyBroken_(lead)) return 'リンク切れが確認できるため送信できません。';
   if (isLeadReviewPending_(lead)) return '確認待ちのため、確認済みにするまで送信できません。';
   if (!isValidEmailAddress_(lead.email)) return '有効なメールアドレスがないため送信できません。';
   if (normalizeBooleanLike_(lead.send_ng) || String(lead.status || '') === '送信NG') {
@@ -180,6 +182,8 @@ function isFormSendTarget_(lead, masterContext) {
 
 function getFormSendTargetBlockReason_(lead, masterContext) {
   if (!lead || isArchivedLead_(lead)) return '営業対象外のためフォーム送信できません。';
+  if (isClearlyClosedLead_(lead)) return '閉鎖・営業終了・休業が確認できるためフォーム送信できません。';
+  if (isLeadLinkDefinitelyBroken_(lead)) return 'リンク切れが確認できるためフォーム送信できません。';
   if (isLeadReviewPending_(lead)) return '確認待ちのため、確認済みにするまでフォーム送信できません。';
   if (!lead.form_url) return 'フォームURLがないため送信できません。';
   if (isValidEmailAddress_(lead.email)) return 'メール送信対象のためフォーム送信対象外です。';
@@ -194,6 +198,8 @@ function getFormSendTargetBlockReason_(lead, masterContext) {
 
 function isFormOutreachLead_(lead) {
   if (!lead || isArchivedLead_(lead)) return false;
+  if (isClearlyClosedLead_(lead)) return false;
+  if (isLeadLinkDefinitelyBroken_(lead)) return false;
   if (!lead.form_url) return false;
   if (isValidEmailAddress_(lead.email)) return false;
   return true;
@@ -591,6 +597,27 @@ function scheduledEmailJobClaimFields_() {
 }
 
 function claimScheduledEmailJob_() {
+  const retryDelaysMs = [500, 1500];
+  let lastError = null;
+  for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+    try {
+      return claimScheduledEmailJobOnce_();
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableGoogleSheetsServiceError_(error) || attempt >= retryDelaysMs.length) {
+        logError_('claimScheduledEmailJob', error, {
+          attempt: attempt + 1,
+          attempts: retryDelaysMs.length + 1,
+        });
+        throw error;
+      }
+      Utilities.sleep(retryDelaysMs[attempt]);
+    }
+  }
+  throw lastError || new Error('完全自動送信ジョブを開始できませんでした。');
+}
+
+function claimScheduledEmailJobOnce_() {
   return withScriptLock_('claimScheduledEmailJob', function () {
     const jobs = readSheetRecordFields_('jobs', scheduledEmailJobClaimFields_(), { maxGapColumns: 0 });
     const now = Date.now();
@@ -641,7 +668,12 @@ function claimScheduledEmailJob_() {
         finished_at: '',
       }),
     };
-  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400, logErrors: false });
+}
+
+function isRetryableGoogleSheetsServiceError_(error) {
+  const message = String(error && (error.message || error.details) || error || '');
+  return /スプレッドシート.*(?:サービス.*(?:タイムアウト|接続でき)|アクセス中)|Service (?:Spreadsheets|Sheets) (?:failed|timed out)|internal error|try again/i.test(message);
 }
 
 function heartbeatScheduledEmailJob_(jobId, processed, total) {

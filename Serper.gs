@@ -2,6 +2,9 @@ const SERPER_SEARCH_ENDPOINT = 'https://google.serper.dev/search';
 const NAP_CAMP_LIST_URL = 'https://www.nap-camp.com/list';
 const NAP_CAMP_SITEMAP_URL = 'https://www.nap-camp.com/sitemap-dynamic-campsite.xml';
 const NAP_CAMP_GENRE = 'キャンプ';
+const SOURCE_PAGE_FULL_CRAWL_MAX_CANDIDATES = 500;
+const RESORT_GLAMPING_LIST_URL = 'https://www.resort-glamping.com/accommodation/';
+const RESORT_GLAMPING_SITEMAP_URL = 'https://www.resort-glamping.com/wp-sitemap-posts-accommodation-1.xml';
 const SERPER_CREDIT_ENDPOINTS = Object.freeze([
   'https://google.serper.dev/account',
   'https://google.serper.dev/credits',
@@ -279,6 +282,26 @@ function addSearchResultToLead(resultId, input) {
       'NON_ADVERTISER_SITE'
     );
   }
+  if (isClearlyClosedSearchResult_(initialResult)) {
+    excludeClosedSearchResult_(id);
+    throw createExpectedOperationError_(
+      '閉鎖・営業終了・休業が確認できるため、確認待ちリストへ追加しませんでした。',
+      'CLOSED_SITE'
+    );
+  }
+  if (requestedUrl) {
+    const siteAvailability = inspectProspectingSiteAvailability_(requestedUrl);
+    if (siteAvailability.closed || siteAvailability.broken) {
+      excludeClosedSearchResult_(id, siteAvailability.broken ? 'exclude_broken_link' : 'exclude_closed_site');
+      const blockedReason = siteAvailability.closed
+        ? '閉鎖・営業終了・休業'
+        : 'リンク切れ';
+      throw createExpectedOperationError_(
+        blockedReason + 'が確認できるため、確認待ちリストへ追加しませんでした: ' + siteAvailability.reason,
+        siteAvailability.closed ? 'CLOSED_SITE' : 'BROKEN_LINK'
+      );
+    }
+  }
 
   const recoveryLead = initialResult.lead_id
     ? null
@@ -310,7 +333,7 @@ function addSearchResultToLead(resultId, input) {
 
     if (!lead) {
       try {
-        lead = createLead({
+        lead = createLeadWithLockOptions_({
           source: 'prospecting',
           source_id: id,
           external_id: result.job_id || '',
@@ -333,7 +356,7 @@ function addSearchResultToLead(resultId, input) {
             rank: result.rank || '',
             override: overrides,
           }),
-        });
+        }, null, { siteAvailabilityChecked: true });
       } catch (error) {
         const duplicate = String(error.code || '') === 'DUPLICATE_LEAD' || /^Duplicate lead exists:/.test(String(error.message || ''));
         if (!duplicate) throw error;
@@ -359,6 +382,22 @@ function addSearchResultToLead(resultId, input) {
     if (claim && claim.token) releaseSearchResultLeadCreationClaim_(id, claim.token);
     throw error;
   }
+}
+
+function excludeClosedSearchResult_(resultId, reviewAction) {
+  return withScriptLock_('excludeClosedSearchResult', function () {
+    const id = requireId_(resultId);
+    const current = findSheetRecordById_('search_results', id);
+    if (!current) throw new Error('Search result not found: ' + id);
+    if (String(current.lead_id || '').trim()) return current;
+    const status = String(current.review_status || 'unconfirmed').trim() || 'unconfirmed';
+    if (status !== 'unconfirmed') return current;
+    return updateSheetRecord_('search_results', id, {
+      review_status: 'excluded',
+      review_action: String(reviewAction || 'exclude_closed_site'),
+      reviewed_at: nowIso_(),
+    });
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
 }
 
 function claimSearchResultForLeadCreation_(resultId, recoveryLeadId) {
@@ -595,6 +634,7 @@ function startSerperSearchJob(input) {
       daily_limit: '',
       job_limit: payload.job_limit,
       cursor_json: '',
+      progress_json: '',
       last_error: '',
       error_count: 0,
       lock_token: '',
@@ -606,12 +646,18 @@ function startSerperSearchJob(input) {
     }), reused: false };
   }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
   const triggerResult = ensureBackgroundJobTriggerBestEffort_();
+  const immediateTriggerResult = ensureImmediateBackgroundJobTriggerBestEffort_();
+  const triggerWarnings = [triggerResult.warning, immediateTriggerResult.warning].filter(Boolean);
   return Object.assign({}, queued.job, {
     queued: String(queued.job.status || '') === 'queued',
     reused: queued.reused,
     duplicatePrevented: queued.reused,
-    triggerWarning: triggerResult.warning || '',
+    triggerWarning: triggerWarnings.join(' / '),
   });
+}
+
+function startSearchJob(input) {
+  return startSerperSearchJob(input || {});
 }
 
 function buildSearchJobRequestKey_(payload) {
@@ -636,7 +682,10 @@ function findReusableSearchJob_(requestKey) {
 function advanceSearchJob(jobId, options) {
   const input = options && typeof options === 'object' ? options : {};
   const maxItems = Math.min(Math.max(Number(input.maxItems) || 5, 1), 20);
-  const runtimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000, 10000), 330000);
+  const runtimeBudgetMs = normalizeBackgroundRuntimeBudgetMs_(
+    input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', BACKGROUND_JOB_DEFAULT_RUNTIME_MS),
+    BACKGROUND_JOB_DEFAULT_RUNTIME_MS
+  );
   const runWindow = buildSearchJobRunWindow_(runtimeBudgetMs, Date.now());
   const claim = claimSearchJobRun_(jobId, runtimeBudgetMs);
   const claimedJob = claim.job || {};
@@ -739,10 +788,20 @@ function advanceSearchJob(jobId, options) {
         const result = processLeadSearchItem_(item, payload.job_type, job.id);
         if (result.updated) summary.updatedLeads += 1;
       } else if (payload.job_type === 'source_page') {
+        const reportSourcePageProgress = createSourcePageProgressReporter_(
+          job.id,
+          lockToken,
+          index,
+          item,
+          payload,
+          progressRecord,
+          function (updatedRecord) { progressRecord = updatedRecord; }
+        );
         const result = processSourcePageSearchItem_(item, payload, job.id, {
           deadlineMs: runWindow.deadlineMs,
           cursorOffset: cursor.itemIndex === index ? cursor.offset : 0,
           leadIndex: sourcePageLeadIndex,
+          onCandidateProgress: reportSourcePageProgress,
         });
         summary.updatedLeads += Number(result.created || 0);
         summary.processedCandidates += Number(result.processedCandidates || 0);
@@ -835,12 +894,18 @@ function advanceSearchJob(jobId, options) {
 
   summary.completed = completed;
   summary.resumable = !completed;
+  if (!completed && !summary.pausedForQuota) {
+    const immediateTrigger = ensureImmediateBackgroundJobTriggerBestEffort_(
+      summary.pausedForRetry ? BACKGROUND_JOB_RETRY_DELAY_MS : BACKGROUND_JOB_IMMEDIATE_DELAY_MS
+    );
+    if (immediateTrigger.warning) summary.triggerWarning = immediateTrigger.warning;
+  }
   summary.elapsedMs = Date.now() - runWindow.startedAtMs;
   return summary;
 }
 
 function buildSearchJobRunWindow_(runtimeBudgetMs, startedAtMs) {
-  const budgetMs = Math.min(Math.max(Number(runtimeBudgetMs) || 300000, 10000), 330000);
+  const budgetMs = normalizeBackgroundRuntimeBudgetMs_(runtimeBudgetMs, BACKGROUND_JOB_DEFAULT_RUNTIME_MS);
   const startMs = Number(startedAtMs) || Date.now();
   const safetyMarginMs = Math.min(30000, Math.max(5000, Math.floor(budgetMs * 0.2)));
   return {
@@ -876,6 +941,65 @@ function parseSearchJobCursor_(value) {
   }
 }
 
+function createSourcePageProgressReporter_(jobId, lockToken, itemIndex, item, payload, initialRecord, onUpdate) {
+  const sourceItem = item && typeof item === 'object' ? item : {};
+  const sourcePayload = payload && typeof payload === 'object' ? payload : {};
+  const prior = parseJsonObjectSafe_(initialRecord && initialRecord.progress_json);
+  const sameItem = Number(prior.itemIndex) === Number(itemIndex);
+  let snapshot = sameItem ? prior : {};
+  const sourceUrl = String(sourceItem.source_url || sourceItem.url || sourcePayload.source_url || '');
+  const counts = Object.assign({
+    added: 0,
+    duplicate: 0,
+    excluded: 0,
+    unresolved: 0,
+    error: 0,
+  }, sameItem && prior.counts && typeof prior.counts === 'object' ? prior.counts : {});
+  let recentTargets = sameItem && Array.isArray(prior.recentTargets) ? prior.recentTargets.slice(0, 5) : [];
+
+  return function (event) {
+    const value = event && typeof event === 'object' ? event : {};
+    const phase = String(value.phase || 'processing');
+    const processedTargets = Math.max(Number(value.processedTargets) || 0, 0);
+    const previousProcessed = Math.max(Number(snapshot.processedTargets) || 0, 0);
+    const outcome = String(value.outcome || '');
+    if (phase === 'processed' && outcome && processedTargets > previousProcessed && Object.prototype.hasOwnProperty.call(counts, outcome)) {
+      counts[outcome] += 1;
+    }
+    if (phase === 'processed') {
+      const recent = {
+        name: String(value.targetName || ''),
+        url: String(value.targetUrl || ''),
+        outcome: outcome,
+        processedAt: nowIso_(),
+      };
+      recentTargets = [recent].concat(recentTargets.filter(function (target) {
+        return String(target.url || '') !== recent.url || String(target.name || '') !== recent.name;
+      })).slice(0, 5);
+    }
+    snapshot = {
+      itemIndex: Number(itemIndex),
+      sourceUrl: sourceUrl,
+      processedTargets: Math.max(processedTargets, previousProcessed),
+      totalTargets: Math.max(Number(value.totalTargets) || Number(snapshot.totalTargets) || 0, 0),
+      currentTargetName: String(value.targetName || snapshot.currentTargetName || ''),
+      currentTargetUrl: String(value.targetUrl || snapshot.currentTargetUrl || ''),
+      phase: phase,
+      lastOutcome: phase === 'processed' ? outcome : String(snapshot.lastOutcome || ''),
+      counts: counts,
+      recentTargets: recentTargets,
+      updatedAt: nowIso_(),
+    };
+    const updated = updateClaimedSearchJob_(jobId, lockToken, {
+      status: 'running',
+      progress_json: safeJsonStringify_(snapshot),
+      last_heartbeat_at: snapshot.updatedAt,
+    }, false, { bestEffort: true });
+    if (updated.owned && typeof onUpdate === 'function') onUpdate(updated.record);
+    return updated.owned;
+  };
+}
+
 function claimSearchJobRun_(jobId, runtimeBudgetMs) {
   return withScriptLock_('claimSearchJobRun', function () {
     const job = findSheetRecordById_('search_jobs', jobId);
@@ -885,7 +1009,7 @@ function claimSearchJobRun_(jobId, runtimeBudgetMs) {
       return { claimed: false, busy: false, job: job, reason: status };
     }
     const lockedAtMs = new Date(job.locked_at || 0).getTime();
-    const leaseMs = Math.max(420000, Number(runtimeBudgetMs || 300000) + 90000);
+    const leaseMs = Math.max(420000, normalizeBackgroundRuntimeBudgetMs_(runtimeBudgetMs) + 90000);
     const activeClaim = status === 'running' && job.lock_token && Number.isFinite(lockedAtMs) && Date.now() - lockedAtMs < leaseMs;
     if (activeClaim) {
       return { claimed: false, busy: true, job: job, reason: 'already_running' };
@@ -917,7 +1041,11 @@ function isRetryableSearchJobError_(error) {
   return /lock.*timeout|ロック.*タイムアウト|service invoked too many times|service (?:spreadsheets|sheets|drive|urlfetch).*failed|internal error|timed? out|一時的|try again|exceeded maximum execution time|quota exceeded|検索プロバイダーを利用できません|へ接続できません|HTTP\s+(?:408|425|429|5\d\d)\b/i.test(message);
 }
 
-function updateClaimedSearchJob_(jobId, lockToken, patch, release) {
+function updateClaimedSearchJob_(jobId, lockToken, patch, release, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const lockOptions = input.bestEffort === true
+    ? { waitMs: 1000, attempts: 1, retryDelayMs: 0, logErrors: false }
+    : { waitMs: 6000, attempts: 5, retryDelayMs: 400 };
   return withScriptLock_('updateClaimedSearchJob', function () {
     const current = findSheetRecordById_('search_jobs', jobId);
     if (!current || String(current.lock_token || '') !== String(lockToken || '')) {
@@ -931,9 +1059,11 @@ function updateClaimedSearchJob_(jobId, lockToken, patch, release) {
     }
     return {
       owned: true,
-      record: updateSheetRecord_('search_jobs', jobId, nextPatch),
+      record: updateSheetRecord_('search_jobs', jobId, nextPatch, {
+        clearCaches: release === true,
+      }),
     };
-  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+  }, lockOptions);
 }
 
 function normalizeSearchJobInput_(input) {
@@ -951,11 +1081,20 @@ function normalizeSearchJobInput_(input) {
   const sitePreset = jobType === 'source_page'
     ? String(source.site_preset || source.sitePreset || detectSourcePagePreset_(firstSourceUrl) || '').trim()
     : '';
-  const normalizedSource = sitePreset === 'nap_camp'
-    ? Object.assign({}, source, { genre: NAP_CAMP_GENRE })
-    : source;
+  const presetFullCrawl = jobType === 'source_page' && sourcePagePresetRequiresFullCrawl_(sitePreset);
+  const normalizedLabel = jobType === 'source_page'
+    ? normalizeSourcePageDisplayLabel_(source.label || source.name || '', firstSourceUrl, sitePreset)
+    : String(source.label || source.name || '').trim();
+  const normalizedSource = Object.assign({}, source, presetFullCrawl ? {
+    crawlAll: true,
+    crawl_all: true,
+  } : {}, sitePreset === 'nap_camp' ? {
+    genre: NAP_CAMP_GENRE,
+  } : {}, {
+    label: normalizedLabel,
+  });
   const builtItems = buildSearchJobItems_(normalizedSource, jobType);
-  const crawlAll = jobType === 'source_page' && isSourcePageCrawlAllInput_(source);
+  const crawlAll = jobType === 'source_page' && (presetFullCrawl || isSourcePageCrawlAllInput_(source));
   const maxJobLimit = crawlAll ? 1000 : 100;
   const defaultJobLimit = crawlAll ? builtItems.length : 20;
   const jobLimit = Math.min(Number(source.job_limit || source.jobLimit || defaultJobLimit) || defaultJobLimit, maxJobLimit, builtItems.length);
@@ -981,7 +1120,7 @@ function normalizeSearchJobInput_(input) {
     site_preset: sitePreset,
     source_url: firstSourceUrl,
     genre: sitePreset === 'nap_camp' ? NAP_CAMP_GENRE : String(source.genre || '').trim(),
-    label: String(source.label || source.name || '').trim(),
+    label: normalizedLabel,
     total_candidates: totalCandidates,
     created_at: nowIso_(),
   };
@@ -1024,14 +1163,17 @@ function buildSearchJobItems_(source, jobType) {
       }
       allItems.push({
         source_url: normalizedUrl,
+        collection_url: resolveSourcePageCollectionUrl_(normalizedUrl, sitePreset),
         genre: genre,
         label: label,
         site_preset: sitePreset,
+        crawl_all: crawlAll,
       });
     });
     return allItems.map(function (item) {
       return {
         source_url: item.source_url,
+        collection_url: item.collection_url || item.source_url,
         genre: item.site_preset === 'nap_camp' ? NAP_CAMP_GENRE : (item.genre || genre),
         label: item.label || label,
         site_preset: item.site_preset || '',
@@ -1061,10 +1203,49 @@ function isSourcePageCrawlAllInput_(source) {
   return input.crawl_all === true || input.crawlAll === true || input.collect_all === true || input.collectAll === true;
 }
 
+function sourcePagePresetRequiresFullCrawl_(sitePreset) {
+  return String(sitePreset || '').trim() === 'resort_glamping';
+}
+
+function normalizeSourcePageDisplayLabel_(label, sourceUrl, sitePreset) {
+  const requested = String(label || '').trim();
+  const sourceDomain = normalizeDomain_(sourceUrl);
+  if (!requested) return sourceDomain || String(sourceUrl || '').trim();
+
+  const looksLikeDomain = /^(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/)?$/i.test(requested);
+  if (!looksLikeDomain) return requested;
+
+  const requestedDomain = normalizeDomain_(requested);
+  const resolvedPreset = String(sitePreset || detectSourcePagePreset_(sourceUrl) || '').trim();
+  const requestedPreset = detectSourcePagePreset_(requested);
+  if (
+    sourceDomain &&
+    requestedDomain &&
+    (
+      requestedDomain !== sourceDomain ||
+      (resolvedPreset && requestedPreset && resolvedPreset !== requestedPreset)
+    )
+  ) {
+    return sourceDomain;
+  }
+  return requestedDomain || requested;
+}
+
 function detectSourcePagePreset_(url) {
   const domain = normalizeDomain_(url);
   if (isDomainOrSubdomain_(domain, 'nap-camp.com')) return 'nap_camp';
+  if (isDomainOrSubdomain_(domain, 'resort-glamping.com')) return 'resort_glamping';
   return '';
+}
+
+function resolveSourcePageCollectionUrl_(url, sitePreset) {
+  const normalizedUrl = normalizeUrl_(url);
+  if (String(sitePreset || '') !== 'resort_glamping') return normalizedUrl;
+  const parts = parseSourcePageHttpUrl_(normalizedUrl);
+  if (!parts) return RESORT_GLAMPING_LIST_URL;
+  const path = String(parts.path || '/').replace(/\/+$/, '') || '/';
+  if (path === '/' || path === '/accommodation') return RESORT_GLAMPING_LIST_URL;
+  return normalizedUrl;
 }
 
 function buildNapCampSourcePageItems_(url, source) {
@@ -1128,7 +1309,8 @@ function processLeadSearchItem_(item, jobType, jobId) {
 
   const excludedDomains = getLeadCollectionExcludedDomainRecords_();
   response.organic.filter(function (result) {
-    return !isLeadCollectionExcludedUrl_(result.link || '', excludedDomains);
+    return !isLeadCollectionExcludedUrl_(result.link || '', excludedDomains) &&
+      !isClearlyClosedSearchResult_(result);
   }).forEach(function (result, index) {
     appendSheetRecord_('search_results', {
       job_id: jobId || '',
@@ -1180,7 +1362,8 @@ function processProspectingSearchItem_(item, payload, jobId) {
 
   const excludedDomains = getLeadCollectionExcludedDomainRecords_();
   response.organic.filter(function (result) {
-    return !isLeadCollectionExcludedUrl_(result.link || '', excludedDomains);
+    return !isLeadCollectionExcludedUrl_(result.link || '', excludedDomains) &&
+      !isClearlyClosedSearchResult_(result);
   }).forEach(function (result, index) {
     appendSheetRecord_('search_results', {
       job_id: jobId || '',
@@ -1194,6 +1377,36 @@ function processProspectingSearchItem_(item, payload, jobId) {
       raw_json: safeJsonStringify_(result),
     });
   });
+}
+
+function notifySourcePageCandidateProgress_(runtimeContext, event) {
+  const callback = runtimeContext && runtimeContext.onCandidateProgress;
+  if (typeof callback !== 'function') return true;
+  try {
+    return callback(event || {}) !== false;
+  } catch (error) {
+    console.warn('Source page candidate progress update skipped: ' + String(error && error.message || error));
+    return false;
+  }
+}
+
+function sourcePageCandidateOutcome_(result, error) {
+  if (error) return 'error';
+  const value = result && typeof result === 'object' ? result : {};
+  if (value.created) return 'added';
+  if (value.duplicate) return 'duplicate';
+  if (value.unresolved) return 'unresolved';
+  if (value.closed || value.broken || value.skipped) return 'excluded';
+  if (value.error) return 'error';
+  return 'excluded';
+}
+
+function sourcePageCandidateProgressTarget_(candidate, fallbackName, fallbackUrl) {
+  const source = candidate && typeof candidate === 'object' ? candidate : {};
+  return {
+    name: String(source.facility_name || source.text || fallbackName || '収集対象サイト'),
+    url: String(source.official_url || source.detail_url || source.url || fallbackUrl || ''),
+  };
 }
 
 function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
@@ -1261,8 +1474,27 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
     }
     const entry = candidates[index];
     const rank = offset + cursorOffset + index + 1;
+    const totalTargets = fullCrawl ? allCandidates.length : chunkLength;
+    const processedBefore = fullCrawl ? rank - 1 : cursorOffset + index;
+    const initialTarget = sourcePageCandidateProgressTarget_(
+      null,
+      'なっぷ施設 ' + String(entry.campsite_id || rank),
+      entry.detail_url || sourceUrl
+    );
+    if (index === 0) {
+      notifySourcePageCandidateProgress_(runtimeContext, {
+        phase: 'processing',
+        processedTargets: processedBefore,
+        totalTargets: totalTargets,
+        targetName: initialTarget.name,
+        targetUrl: initialTarget.url,
+      });
+    }
+    let processedCandidate = null;
+    let candidateOutcome = 'error';
     try {
       const candidate = buildNapCampSourcePageCandidate_(entry, sourceUrl);
+      processedCandidate = candidate;
       const result = processSourcePageCandidate_(candidate, item, payload, jobId, rank - 1, runtimeContext);
       if (result.deferred) {
         summary.pausedForQuota = result.pausedForQuota === true;
@@ -1270,9 +1502,11 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
         summary.quotaCode = result.quotaCode || '';
         break;
       }
+      candidateOutcome = sourcePageCandidateOutcome_(result);
       if (result.created) summary.created += 1;
       if (result.skipped) summary.skipped += 1;
     } catch (error) {
+      candidateOutcome = sourcePageCandidateOutcome_(null, error);
       summary.skipped += 1;
       appendSyncError_('processNapCampSourcePageItem', error, {
         target_sheet: 'search_jobs',
@@ -1298,6 +1532,19 @@ function processNapCampSourcePageItem_(item, payload, jobId, runtimeContext) {
     }
     summary.processedCandidates += 1;
     summary.nextOffset = cursorOffset + summary.processedCandidates;
+    const completedTarget = sourcePageCandidateProgressTarget_(
+      processedCandidate,
+      initialTarget.name,
+      initialTarget.url
+    );
+    notifySourcePageCandidateProgress_(runtimeContext, {
+      phase: 'processed',
+      processedTargets: fullCrawl ? rank : summary.nextOffset,
+      totalTargets: totalTargets,
+      targetName: completedTarget.name,
+      targetUrl: completedTarget.url,
+      outcome: candidateOutcome,
+    });
   }
 
   summary.processedAll = summary.nextOffset >= chunkLength;
@@ -1417,14 +1664,22 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
     return processNapCampSourcePageItem_(item, payload, jobId, runtimeContext);
   }
 
-  const sourceUrl = normalizeUrl_(item.source_url || item.url || '');
-  const limit = Math.min(Math.max(Number(payload.results_per_query || item.max_items || 5) || 5, 1), 20);
+  const sourceUrl = normalizeUrl_(item.collection_url || item.source_url || item.url || '');
+  const requestedLimit = Math.min(Math.max(Number(payload.results_per_query || item.max_items || 5) || 5, 1), 20);
+  const limit = payload.crawl_all === true ? SOURCE_PAGE_FULL_CRAWL_MAX_CANDIDATES : requestedLimit;
   const cursorOffset = Math.max(Number(runtimeContext && runtimeContext.cursorOffset) || 0, 0);
   if (!hasSearchJobRuntimeAvailable_(runtimeContext, 30000)) {
     return { created: 0, candidates: 0, processedCandidates: 0, processedAll: false, nextOffset: cursorOffset };
   }
   const page = fetchProspectingHtml_(sourceUrl);
-  const candidates = extractSourcePageCandidates_(page.html, sourceUrl, limit);
+  const sitePreset = String(item.site_preset || payload.site_preset || '');
+  let candidates = sitePreset === 'resort_glamping'
+    ? extractResortGlampingCandidates_(page.html, sourceUrl, limit)
+    : extractSourcePageCandidates_(page.html, sourceUrl, limit);
+  if (sitePreset === 'resort_glamping' && !candidates.length) {
+    const sitemap = fetchProspectingHtml_(RESORT_GLAMPING_SITEMAP_URL);
+    candidates = extractResortGlampingSitemapCandidates_(sitemap.html, sourceUrl, limit);
+  }
   const summary = {
     created: 0,
     candidates: candidates.length,
@@ -1450,8 +1705,10 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
         reason: 'no_candidates',
       },
     });
-    summary.processedAll = true;
-    return summary;
+    const noCandidatesError = new Error('一覧ページから施設候補を抽出できませんでした。施設一覧ページのURLまたはサイト構造を確認してください。');
+    noCandidatesError.code = 'SOURCE_PAGE_NO_CANDIDATES';
+    noCandidatesError.retryable = false;
+    throw noCandidatesError;
   }
 
   const limitedCandidates = candidates.slice(0, limit);
@@ -1460,6 +1717,17 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
       break;
     }
     const candidate = limitedCandidates[index];
+    const progressTarget = sourcePageCandidateProgressTarget_(candidate, '', sourceUrl);
+    if (index === cursorOffset) {
+      notifySourcePageCandidateProgress_(runtimeContext, {
+        phase: 'processing',
+        processedTargets: index,
+        totalTargets: limitedCandidates.length,
+        targetName: progressTarget.name,
+        targetUrl: progressTarget.url,
+      });
+    }
+    let candidateOutcome = 'error';
     try {
       const result = processSourcePageCandidate_(candidate, item, payload, jobId, index, runtimeContext);
       if (result.deferred) {
@@ -1468,8 +1736,10 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
         summary.quotaCode = result.quotaCode || '';
         break;
       }
+      candidateOutcome = sourcePageCandidateOutcome_(result);
       if (result.created) summary.created += 1;
     } catch (error) {
+      candidateOutcome = sourcePageCandidateOutcome_(null, error);
       appendSyncError_('processSourcePageCandidate', error, {
         target_sheet: 'search_jobs',
         target_id: jobId || '',
@@ -1493,6 +1763,19 @@ function processSourcePageSearchItem_(item, payload, jobId, runtimeContext) {
     }
     summary.processedCandidates += 1;
     summary.nextOffset = index + 1;
+    const completedProgressTarget = sourcePageCandidateProgressTarget_(
+      candidate,
+      progressTarget.name,
+      progressTarget.url
+    );
+    notifySourcePageCandidateProgress_(runtimeContext, {
+      phase: 'processed',
+      processedTargets: summary.nextOffset,
+      totalTargets: limitedCandidates.length,
+      targetName: completedProgressTarget.name,
+      targetUrl: completedProgressTarget.url,
+      outcome: candidateOutcome,
+    });
   }
 
   summary.processedAll = summary.nextOffset >= limitedCandidates.length;
@@ -1705,13 +1988,52 @@ function columnNumberToA1_(columnNumber) {
   return text;
 }
 
-function processSourcePageCandidate_(candidate, item, payload, jobId, index, runtimeContext) {
+function processSourcePageCandidate_(candidateInput, item, payload, jobId, index, runtimeContext) {
+  let candidate = candidateInput && typeof candidateInput === 'object'
+    ? Object.assign({}, candidateInput)
+    : {};
   const sourceUrl = normalizeUrl_(item.source_url || item.url || payload.source_url || candidate.source_url || '');
   const sourceDomain = normalizeDomain_(sourceUrl);
   const sitePreset = String(candidate.source_preset || item.site_preset || payload.site_preset || '').trim();
   const genre = resolveSourcePageGenre_(candidate, item, payload);
+  if (sitePreset === 'resort_glamping' && candidate.detail_url && !String(candidate.facility_name || candidate.text || '').trim()) {
+    if (!hasSearchJobRuntimeAvailable_(runtimeContext, 35000)) return { created: false, deferred: true };
+    try {
+      const detailPage = fetchProspectingHtml_(candidate.detail_url);
+      candidate = enrichResortGlampingCandidateFromDetailHtml_(candidate, detailPage.html, sourceDomain);
+    } catch (error) {
+      candidate.detail_error = error.message || String(error);
+      candidate.detail_checked = true;
+    }
+  }
+  if (candidateInput && typeof candidateInput === 'object') {
+    Object.assign(candidateInput, candidate);
+  }
   const facilityName = String(candidate.facility_name || candidate.text || '').trim() ||
     deriveSearchResultCompanyName_(candidate.official_url || candidate.detail_url || sourceUrl);
+  const candidateClosure = detectClosedProspectingSite_({
+    title: facilityName,
+    description: candidate.description || '',
+  });
+  if (candidateClosure.closed) {
+    appendSourcePageResult_(jobId, {
+      query: sourceUrl,
+      resultType: 'source_page_closed',
+      title: facilityName,
+      url: candidate.detail_url || candidate.url || candidate.official_url || sourceUrl,
+      snippet: '閉鎖・営業終了・休業の表記を検出したため、確認待ちリストへ追加しませんでした。',
+      rank: index + 1,
+      reviewStatus: 'dismissed',
+      reviewAction: 'exclude_closed_site',
+      raw: {
+        source_url: sourceUrl,
+        site_preset: sitePreset,
+        candidate: candidate,
+        closed_reason: candidateClosure.reason,
+      },
+    });
+    return { created: false, skipped: true, closed: true };
+  }
   let officialUrl = candidate.official_url || '';
   let discoveryMode = officialUrl ? 'direct_official_link' : 'unresolved';
   if (officialUrl && isLeadCollectionExcludedUrl_(officialUrl)) {
@@ -1743,7 +2065,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
     return { created: false, skipped: true, duplicate: true };
   }
 
-  if (!officialUrl && candidate.detail_url && !candidate.skip_detail_official) {
+  if (!officialUrl && candidate.detail_url && !candidate.skip_detail_official && !candidate.detail_checked) {
     if (!hasSearchJobRuntimeAvailable_(runtimeContext, 35000)) return { created: false, deferred: true };
     try {
       const detailPage = fetchProspectingHtml_(candidate.detail_url);
@@ -1856,7 +2178,43 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
     formUrl: '',
     checkedUrl: '',
     errorMessage: '',
+    siteClosed: false,
+    siteClosedReason: '',
+    linkBroken: false,
+    linkBrokenReason: '',
   };
+  if (contact.siteClosed || contact.linkBroken) {
+    const blockedByClosure = contact.siteClosed;
+    appendSourcePageResult_(jobId, {
+      query: sourceUrl,
+      resultType: blockedByClosure ? 'source_page_closed' : 'source_page_broken_link',
+      title: facilityName,
+      url: officialUrl,
+      snippet: blockedByClosure
+        ? '公式サイトの閉鎖・営業終了・休業を確認したため、確認待ちリストへ追加しませんでした。'
+        : '公式サイトのリンク切れを確認したため、確認待ちリストへ追加しませんでした。',
+      rank: index + 1,
+      reviewStatus: 'dismissed',
+      reviewAction: blockedByClosure ? 'exclude_closed_site' : 'exclude_broken_link',
+      raw: {
+        source_url: sourceUrl,
+        site_preset: sitePreset,
+        source_id: sourceId,
+        candidate: candidate,
+        official_url: officialUrl,
+        closed_reason: contact.siteClosedReason || '',
+        broken_link_reason: contact.linkBrokenReason || '',
+        serper: searchProviderResult,
+        search_provider: searchProviderResult,
+      },
+    });
+    return {
+      created: false,
+      skipped: true,
+      closed: Boolean(contact.siteClosed),
+      broken: Boolean(contact.linkBroken),
+    };
+  }
   let lead = null;
   let reviewStatus = 'added';
   let errorMessage = '';
@@ -1887,7 +2245,7 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
         search_provider: searchProviderResult,
         contact_error: contact.errorMessage || '',
       }),
-    }, { waitMs: 5000, attempts: 1 });
+    }, { waitMs: 5000, attempts: 1 }, { siteAvailabilityChecked: true });
     addLeadToSourcePageIndex_(leadIndex, lead);
   } catch (error) {
     if (isScriptLockTimeoutError_(error)) {
@@ -1925,7 +2283,11 @@ function processSourcePageCandidate_(candidate, item, payload, jobId, index, run
     },
   });
 
-  return { created: Boolean(lead) };
+  return {
+    created: Boolean(lead),
+    duplicate: reviewStatus === 'duplicate',
+    error: reviewStatus === 'dismissed',
+  };
 }
 
 function sourcePageLeadIndexFields_() {
@@ -1954,7 +2316,9 @@ function buildSourcePageLeadIndexFromRecords_(leads) {
     externalUrls: {},
     websiteUrls: {},
     websiteDomains: {},
+    historicalWebsiteDomains: {},
     names: {},
+    nameAliases: {},
   };
   (leads || []).forEach(function (lead) {
     addLeadToSourcePageIndex_(index, lead);
@@ -1963,20 +2327,113 @@ function buildSourcePageLeadIndexFromRecords_(leads) {
 }
 
 function addLeadToSourcePageIndex_(index, lead) {
-  if (!index || !lead || isArchivedLead_(lead)) return index;
+  if (!index || !lead) return index;
   if (!index.websiteDomains) index.websiteDomains = {};
+  if (!index.historicalWebsiteDomains) index.historicalWebsiteDomains = {};
+  if (!index.nameAliases) index.nameAliases = {};
   const source = String(lead.source || '').trim();
   const sourceId = String(lead.source_id || '').trim();
   const externalUrl = normalizeSourcePageComparableUrl_(lead.external_id || '');
   const websiteUrl = normalizeSourcePageComparableUrl_(lead.website_url || '');
   const websiteDomain = leadDuplicateWebsiteDomain_(lead);
   const name = normalizeCompanyName_(lead.normalized_company_name || lead.company_name || lead.facility_name || '');
+  if (isArchivedLead_(lead)) {
+    if (websiteDomain && !index.historicalWebsiteDomains[websiteDomain]) {
+      index.historicalWebsiteDomains[websiteDomain] = lead;
+    }
+    return index;
+  }
   if (source === 'source_page' && sourceId && !index.sourceIds[sourceId]) index.sourceIds[sourceId] = lead;
   if (externalUrl && !index.externalUrls[externalUrl]) index.externalUrls[externalUrl] = lead;
   if (websiteUrl && !index.websiteUrls[websiteUrl]) index.websiteUrls[websiteUrl] = lead;
   if (websiteDomain && !index.websiteDomains[websiteDomain]) index.websiteDomains[websiteDomain] = lead;
-  if (name && name.length >= 4 && !index.names[name]) index.names[name] = lead;
+  if (name && name.length >= 4) {
+    if (!index.names[name]) index.names[name] = lead;
+    sourcePageLeadNameContainmentKeys_(name).forEach(function (alias) {
+      if (!index.nameAliases[alias]) index.nameAliases[alias] = lead;
+    });
+  }
   return index;
+}
+
+let SOURCE_PAGE_GENERIC_LEAD_NAME_INDEX_ = null;
+
+function sourcePageGenericLeadNameIndex_() {
+  if (SOURCE_PAGE_GENERIC_LEAD_NAME_INDEX_) return SOURCE_PAGE_GENERIC_LEAD_NAME_INDEX_;
+  const index = {};
+  [
+    'キャンプ',
+    'キャンプ場',
+    'オートキャンプ',
+    'オートキャンプ場',
+    'グランピング',
+    'グランピング施設',
+    'ホテル',
+    '旅館',
+    'リゾート',
+    'ヴィラ',
+    'コテージ',
+    'バンガロー',
+    'ロッジ',
+    'ゲストハウス',
+    '民宿',
+    '温泉',
+    '公園',
+    '野営場',
+  ].forEach(function (genericName) {
+    index[normalizeCompanyName_(genericName)] = true;
+  });
+  SOURCE_PAGE_GENERIC_LEAD_NAME_INDEX_ = index;
+  return SOURCE_PAGE_GENERIC_LEAD_NAME_INDEX_;
+}
+
+function isGenericSourcePageLeadName_(value) {
+  return Boolean(sourcePageGenericLeadNameIndex_()[normalizeCompanyName_(value)]);
+}
+
+function areNormalizedSourcePageLeadNamesClearlySame_(leftName, rightName) {
+  if (!leftName || !rightName) return false;
+  if (leftName === rightName) return true;
+
+  const shorter = leftName.length <= rightName.length ? leftName : rightName;
+  const longer = leftName.length <= rightName.length ? rightName : leftName;
+  if (shorter.length < 7 || sourcePageGenericLeadNameIndex_()[shorter]) return false;
+  if (longer.indexOf(shorter) !== 0 && longer.lastIndexOf(shorter) !== longer.length - shorter.length) return false;
+  return shorter.length / longer.length >= 0.45;
+}
+
+function sourcePageLeadNameContainmentKeys_(value) {
+  const name = normalizeCompanyName_(value);
+  if (name.length < 8) return [];
+  const minimumLength = Math.max(7, Math.ceil(name.length * 0.45));
+  const keys = {};
+  for (let length = minimumLength; length < name.length; length += 1) {
+    const prefix = name.slice(0, length);
+    const suffix = name.slice(name.length - length);
+    if (!sourcePageGenericLeadNameIndex_()[prefix]) keys[prefix] = true;
+    if (!sourcePageGenericLeadNameIndex_()[suffix]) keys[suffix] = true;
+  }
+  return Object.keys(keys);
+}
+
+function areSourcePageLeadNamesClearlySame_(left, right) {
+  const leftName = normalizeCompanyName_(left);
+  const rightName = normalizeCompanyName_(right);
+  return areNormalizedSourcePageLeadNamesClearlySame_(leftName, rightName);
+}
+
+function findStrongSourcePageLeadNameMatch_(candidateName, leadIndex) {
+  const normalizedName = normalizeCompanyName_(candidateName);
+  const names = leadIndex && leadIndex.names ? leadIndex.names : {};
+  const aliases = leadIndex && leadIndex.nameAliases ? leadIndex.nameAliases : {};
+  if (normalizedName.length < 7 || isGenericSourcePageLeadName_(normalizedName)) return null;
+  if (aliases[normalizedName]) return aliases[normalizedName];
+  const candidateAliases = sourcePageLeadNameContainmentKeys_(normalizedName);
+  for (let index = 0; index < candidateAliases.length; index += 1) {
+    const existing = names[candidateAliases[index]];
+    if (existing) return existing;
+  }
+  return null;
 }
 
 function findExistingSourcePageLead_(candidate, facilityName, officialUrl, leadIndex) {
@@ -1986,17 +2443,35 @@ function findExistingSourcePageLead_(candidate, facilityName, officialUrl, leadI
   const officialComparableUrl = normalizeSourcePageComparableUrl_(officialUrl || candidate.official_url || '');
   const officialDomain = normalizeDomain_(officialUrl || candidate.official_url || '');
   const index = leadIndex || buildSourcePageLeadIndex_();
-  return (sourceId && index.sourceIds[sourceId]) ||
+  const exactMatch = (sourceId && index.sourceIds[sourceId]) ||
     (detailUrl && index.externalUrls[detailUrl]) ||
     (detailUrl && index.websiteUrls[detailUrl]) ||
     (officialComparableUrl && index.websiteUrls[officialComparableUrl]) ||
     (officialDomain && index.websiteDomains[officialDomain]) ||
+    (officialDomain && index.historicalWebsiteDomains && index.historicalWebsiteDomains[officialDomain]) ||
     (candidateName && candidateName.length >= 4 && index.names[candidateName]) ||
     null;
+  return exactMatch || findStrongSourcePageLeadNameMatch_(candidateName, index);
 }
 
 function normalizeSourcePageComparableUrl_(url) {
   return normalizeLeadComparableUrl_(url);
+}
+
+function sourcePageSiteIdentityKey_(siteOrUrl, explicitPreset) {
+  const source = siteOrUrl && typeof siteOrUrl === 'object' ? siteOrUrl : {};
+  const url = typeof siteOrUrl === 'string'
+    ? siteOrUrl
+    : (source.url || source.source_url || source.sourceUrl || source.collection_url || source.collectionUrl || '');
+  const preset = String(
+    explicitPreset ||
+    source.sitePreset ||
+    source.site_preset ||
+    detectSourcePagePreset_(url) ||
+    ''
+  ).trim();
+  if (preset) return 'preset:' + preset;
+  return normalizeSourcePageComparableUrl_(url);
 }
 
 function parseSourcePageJobPayloadForStatus_(job) {
@@ -2009,7 +2484,7 @@ function parseSourcePageJobPayloadForStatus_(job) {
 }
 
 function sourcePageJobMatchesSavedUrl_(payload, comparableUrl) {
-  const target = String(comparableUrl || '');
+  const target = sourcePageSiteIdentityKey_(comparableUrl);
   if (!target) return false;
   const source = payload && typeof payload === 'object' ? payload : {};
   const urls = [source.source_url, source.sourceUrl];
@@ -2020,9 +2495,10 @@ function sourcePageJobMatchesSavedUrl_(payload, comparableUrl) {
   (Array.isArray(source.items) ? source.items : []).forEach(function (item) {
     const value = item && typeof item === 'object' ? item : {};
     urls.push(value.source_url || value.sourceUrl || value.url || '');
+    urls.push(value.collection_url || value.collectionUrl || '');
   });
   return urls.some(function (url) {
-    return normalizeSourcePageComparableUrl_(url) === target;
+    return sourcePageSiteIdentityKey_(url) === target;
   });
 }
 
@@ -2031,10 +2507,10 @@ function sourcePageJobIsFullCrawl_(payload, comparableUrl) {
   if (source.crawl_all === true || source.crawlAll === true || String(source.crawl_all || source.crawlAll || '').toLowerCase() === 'true') {
     return true;
   }
-  const target = String(comparableUrl || '');
+  const target = sourcePageSiteIdentityKey_(comparableUrl);
   return (Array.isArray(source.items) ? source.items : []).some(function (item) {
     const value = item && typeof item === 'object' ? item : {};
-    const itemUrl = normalizeSourcePageComparableUrl_(value.source_url || value.sourceUrl || value.url || '');
+    const itemUrl = sourcePageSiteIdentityKey_(value);
     const crawlAll = value.crawl_all === true || value.crawlAll === true || String(value.crawl_all || value.crawlAll || '').toLowerCase() === 'true';
     return crawlAll && (!target || itemUrl === target);
   });
@@ -2042,17 +2518,19 @@ function sourcePageJobIsFullCrawl_(payload, comparableUrl) {
 
 function sourcePageJobFacilityTotal_(job, payload, comparableUrl) {
   const source = payload && typeof payload === 'object' ? payload : {};
-  const target = String(comparableUrl || '');
+  const progress = parseJsonObjectSafe_(job && job.progress_json);
+  const target = sourcePageSiteIdentityKey_(comparableUrl);
   const matchedItem = (Array.isArray(source.items) ? source.items : []).find(function (item) {
     const value = item && typeof item === 'object' ? item : {};
-    return normalizeSourcePageComparableUrl_(value.source_url || value.sourceUrl || value.url || '') === target;
+    return sourcePageSiteIdentityKey_(value) === target;
   }) || {};
   const candidates = [
     matchedItem.total_candidates,
     matchedItem.totalCandidates,
     source.total_candidates,
     source.totalCandidates,
-    job && job.total_count,
+    progress.totalTargets,
+    progress.total_targets,
   ];
   for (let index = 0; index < candidates.length; index += 1) {
     const numeric = Number(candidates[index]);
@@ -2120,6 +2598,7 @@ function buildSourcePageSiteStatus_(site, searchJobs) {
   const jobStatus = String(job.status || '').toLowerCase();
   const fullCrawl = sourcePageJobIsFullCrawl_(payload, comparableUrl);
   const total = sourcePageJobFacilityTotal_(job, payload, comparableUrl);
+  const targetProgress = parseJsonObjectSafe_(job.progress_json);
   let cursor = {};
   try {
     cursor = JSON.parse(String(job.cursor_json || '{}')) || {};
@@ -2127,12 +2606,18 @@ function buildSourcePageSiteStatus_(site, searchJobs) {
     cursor = {};
   }
   const cursorOffset = Math.max(Number(cursor.offset || 0) || 0, 0);
-  let processed = fullCrawl && total > 0
-    ? (jobStatus === 'completed' ? total : Math.min(cursorOffset, total))
-    : Math.max(Number(job.processed_count || 0) || 0, 0);
+  const recordedTargetProgress = Math.max(Number(targetProgress.processedTargets || targetProgress.processed_targets) || 0, 0);
+  const noCandidateCompletion = jobStatus === 'completed' && total === 0 && !targetProgress.updatedAt;
+  let processed = noCandidateCompletion
+    ? 0
+    : recordedTargetProgress > 0
+    ? recordedTargetProgress
+    : (fullCrawl && total > 0
+      ? (jobStatus === 'completed' ? total : Math.min(cursorOffset, total))
+      : Math.max(Number(job.processed_count || 0) || 0, 0));
   if (total > 0) processed = Math.min(processed, total);
   const errorCount = Math.max(Number(job.error_count || 0) || 0, 0);
-  const lastError = String(job.last_error || '').trim();
+  let lastError = String(job.last_error || '').trim();
   const hasAttention = errorCount > 0 || Boolean(lastError);
   const completedAt = String(job.finished_at || (jobStatus === 'completed' ? job.updated_at : '') || '');
   let statusKey = jobStatus || 'attention';
@@ -2144,6 +2629,11 @@ function buildSourcePageSiteStatus_(site, searchJobs) {
     statusKey = 'running';
     statusLabel = matching.some(function (entry) { return String(entry.job.status || '') === 'completed'; }) ? '再調査中' : '調査中';
     tone = 'info';
+  } else if (noCandidateCompletion) {
+    statusKey = 'no_candidates';
+    statusLabel = '候補未検出';
+    tone = 'warn';
+    lastError = lastError || '一覧ページから施設候補を抽出できませんでした。';
   } else if (jobStatus === 'completed' && wantsFullCrawl && !fullCrawl) {
     statusKey = 'partial_completed';
     statusLabel = '一部調査完了';
@@ -2179,9 +2669,178 @@ function buildSourcePageSiteStatus_(site, searchJobs) {
   });
 }
 
+function sourcePageProgressStatusInfo_(status) {
+  const value = String(status || '').toLowerCase();
+  if (value === 'completed') return { statusKey: 'completed', statusLabel: '完了', tone: 'good', active: false };
+  if (value === 'failed') return { statusKey: 'failed', statusLabel: '失敗', tone: 'bad', active: false };
+  if (value === 'cancelled' || value === 'canceled') return { statusKey: 'cancelled', statusLabel: '中止', tone: 'bad', active: false };
+  if (value === 'paused') return { statusKey: 'paused', statusLabel: '一時停止', tone: 'warn', active: false };
+  if (value === 'running') return { statusKey: 'running', statusLabel: '収集中', tone: 'info', active: true };
+  if (!value) return { statusKey: 'not_started', statusLabel: '未実行', tone: 'muted', active: false };
+  return { statusKey: 'queued', statusLabel: '待機中', tone: 'info', active: true };
+}
+
+function sourcePageProgressOutcomeLabel_(outcome) {
+  const value = String(outcome || '');
+  if (value === 'added') return '追加';
+  if (value === 'duplicate') return '登録済み';
+  if (value === 'excluded') return '対象外';
+  if (value === 'unresolved') return '公式サイト未確認';
+  if (value === 'error') return 'エラー';
+  return value ? '確認済み' : '';
+}
+
+function buildSourcePageJobProgress_(job, payload) {
+  const sourceJob = job && typeof job === 'object' ? job : {};
+  const source = payload && typeof payload === 'object' ? payload : {};
+  const progress = parseJsonObjectSafe_(sourceJob.progress_json);
+  const items = Array.isArray(source.items) ? source.items : [];
+  const currentItemIndex = Math.max(Number(progress.itemIndex) || 0, 0);
+  const currentItem = items[Math.min(currentItemIndex, Math.max(items.length - 1, 0))] || items[0] || {};
+  const sourceUrl = String(progress.sourceUrl || currentItem.source_url || source.source_url || '');
+  const sitePreset = String(
+    currentItem.site_preset ||
+    currentItem.sitePreset ||
+    source.site_preset ||
+    source.sitePreset ||
+    detectSourcePagePreset_(sourceUrl) ||
+    ''
+  );
+  const totalTargets = Math.max(
+    Number(progress.totalTargets || progress.total_targets) || 0,
+    Number(currentItem.total_candidates || currentItem.totalCandidates) || 0,
+    Number(source.total_candidates || source.totalCandidates) || 0,
+    0
+  );
+  const statusInfo = sourcePageProgressStatusInfo_(sourceJob.status);
+  const updatedAt = String(progress.updatedAt || sourceJob.updated_at || sourceJob.last_heartbeat_at || sourceJob.created_at || '');
+  const updatedAtMs = Date.parse(updatedAt);
+  const stalled = statusInfo.statusKey === 'running' &&
+    (!Number.isFinite(updatedAtMs) || Date.now() - updatedAtMs >= 7 * 60 * 1000);
+  const noCandidates = statusInfo.statusKey === 'completed' && totalTargets === 0 && !progress.updatedAt;
+  const processedTargets = statusInfo.statusKey === 'completed' && totalTargets > 0
+    ? totalTargets
+    : Math.min(Math.max(Number(progress.processedTargets || progress.processed_targets) || 0, 0), totalTargets || Number.MAX_SAFE_INTEGER);
+  const counts = Object.assign({
+    added: 0,
+    duplicate: 0,
+    excluded: 0,
+    unresolved: 0,
+    error: 0,
+  }, progress.counts && typeof progress.counts === 'object' ? progress.counts : {});
+  const recentTargets = (Array.isArray(progress.recentTargets) ? progress.recentTargets : []).slice(0, 5).map(function (target) {
+    const value = target && typeof target === 'object' ? target : {};
+    return {
+      name: String(value.name || ''),
+      url: String(value.url || ''),
+      outcome: String(value.outcome || ''),
+      outcomeLabel: sourcePageProgressOutcomeLabel_(value.outcome),
+      processedAt: String(value.processedAt || ''),
+    };
+  });
+  const percent = noCandidates ? 0 : totalTargets > 0
+    ? Math.max(0, Math.min(100, Math.round((processedTargets / totalTargets) * 100)))
+    : (statusInfo.statusKey === 'completed' ? 100 : 0);
+  return {
+    id: String(sourceJob.id || ''),
+    label: normalizeSourcePageDisplayLabel_(
+      source.label || currentItem.label || '',
+      sourceUrl,
+      sitePreset
+    ) || '一覧ページ収集',
+    sourceUrl: sourceUrl,
+    statusKey: statusInfo.statusKey,
+    statusLabel: stalled ? '自動再開待ち' : (noCandidates ? '候補未検出' : statusInfo.statusLabel),
+    tone: stalled || noCandidates ? 'warn' : statusInfo.tone,
+    active: statusInfo.active,
+    stalled: stalled,
+    processedTargets: processedTargets,
+    totalTargets: totalTargets,
+    percent: percent,
+    currentTargetName: String(progress.currentTargetName || ''),
+    currentTargetUrl: String(progress.currentTargetUrl || ''),
+    phase: String(progress.phase || ''),
+    lastOutcome: String(progress.lastOutcome || ''),
+    lastOutcomeLabel: sourcePageProgressOutcomeLabel_(progress.lastOutcome),
+    counts: counts,
+    recentTargets: recentTargets,
+    lastError: String(sourceJob.last_error || (noCandidates ? '一覧ページから施設候補を抽出できませんでした。' : '')),
+    updatedAt: updatedAt,
+    createdAt: String(sourceJob.created_at || ''),
+  };
+}
+
+function buildSourcePageStatusSites_(savedSites, parsedSearchJobs) {
+  const sitesByUrl = {};
+  const ordered = [];
+  const addSite = function (site, preferExisting) {
+    const source = site && typeof site === 'object' ? site : {};
+    const url = String(source.url || '');
+    const identityKey = sourcePageSiteIdentityKey_(source);
+    if (!identityKey) return;
+    const normalizedSource = Object.assign({}, source, {
+      label: normalizeSourcePageDisplayLabel_(
+        source.label || '',
+        url,
+        source.sitePreset || source.site_preset || ''
+      ),
+    });
+    if (sitesByUrl[identityKey]) {
+      if (preferExisting !== true) return;
+      Object.assign(sitesByUrl[identityKey], normalizedSource);
+      return;
+    }
+    const normalized = Object.assign({
+      id: 'history:' + identityKey,
+      label: url,
+      url: url,
+      genre: '',
+      crawlAll: false,
+      sitePreset: '',
+      updatedAt: '',
+      historical: true,
+    }, normalizedSource);
+    sitesByUrl[identityKey] = normalized;
+    ordered.push(normalized);
+  };
+
+  (savedSites || []).forEach(function (site) {
+    addSite(Object.assign({}, site, { historical: false }), true);
+  });
+
+  (parsedSearchJobs || []).slice().sort(function (left, right) {
+    return sourcePageJobStatusTimestamp_(right.job) - sourcePageJobStatusTimestamp_(left.job);
+  }).forEach(function (entry) {
+    if (String(entry.job.job_type || '') !== 'source_page') return;
+    const payload = entry.payload && typeof entry.payload === 'object' ? entry.payload : {};
+    const payloadItems = Array.isArray(payload.items) && payload.items.length
+      ? payload.items
+      : [{ source_url: payload.source_url || payload.sourceUrl || '' }];
+    payloadItems.forEach(function (item) {
+      const value = item && typeof item === 'object' ? item : {};
+      const url = String(value.source_url || value.sourceUrl || value.url || '');
+      if (!url) return;
+      const crawlAll = value.crawl_all === true || value.crawlAll === true ||
+        payload.crawl_all === true || payload.crawlAll === true ||
+        String(value.crawl_all || value.crawlAll || payload.crawl_all || payload.crawlAll || '').toLowerCase() === 'true';
+      addSite({
+        id: 'history:' + sourcePageSiteIdentityKey_(value),
+        label: String(value.label || payload.label || url),
+        url: url,
+        genre: String(value.genre || payload.genre || ''),
+        crawlAll: crawlAll,
+        sitePreset: String(value.site_preset || value.sitePreset || payload.site_preset || payload.sitePreset || ''),
+        updatedAt: String(entry.job.updated_at || entry.job.finished_at || entry.job.created_at || ''),
+        historical: true,
+      }, false);
+    });
+  });
+  return ordered;
+}
+
 function listSourcePageSiteStatuses(options) {
   const input = options && typeof options === 'object' ? options : {};
-  const cacheKey = 'source_page_site_status_v1';
+  const cacheKey = 'source_page_site_status_v6';
   if (input.bypassCache !== true) {
     try {
       const cached = CacheService.getScriptCache().get(cacheKey);
@@ -2206,6 +2865,7 @@ function listSourcePageSiteStatuses(options) {
     'total_count',
     'processed_count',
     'cursor_json',
+    'progress_json',
     'last_error',
     'error_count',
     'last_heartbeat_at',
@@ -2217,19 +2877,32 @@ function listSourcePageSiteStatuses(options) {
   const parsedSearchJobs = searchJobs.map(function (job) {
     return { job: job, payload: parseSourcePageJobPayloadForStatus_(job) };
   });
-  const items = sites.map(function (site) {
+  const statusSites = buildSourcePageStatusSites_(sites, parsedSearchJobs);
+  const items = statusSites.map(function (site) {
     return buildSourcePageSiteStatus_(site, parsedSearchJobs);
+  });
+  const jobs = parsedSearchJobs.filter(function (entry) {
+    return String(entry.job.job_type || '') === 'source_page';
+  }).sort(function (left, right) {
+    const leftActive = ['queued', 'running'].indexOf(String(left.job.status || '')) !== -1 ? 1 : 0;
+    const rightActive = ['queued', 'running'].indexOf(String(right.job.status || '')) !== -1 ? 1 : 0;
+    if (leftActive !== rightActive) return rightActive - leftActive;
+    return sourcePageJobStatusTimestamp_(right.job) - sourcePageJobStatusTimestamp_(left.job);
+  }).slice(0, 8).map(function (entry) {
+    return buildSourcePageJobProgress_(entry.job, entry.payload);
   });
   const result = {
     total: items.length,
     completed: items.filter(function (item) { return item.completed; }).length,
     running: items.filter(function (item) { return item.statusKey === 'running'; }).length,
     attention: items.filter(function (item) {
-      return ['completed_attention', 'partial_completed', 'failed', 'attention'].indexOf(item.statusKey) !== -1;
+      return ['completed_attention', 'partial_completed', 'no_candidates', 'failed', 'attention'].indexOf(item.statusKey) !== -1;
     }).length,
     notStarted: items.filter(function (item) { return item.statusKey === 'not_started'; }).length,
     generatedAt: nowIso_(),
+    savedTotal: sites.length,
     items: items,
+    jobs: jobs,
   };
   try {
     CacheService.getScriptCache().put(cacheKey, JSON.stringify(result), 300);
@@ -2254,6 +2927,108 @@ function appendSourcePageResult_(jobId, result) {
     review_action: result.reviewAction || '',
     reviewed_at: result.reviewStatus === 'added' || result.reviewStatus === 'duplicate' ? nowIso_() : '',
   });
+}
+
+function inspectProspectingSiteAvailability_(url) {
+  const targetUrl = normalizeUrl_(url);
+  if (!targetUrl) return { closed: false, broken: true, reason: 'URLが無効です', checked: true, url: '' };
+  try {
+    const page = fetchProspectingHtml_(targetUrl);
+    const assessment = detectClosedProspectingSite_({ html: page.html || '' });
+    return {
+      closed: assessment.closed,
+      broken: false,
+      reason: assessment.reason,
+      checked: true,
+      url: targetUrl,
+    };
+  } catch (error) {
+    const message = String(error && error.message || error || '');
+    const statusMatch = message.match(/\bHTTP\s+(\d{3})\b/i);
+    const statusCode = statusMatch ? Number(statusMatch[1]) : 0;
+    if (statusCode === 404 || statusCode === 410) {
+      return {
+        closed: true,
+        broken: false,
+        reason: 'HTTP ' + statusCode,
+        checked: true,
+        url: targetUrl,
+      };
+    }
+    if (isDefinitiveBrokenLinkError_(message)) {
+      return {
+        closed: false,
+        broken: true,
+        reason: message,
+        checked: true,
+        url: targetUrl,
+      };
+    }
+    return {
+      closed: false,
+      broken: false,
+      reason: '',
+      checked: false,
+      url: targetUrl,
+      errorMessage: message,
+    };
+  }
+}
+
+function isClearlyClosedSearchResult_(result) {
+  const source = result && typeof result === 'object' ? result : {};
+  return detectClosedProspectingSite_({
+    title: source.title || '',
+    description: source.snippet || source.description || '',
+  }).closed;
+}
+
+function detectClosedProspectingSite_(input) {
+  const source = input && typeof input === 'object' ? input : { html: String(input || '') };
+  const html = String(source.html || '');
+  const titleFromHtml = (html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '';
+  const title = cleanSourcePageText_(source.title || titleFromHtml);
+  const headingTexts = [];
+  const headingPattern = /<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/gi;
+  let headingMatch;
+  while ((headingMatch = headingPattern.exec(html)) && headingTexts.length < 50) {
+    const heading = cleanSourcePageText_(headingMatch[1]);
+    if (heading) headingTexts.push(heading);
+  }
+  const titleAndHeadingText = [title].concat(headingTexts).filter(Boolean).join(' ');
+  if (/休業/i.test(titleAndHeadingText)) {
+    return { closed: true, reason: 'タイトル・見出しに休業の表示' };
+  }
+  const description = cleanSourcePageText_(
+    source.description ||
+    extractMetaContentFromHtml_(html, 'description') ||
+    extractMetaContentFromHtml_(html, 'og:description')
+  );
+  const visibleText = html ? cleanSourcePageText_(html).slice(0, 5000) : '';
+  const headlineText = [title, description].filter(Boolean).join(' ');
+  const shortPageText = visibleText.length <= 2500 ? visibleText.slice(0, 1800) : '';
+  const probeText = [headlineText, shortPageText].filter(Boolean).join(' ');
+  if (!probeText) return { closed: false, reason: '' };
+
+  const activeContinuationPattern = /(?:移転|リニューアル|新店舗|新サイト|新しい(?:店舗|サイト|ホームページ)).{0,50}(?:営業中|営業しております|オープン|開設|こちら)/i;
+  if (activeContinuationPattern.test(probeText)) return { closed: false, reason: '' };
+
+  const unavailablePattern = /(?:404\s*(?:not\s*found|エラー)|410\s*gone|ページ(?:が|は)?(?:存在しません|見つかりません)|サイト(?:が|は)?(?:存在しません|ご利用いただけません)|account\s+(?:has\s+been\s+)?suspended|website\s+(?:has\s+)?expired|this\s+site\s+(?:can'?t|cannot)\s+be\s+reached|welcome\s+to\s+nginx|apache2\s+ubuntu\s+default\s+page)/i;
+  if (unavailablePattern.test(probeText)) {
+    return { closed: true, reason: 'サイト停止・ページ不存在の表示' };
+  }
+
+  const parkedDomainPattern = /(?:domain\s+(?:is\s+)?for\s+sale|buy\s+this\s+domain|parked\s+domain|このドメインは.{0,40}(?:売り出し中|販売中|取得されています)|ドメイン(?:の)?有効期限が切れ)/i;
+  if (parkedDomainPattern.test(probeText)) {
+    return { closed: true, reason: 'ドメイン停止・販売ページの表示' };
+  }
+
+  const closedPattern = /(?:(?:閉鎖|閉店|閉館|閉園|閉業|廃業|営業(?:を|は|が)?終了|サービス(?:を|は|が)?終了|運営(?:を|は|が)?終了)(?:しました|いたしました|のお知らせ|となりました|しております|済み|[\]】）)]|$)|(?:当店|当館|当施設|弊社|本サイト|当サイト|このサイト|当ホームページ|当サービス|本サービス).{0,30}(?:閉鎖|閉店|閉館|閉園|閉業|廃業|営業(?:を|は|が)?終了|サービス(?:を|は|が)?終了|運営(?:を|は|が)?終了))/i;
+  if (closedPattern.test(headlineText) || (shortPageText && closedPattern.test(shortPageText))) {
+    return { closed: true, reason: '閉鎖・営業終了の表示' };
+  }
+
+  return { closed: false, reason: '' };
 }
 
 function fetchProspectingHtml_(url) {
@@ -2309,10 +3084,103 @@ function extractSourcePageCandidates_(html, baseUrl, limit) {
       official_url: official ? link.url : '',
     });
   });
-  return candidates.slice(0, Math.min(Math.max(Number(limit) || 5, 1), 30));
+  return candidates.slice(0, Math.min(Math.max(Number(limit) || 5, 1), SOURCE_PAGE_FULL_CRAWL_MAX_CANDIDATES));
+}
+
+function extractResortGlampingCandidates_(html, baseUrl, limit) {
+  const source = String(html || '');
+  const candidates = [];
+  const seen = {};
+  const blockPattern = /<li\b[^>]*class\s*=\s*["'][^"']*\bjs-more-item\b[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi;
+  let blockMatch;
+  while ((blockMatch = blockPattern.exec(source)) !== null && candidates.length < SOURCE_PAGE_FULL_CRAWL_MAX_CANDIDATES) {
+    const block = String(blockMatch[1] || '');
+    const hrefMatch = block.match(/<a\b[^>]*href\s*=\s*(?:"([^"]*\/accommodation\/[^"'?#/]+\/?[^"]*)"|'([^']*\/accommodation\/[^"'?#/]+\/?[^']*)')/i);
+    const detailUrl = resolveSourcePageUrl_(hrefMatch && (hrefMatch[1] || hrefMatch[2]) || '', baseUrl);
+    if (!detailUrl || seen[detailUrl]) continue;
+    const nameMatch = block.match(/<p\b[^>]*class\s*=\s*["'][^"']*\bttl\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i);
+    const addressMatch = block.match(/<p\b[^>]*class\s*=\s*["'][^"']*\baddress-txt\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i);
+    const facilityName = cleanSourcePageText_(nameMatch && nameMatch[1] || '');
+    if (!facilityName) continue;
+    const slug = sourcePageUrlLastPathSegment_(detailUrl);
+    seen[detailUrl] = true;
+    candidates.push({
+      facility_name: facilityName,
+      text: facilityName,
+      url: detailUrl,
+      detail_url: detailUrl,
+      official_url: '',
+      address: cleanSourcePageText_(addressMatch && addressMatch[1] || ''),
+      source_id: 'resort_glamping:' + slug,
+      source_preset: 'resort_glamping',
+      source_url: baseUrl,
+    });
+  }
+  return candidates.slice(0, Math.min(Math.max(Number(limit) || 10, 1), SOURCE_PAGE_FULL_CRAWL_MAX_CANDIDATES));
+}
+
+function extractResortGlampingSitemapCandidates_(xml, baseUrl, limit) {
+  const source = String(xml || '');
+  const seen = {};
+  const candidates = [];
+  const locationPattern = /<loc>\s*([^<]+)\s*<\/loc>/gi;
+  let match;
+  while ((match = locationPattern.exec(source)) !== null && candidates.length < SOURCE_PAGE_FULL_CRAWL_MAX_CANDIDATES) {
+    const detailUrl = normalizeUrl_(decodeHtmlEntitiesBasic_(match[1] || ''));
+    if (!detailUrl || seen[detailUrl] || !/\/accommodation\/[^/?#]+\/?(?:[?#].*)?$/i.test(detailUrl)) continue;
+    const slug = sourcePageUrlLastPathSegment_(detailUrl);
+    if (!slug || slug === 'accommodation') continue;
+    seen[detailUrl] = true;
+    candidates.push({
+      facility_name: '',
+      text: '',
+      url: detailUrl,
+      detail_url: detailUrl,
+      official_url: '',
+      source_id: 'resort_glamping:' + slug,
+      source_preset: 'resort_glamping',
+      source_url: baseUrl,
+      sitemap_fallback: true,
+    });
+  }
+  return candidates.slice(0, Math.min(Math.max(Number(limit) || 10, 1), SOURCE_PAGE_FULL_CRAWL_MAX_CANDIDATES));
+}
+
+function extractResortGlampingFacilityName_(html) {
+  const source = String(html || '');
+  const breadcrumbMatch = source.match(/<span\b[^>]*class\s*=\s*["'][^"']*\bcurrent-item\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/i);
+  const headingMatch = source.match(/<li\b[^>]*class\s*=\s*["'][^"']*\bttl\b[^"']*\bis-only-ja\b[^"']*["'][^>]*>[\s\S]*?<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+  const metaTitle = extractMetaContentFromHtml_(source, 'og:title');
+  const titleMatch = source.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+  const name = cleanSourcePageText_(
+    breadcrumbMatch && breadcrumbMatch[1] ||
+    headingMatch && headingMatch[1] ||
+    metaTitle ||
+    titleMatch && titleMatch[1] ||
+    ''
+  );
+  return name
+    .replace(/\s*-\s*(?:北海道|東北|関東|甲信越|北陸|東海|関西|中国|四国|九州|沖縄|[^\s-]+[都道府県])(?:・[^-]+)?エリア\s*$/u, '')
+    .replace(/\s*-\s*グランピング予約なら[\s\S]*$/u, '')
+    .trim();
+}
+
+function enrichResortGlampingCandidateFromDetailHtml_(candidate, html, sourceDomain) {
+  const source = candidate && typeof candidate === 'object' ? Object.assign({}, candidate) : {};
+  const facilityName = extractResortGlampingFacilityName_(html);
+  if (facilityName) {
+    source.facility_name = facilityName;
+    source.text = facilityName;
+  }
+  source.description = source.description || extractMetaContentFromHtml_(html, 'description');
+  source.official_url = source.official_url || extractFirstOfficialLinkFromHtml_(html, source.detail_url || source.url || '', sourceDomain || 'resort-glamping.com');
+  source.detail_checked = true;
+  return source;
 }
 
 function extractFirstOfficialLinkFromHtml_(html, baseUrl, sourceDomain) {
+  const explicit = extractExplicitOfficialLinkFromHtml_(html, baseUrl, sourceDomain);
+  if (explicit) return explicit;
   const links = extractHtmlLinks_(html, baseUrl);
   const preferred = links.find(function (link) {
     return link.url && isLikelyOfficialCandidateUrl_(link.url, sourceDomain) &&
@@ -2325,6 +3193,27 @@ function extractFirstOfficialLinkFromHtml_(html, baseUrl, sourceDomain) {
   return first ? first.url : '';
 }
 
+function extractExplicitOfficialLinkFromHtml_(html, baseUrl, sourceDomain) {
+  const anchorPattern = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = anchorPattern.exec(String(html || ''))) !== null) {
+    const attrs = String(match[1] || '');
+    const text = cleanSourcePageText_(match[2] || '');
+    const signal = attrs + ' ' + text;
+    if (!/(?:公式(?:サイト|ホームページ|HP)|\bsitebtn_click\b|\bclickBtn_accommodation_site\b)/i.test(signal)) {
+      continue;
+    }
+    const hrefMatch = attrs.match(/\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    if (!hrefMatch) continue;
+    const url = resolveSourcePageUrl_(
+      String(hrefMatch[1] || hrefMatch[2] || hrefMatch[3] || '').trim(),
+      baseUrl
+    );
+    if (url && isLikelyOfficialCandidateUrl_(url, sourceDomain)) return url;
+  }
+  return '';
+}
+
 function extractContactFromOfficialPage_(officialUrl) {
   const result = {
     email: '',
@@ -2332,6 +3221,10 @@ function extractContactFromOfficialPage_(officialUrl) {
     checkedUrl: normalizeUrl_(officialUrl),
     checkedUrls: [],
     errorMessage: '',
+    siteClosed: false,
+    siteClosedReason: '',
+    linkBroken: false,
+    linkBrokenReason: '',
   };
   const officialDomain = normalizeDomain_(result.checkedUrl);
   const queue = [{ url: result.checkedUrl, score: 1000 }];
@@ -2349,6 +3242,15 @@ function extractContactFromOfficialPage_(officialUrl) {
     visited[currentUrl] = true;
     try {
       const page = fetchProspectingHtml_(currentUrl);
+      if (currentUrl === result.checkedUrl) {
+        const siteClosure = detectClosedProspectingSite_({ html: page.html || '' });
+        if (siteClosure.closed) {
+          result.siteClosed = true;
+          result.siteClosedReason = siteClosure.reason;
+          result.checkedUrls.push(currentUrl);
+          return result;
+        }
+      }
       const decoded = decodeContactDiscoveryHtml_(page.html);
       result.checkedUrls.push(currentUrl);
       const links = extractHtmlLinks_(decoded, currentUrl);
@@ -2372,7 +3274,18 @@ function extractContactFromOfficialPage_(officialUrl) {
       });
       queue.sort(function (left, right) { return right.score - left.score; });
     } catch (error) {
-      errors.push(error.message || String(error));
+      const message = error.message || String(error);
+      if (currentUrl === result.checkedUrl && /\bHTTP\s+(?:404|410)\b/i.test(String(message))) {
+        result.siteClosed = true;
+        result.siteClosedReason = (String(message).match(/\bHTTP\s+(?:404|410)\b/i) || ['サイト停止'])[0];
+        return result;
+      }
+      if (currentUrl === result.checkedUrl && isDefinitiveBrokenLinkError_(message)) {
+        result.linkBroken = true;
+        result.linkBrokenReason = String(message);
+        return result;
+      }
+      errors.push(message);
     }
   }
   if (!result.email && !result.formUrl && errors.length) result.errorMessage = errors.slice(0, 3).join(' / ');
@@ -2550,18 +3463,68 @@ function decodeUriComponentSafely_(value) {
   }
 }
 
-function resolveSourcePageUrl_(href, baseUrl) {
-  const raw = String(href || '').trim();
-  if (!raw || /^#|^javascript:|^tel:|^fax:/i.test(raw)) return '';
-  try {
-    if (/^\/\//.test(raw)) {
-      const protocol = String(baseUrl || '').match(/^https?:/i);
-      return ((protocol && protocol[0]) || 'https:') + raw;
+function parseSourcePageHttpUrl_(value) {
+  const normalized = normalizeUrl_(value).replace(/#.*$/, '');
+  const match = normalized.match(/^(https?):\/\/([^/?#]+)([^?#]*)(\?[^#]*)?$/i);
+  if (!match) return null;
+  return {
+    protocol: String(match[1] || 'https').toLowerCase(),
+    authority: String(match[2] || ''),
+    path: String(match[3] || '/') || '/',
+    query: String(match[4] || ''),
+  };
+}
+
+function normalizeSourcePageUrlPath_(value) {
+  const rawPath = String(value || '/');
+  const trailingSlash = /\/$/.test(rawPath);
+  const segments = [];
+  rawPath.split('/').forEach(function (segment) {
+    if (!segment || segment === '.') return;
+    if (segment === '..') {
+      segments.pop();
+      return;
     }
-    return new URL(raw, normalizeUrl_(baseUrl)).href.split('#')[0];
-  } catch (error) {
-    return '';
+    segments.push(segment);
+  });
+  const normalized = '/' + segments.join('/');
+  if (trailingSlash && normalized !== '/') return normalized + '/';
+  return normalized || '/';
+}
+
+function sourcePageUrlLastPathSegment_(value) {
+  const parts = parseSourcePageHttpUrl_(value);
+  if (!parts) return '';
+  const pathParts = String(parts.path || '/').split('/').filter(Boolean);
+  return String(pathParts[pathParts.length - 1] || '');
+}
+
+function resolveSourcePageUrl_(href, baseUrl) {
+  const raw = decodeHtmlEntitiesBasic_(String(href || '').trim());
+  if (!raw || /^#|^javascript:|^tel:|^fax:/i.test(raw)) return '';
+  if (/^https?:\/\//i.test(raw)) return raw.replace(/#.*$/, '');
+
+  const baseParts = parseSourcePageHttpUrl_(baseUrl);
+  if (/^\/\//.test(raw)) {
+    return (baseParts ? baseParts.protocol : 'https') + ':' + raw.replace(/#.*$/, '');
   }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(raw) || !baseParts) return '';
+
+  const withoutHash = raw.replace(/#.*$/, '');
+  if (!withoutHash) return '';
+  if (/^\?/.test(withoutHash)) {
+    return baseParts.protocol + '://' + baseParts.authority +
+      normalizeSourcePageUrlPath_(baseParts.path) + withoutHash;
+  }
+
+  const queryIndex = withoutHash.indexOf('?');
+  const relativePath = queryIndex === -1 ? withoutHash : withoutHash.slice(0, queryIndex);
+  const query = queryIndex === -1 ? '' : withoutHash.slice(queryIndex);
+  const joinedPath = /^\//.test(relativePath)
+    ? relativePath
+    : String(baseParts.path || '/').replace(/[^/]*$/, '') + relativePath;
+  return baseParts.protocol + '://' + baseParts.authority +
+    normalizeSourcePageUrlPath_(joinedPath) + query;
 }
 
 function isLikelyOfficialCandidateUrl_(url, sourceDomain) {
@@ -2684,21 +3647,58 @@ function isTourismAssociationListingSearchResult_(result) {
     decodedPath = path;
   }
   const text = [source.title, source.snippet].join(' ');
-  const associationText = /(?:観光(?:協会|連盟|組合)|公式観光(?:ガイド|情報)|観光情報(?:サイト|ポータル)|(?:地域|エリア)観光|観光推進(?:実行)?委員会|行政サイト|(?:市|区|町|村)(?:役所|役場)|tourism association|official tourism guide|municipal(?:ity)? website)/i.test(text);
+  const associationText = /(?:観光(?:協会|連盟|組合|局|案内所)|公式観光(?:ガイド|情報)|観光情報(?:サイト|ポータル)|(?:地域|エリア)観光|観光推進(?:実行)?委員会|行政サイト|(?:市|区|町|村)(?:役所|役場)|tourism association|official tourism guide|municipal(?:ity)? website)/i.test(text);
   const nationwideDirectoryText = /(?:(?:全国|日本全国).{0,24}(?:キャンプ場|キャンプサイト).{0,24}(?:検索|地図|一覧)|(?:every|all).{0,24}campsites?.{0,24}(?:japan|map)|search\s+[\d,]+\+?\s+(?:camp)?sites?)/i.test(text);
-  const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|see|articles?|archives?|guides?|guideposts?|features?|information|facilit(?:y|ies)|shisetsu|accommodations?|lodgings?|stay(?:ing)?(?:[_-][^/]*)?|play|leisure|detail(?:[_-][^/]*)?)(?:\/|$)/i.test(path) ||
+  const listingPath = /\/(?:area|region|attractions?|sightseeing|tourism|kankou?|spots?|places?|see|articles?|archives?|media|activities?|guides?|guideposts?|features?|information|facilit(?:y|ies)|tourist-facilities|shisetsu|accommodations?|lodgings?|stay(?:ing)?(?:[_-][^/]*)?|tomaru|play|leisure|experience|camp|web|detail(?:[_-][^/]*)?)(?:\/|$)/i.test(path) ||
     /\/(?:目的で選ぶ|観光スポット|施設|宿泊|遊ぶ)(?:\/|$)/i.test(decodedPath);
+  const tourismGuideText = /(?:観光(?:総合)?ガイド|観光・旅行情報サイト|観光情報(?:サイト|ポータル|ナビ)|体験観光\d+選|スポット一覧|キャンプ場.{0,24}徹底ガイド|北海道キャンピングガイド|(?:犬|ペット).{0,24}キャンプ場\d+選|地域メディア)/i.test(text);
+  const campingDirectoryPath = /\/(?:camp[_-]?search|campgrounds?\/search|campsites?\/search)(?:\/|$)/i.test(path);
+  const campingDirectoryText = /(?:キャンプ情報サイト|キャンプ場(?:検索|を探す|情報サイト)|キャンピング(?:場)?ナビ|campground directory|camp(?:site)? finder)/i.test(text);
   const marketplaceText = /(?:ふるさと納税.{0,16}(?:旅行|トラベル|体験)|ふるなびトラベル|トラベルポイント|(?:旅行|体験)の提携店)/i.test(text);
   const marketplacePath = /\/(?:plans?|products?|experiences?)\/(?:detail|show)(?:\/|$)|\/plan\/detail(?:\/|$)/i.test(path);
   const publicFacilityText = /(?:公益(?:財団|社団)法人|指定管理者|文化都市協会).{0,40}(?:施設|公園|キャンプ場)|(?:施設|公園|キャンプ場).{0,40}(?:公益(?:財団|社団)法人|指定管理者|文化都市協会)/i.test(text);
   const publicFacilityPath = /\/(?:facilit(?:y|ies)|shisetsu|施設)(?:\/|$)/i.test(path) || /\/(?:施設)(?:\/|$)/i.test(decodedPath);
-  const localMediaText = /(?:地域・番組情報|近所のはなし|地域メディア|コミュニティチャンネル|(?:スタッフ|編集部).{0,20}(?:取材|訪問)|取材(?:記事|レポート))/i.test(text);
-  const localMediaPath = /\/(?:community|kinjo|arekore|articles?|features?)(?:\/|$)/i.test(path);
+  const localMediaText = /(?:地域・番組情報|近所のはなし|地域メディア|コミュニティチャンネル|おでかけ情報|お出かけ情報|(?:スタッフ|編集部).{0,20}(?:取材|訪問)|取材(?:記事|レポート))/i.test(text);
+  const localMediaPath = /\/(?:community|kinjo|arekore|articles?|features?|dog\/travel)(?:\/|$)/i.test(path);
   return nationwideDirectoryText ||
+    campingDirectoryPath ||
     (associationText && listingPath) ||
+    (tourismGuideText && listingPath) ||
+    (campingDirectoryText && listingPath) ||
     (marketplaceText && marketplacePath) ||
     (publicFacilityText && publicFacilityPath) ||
     (localMediaText && localMediaPath);
+}
+
+function isBlogOrEditorialSearchResult_(result) {
+  const source = result && typeof result === 'object' ? result : {};
+  const rawUrl = String(source.link || source.url || '').trim();
+  if (!rawUrl) return false;
+  if (isKnownNonAdvertiserLeadUrl_(rawUrl)) return true;
+
+  let path = '';
+  let search = '';
+  try {
+    const parsed = new URL(normalizeUrl_(rawUrl));
+    path = parsed.pathname.toLowerCase();
+    search = parsed.search.toLowerCase();
+  } catch (error) {
+    path = rawUrl.toLowerCase();
+  }
+  const text = [source.title, source.snippet].join(' ');
+  const articlePath = /\/(?:blog|blogs|weblog|diary|entries?|entry|posts?|archives?|articles?)\//i.test(path) ||
+    /^\/\d{3,}\/?$/.test(path) ||
+    /\/(?:20\d{2})\/(?:0?[1-9]|1[0-2])\/(?:0?[1-9]|[12]\d|3[01])(?:\/|$)/.test(path) ||
+    /(?:^|[?&])p=\d+(?:&|$)/.test(search);
+  const explicitMediaIdentity = /(?:個人ブログ|キャンプ(?:&|＆)ドローンのブログ|キャンプブログ|アウトドアブログ|旅行ブログ|旅ブログ|Webマガジン|ウェブマガジン|オンラインマガジン|地域メディア|アウトドアメディア|キャンプメディア|編集部|ライター|ブログ村|ブログランキング)/i.test(text);
+  const personalExperience = /(?:行ってきた|行ってきました|行きました|泊まってみた|利用してきた|利用してきました|訪問記|宿泊記|キャンプ場体験記|キャンプ日記|キャンプ備忘録|キャンプ歴\d+年|徹底レビュー|実体験レビュー)/i.test(text);
+  const editorialRoundup = /(?:(?:おすすめ|人気|穴場).{0,16}(?:キャンプ場|グランピング).{0,12}(?:選|ランキング|まとめ)|(?:キャンプ場|グランピング).{0,16}(?:おすすめ|ランキング|まとめ|比較))/i.test(text);
+  const separateOfficialSite = /(?:公式サイト|公式ホームページ|公式HP)(?:はこちら|[:：]|：)|詳しくは.{0,20}(?:公式|施設).{0,10}(?:サイト|HP)/i.test(text);
+
+  return explicitMediaIdentity ||
+    (articlePath && personalExperience) ||
+    (articlePath && editorialRoundup) ||
+    (articlePath && separateOfficialSite);
 }
 
 function selectLeadSearchResult_(results, jobType, context) {
@@ -2711,7 +3711,9 @@ function selectLeadSearchResult_(results, jobType, context) {
   const candidates = organic.filter(function (result) {
     const domain = normalizeDomain_(result.link || '');
     return domain && !isTourismAssociationListingSearchResult_(result) &&
+      !isBlogOrEditorialSearchResult_(result) &&
       !isLeadCollectionExcludedUrl_(result.link || domain, excludedDomains) &&
+      !isClearlyClosedSearchResult_(result) &&
       !excludedHosts.some(function (host) { return isDomainOrSubdomain_(domain, host); });
   }).map(function (result, index) {
     const searchableText = [result.title, result.snippet, result.link].join(' ');

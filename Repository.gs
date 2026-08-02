@@ -273,7 +273,8 @@ function appendSheetRecords_(sheetName, records) {
   return nextRecords;
 }
 
-function updateSheetRecord_(sheetName, id, patch) {
+function updateSheetRecord_(sheetName, id, patch, options) {
+  const input = options && typeof options === 'object' ? options : {};
   const recordId = requireId_(id);
   const spreadsheet = getOrCreateSpreadsheet_();
   const sheet = ensureSheet_(spreadsheet, sheetName);
@@ -291,7 +292,7 @@ function updateSheetRecord_(sheetName, id, patch) {
   });
 
   writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
-  clearRuntimeCaches_(sheetName);
+  if (input.clearCaches !== false) clearRuntimeCaches_(sheetName);
   return nextRecord;
 }
 
@@ -405,8 +406,13 @@ function clearSettingsRecordsCache_() {
 }
 
 function setSettingValue(key, value, valueType, description) {
+  let normalized;
+  try {
+    normalized = normalizeSettingForSave_(key, value, valueType);
+  } catch (error) {
+    throw createExpectedOperationError_(error.message || String(error), 'SETTING_VALIDATION_ERROR');
+  }
   return withScriptLock_('setSettingValue', function () {
-    const normalized = normalizeSettingForSave_(key, value, valueType);
     const spreadsheet = getOrCreateSpreadsheet_();
     const sheet = ensureSheet_(spreadsheet, 'settings');
     const records = readSheetRecords_(sheet);
@@ -442,7 +448,7 @@ function normalizeSettingForSave_(key, value, valueType) {
   const numberRules = {
     gmail_daily_send_limit: { min: 1, max: 80 },
     email_batch_send_limit: { min: 1, max: 20 },
-    batch_runtime_budget_ms: { min: 10000, max: 330000 },
+    batch_runtime_budget_ms: { min: 10000, max: 240000 },
   };
   const jsonKeys = [
     'email_send_window',
@@ -554,14 +560,18 @@ function normalizeJsonSettingObject_(key, source) {
       sites: sites.map(function (site, index) {
         if (!site || typeof site !== 'object') throw new Error('source_page_prospecting.sites[' + index + '] is invalid.');
         const url = normalizeUrl_(site.url || '');
+        const maxItems = Number(site.maxItems || site.max_items || 10);
         if (!url || !/^https?:\/\//i.test(url)) throw new Error('source_page_prospecting.sites[' + index + '].url is invalid.');
+        if (!Number.isFinite(maxItems) || maxItems < 1 || maxItems > 20) throw new Error('source_page_prospecting.sites[' + index + '].maxItems must be between 1 and 20.');
         return {
           label: String(site.label || '').trim().slice(0, 120),
           id: String(site.id || Utilities.getUuid()).trim().slice(0, 120),
           url: url,
           crawlAll: normalizeStrictSettingBoolean_(site.crawlAll !== undefined ? site.crawlAll : site.crawl_all, false),
           genre: String(site.genre || '').trim().slice(0, 120),
+          maxItems: Math.floor(maxItems),
           sitePreset: String(site.sitePreset || site.site_preset || '').trim().slice(0, 120),
+          useSerperFallback: normalizeStrictSettingBoolean_(site.useSerperFallback !== undefined ? site.useSerperFallback : site.use_serper_fallback, true),
           enabled: normalizeStrictSettingBoolean_(site.enabled, true),
           updatedAt: site.updatedAt || site.updated_at || nowIso_(),
         };
@@ -876,6 +886,9 @@ function clearRuntimeCaches_(changedSheetName) {
   if (['ng_masters', 'excluded_domains'].indexOf(String(changedSheetName || '')) !== -1 && typeof clearMasterBlockRulesCache_ === 'function') {
     clearMasterBlockRulesCache_();
   }
+  if (['leads', 'excluded_domains'].indexOf(String(changedSheetName || '')) !== -1 && typeof clearLeadCollectionSendNgDomainsCache_ === 'function') {
+    clearLeadCollectionSendNgDomainsCache_();
+  }
   if (['leads', 'ng_masters', 'excluded_domains', 'send_histories'].indexOf(String(changedSheetName || '')) !== -1) {
     bumpLeadListCacheRevision_();
   }
@@ -890,6 +903,10 @@ function clearRuntimeCaches_(changedSheetName) {
     cache.remove('dashboard_stats_v6');
     if (['search_jobs', 'settings'].indexOf(String(changedSheetName || '')) !== -1) {
       cache.remove('source_page_site_status_v1');
+      cache.remove('source_page_site_status_v2');
+      cache.remove('source_page_site_status_v3');
+      cache.remove('source_page_site_status_v4');
+      cache.remove('source_page_site_status_v5');
     }
   } catch (error) {
     console.warn('Cache clear skipped: ' + error.message);

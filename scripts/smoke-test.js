@@ -516,19 +516,27 @@ context.refreshDashboardStatsCacheIfDue_ = () => {
   dashboardRefreshCalls += 1;
   return { refreshed: true, skipped: false, reason: 'dirty' };
 };
+const queuedResumeDelays = [];
+context.ensureImmediateBackgroundJobTriggerBestEffort_ = (delayMs) => {
+  queuedResumeDelays.push(delayMs);
+  return { result: { created: true }, warning: '' };
+};
 const queue = context.advanceQueuedJobs({ maxJobs: 2, runtimeBudgetMs: 300000 });
 assert.strictEqual(queue.jobs.length, 2);
 assert.strictEqual(queue.remainingJobs, 4);
 assert.strictEqual(queue.resumable, true);
-assert.strictEqual(queue.collectionQualityMigration.pending, false);
-assert.strictEqual(qualityMigrationRuns, 1);
-assert.strictEqual(queue.dashboardCacheRefresh.refreshed, true);
-assert.strictEqual(dashboardRefreshCalls, 1);
+assert.strictEqual(queue.collectionQualityMigration.pending, true);
+assert.strictEqual(queue.collectionQualityMigration.reason, 'jobs_pending');
+assert.strictEqual(qualityMigrationRuns, 0, 'maintenance must not consume runtime while user jobs are pending');
+assert.strictEqual(queue.dashboardCacheRefresh.refreshed, false);
+assert.strictEqual(queue.dashboardCacheRefresh.reason, 'jobs_pending');
+assert.strictEqual(dashboardRefreshCalls, 0);
+assert.strictEqual(queuedResumeDelays[0], 5000, 'unfinished jobs must receive an immediate continuation trigger');
 const shortQueue = context.advanceQueuedJobs({ maxJobs: 1, runtimeBudgetMs: 80000 });
-assert.strictEqual(shortQueue.dashboardCacheRefresh.reason, 'runtime_reserved');
-assert.strictEqual(shortQueue.collectionQualityMigration.reason, 'runtime_reserved');
-assert.strictEqual(qualityMigrationRuns, 1, 'quality migration must preserve the final 150 seconds of worker runtime');
-assert.strictEqual(dashboardRefreshCalls, 1, 'dashboard refresh must preserve the final 90 seconds of worker runtime');
+assert.strictEqual(shortQueue.dashboardCacheRefresh.reason, 'jobs_pending');
+assert.strictEqual(shortQueue.collectionQualityMigration.reason, 'jobs_pending');
+assert.strictEqual(qualityMigrationRuns, 0, 'quality migration must preserve runtime for pending jobs');
+assert.strictEqual(dashboardRefreshCalls, 0, 'dashboard refresh must preserve runtime for pending jobs');
 assert.strictEqual(queuedWorkerClaims, 2);
 assert.strictEqual(queuedWorkerReleases, 2, 'every completed worker must release its claim');
 assert.deepStrictEqual(queuedWorkerStatuses, ['running', 'idle', 'running', 'idle']);
@@ -545,6 +553,7 @@ assert.strictEqual(busyQueue.skipped, true);
 assert.strictEqual(busyQueue.busy, true);
 assert.strictEqual(busyQueue.reason, 'already_running');
 assert.strictEqual(busyQueue.remainingJobs, null);
+assert.strictEqual(queuedResumeDelays[2], 30000, 'a busy immediate worker must re-arm a delayed continuation');
 assert.strictEqual(queuedJobSheetReads, jobReadsBeforeBusyWorker, 'a busy worker must not read job sheets');
 assert.strictEqual(queuedStaleRecoveries, staleRecoveriesBeforeBusyWorker, 'a busy worker must not run stale recovery');
 assert.strictEqual(queuedWorkerReleases, 2, 'a worker that did not acquire ownership must not release it');
@@ -565,10 +574,17 @@ workerFailureContext.releaseBackgroundWorkerRun_ = (lockToken) => {
 workerFailureContext.recordBackgroundWorkerStatus_ = (status, detail) => {
   workerFailureStatuses.push({ status, detail });
 };
+let workerFailureRetryDelay = 0;
+workerFailureContext.ensureImmediateBackgroundJobTriggerBestEffort_ = (delayMs) => {
+  workerFailureRetryDelay = delayMs;
+  return { result: { created: true }, warning: '' };
+};
 workerFailureContext.recoverStaleSearchJobs_ = () => { throw new Error('recovery exploded'); };
 assert.throws(() => workerFailureContext.advanceQueuedJobs({ source: 'trigger' }), /recovery exploded/);
 assert.deepStrictEqual(workerFailureStatuses.map((item) => item.status), ['running', 'failed']);
 assert.match(workerFailureStatuses[1].detail.error, /recovery exploded/);
+assert.strictEqual(workerFailureStatuses[1].detail.recoveryScheduled, true);
+assert.strictEqual(workerFailureRetryDelay, 60000, 'unexpected worker failures must schedule a delayed retry');
 assert.strictEqual(workerFailureReleases, 1, 'a failed worker must release its claim in finally');
 
 const workerClaimContext = vm.createContext({ console });
@@ -860,6 +876,24 @@ assert.deepStrictEqual(
   { key: 'gmail_sender_email', value: 'Sales@AdClutch.Example', valueType: 'string' }
 );
 assert.throws(() => context.normalizeSettingForSave_('gmail_sender_email', 'invalid-address', 'string'), /valid email address/);
+const settingValidationContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), settingValidationContext, { filename: 'Code.gs' });
+vm.runInContext(fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8'), settingValidationContext, { filename: 'Repository.gs' });
+let invalidSettingLockCalls = 0;
+settingValidationContext.withScriptLock_ = () => {
+  invalidSettingLockCalls += 1;
+  throw new Error('invalid settings must be rejected before acquiring the script lock');
+};
+assert.throws(
+  () => settingValidationContext.setSettingValue('email_send_window', {
+    enabled: true,
+    start: '08:00',
+    end: '07:00',
+    timezone: 'Asia/Tokyo',
+  }, 'json'),
+  (error) => error && error.code === 'SETTING_VALIDATION_ERROR' && error.expected === true
+);
+assert.strictEqual(invalidSettingLockCalls, 0, 'invalid settings must not contend for the script lock or create an error log');
 
 let dashboardCacheUpdate = null;
 const dashboardCacheLookupCalls = [];
@@ -944,6 +978,10 @@ assert(removedDashboardCacheKeys.includes('dashboard_stats_v5'));
 assert(removedDashboardCacheKeys.includes('dashboard_stats_v6'));
 dashboardContext.clearRuntimeCaches_('search_jobs');
 assert(removedDashboardCacheKeys.includes('source_page_site_status_v1'));
+assert(removedDashboardCacheKeys.includes('source_page_site_status_v2'));
+assert(removedDashboardCacheKeys.includes('source_page_site_status_v3'));
+assert(removedDashboardCacheKeys.includes('source_page_site_status_v4'));
+assert(removedDashboardCacheKeys.includes('source_page_site_status_v5'));
 const pendingQualityMigration = dashboardContext.getLeadCollectionQualityMigrationV215Status_();
 assert.strictEqual(pendingQualityMigration.pending, true);
 assert.strictEqual(pendingQualityMigration.completed, false);
@@ -1233,6 +1271,73 @@ assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
   website_domain: 'forms.example',
   normalized_company_name: '施設B',
 }), false, 'different form identifiers on a shared form host must remain allowed');
+assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
+  website_url: 'https://historical.example/old',
+  status: '対応不要',
+  archived_at: '2026-07-01T00:00:00+09:00',
+}, {
+  source: 'source_page',
+  website_url: 'https://www.historical.example/new-path',
+  status: '未対応',
+}), true, 'automated collection must not re-add a domain retained in archived sales history');
+assert.strictEqual(context.areLeadRecordsDuplicateForCreate_({
+  website_url: 'https://historical.example/old',
+  status: '対応不要',
+  archived_at: '2026-07-01T00:00:00+09:00',
+}, {
+  source: 'manual',
+  website_url: 'https://historical.example/manual',
+  status: '未対応',
+}), false, 'manual registration must remain available for intentional restoration');
+const historicalReviewTargets = JSON.parse(JSON.stringify(context.historicalReviewDomainDuplicateTargetsFromRecords_([
+  {
+    __rowNumber: 2,
+    id: 'historical-record',
+    source: 'source_page',
+    facility_name: '過去登録施設',
+    website_url: 'https://historical.example/old',
+    status: '対応不要',
+    deal_status: '未設定',
+    archived_at: '2026-07-01T00:00:00+09:00',
+    created_at: '2026-06-01T00:00:00+09:00',
+  },
+  {
+    __rowNumber: 3,
+    id: 'review-record',
+    source: 'source_page',
+    facility_name: '再収集候補',
+    website_url: 'https://www.historical.example/new-path',
+    status: '未対応',
+    send_count: 0,
+    last_sent_at: '',
+    reply_checked: false,
+    deal_status: '未設定',
+    archived_at: '',
+    created_at: '2026-07-01T00:00:00+09:00',
+  },
+  {
+    __rowNumber: 4,
+    id: 'unrelated-record',
+    source: 'source_page',
+    facility_name: '別ドメイン',
+    website_url: 'https://unrelated.example/',
+    status: '未対応',
+    send_count: 0,
+    last_sent_at: '',
+    reply_checked: false,
+    deal_status: '未設定',
+    archived_at: '',
+  },
+])));
+assert.deepStrictEqual(historicalReviewTargets.map((target) => ({
+  id: target.id,
+  existingId: target.existingId,
+  domain: target.domain,
+})), [{
+  id: 'review-record',
+  existingId: 'historical-record',
+  domain: 'historical.example',
+}]);
 const duplicateDomainGroups = JSON.parse(JSON.stringify(context.duplicateDomainGroupsFromRecords_([
   {
     id: 'sent-keeper', source: 'source_page', company_name: '送信履歴あり', facility_name: '本館',
@@ -1353,6 +1458,8 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(updatedRepositoryRecord)), {
 assert.deepStrictEqual(JSON.parse(JSON.stringify(repositoryWrittenRows)), [['record-existing', 'After', true, 'created-old', '2026-07-19T14:00:00+09:00']]);
 assert.strictEqual(repositoryCacheClears, 2);
 assert.strictEqual(repositoryHeaderReads, 1, 'the update must reuse headers returned by the row lookup');
+repositoryWriteContext.updateSheetRecord_('jobs', 'record-existing', { name: 'Progress' }, { clearCaches: false });
+assert.strictEqual(repositoryCacheClears, 2, 'progress-only writes must be able to skip broad cache invalidation');
 
 let importItemLocks = 0;
 let syncLogEntry = null;
@@ -1490,12 +1597,15 @@ searchStartContext.appendSheetRecord_ = (_sheetName, record) => {
   return saved;
 };
 searchStartContext.ensureBackgroundJobTrigger_ = () => { searchTriggerChecks += 1; return {}; };
+searchStartContext.ensureImmediateBackgroundJobTriggerBestEffort_ = () => ({ result: {}, warning: '' });
 const firstSearchStart = searchStartContext.startSerperSearchJob({});
 const duplicateSearchStart = searchStartContext.startSerperSearchJob({});
+const publicSearchStart = searchStartContext.startSearchJob({});
 assert.strictEqual(searchStartAppends, 1);
-assert.strictEqual(searchTriggerChecks, 2);
+assert.strictEqual(searchTriggerChecks, 3);
 assert.strictEqual(firstSearchStart.reused, false);
 assert.strictEqual(duplicateSearchStart.reused, true);
+assert.strictEqual(publicSearchStart.reused, true);
 assert.strictEqual(duplicateSearchStart.duplicatePrevented, true);
 assert.strictEqual(duplicateSearchStart.id, firstSearchStart.id);
 
@@ -1549,6 +1659,11 @@ retryableSearchContext.processProspectingSearchItem_ = () => {
 retryableSearchContext.isSearchJobRuntimeExhausted_ = () => false;
 retryableSearchContext.nowIso_ = () => '2026-07-15T05:10:00.000Z';
 retryableSearchContext.appendSyncError_ = () => {};
+const retryableResumeDelays = [];
+retryableSearchContext.ensureImmediateBackgroundJobTriggerBestEffort_ = (delayMs) => {
+  retryableResumeDelays.push(delayMs);
+  return { result: { created: true }, warning: '' };
+};
 retryableSearchContext.updateClaimedSearchJob_ = (_id, _token, patch, release) => {
   retryableJob = Object.assign({}, retryableJob, patch);
   if (release) retryableFinalPatch = Object.assign({}, patch);
@@ -1561,6 +1676,7 @@ assert.strictEqual(retryableFinalPatch.status, 'queued');
 assert.strictEqual(retryableJob.processed_count, 0);
 assert.strictEqual(retryableJob.error_count, 0);
 assert(/HTTP 503/.test(retryableJob.last_error));
+assert.strictEqual(retryableResumeDelays[0], 60000, 'retryable provider failures must resume automatically after a short backoff');
 retryableShouldFail = false;
 retryableFinalPatch = null;
 const resumedSearchJob = retryableSearchContext.advanceSearchJob('search-retry-1', { maxItems: 1, runtimeBudgetMs: 60000 });
@@ -2065,9 +2181,12 @@ assert.strictEqual(scheduledClaimCount, 1, 'outside-window trigger checks must n
 
 const triggerContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8'), triggerContext, { filename: 'Operations.gs' });
+triggerContext.BACKGROUND_JOB_DEFAULT_RUNTIME_MS = 240000;
+triggerContext.BACKGROUND_JOB_IMMEDIATE_DELAY_MS = 5000;
 const installedTriggers = [];
 let automaticMailCadence = 0;
 let dailyDuplicateCleanupHour = null;
+let immediateBackgroundDelay = null;
 triggerContext.withScriptLock_ = (_operation, callback) => callback();
 triggerContext.clearRuntimeCaches_ = () => {};
 triggerContext.repairDuplicateLeadDomains = (options) => ({ ok: true, archived: 2, options });
@@ -2077,6 +2196,10 @@ triggerContext.ScriptApp = {
   deleteTrigger: (trigger) => installedTriggers.splice(installedTriggers.indexOf(trigger), 1),
   newTrigger: (handler) => ({
     timeBased: () => ({
+      after: (delayMs) => ({ create: () => {
+        immediateBackgroundDelay = delayMs;
+        installedTriggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK' });
+      } }),
       everyMinutes: (minutes) => ({ create: () => {
         if (handler === 'runScheduledEmailBatch') automaticMailCadence = minutes;
         installedTriggers.push({ getHandlerFunction: () => handler, getEventType: () => 'CLOCK' });
@@ -2104,6 +2227,17 @@ assert.strictEqual(
 );
 assert.strictEqual(automaticMailCadence, 10);
 assert.strictEqual(dailyDuplicateCleanupHour, 3);
+const immediateBackgroundTrigger = triggerContext.ensureImmediateBackgroundJobTrigger_();
+assert.strictEqual(immediateBackgroundTrigger.created, true);
+assert.strictEqual(immediateBackgroundDelay, 5000);
+triggerContext.clearProjectTriggersForHandler_('advanceQueuedJobsNow');
+triggerContext.ensureImmediateBackgroundJobTrigger_(60000);
+assert.strictEqual(immediateBackgroundDelay, 60000);
+assert(installedTriggers.some((trigger) => trigger.getHandlerFunction() === 'advanceQueuedJobsNow'));
+triggerContext.advanceQueuedJobs = (options) => ({ options });
+const immediateBackgroundRun = triggerContext.advanceQueuedJobsNow();
+assert.strictEqual(immediateBackgroundRun.options.source, 'immediate_trigger');
+assert(!installedTriggers.some((trigger) => trigger.getHandlerFunction() === 'advanceQueuedJobsNow'));
 const dailyDuplicateCleanup = triggerContext.runDailyDuplicateDomainCleanup();
 assert.strictEqual(dailyDuplicateCleanup.archived, 2);
 assert.strictEqual(dailyDuplicateCleanup.scheduled, true);
@@ -2254,6 +2388,25 @@ const sourcePageIndexFixtures = [
     source_payload_json: JSON.stringify({ html: 'large'.repeat(1000) }),
   },
   {
+    id: 'retreat-match', source: 'manual', source_id: '', external_id: '', company_name: 'RetreatCampまほろば',
+    normalized_company_name: 'retreatcampまほろば', facility_name: 'RetreatCampまほろば',
+    website_url: 'https://retreatcamp-mahoroba.example/',
+  },
+  {
+    id: 'tadayoi-match', source: 'manual', source_id: '', external_id: '', company_name: 'TADAYOI',
+    normalized_company_name: 'tadayoi', facility_name: 'TADAYOI', website_url: 'https://ama-tadayoi.example/',
+  },
+  {
+    id: 'crystal-villa-distinct', source: 'manual', source_id: '', external_id: '', company_name: 'クリスタルヴィラ白良浜ビーチ',
+    normalized_company_name: 'クリスタルヴィラ白良浜ビチ', facility_name: 'クリスタルヴィラ白良浜ビーチ',
+    website_url: 'https://shirarahama-crystalvilla.example/',
+  },
+  {
+    id: 'generic-camp-name', source: 'manual', source_id: '', external_id: '', company_name: 'オートキャンプ場',
+    normalized_company_name: 'オートキャンプ場', facility_name: 'オートキャンプ場',
+    website_url: 'https://generic-auto-camp.example/',
+  },
+  {
     id: 'archived-match', source: 'source_page', source_id: 'archived:item', external_id: 'https://guide.example/archived',
     company_name: '閉鎖施設', normalized_company_name: '閉鎖施設', facility_name: '閉鎖施設', website_url: 'https://closed.example/',
     archived_at: '2026-07-01T00:00:00+09:00',
@@ -2272,7 +2425,7 @@ sourcePageIndexContext.readSheetRecordFields_ = (sheetName, fields, options) => 
     return record;
   }, {}));
 };
-const summarizeSourcePageIndex = (index) => ['sourceIds', 'externalUrls', 'websiteUrls', 'websiteDomains', 'names'].reduce((summary, key) => {
+const summarizeSourcePageIndex = (index) => ['sourceIds', 'externalUrls', 'websiteUrls', 'websiteDomains', 'historicalWebsiteDomains', 'names'].reduce((summary, key) => {
   summary[key] = Object.keys(index[key] || {}).sort().map((value) => [value, index[key][value].id]);
   return summary;
 }, {});
@@ -2295,7 +2448,159 @@ assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({ detail_u
 assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({}, '', 'https://lake.example/path/', projectedSourcePageIndex).id, 'website-match');
 assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({}, '', 'https://lake.example/different-path/', projectedSourcePageIndex).id, 'website-match');
 assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({}, '湖畔リゾート', '', projectedSourcePageIndex).id, 'website-match');
-assert.strictEqual(sourcePageIndexContext.findExistingSourcePageLead_({ source_id: 'archived:item' }, '閉鎖施設', 'https://closed.example/', projectedSourcePageIndex), null);
+assert.strictEqual(
+  sourcePageIndexContext.findExistingSourcePageLead_(
+    {},
+    'RetreatCampまほろば -リトリートキャンプまほろば',
+    'https://glamping-yamanashi.example/',
+    projectedSourcePageIndex
+  ).id,
+  'retreat-match',
+  'strong facility-name containment must block re-adding the same lead from a different listing domain'
+);
+assert.strictEqual(
+  sourcePageIndexContext.findExistingSourcePageLead_(
+    {},
+    'TADAYOI 海士グランピング',
+    'https://glamping-shimane.example/',
+    projectedSourcePageIndex
+  ).id,
+  'tadayoi-match',
+  'distinctive seven-character brands must block re-adding the same lead from a different listing domain'
+);
+assert.strictEqual(
+  sourcePageIndexContext.findExistingSourcePageLead_(
+    {},
+    'クリスタルヴィラ白浜',
+    'https://shirahama-crystalvilla.example/',
+    projectedSourcePageIndex
+  ),
+  null,
+  'similar but non-contained facility names must remain separate'
+);
+assert.strictEqual(
+  sourcePageIndexContext.findExistingSourcePageLead_(
+    {},
+    '青木湖オートキャンプ場',
+    'https://aokiko-auto-camp.example/',
+    projectedSourcePageIndex
+  ),
+  null,
+  'generic facility labels must not cause broad false-positive deduplication'
+);
+[
+  ['ウェナヴィレッジくじゅう', 'ウェナヴィレッジくじゅう キャンプ場'],
+  ['太陽と星が輝く宿 季楽～KIRA～', '太陽と星が輝く宿 季楽'],
+  ['こしかの温泉グランピング', '美肌の湯 こしかの温泉グランピング'],
+  ['MARINE Q', 'MARINE-Qキャンプ'],
+  ['大月アウトドアフィールド KASHINISHI', '大月アウトドアフィールド KASHINISHI（旧：樫西園地キャンプ場 ）'],
+].forEach(([candidateName, existingName]) => {
+  assert.strictEqual(
+    sourcePageIndexContext.areSourcePageLeadNamesClearlySame_(candidateName, existingName),
+    true,
+    `observed duplicate names must match: ${candidateName} / ${existingName}`
+  );
+});
+const reviewDuplicateExisting = {
+  id: 'existing-mahoroba',
+  source: 'manual',
+  facility_name: 'RetreatCampまほろば',
+  website_url: 'https://retreatcamp-mahoroba.example/',
+  status: '初回メール送信済み',
+};
+const reviewDuplicateCandidate = {
+  id: 'review-mahoroba',
+  source: 'source_page',
+  facility_name: 'RetreatCampまほろば -リトリートキャンプまほろば',
+  website_url: 'https://glamping-yamanashi.example/',
+  status: '未対応',
+};
+const distinctReviewCandidate = {
+  id: 'review-crystal-shirahama',
+  source: 'source_page',
+  facility_name: 'クリスタルヴィラ白浜',
+  website_url: 'https://shirahama-crystalvilla.example/',
+  status: '未対応',
+};
+const distinctExistingLead = {
+  id: 'existing-crystal-shirarahama',
+  source: 'manual',
+  facility_name: 'クリスタルヴィラ白良浜ビーチ',
+  website_url: 'https://shirarahama-crystalvilla.example/',
+  status: '未対応',
+};
+const reviewDuplicateIds = sourcePageIndexContext.buildReviewDuplicateLeadIds_([
+  reviewDuplicateExisting,
+  distinctExistingLead,
+  reviewDuplicateCandidate,
+  distinctReviewCandidate,
+]);
+assert.strictEqual(reviewDuplicateIds['review-mahoroba'], 'existing-mahoroba');
+assert.strictEqual(reviewDuplicateIds['review-crystal-shirahama'], undefined);
+const unhandledSameNameIds = sourcePageIndexContext.buildReviewDuplicateLeadIds_([
+  {
+    id: 'unhandled-first',
+    source: 'source_page',
+    facility_name: 'みどりの丘',
+    website_url: 'https://first-midori.example/',
+    status: '未対応',
+  },
+  {
+    id: 'unhandled-second',
+    source: 'source_page',
+    facility_name: 'みどりの丘',
+    website_url: 'https://second-midori.example/',
+    status: '未対応',
+  },
+]);
+assert.strictEqual(
+  unhandledSameNameIds['unhandled-second'],
+  undefined,
+  'an ambiguous same-name lead must remain visible when the earlier lead is also unhandled and the domains differ'
+);
+assert.strictEqual(
+  sourcePageIndexContext.matchesLeadListFilter_(reviewDuplicateCandidate, 'review', { reviewDuplicateLeadIds: reviewDuplicateIds }),
+  false,
+  'existing sales leads must not reappear in the review queue'
+);
+assert.strictEqual(
+  sourcePageIndexContext.classifyLeadListState_(reviewDuplicateCandidate, { reviewDuplicateLeadIds: reviewDuplicateIds }),
+  'no_action',
+  'suppressed review duplicates must stay out of the review state group'
+);
+assert.strictEqual(sourcePageIndexContext.leadListQueryNeedsMasterContext_({ filter: 'review', includeStats: false }), true);
+assert.strictEqual(
+  sourcePageIndexContext.findExistingSourcePageLead_(
+    { source_id: 'archived:item' },
+    '閉鎖施設',
+    'https://closed.example/',
+    projectedSourcePageIndex
+  ).id,
+  'archived-match',
+  'archived sales-history domains must block automated source-page re-collection'
+);
+const historicalReviewDuplicateIds = sourcePageIndexContext.buildReviewDuplicateLeadIds_([
+  {
+    id: 'review-before-history',
+    source: 'source_page',
+    facility_name: '再収集候補',
+    website_url: 'https://history-order.example/new',
+    status: '未対応',
+  },
+  {
+    id: 'archived-after-review',
+    source: 'source_page',
+    facility_name: '過去登録施設',
+    website_url: 'https://history-order.example/old',
+    status: '対応不要',
+    archived_at: '2026-07-01T00:00:00+09:00',
+  },
+]);
+assert.strictEqual(
+  historicalReviewDuplicateIds['review-before-history'],
+  'archived-after-review',
+  'archived domains must suppress review candidates regardless of sheet row order'
+);
 
 const sparseHeaders = historyContext.getHeaders_({
   getLastColumn: () => 3,
@@ -2536,6 +2841,7 @@ const scheduledJobClaimUpdates = [];
 scheduledJobClaimContext.withScriptLock_ = (operation, callback, options) => {
   assert.strictEqual(operation, 'claimScheduledEmailJob');
   assert.strictEqual(options.waitMs, 6000);
+  assert.strictEqual(options.logErrors, false);
   return callback();
 };
 scheduledJobClaimContext.readSheetRecordFields_ = (sheetName, fields, options) => {
@@ -2583,6 +2889,41 @@ assert.strictEqual(scheduledJobClaimUpdates.length, 1);
 assert.strictEqual(scheduledJobClaimUpdates[0].id, 'stale-mail-job');
 assert.strictEqual(scheduledJobClaimUpdates[0].patch.status, 'failed');
 assert.strictEqual(scheduledJobClaimAppends, 1);
+
+const scheduledJobRetryContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), scheduledJobRetryContext, { filename: 'Code.gs' });
+vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), scheduledJobRetryContext, { filename: 'Email.gs' });
+let scheduledJobRetryAttempts = 0;
+const scheduledJobRetrySleeps = [];
+let scheduledJobRetryLogs = 0;
+scheduledJobRetryContext.Utilities = {
+  sleep: (delayMs) => { scheduledJobRetrySleeps.push(delayMs); },
+};
+scheduledJobRetryContext.logError_ = () => { scheduledJobRetryLogs += 1; };
+scheduledJobRetryContext.claimScheduledEmailJobOnce_ = () => {
+  scheduledJobRetryAttempts += 1;
+  if (scheduledJobRetryAttempts < 3) {
+    throw new Error('ドキュメントにアクセス中に スプレッドシート のサービスがタイムアウトしました。');
+  }
+  return { busy: false, job: { id: 'retry-success' } };
+};
+const scheduledJobRetryClaim = JSON.parse(JSON.stringify(scheduledJobRetryContext.claimScheduledEmailJob_()));
+assert.strictEqual(scheduledJobRetryClaim.job.id, 'retry-success');
+assert.strictEqual(scheduledJobRetryAttempts, 3);
+assert.deepStrictEqual(scheduledJobRetrySleeps, [500, 1500]);
+assert.strictEqual(scheduledJobRetryLogs, 0, 'a recovered transient Sheets timeout must not remain as an active error');
+
+scheduledJobRetryAttempts = 0;
+scheduledJobRetrySleeps.length = 0;
+scheduledJobRetryLogs = 0;
+scheduledJobRetryContext.claimScheduledEmailJobOnce_ = () => {
+  scheduledJobRetryAttempts += 1;
+  throw new Error('Service Spreadsheets timed out while accessing document.');
+};
+assert.throws(() => scheduledJobRetryContext.claimScheduledEmailJob_(), /timed out/);
+assert.strictEqual(scheduledJobRetryAttempts, 3);
+assert.deepStrictEqual(scheduledJobRetrySleeps, [500, 1500]);
+assert.strictEqual(scheduledJobRetryLogs, 1, 'a persistent Sheets outage must create only one actionable error log');
 
 const testMailContext = vm.createContext({ console });
 files.forEach((file) => {
@@ -2640,30 +2981,39 @@ let reviewDecisionLead = {
 };
 let reviewDecisionWrites = 0;
 let reviewDecisionFinds = 0;
-const reviewDecisionSheet = {};
+const reviewDecisionHeaders = Object.keys(reviewDecisionLead);
+const reviewDecisionSheet = {
+  getRangeList: (ranges) => ({
+    setValue: (value) => {
+      reviewDecisionWrites += 1;
+      ranges.forEach((a1) => {
+        const match = /^([A-Z]+)(\d+)$/.exec(a1);
+        assert(match, 'single review write must use a single-cell A1 range');
+        const columnNumber = match[1].split('').reduce((total, character) => total * 26 + character.charCodeAt(0) - 64, 0);
+        reviewDecisionLead[reviewDecisionHeaders[columnNumber - 1]] = value;
+      });
+    },
+  }),
+};
 reviewDecisionContext.withScriptLock_ = (operation, callback, options) => {
   assert.strictEqual(operation, 'updateReviewLeadDecision');
-  assert.strictEqual(options.waitMs, 6000);
-  assert.strictEqual(options.attempts, 5);
-  assert.strictEqual(options.retryDelayMs, 400);
+  assert.strictEqual(options.waitMs, 2500);
+  assert.strictEqual(options.attempts, 2);
+  assert.strictEqual(options.retryDelayMs, 250);
+  assert.strictEqual(options.logErrors, false);
   return callback();
 };
 reviewDecisionContext.getOrCreateSpreadsheet_ = () => ({});
 reviewDecisionContext.ensureSheet_ = () => reviewDecisionSheet;
+reviewDecisionContext.nowIso_ = () => '2026-08-02T22:00:00+09:00';
+reviewDecisionContext.clearReviewLeadCachesBestEffort_ = () => '';
 reviewDecisionContext.findRowById_ = (_sheet, id) => {
   reviewDecisionFinds += 1;
   return {
     rowNumber: 2,
-    headers: Object.keys(reviewDecisionLead),
+    headers: reviewDecisionHeaders,
     record: Object.assign({}, reviewDecisionLead, { id }),
   };
-};
-reviewDecisionContext.updateLeadFoundLocked_ = (sheet, found, patch) => {
-  assert.strictEqual(sheet, reviewDecisionSheet);
-  assert.strictEqual(found.record.id, 'review-1');
-  reviewDecisionWrites += 1;
-  reviewDecisionLead = Object.assign({}, reviewDecisionLead, patch);
-  return Object.assign({}, reviewDecisionLead);
 };
 const reviewDecision = reviewDecisionContext.updateReviewLeadDecision('review-1', {
   mode: 'decision', expected_status: '未対応', status: '対応中',
@@ -2694,13 +3044,236 @@ assert.strictEqual(reviewDecisionLead.status, '未対応');
 assert.throws(() => reviewDecisionContext.updateReviewLeadDecision('review-1', {
   mode: 'decision', expected_status: '未対応', status: '返信あり',
 }), /選べない更新内容/);
-assert.strictEqual(reviewDecisionFinds, 4, 'each valid review request must look up the lead row only once');
+const normalizedStaleClientDecision = reviewDecisionContext.updateReviewLeadDecision('review-1', {
+  mode: 'decision', expected_status: '対応中', status: '対応中',
+});
+assert.strictEqual(normalizedStaleClientDecision.ok, true, 'a stale client-side expected status must not reject a valid review decision');
+assert.strictEqual(reviewDecisionLead.status, '対応中');
+assert.strictEqual(reviewDecisionFinds, 5, 'each valid review request must look up the lead row only once');
 const reviewDecisionCodeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const reviewDecisionStart = reviewDecisionCodeSource.indexOf('function updateReviewLeadDecision(id, input)');
 const reviewDecisionEnd = reviewDecisionCodeSource.indexOf('\nfunction ', reviewDecisionStart + 10);
 const reviewDecisionBody = reviewDecisionCodeSource.slice(reviewDecisionStart, reviewDecisionEnd);
 assert(!reviewDecisionBody.includes('getLeadById('), 'review decisions must not perform a second lead lookup');
-assert(reviewDecisionBody.includes('updateLeadFoundLocked_(sheet, found'));
+assert(reviewDecisionBody.includes('applyReviewLeadDecisionLocked_(sheet, leadId, decision)'));
+
+const reviewBulkContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), reviewBulkContext, { filename: file });
+});
+const reviewBulkHeaders = ['id', 'status', 'source', 'website_url', 'email', 'form_url', 'facility_name', 'send_ng'];
+const reviewBulkRecords = [
+  { id: 'bulk-1', status: '未対応', source: 'source_page', website_url: 'https://bulk-1.example/', facility_name: '一括1', send_ng: false },
+  { id: 'bulk-2', status: '未対応', source: 'serper', website_url: 'https://bulk-2.example/', facility_name: '一括2', send_ng: false },
+  { id: 'bulk-stale', status: '返信あり', source: 'source_page', website_url: 'https://bulk-stale.example/', facility_name: '競合', send_ng: false },
+];
+const reviewBulkSheet = {
+  getDataRange: () => ({
+    getValues: () => [reviewBulkHeaders].concat(reviewBulkRecords.map((record) => reviewBulkHeaders.map((header) => record[header] || ''))),
+  }),
+  getRangeList: (ranges) => ({
+    setValue: (value) => {
+      reviewBulkRangeListWrites += 1;
+      ranges.forEach((a1) => {
+        const match = /^([A-Z]+)(\d+)$/.exec(a1);
+        assert(match, 'grouped review write must use a single-cell A1 range');
+        const columnNumber = match[1].split('').reduce((total, character) => total * 26 + character.charCodeAt(0) - 64, 0);
+        const record = reviewBulkRecords[Number(match[2]) - 2];
+        assert(record, 'grouped review write must target an existing lead row');
+        record[reviewBulkHeaders[columnNumber - 1]] = value;
+      });
+    },
+  }),
+};
+let reviewBulkRangeListWrites = 0;
+let reviewBulkCacheClears = 0;
+reviewBulkContext.withScriptLock_ = (operation, callback, options) => {
+  assert.strictEqual(operation, 'updateReviewLeadDecisions');
+  assert.strictEqual(options.waitMs, 2500);
+  assert.strictEqual(options.attempts, 2);
+  assert.strictEqual(options.retryDelayMs, 250);
+  assert.strictEqual(options.logErrors, false);
+  return callback();
+};
+reviewBulkContext.getOrCreateSpreadsheet_ = () => ({});
+reviewBulkContext.ensureSheet_ = () => reviewBulkSheet;
+reviewBulkContext.nowIso_ = () => '2026-08-02T17:05:00+09:00';
+reviewBulkContext.clearRuntimeCaches_ = (sheetName) => {
+  assert.strictEqual(sheetName, 'leads');
+  reviewBulkCacheClears += 1;
+};
+const reviewBulkDecision = reviewBulkContext.updateReviewLeadDecisions({
+  ids: ['bulk-1', 'bulk-2', 'bulk-stale', 'bulk-missing', 'bulk-1'],
+  mode: 'decision',
+  expected_status: '未対応',
+  status: '送信NG',
+});
+assert.strictEqual(reviewBulkDecision.requested, 4, 'duplicate selected IDs must be collapsed');
+assert.strictEqual(reviewBulkDecision.updated, 2);
+assert.strictEqual(reviewBulkDecision.conflicts, 2);
+assert.strictEqual(reviewBulkRangeListWrites, 2, 'bulk review must group identical status and send-NG writes instead of writing every row separately');
+assert.strictEqual(reviewBulkCacheClears, 1, 'bulk review updates must invalidate caches only once');
+assert.strictEqual(reviewBulkRecords[0].status, '送信NG');
+assert.strictEqual(reviewBulkRecords[1].send_ng, true);
+const reviewBulkUndo = reviewBulkContext.updateReviewLeadDecisions({
+  ids: ['bulk-1', 'bulk-2'],
+  mode: 'undo',
+  expected_status: '送信NG',
+  status: '未対応',
+});
+assert.strictEqual(reviewBulkUndo.updated, 2);
+assert.strictEqual(reviewBulkRecords[0].status, '未対応');
+assert.strictEqual(reviewBulkRangeListWrites, 4, 'bulk undo must also use grouped writes');
+const normalizedStaleBulkDecision = reviewBulkContext.updateReviewLeadDecisions({
+  ids: ['bulk-1', 'bulk-2'], mode: 'decision', expected_status: '対応中', status: '対応中',
+});
+assert.strictEqual(normalizedStaleBulkDecision.updated, 2, 'bulk review must use the authoritative pending status instead of stale client state');
+assert.strictEqual(reviewBulkRecords[0].status, '対応中');
+assert.throws(() => reviewBulkContext.updateReviewLeadDecisions({
+  ids: ['bulk-1'], mode: 'decision', expected_status: '未対応', status: '対応不要',
+}), /選べない更新内容/);
+assert.throws(() => reviewBulkContext.updateReviewLeadDecisions({
+  ids: Array.from({ length: 51 }, (_value, index) => 'bulk-' + index), mode: 'decision', expected_status: '未対応', status: '対応中',
+}), /50件まで/);
+
+const reviewQueueContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), reviewQueueContext, { filename: file });
+});
+const reviewQueueProperties = {};
+const reviewQueuePropertyService = {
+  getProperty: (key) => reviewQueueProperties[key] || null,
+  getProperties: () => Object.assign({}, reviewQueueProperties),
+  setProperty: (key, value) => { reviewQueueProperties[key] = String(value); },
+  deleteProperty: (key) => { delete reviewQueueProperties[key]; },
+};
+reviewQueueContext.PropertiesService = { getScriptProperties: () => reviewQueuePropertyService };
+const reviewQueueLockError = new Error('ロックのタイムアウト: 別の処理が実行中です。');
+reviewQueueLockError.code = 'SCRIPT_LOCK_TIMEOUT';
+reviewQueueContext.withScriptLock_ = () => { throw reviewQueueLockError; };
+let reviewQueueRequestSequence = 0;
+let reviewQueueTimeSequence = 0;
+reviewQueueContext.createReviewDecisionRequestId_ = () => 'request-' + (++reviewQueueRequestSequence);
+reviewQueueContext.nowIso_ = () => '2026-08-02T22:10:0' + (++reviewQueueTimeSequence) + '+09:00';
+let reviewQueueCacheBumps = 0;
+reviewQueueContext.bumpLeadListCacheRevision_ = () => { reviewQueueCacheBumps += 1; };
+const reviewQueueTriggerDelays = [];
+reviewQueueContext.ensurePendingReviewDecisionTriggerBestEffort_ = (delayMs) => {
+  reviewQueueTriggerDelays.push(delayMs);
+  return { result: { created: true }, warning: '' };
+};
+reviewQueueContext.logError_ = () => { throw new Error('successful queue fallback must not log an error'); };
+const queuedReviewDecision = reviewQueueContext.updateReviewLeadDecision('queued-review-1', {
+  mode: 'decision', expected_status: '未対応', status: '対応中',
+});
+assert.strictEqual(queuedReviewDecision.ok, true);
+assert.strictEqual(queuedReviewDecision.queued, true, 'a lock timeout must persist the decision instead of returning it to review');
+assert.strictEqual(reviewQueueContext.listPendingReviewDecisionRecords_().length, 1);
+let queuedOverlay = reviewQueueContext.overlayPendingReviewDecisionsOnLeads_([{
+  id: 'queued-review-1', status: '未対応', source: 'source_page', website_url: 'https://queued.example/',
+}]);
+assert.strictEqual(queuedOverlay[0].status, '対応中', 'a queued confirmation must stay hidden after a list reload');
+assert.strictEqual(queuedOverlay[0].review_decision_pending, true);
+const queuedReviewUndo = reviewQueueContext.updateReviewLeadDecision('queued-review-1', {
+  mode: 'undo', expected_status: '対応中', status: '未対応',
+});
+assert.strictEqual(queuedReviewUndo.queued, true);
+queuedOverlay = reviewQueueContext.overlayPendingReviewDecisionsOnLeads_([{
+  id: 'queued-review-1', status: '未対応', source: 'source_page', website_url: 'https://queued.example/',
+}]);
+assert.strictEqual(queuedOverlay[0].status, '未対応', 'undo must supersede a confirmation that is still queued');
+const queuedBulkDecision = reviewQueueContext.updateReviewLeadDecisions({
+  ids: ['queued-bulk-1', 'queued-bulk-2'], mode: 'decision', expected_status: '未対応', status: '対応中',
+});
+assert.strictEqual(queuedBulkDecision.queued, 2);
+assert.strictEqual(queuedBulkDecision.updated, 2, 'accepted queued decisions must count as handled in the UI');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(queuedBulkDecision.items.map((item) => item.id))), ['queued-bulk-1', 'queued-bulk-2']);
+assert.strictEqual(reviewQueueTriggerDelays.every((delayMs) => delayMs === 5000), true);
+assert.strictEqual(reviewQueueCacheBumps, 3, 'single, undo, and bulk queue acceptance must each invalidate list cache once');
+
+const reviewQueueProcessorContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), reviewQueueProcessorContext, { filename: file });
+});
+const reviewProcessorProperties = {};
+const reviewProcessorPropertyService = {
+  getProperty: (key) => reviewProcessorProperties[key] || null,
+  getProperties: () => Object.assign({}, reviewProcessorProperties),
+  setProperty: (key, value) => { reviewProcessorProperties[key] = String(value); },
+  deleteProperty: (key) => { delete reviewProcessorProperties[key]; },
+};
+reviewQueueProcessorContext.PropertiesService = { getScriptProperties: () => reviewProcessorPropertyService };
+reviewQueueProcessorContext.nowIso_ = () => '2026-08-02T22:15:00+09:00';
+reviewQueueProcessorContext.withScriptLock_ = (_operation, callback, options) => {
+  assert.strictEqual(options.waitMs, 2500);
+  assert.strictEqual(options.attempts, 2);
+  assert.strictEqual(options.logErrors, false);
+  return callback();
+};
+reviewQueueProcessorContext.getOrCreateSpreadsheet_ = () => ({});
+const reviewProcessorHeaders = ['id', 'status', 'source', 'website_url', 'send_ng', 'reply_checked', 'deal_status', 'next_send_at', 'send_ng_reason', 'send_ng_memo', 'updated_at'];
+const reviewProcessorRecords = [
+  { id: 'process-1', status: '未対応', source: 'source_page', website_url: 'https://process-1.example/', send_ng: false, reply_checked: false, deal_status: '未設定' },
+  { id: 'process-2', status: '未対応', source: 'serper', website_url: 'https://process-2.example/', send_ng: false, reply_checked: false, deal_status: '未設定' },
+  { id: 'process-undo', status: '未対応', source: 'source_page', website_url: 'https://process-undo.example/', send_ng: false, reply_checked: false, deal_status: '未設定' },
+];
+let reviewProcessorRangeWrites = 0;
+const reviewProcessorSheet = {
+  getDataRange: () => ({
+    getValues: () => [reviewProcessorHeaders].concat(reviewProcessorRecords.map((record) => reviewProcessorHeaders.map((header) => record[header] || ''))),
+  }),
+  getRangeList: (ranges) => ({
+    setValue: (value) => {
+      reviewProcessorRangeWrites += 1;
+      ranges.forEach((a1) => {
+        const match = /^([A-Z]+)(\d+)$/.exec(a1);
+        const columnNumber = match[1].split('').reduce((total, character) => total * 26 + character.charCodeAt(0) - 64, 0);
+        reviewProcessorRecords[Number(match[2]) - 2][reviewProcessorHeaders[columnNumber - 1]] = value;
+      });
+    },
+  }),
+};
+reviewQueueProcessorContext.ensureSheet_ = () => reviewProcessorSheet;
+let reviewProcessorCacheClears = 0;
+reviewQueueProcessorContext.clearReviewLeadCachesBestEffort_ = () => { reviewProcessorCacheClears += 1; return ''; };
+const reviewProcessorTriggerDelays = [];
+reviewQueueProcessorContext.ensurePendingReviewDecisionTriggerBestEffort_ = (delayMs) => {
+  reviewProcessorTriggerDelays.push(delayMs);
+  return { result: { created: true }, warning: '' };
+};
+reviewQueueProcessorContext.appendSyncError_ = () => {};
+function addReviewProcessorQueueRecord(id, requestId, mode, expectedStatus, status, requestedAt) {
+  const propertyKey = reviewQueueProcessorContext.reviewDecisionQueuePropertyKey_(id, requestId);
+  reviewProcessorProperties[propertyKey] = JSON.stringify({ id, requestId, mode, expectedStatus, status, requestedAt });
+}
+addReviewProcessorQueueRecord('process-1', 'process-request-1', 'decision', '未対応', '対応中', '2026-08-02T22:14:01+09:00');
+addReviewProcessorQueueRecord('process-2', 'process-request-2', 'decision', '未対応', '送信NG', '2026-08-02T22:14:02+09:00');
+let processedReviewQueue = reviewQueueProcessorContext.processPendingReviewLeadDecisions_({ maxItems: 10, source: 'test' });
+assert.strictEqual(processedReviewQueue.ok, true);
+assert.strictEqual(processedReviewQueue.updated, 2);
+assert.strictEqual(processedReviewQueue.remaining, 0);
+assert.strictEqual(reviewProcessorRecords[0].status, '対応中');
+assert.strictEqual(reviewProcessorRecords[1].status, '送信NG');
+assert.strictEqual(reviewProcessorRecords[1].send_ng, true);
+assert.strictEqual(reviewProcessorCacheClears, 1);
+assert(reviewProcessorRangeWrites > 0);
+addReviewProcessorQueueRecord('process-undo', 'process-request-confirm', 'decision', '未対応', '対応中', '2026-08-02T22:14:03+09:00');
+addReviewProcessorQueueRecord('process-undo', 'process-request-undo', 'undo', '対応中', '未対応', '2026-08-02T22:14:04+09:00');
+processedReviewQueue = reviewQueueProcessorContext.processPendingReviewLeadDecisions_({ maxItems: 10, source: 'test' });
+assert.strictEqual(processedReviewQueue.updated, 0);
+assert.strictEqual(processedReviewQueue.reused, 1, 'the latest undo must supersede an unapplied queued confirmation');
+assert.strictEqual(processedReviewQueue.remaining, 0);
+addReviewProcessorQueueRecord('process-1', 'process-request-busy', 'undo', '対応中', '未対応', '2026-08-02T22:14:05+09:00');
+reviewQueueProcessorContext.withScriptLock_ = () => {
+  const error = new Error('ロックのタイムアウト');
+  error.code = 'SCRIPT_LOCK_TIMEOUT';
+  throw error;
+};
+processedReviewQueue = reviewQueueProcessorContext.processPendingReviewLeadDecisions_({ maxItems: 10, source: 'test' });
+assert.strictEqual(processedReviewQueue.busy, true);
+assert.strictEqual(processedReviewQueue.remaining, 1);
+assert.strictEqual(reviewProcessorTriggerDelays[0], 30000, 'a busy review queue worker must retry automatically');
+assert.strictEqual(reviewQueueProcessorContext.listPendingReviewDecisionRecords_().length, 1, 'a busy queue worker must retain pending decisions');
 
 const lockRetryContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), lockRetryContext, { filename: 'Code.gs' });
@@ -2748,6 +3321,18 @@ assert.strictEqual(lockReleaseCount, 1);
 assert.deepStrictEqual(lockSleepCalls, [400], 'default lock policy must retry after a short wait');
 assert.strictEqual(lockRetryContext.isScriptLockTimeoutError_(new Error('Exception: ロックのタイムアウト: 別のプロセスがロックを保持しています。')), true);
 assert.strictEqual(lockRetryContext.isScriptLockTimeoutError_(new Error('Lock timed out waiting for another process')), true);
+assert.strictEqual(lockRetryContext.normalizeBackgroundRuntimeBudgetMs_(300000), 240000, 'background work must leave recovery time before the six-minute hard limit');
+let suppressedLockLogs = 0;
+lockRetryContext.LockService = {
+  getScriptLock: () => ({ tryLock: () => false, releaseLock: () => {} }),
+};
+lockRetryContext.logError_ = () => { suppressedLockLogs += 1; };
+assert.throws(() => lockRetryContext.withScriptLock_('expectedBusyClaim', () => null, {
+  waitMs: 1000,
+  attempts: 1,
+  logErrors: false,
+}), /ロックのタイムアウト/);
+assert.strictEqual(suppressedLockLogs, 0, 'expected worker-claim contention must not be recorded as an application error');
 
 const sourceLockContext = vm.createContext({ console, URL });
 files.forEach((file) => {
@@ -2755,10 +3340,14 @@ files.forEach((file) => {
 });
 let sourceResultWrites = 0;
 let sourceCreateCalls = 0;
+const sourceResultPayloads = [];
 sourceLockContext.findExistingSourcePageLead_ = () => null;
 sourceLockContext.getSerperApiKey_ = () => '';
 sourceLockContext.hasSearchJobRuntimeAvailable_ = () => true;
-sourceLockContext.appendSourcePageResult_ = () => { sourceResultWrites += 1; };
+sourceLockContext.appendSourcePageResult_ = (_jobId, result) => {
+  sourceResultWrites += 1;
+  sourceResultPayloads.push(result);
+};
 sourceLockContext.fetchProspectingHtml_ = (url) => ({ url, html: '<html></html>' });
 sourceLockContext.createLeadWithLockOptions_ = (_input, options) => {
   sourceCreateCalls += 1;
@@ -2792,6 +3381,93 @@ assert.strictEqual(unresolvedSourceLead.unresolved, true);
 assert.strictEqual(unresolvedSourceLead.excludedFromReview, true);
 assert.strictEqual(sourceCreateCalls, 1, 'an unresolved candidate must never create a review lead');
 assert.strictEqual(sourceResultWrites, 1, 'an unresolved candidate should remain in search results for audit');
+assert.strictEqual(sourceLockContext.detectClosedProspectingSite_({
+  html: '<html><head><title>営業終了のお知らせ</title></head><body>当施設は営業を終了しました。</body></html>',
+}).closed, true);
+assert.strictEqual(sourceLockContext.detectClosedProspectingSite_({
+  html: '<html><head><title>冬季休業のお知らせ</title></head><body>営業再開日は未定です。</body></html>',
+}).closed, true, '休業 in the page title must block collection');
+assert.strictEqual(sourceLockContext.detectClosedProspectingSite_({
+  html: '<html><head><title>森の家キャンプ場</title></head><body><h2>当面休業のお知らせ</h2></body></html>',
+}).closed, true, '休業 in an h1-h6 heading must block collection');
+assert.strictEqual(sourceLockContext.detectClosedProspectingSite_({
+  html: '<html><head><title>営業中の森の家キャンプ場</title></head><body><p>毎週火曜日は休業日です。</p></body></html>',
+}).closed, false, '休業 in ordinary body copy alone must not block collection');
+assert.strictEqual(sourceLockContext.detectClosedProspectingSite_({
+  title: '株式会社サンプル',
+  description: '旧店舗は閉店しましたが、新店舗へ移転して営業中です。',
+}).closed, false, 'an active relocated business must not be treated as closed');
+assert.strictEqual(sourceLockContext.isClearlyClosedSearchResult_({
+  title: 'サンプル施設は閉館しました',
+  snippet: '長年のご利用ありがとうございました。',
+}), true);
+assert.strictEqual(sourceLockContext.isClearlyClosedSearchResult_({
+  title: '本サービスは終了いたしました',
+  snippet: 'ご利用ありがとうございました。',
+}), true);
+assert.strictEqual(sourceLockContext.isClearlyClosedSearchResult_({
+  title: '森の家キャンプ場 冬季休業のお知らせ',
+  snippet: '営業再開日は未定です。',
+}), true, '休業 in a search-result title must block collection');
+sourceLockContext.fetchProspectingHtml_ = (url) => ({
+  url,
+  html: '<html><head><title>営業終了のお知らせ</title></head><body>当施設は営業を終了しました。</body></html>',
+});
+const closedSourceLead = sourceLockContext.processSourcePageCandidate_(
+  { facility_name: '閉鎖判定テスト', source_id: 'source-closed-test', official_url: 'https://closed.example/' },
+  {},
+  { use_serper_fallback: false },
+  'job-closed-test',
+  1,
+  {}
+);
+assert.strictEqual(closedSourceLead.created, false);
+assert.strictEqual(closedSourceLead.skipped, true);
+assert.strictEqual(closedSourceLead.closed, true);
+assert.strictEqual(sourceCreateCalls, 1, 'a closed official site must never create a review lead');
+assert.strictEqual(sourceResultWrites, 2, 'a closed site should retain one dismissed audit result');
+assert.strictEqual(sourceResultPayloads[1].resultType, 'source_page_closed');
+assert.strictEqual(sourceResultPayloads[1].reviewStatus, 'dismissed');
+sourceLockContext.fetchProspectingHtml_ = () => {
+  throw new Error('Source page fetch failed: DNS error https://missing-host.example/');
+};
+const brokenSourceLead = sourceLockContext.processSourcePageCandidate_(
+  { facility_name: 'リンク切れ判定テスト', source_id: 'source-broken-test', official_url: 'https://missing-host.example/' },
+  {},
+  { use_serper_fallback: false },
+  'job-broken-test',
+  2,
+  {}
+);
+assert.strictEqual(brokenSourceLead.created, false);
+assert.strictEqual(brokenSourceLead.skipped, true);
+assert.strictEqual(brokenSourceLead.closed, false);
+assert.strictEqual(brokenSourceLead.broken, true);
+assert.strictEqual(sourceCreateCalls, 1, 'a definitely broken official link must never create a review lead');
+assert.strictEqual(sourceResultWrites, 3, 'a broken link should retain one dismissed audit result');
+assert.strictEqual(sourceResultPayloads[2].resultType, 'source_page_broken_link');
+assert.strictEqual(sourceResultPayloads[2].reviewStatus, 'dismissed');
+assert.strictEqual(sourceResultPayloads[2].reviewAction, 'exclude_broken_link');
+sourceLockContext.fetchProspectingHtml_ = () => {
+  throw new Error('Source page fetch failed: HTTP 410 https://closed.example/');
+};
+const goneSite = sourceLockContext.inspectProspectingSiteAvailability_('https://closed.example/');
+assert.strictEqual(goneSite.closed, true);
+assert.strictEqual(goneSite.broken, false);
+assert.strictEqual(goneSite.reason, 'HTTP 410');
+sourceLockContext.fetchProspectingHtml_ = () => {
+  throw new Error('Source page fetch failed: DNS error https://missing-host.example/');
+};
+const missingHostSite = sourceLockContext.inspectProspectingSiteAvailability_('https://missing-host.example/');
+assert.strictEqual(missingHostSite.closed, false);
+assert.strictEqual(missingHostSite.broken, true);
+sourceLockContext.fetchProspectingHtml_ = () => {
+  throw new Error('Source page fetch failed: timeout https://slow.example/');
+};
+const temporaryTimeoutSite = sourceLockContext.inspectProspectingSiteAvailability_('https://slow.example/');
+assert.strictEqual(temporaryTimeoutSite.closed, false);
+assert.strictEqual(temporaryTimeoutSite.broken, false, 'timeouts must remain eligible because they can be transient');
+sourceLockContext.fetchProspectingHtml_ = (url) => ({ url, html: '<html></html>' });
 assert.strictEqual(sourceLockContext.resolveSourcePageGenre_(
   { source_preset: 'nap_camp' },
   { genre: '介護' },
@@ -2814,6 +3490,239 @@ assert.strictEqual(normalizedNapInput.site_preset, 'nap_camp');
 assert.strictEqual(normalizedNapInput.genre, 'キャンプ');
 assert.strictEqual(normalizedNapInput.items[0].genre, 'キャンプ');
 assert.strictEqual(normalizedNapInput.create_unresolved_leads, false);
+const normalizedGenericSourceInput = sourceLockContext.normalizeSearchJobInput_({
+  job_type: 'source_page',
+  sourceUrl: 'https://directory.example/company-list',
+  genre: '',
+  crawlAll: true,
+  resultsPerQuery: 10,
+});
+assert.strictEqual(normalizedGenericSourceInput.site_preset, '');
+assert.strictEqual(normalizedGenericSourceInput.genre, '');
+assert.strictEqual(normalizedGenericSourceInput.crawl_all, true);
+assert.strictEqual(normalizedGenericSourceInput.items[0].source_url, 'https://directory.example/company-list');
+const genericSourceCandidates = sourceLockContext.extractSourcePageCandidates_(
+  '<a href="/members/alpha">株式会社アルファ</a><a href="https://beta-corp.example.jp/">公式サイト</a><a href="/about">会社概要</a>',
+  'https://directory.example/company-list',
+  10,
+);
+assert.strictEqual(genericSourceCandidates.length, 3);
+assert.strictEqual(genericSourceCandidates[0].facility_name, '株式会社アルファ');
+assert.strictEqual(genericSourceCandidates[0].detail_url, 'https://directory.example/members/alpha');
+assert.strictEqual(genericSourceCandidates[1].official_url, 'https://beta-corp.example.jp/');
+const normalizedResortGlampingInput = sourceLockContext.normalizeSearchJobInput_({
+  job_type: 'source_page',
+  sourceUrl: 'resort-glamping.com',
+  genre: 'グランピング',
+  crawlAll: true,
+});
+assert.strictEqual(normalizedResortGlampingInput.site_preset, 'resort_glamping');
+assert.strictEqual(normalizedResortGlampingInput.source_url, 'https://resort-glamping.com');
+assert.strictEqual(normalizedResortGlampingInput.items[0].source_url, 'https://resort-glamping.com');
+assert.strictEqual(normalizedResortGlampingInput.items[0].collection_url, 'https://www.resort-glamping.com/accommodation/');
+const automaticResortFullCrawlInput = sourceLockContext.normalizeSearchJobInput_({
+  job_type: 'source_page',
+  sourceUrl: 'https://www.resort-glamping.com/',
+  label: 'nap-camp.com',
+  resultsPerQuery: 10,
+});
+assert.strictEqual(automaticResortFullCrawlInput.crawl_all, true);
+assert.strictEqual(automaticResortFullCrawlInput.items[0].crawl_all, true);
+assert.strictEqual(automaticResortFullCrawlInput.job_limit, 1);
+assert.strictEqual(automaticResortFullCrawlInput.label, 'resort-glamping.com');
+assert.strictEqual(automaticResortFullCrawlInput.items[0].label, 'resort-glamping.com');
+const manyResortSitemapCandidates = sourceLockContext.extractResortGlampingSitemapCandidates_(
+  '<urlset>' + Array.from({ length: 25 }, (_unused, index) =>
+    `<url><loc>https://www.resort-glamping.com/accommodation/full-crawl-${index + 1}/</loc></url>`
+  ).join('') + '</urlset>',
+  'https://www.resort-glamping.com/accommodation/',
+  500,
+);
+assert.strictEqual(manyResortSitemapCandidates.length, 25, 'full crawl must continue beyond the first 10 facilities');
+const ordinaryDirectoryInput = sourceLockContext.normalizeSearchJobInput_({
+  job_type: 'source_page',
+  sourceUrl: 'https://directory.example/members',
+  resultsPerQuery: 10,
+});
+assert.strictEqual(ordinaryDirectoryInput.crawl_all, false);
+const resortGlampingCandidates = sourceLockContext.extractResortGlampingCandidates_(
+  '<ul><li class="js-more-item"><div><a href="https://www.resort-glamping.com/accommodation/sample-glamping/"></a>' +
+    '<p class="ttl">サンプル・グランピング</p><p class="address-txt">山梨県南都留郡</p></div></li>' +
+    '<li class="js-more-item"><div><a href="/accommodation/second-villa/"></a>' +
+    '<p class="ttl">セカンドヴィラ</p><p class="address-txt">千葉県いすみ市</p></div></li></ul>',
+  'https://www.resort-glamping.com/accommodation/',
+  500,
+);
+assert.strictEqual(resortGlampingCandidates.length, 2);
+assert.strictEqual(resortGlampingCandidates[0].facility_name, 'サンプル・グランピング');
+assert.strictEqual(resortGlampingCandidates[0].address, '山梨県南都留郡');
+assert.strictEqual(resortGlampingCandidates[0].source_id, 'resort_glamping:sample-glamping');
+assert.strictEqual(resortGlampingCandidates[1].detail_url, 'https://www.resort-glamping.com/accommodation/second-villa/');
+const resortGlampingSitemapCandidates = sourceLockContext.extractResortGlampingSitemapCandidates_(
+  '<?xml version="1.0"?><urlset>' +
+    '<url><loc>https://www.resort-glamping.com/accommodation/blue-dome/</loc></url>' +
+    '<url><loc>https://www.resort-glamping.com/accommodation/glamp-dome/</loc></url>' +
+    '<url><loc>https://www.resort-glamping.com/accommodation/blue-dome/</loc></url>' +
+    '</urlset>',
+  'https://www.resort-glamping.com/accommodation/',
+  500,
+);
+assert.strictEqual(resortGlampingSitemapCandidates.length, 2);
+assert.strictEqual(resortGlampingSitemapCandidates[0].facility_name, '');
+assert.strictEqual(resortGlampingSitemapCandidates[0].source_id, 'resort_glamping:blue-dome');
+const enrichedResortGlampingCandidate = sourceLockContext.enrichResortGlampingCandidateFromDetailHtml_(
+  resortGlampingSitemapCandidates[0],
+  '<html><head><meta name="description" content="海が見える施設">' +
+    '<meta property="og:title" content="ブルードーム京都天橋立-関西・京都エリア"></head>' +
+    '<body><span class="post post-accommodation current-item">ブルードーム京都天橋立</span>' +
+    '<a href="https://www.dome-blue.com/">公式サイト</a></body></html>',
+  'resort-glamping.com',
+);
+assert.strictEqual(enrichedResortGlampingCandidate.facility_name, 'ブルードーム京都天橋立');
+assert.strictEqual(enrichedResortGlampingCandidate.official_url, 'https://www.dome-blue.com/');
+assert.strictEqual(enrichedResortGlampingCandidate.detail_checked, true);
+const gasUrlContext = vm.createContext({ console });
+['Code.gs', 'Masters.gs', 'Serper.gs'].forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), gasUrlContext, { filename: file });
+});
+assert.strictEqual(
+  gasUrlContext.resolveSourcePageUrl_('/accommodation/blue-dome/', 'https://www.resort-glamping.com/accommodation/'),
+  'https://www.resort-glamping.com/accommodation/blue-dome/'
+);
+assert.strictEqual(
+  gasUrlContext.resolveSourcePageUrl_('../contact/?from=list#form', 'https://www.resort-glamping.com/accommodation/blue-dome/'),
+  'https://www.resort-glamping.com/accommodation/contact/?from=list'
+);
+assert.strictEqual(
+  gasUrlContext.resolveSourcePageUrl_('//www.dome-blue.com/', 'https://www.resort-glamping.com/accommodation/blue-dome/'),
+  'https://www.dome-blue.com/'
+);
+assert.strictEqual(
+  gasUrlContext.extractFirstOfficialLinkFromHtml_(
+    '<a href="https://www.dome-blue.com/">公式サイト</a>',
+    'https://www.resort-glamping.com/accommodation/blue-dome/',
+    'resort-glamping.com'
+  ),
+  'https://www.dome-blue.com/'
+);
+const resortPageWithManyLinks = Array.from({ length: 550 }, (_, index) =>
+  `<a href="/menu/${index + 1}/">メニュー${index + 1}</a>`
+).join('') +
+  '<a href="https://www.kobe-glamping.com/" class="nobdr clickBtn_accommodation_site" id="sitebtn_click">公式サイト</a>';
+assert.strictEqual(
+  gasUrlContext.extractHtmlLinks_(
+    resortPageWithManyLinks,
+    'https://www.resort-glamping.com/accommodation/glampdome-kobetenku/'
+  ).length,
+  500,
+  'generic link extraction remains bounded'
+);
+assert.strictEqual(
+  gasUrlContext.extractFirstOfficialLinkFromHtml_(
+    resortPageWithManyLinks,
+    'https://www.resort-glamping.com/accommodation/glampdome-kobetenku/',
+    'resort-glamping.com'
+  ),
+  'https://www.kobe-glamping.com/',
+  'explicit official links must be found even after the generic 500-link cap'
+);
+assert.strictEqual(
+  gasUrlContext.extractResortGlampingSitemapCandidates_(
+    '<urlset><url><loc>https://www.resort-glamping.com/accommodation/blue-dome/</loc></url></urlset>',
+    'https://www.resort-glamping.com/accommodation/',
+    10
+  )[0].source_id,
+  'resort_glamping:blue-dome'
+);
+assert.strictEqual(sourceLockContext.sourcePageSiteIdentityKey_('https://resort-glamping.com'), 'preset:resort_glamping');
+assert.strictEqual(sourceLockContext.sourcePageSiteIdentityKey_('https://www.resort-glamping.com/'), 'preset:resort_glamping');
+assert.strictEqual(sourceLockContext.sourcePageSiteIdentityKey_('https://www.resort-glamping.com/accommodation/'), 'preset:resort_glamping');
+const deduplicatedResortGlampingSites = JSON.parse(JSON.stringify(sourceLockContext.buildSourcePageStatusSites_(
+  [{ id: 'saved-resort', label: 'リゾグラ', url: 'https://www.resort-glamping.com/', sitePreset: 'resort_glamping' }],
+  [
+    {
+      job: { id: 'root-job', job_type: 'source_page', updated_at: '2026-07-26T19:00:00+09:00' },
+      payload: { source_url: 'https://resort-glamping.com' },
+    },
+    {
+      job: { id: 'list-job', job_type: 'source_page', updated_at: '2026-07-26T20:00:00+09:00' },
+      payload: {
+        source_url: 'https://www.resort-glamping.com/',
+        items: [{
+          source_url: 'https://www.resort-glamping.com/',
+          collection_url: 'https://www.resort-glamping.com/accommodation/',
+          site_preset: 'resort_glamping',
+        }],
+      },
+    },
+  ],
+)));
+assert.strictEqual(deduplicatedResortGlampingSites.length, 1);
+assert.strictEqual(deduplicatedResortGlampingSites[0].id, 'saved-resort');
+const correctedResortGlampingSites = JSON.parse(JSON.stringify(sourceLockContext.buildSourcePageStatusSites_(
+  [],
+  [{
+    job: { id: 'running-resort', job_type: 'source_page', status: 'running', updated_at: '2026-07-28T00:31:19+09:00' },
+    payload: {
+      source_url: 'https://www.resort-glamping.com/',
+      label: 'nap-camp.com',
+      site_preset: 'resort_glamping',
+      items: [{
+        source_url: 'https://www.resort-glamping.com/',
+        label: 'nap-camp.com',
+        site_preset: 'resort_glamping',
+        crawl_all: true,
+      }],
+    },
+  }],
+)));
+assert.strictEqual(correctedResortGlampingSites[0].label, 'resort-glamping.com');
+const correctedRunningResortProgress = sourceLockContext.buildSourcePageJobProgress_({
+  id: 'b2b44ffe-46d7-4119-bd6e-d91ea619a00d',
+  job_type: 'source_page',
+  status: 'running',
+  progress_json: '{"processedTargets":62,"totalTargets":403}',
+  updated_at: '2026-07-28T00:31:19+09:00',
+}, {
+  source_url: 'https://www.resort-glamping.com/',
+  label: 'nap-camp.com',
+  site_preset: 'resort_glamping',
+  items: [{
+    source_url: 'https://www.resort-glamping.com/',
+    label: 'nap-camp.com',
+    site_preset: 'resort_glamping',
+  }],
+});
+assert.strictEqual(correctedRunningResortProgress.label, 'resort-glamping.com');
+const noCandidateJobProgress = sourceLockContext.buildSourcePageJobProgress_({
+  id: 'empty-source-page',
+  job_type: 'source_page',
+  status: 'completed',
+  total_count: 1,
+  processed_count: 1,
+  updated_at: '2026-07-26T19:07:51+09:00',
+}, {
+  job_type: 'source_page',
+  source_url: 'https://resort-glamping.com',
+  total_candidates: 0,
+  items: [{ source_url: 'https://resort-glamping.com' }],
+});
+assert.strictEqual(noCandidateJobProgress.statusLabel, '候補未検出');
+assert.strictEqual(noCandidateJobProgress.processedTargets, 0);
+assert.strictEqual(noCandidateJobProgress.totalTargets, 0);
+assert.strictEqual(noCandidateJobProgress.percent, 0);
+assert.match(noCandidateJobProgress.lastError, /施設候補を抽出できません/);
+assert.throws(
+  () => sourceLockContext.processSourcePageSearchItem_(
+    { source_url: 'https://empty-directory.example/list', label: '空の一覧' },
+    { job_type: 'source_page', results_per_query: 10, crawl_all: false },
+    'empty-source-job',
+    {},
+  ),
+  /施設候補を抽出できません/,
+  'an empty source page must fail visibly instead of completing as one processed URL',
+);
+assert.strictEqual(sourceResultPayloads[sourceResultPayloads.length - 1].resultType, 'source_page_empty');
 
 assert.strictEqual(sourceLockContext.isLeadReviewPending_({
   source: 'source_page', status: '未対応', website_url: '', email: '', form_url: '',
@@ -2821,6 +3730,98 @@ assert.strictEqual(sourceLockContext.isLeadReviewPending_({
 assert.strictEqual(sourceLockContext.isLeadReviewPending_({
   source: 'source_page', status: '未対応', website_url: 'https://camp.example/', email: '', form_url: '',
 }), true);
+assert.strictEqual(sourceLockContext.normalizeUrl_('resort-glamping.com'), 'https://resort-glamping.com');
+const existingClosedReviewLead = {
+  source: 'source_page',
+  status: '未対応',
+  company_name: '【R8/3現在 閉鎖】伊豆キャンパーズヴィレッジ',
+  facility_name: '【R8/3現在 閉鎖】伊豆キャンパーズヴィレッジ',
+  website_url: 'https://closed-camp.example/',
+  email: 'info@closed-camp.example',
+  form_url: 'https://closed-camp.example/contact',
+  deal_status: '未設定',
+};
+assert.strictEqual(sourceLockContext.isClearlyClosedLead_(existingClosedReviewLead), true);
+assert.strictEqual(sourceLockContext.isLeadReviewPending_(existingClosedReviewLead), false, 'existing closed labels must disappear from the review queue');
+assert.strictEqual(sourceLockContext.classifyLeadListState_(existingClosedReviewLead, {}), 'no_action', 'closed review records must be treated as no-action, not as another review state');
+assert.match(sourceLockContext.getEmailSendTargetBlockReason_(existingClosedReviewLead, {}), /閉鎖・営業終了/);
+assert.match(sourceLockContext.getFormSendTargetBlockReason_(existingClosedReviewLead, {}), /閉鎖・営業終了/);
+assert.strictEqual(sourceLockContext.isFormOutreachLead_(existingClosedReviewLead), false);
+assert.throws(
+  () => sourceLockContext.assertCalendarInviteAllowed_(existingClosedReviewLead, 'info@closed-camp.example'),
+  /閉鎖・営業終了/
+);
+const existingSuspendedReviewLead = {
+  source: 'source_page',
+  status: '未対応',
+  company_name: '【R3.12 休業】森の家キャンプ場',
+  facility_name: '【R3.12 休業】森の家キャンプ場',
+  website_url: 'https://takamori.camp/',
+  email: 'info@takamori.camp',
+  form_url: '',
+  deal_status: '未設定',
+};
+assert.strictEqual(sourceLockContext.isSuspendedLeadTitle_(existingSuspendedReviewLead), true);
+assert.strictEqual(sourceLockContext.isClearlyClosedLead_(existingSuspendedReviewLead), true);
+assert.strictEqual(sourceLockContext.isLeadReviewPending_(existingSuspendedReviewLead), false, '休業 labels must disappear from the review queue');
+assert.strictEqual(sourceLockContext.classifyLeadListState_(existingSuspendedReviewLead, {}), 'no_action');
+assert.match(sourceLockContext.getEmailSendTargetBlockReason_(existingSuspendedReviewLead, {}), /休業/);
+const existingBrokenLinkLead = {
+  source: 'source_page',
+  status: '未対応',
+  company_name: 'リンク切れ施設',
+  facility_name: 'リンク切れ施設',
+  website_url: 'https://missing-host.example/',
+  email: 'info@missing-host.example',
+  form_url: 'https://missing-host.example/contact',
+  deal_status: '未設定',
+  source_payload_json: JSON.stringify({
+    contact_error: 'Exception: DNS error: https://missing-host.example/',
+  }),
+};
+assert.strictEqual(sourceLockContext.isDefinitiveBrokenLinkError_('Source page fetch failed: HTTP 404'), true);
+assert.strictEqual(sourceLockContext.isDefinitiveBrokenLinkError_('Exception: DNS error: host not found'), true);
+assert.strictEqual(sourceLockContext.isDefinitiveBrokenLinkError_('SSL certificate verify failed'), true);
+assert.strictEqual(sourceLockContext.isDefinitiveBrokenLinkError_('Exception: Address unavailable: https://missing-host.example/'), true);
+assert.strictEqual(sourceLockContext.isDefinitiveBrokenLinkError_('Exception: Invalid argument: url'), true);
+assert.strictEqual(sourceLockContext.isDefinitiveBrokenLinkError_('Source page fetch failed: HTTP 403'), false);
+assert.strictEqual(sourceLockContext.isDefinitiveBrokenLinkError_('Source page fetch failed: HTTP 429'), false);
+assert.strictEqual(sourceLockContext.isDefinitiveBrokenLinkError_('Source page fetch failed: HTTP 503'), false);
+assert.strictEqual(sourceLockContext.isDefinitiveBrokenLinkError_('Source page fetch failed: timeout'), false);
+assert.strictEqual(sourceLockContext.isVerifiedBrokenReviewFinding_({ statusCode: 404, reason: 'HTTP 404' }), true);
+assert.strictEqual(sourceLockContext.isVerifiedBrokenReviewFinding_({ reason: 'Exception: DNS error: host not found' }), true);
+assert.strictEqual(sourceLockContext.isVerifiedBrokenReviewFinding_({ statusCode: 503, reason: 'HTTP 503' }), false);
+assert.strictEqual(sourceLockContext.isVerifiedBrokenReviewFinding_({ reason: 'timeout' }), false);
+assert.strictEqual(sourceLockContext.isBrokenReviewLeadCleanupCandidate_(existingBrokenLinkLead), true);
+let centralizedAvailabilityChecks = 0;
+sourceLockContext.inspectProspectingSiteAvailability_ = () => {
+  centralizedAvailabilityChecks += 1;
+  return { closed: false, broken: true, reason: 'DNS error: host not found' };
+};
+assert.throws(
+  () => sourceLockContext.assertAutomatedLeadSiteAvailableBeforeCreate_(existingBrokenLinkLead, {}),
+  /確認待ちリストへ追加しませんでした/
+);
+assert.strictEqual(centralizedAvailabilityChecks, 1);
+assert.strictEqual(sourceLockContext.assertAutomatedLeadSiteAvailableBeforeCreate_(existingBrokenLinkLead, { siteAvailabilityChecked: true }), true);
+assert.strictEqual(centralizedAvailabilityChecks, 1, 'already checked collection paths must not fetch the same URL twice');
+assert.strictEqual(sourceLockContext.assertAutomatedLeadSiteAvailableBeforeCreate_({ source: 'manual', website_url: 'https://missing-host.example/' }, {}), true);
+assert.strictEqual(centralizedAvailabilityChecks, 1, 'manual leads must not be blocked by the automated collection guard');
+assert.strictEqual(sourceLockContext.isLeadLinkDefinitelyBroken_(existingBrokenLinkLead), true);
+assert.strictEqual(sourceLockContext.isLeadReviewPending_(existingBrokenLinkLead), false, 'saved definitive fetch errors must disappear from the review queue');
+assert.strictEqual(sourceLockContext.classifyLeadListState_(existingBrokenLinkLead, {}), 'no_action', 'broken-link records must be treated as no-action');
+assert.match(sourceLockContext.getEmailSendTargetBlockReason_(existingBrokenLinkLead, {}), /リンク切れ/);
+assert.match(sourceLockContext.getFormSendTargetBlockReason_(existingBrokenLinkLead, {}), /リンク切れ/);
+assert.strictEqual(sourceLockContext.isFormOutreachLead_(existingBrokenLinkLead), false);
+assert.throws(
+  () => sourceLockContext.assertCalendarInviteAllowed_(existingBrokenLinkLead, 'info@missing-host.example'),
+  /リンク切れ/
+);
+assert(sourceLockContext.normalizeListOptions_({ filter: 'review' }).includeFields.includes('source_payload_json'));
+assert.strictEqual(sourceLockContext.isClearlyClosedLead_({
+  company_name: '旧店舗は閉店しましたが新店舗へ移転して営業中',
+  facility_name: 'サンプルキャンプ場',
+}), false, 'active relocated businesses must stay eligible');
 assert.strictEqual(sourceLockContext.isLikelyOfficialCandidateUrl_('https://camp-go.com/camps/example', ''), false);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://yamagatakanko.com/attractions/detail_234.html'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://kankou-hamada.or.jp/guidepost/6434'), true);
@@ -2838,6 +3839,31 @@ assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.m
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://web-odai.info/stay/stay-133.html'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://gozashirahama.com/'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.kankomie.or.jp/spot/3483'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://tomikan.jp/area/yunomaru-shigeno/yunomarucampsite/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.doshi-kanko.jp/camp/shimomura/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://odekake-wanko-bu.com/spot/mbs_camp/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.chichibuji.gr.jp/experience/camp-syousai30/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.honda.co.jp/dog/travel/data/aruba/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://nakagawatourism.com/napautopark'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://togakushi-21.jp/spot/362/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://campet.net/region/koshinetsu/1019'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://tateyamacity.com/activities/cimatateyama/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.maebashi-cvb.com/spot/8517'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.hakobura.jp/spots/314'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://tabirai.net/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://wankonowa.com/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.cm-boso.com/member_256.html'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://japancamp.jp/camp_search/camp-147/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.niwadandyism.top/9363'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://tonosoto.com/27181/'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://touring.hokkaido.world/?p=98'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://example-camper.ameblo.jp/entry-1.html'), true);
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://official-camp.amebaownd.com/'), false, 'website builders used by facility operators must remain eligible');
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.motosuko-camp.com/'), false, 'a facility-specific official site must remain eligible even when operated by a tourism association');
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://wakasugicamp.sasagurikanko.com/'), false, 'a facility-specific tourism-association subdomain must remain eligible');
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://narukokankouhotel.co.jp/'), false, 'a hotel name containing kankou must remain eligible');
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.nihonalpskankou.com/'), false, 'an operator site containing kankou must remain eligible');
+assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://salps36.com/'), false, 'an official lodging site with guide articles must remain eligible');
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.bunto.com/shisetsu/?p=401'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://tp.furunavi.jp/Plan/Detail?plId=10332'), true);
 assert.strictEqual(sourceLockContext.isKnownNonAdvertiserLeadUrl_('https://www.katch.co.jp/community/kinjo/arekore/arekore324/'), true);
@@ -2861,6 +3887,11 @@ const selectedOfficial = sourceLockContext.selectLeadSearchResult_([
   { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora.example/', snippet: '星空キャンプ場' },
 ], 'lead_official_site', { company_name: '星空キャンプ場' });
 assert.strictEqual(selectedOfficial.url, 'https://hoshizora.example/');
+const selectedAfterClosedResult = sourceLockContext.selectLeadSearchResult_([
+  { title: '星空キャンプ場は営業を終了しました', link: 'https://hoshizora-closed.example/', snippet: '長年のご利用ありがとうございました。' },
+  { title: '星空キャンプ場 新公式サイト', link: 'https://hoshizora-active.example/', snippet: '予約・お問い合わせ受付中' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedAfterClosedResult.url, 'https://hoshizora-active.example/', 'closed search results must not be selected as official sites');
 const selectedAdvertiserSite = sourceLockContext.selectLeadSearchResult_([
   { title: '志津野営場 観光スポット', link: 'https://yamagatakanko.com/attractions/detail_234.html', snippet: '山形県観光情報ポータル' },
   { title: '山形県志津野営場の概要', link: 'https://www.pref.yamagata.jp/050011/kurashi/shizen/koen/shiduyaeiguide.html', snippet: '山形県公式サイト' },
@@ -2908,6 +3939,61 @@ assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
 assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
   title: '星空キャンプ場のお知らせ', link: 'https://operator.example/community/', snippet: 'ご利用案内と予約',
 }), false, 'an operator community path without editorial context must remain eligible');
+assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
+  title: '湯の丸キャンプ場 – 一般社団法人 信州とうみ観光協会',
+  link: 'https://regional.example/area/yunomaru/camp/',
+  snippet: '観光協会による施設紹介',
+}), true, 'tourism-association area pages must be excluded');
+assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
+  title: 'ログ貸別荘 | 北海道 | おでかけ情報',
+  link: 'https://www.honda.co.jp/dog/travel/data/aruba/',
+  snippet: '旅行者向けの紹介記事',
+}), true, 'tourism content hosted under a broader corporate domain must be excluded by path');
+assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
+  title: 'CIMAたてやま体験センター | 南房総館山の体験観光35選',
+  link: 'https://unknown-local-media.example/activities/cimatateyama/',
+  snippet: '公式サイトはこちら',
+}), true, 'tourism guide list pages must be excluded even when the domain has no tourism token');
+assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
+  title: '南アルプス36 公式サイト',
+  link: 'https://salps36.com/guide/',
+  snippet: '宿泊棟の利用案内',
+}), false, 'an official operator guide page must not be excluded by its path alone');
+assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
+  title: 'ASHIGAWA CAMPING SITE 芦川オートキャンプ場',
+  link: 'https://directory.example/camp_search/camp-147/',
+  snippet: '山梨県笛吹市のキャンプ場情報',
+}), true, 'camp-search directory detail pages must be excluded even when search snippets look like official facilities');
+assert.strictEqual(sourceLockContext.isTourismAssociationListingSearchResult_({
+  title: '星空キャンプ場 公式サイト',
+  link: 'https://operator.example/camp/',
+  snippet: '宿泊予約・お問い合わせ',
+}), false, 'an operator camp page must remain eligible without directory evidence');
+assert.strictEqual(sourceLockContext.isBlogOrEditorialSearchResult_({
+  title: '星空キャンプ場へ行ってきました',
+  link: 'https://camper-life.example/2026/07/20/hoshizora/',
+  snippet: 'ソロキャンプ体験記。場内の様子をレポートします。',
+}), true, 'personal experience articles must not be selected as official sites');
+assert.strictEqual(sourceLockContext.isBlogOrEditorialSearchResult_({
+  title: '地域の宿を紹介するローカルWebマガジン',
+  link: 'https://local-story.example/',
+  snippet: '編集部とライターが各地の施設を取材します。',
+}), true, 'editorial media homepages must be excluded without relying on a known domain');
+assert.strictEqual(sourceLockContext.isBlogOrEditorialSearchResult_({
+  title: '星空キャンプ場 公式サイト',
+  link: 'https://operator.example/2026/07/20/summer-event/',
+  snippet: '夏イベントのお知らせ。宿泊予約・お問い合わせ受付中です。',
+}), false, 'a dated page on an operator site must not be rejected by URL structure alone');
+const selectedAfterBlogArticle = sourceLockContext.selectLeadSearchResult_([
+  { title: '星空キャンプ場に行ってきました', link: 'https://camper-life.example/9363/', snippet: 'キャンプ場体験記と徹底レビュー' },
+  { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-blog-guard.example/', snippet: '宿泊予約・お問い合わせ' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedAfterBlogArticle.url, 'https://hoshizora-blog-guard.example/');
+const selectedAfterCampDirectory = sourceLockContext.selectLeadSearchResult_([
+  { title: '星空キャンプ場', link: 'https://directory.example/camp_search/camp-999/', snippet: 'キャンプ場情報' },
+  { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-direct.example/', snippet: '宿泊予約・お問い合わせ' },
+], 'lead_official_site', { company_name: '星空キャンプ場' });
+assert.strictEqual(selectedAfterCampDirectory.url, 'https://hoshizora-direct.example/');
 const selectedAfterNationwideDirectory = sourceLockContext.selectLeadSearchResult_([
   { title: 'Best Campsites in Japan | Search 6,200+ Spots', link: 'https://national-directory.example/', snippet: 'Every campsite in Japan on one map' },
   { title: '星空キャンプ場 公式サイト', link: 'https://hoshizora-direct.example/', snippet: '宿泊予約・お問い合わせ' },
@@ -3053,7 +4139,7 @@ const releasedClaim = searchReviewContext.releaseSearchResultLeadCreationClaim_(
 assert.strictEqual(releasedClaim.review_status, 'unconfirmed');
 assert.strictEqual(releasedClaim.review_action, '');
 
-searchReviewContext.createLead = () => { throw new Error('simulated create failure'); };
+searchReviewContext.createLeadWithLockOptions_ = () => { throw new Error('simulated create failure'); };
 assert.throws(() => searchReviewContext.addSearchResultToLead('result-failure', {}), /simulated create failure/);
 assert.strictEqual(searchReviewRecords['result-failure'].review_status, 'unconfirmed', 'a failed create must release its claim');
 assert.strictEqual(searchReviewRecords['result-failure'].review_action, '');
@@ -3134,7 +4220,411 @@ const codeSource = fs.readFileSync(path.join(root, 'Code.gs'), 'utf8');
 const emailSource = fs.readFileSync(path.join(root, 'Email.gs'), 'utf8');
 const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
-assert(codeSource.includes('20260720_apps_script_full_workflow_v274_review_genre_edit'));
+const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
+const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
+assert(codeSource.includes('20260802_apps_script_full_workflow_v326_review_workspace'));
+const appInfoContext = vm.createContext({ console });
+vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
+appInfoContext.PropertiesService = {
+  getScriptProperties: () => ({ getProperty: () => 'stored-spreadsheet-id' }),
+};
+appInfoContext.CacheService = {
+  getScriptCache: () => ({ get: () => null }),
+};
+appInfoContext.getOrCreateSpreadsheet_ = () => {
+  throw new Error('getAppInfo must not open SpreadsheetApp when SPREADSHEET_ID is already stored');
+};
+const fastAppInfo = appInfoContext.getAppInfo();
+assert.strictEqual(fastAppInfo.spreadsheetId, 'stored-spreadsheet-id');
+assert.strictEqual(fastAppInfo.spreadsheetUrl, 'https://docs.google.com/spreadsheets/d/stored-spreadsheet-id');
+assert(indexSource.includes('v276-guided-collection-ui'));
+assert(indexSource.includes('v277-collection-focus-mode'));
+assert(indexSource.includes('v278-universal-source-collection'));
+assert(indexSource.includes('v281-source-page-reference-fidelity'));
+assert(!indexSource.includes('https://'), 'Index.html must not contain a raw https:// literal because Apps Script HTML delivery truncates inline template markup after it');
+assert(indexSource.includes('営業先をどう探しますか？'));
+assert(indexSource.includes('class="collection-flow-guide"'));
+assert(indexSource.includes('class="collection-guided-form"'));
+assert(indexSource.includes("target.classList.toggle('is-collection-active', !isOverview)"));
+assert(indexSource.includes("document.body.classList.toggle('collection-source-focus', focused)"));
+assert(indexSource.includes('function updateCollectionFocusMode()'));
+assert(indexSource.includes('function sourcePageUrlRequiresFullCrawl(value)'));
+assert(indexSource.includes("hostname === 'resort-glamping.com'"));
+assert(indexSource.includes('function renderCollectionAlternativeMethods(methodsOpen)'));
+assert(indexSource.includes('function renderSectionLoading(name)'));
+assert(indexSource.includes('取得が完了すると、この画面を自動で更新します。'));
+assert(indexSource.includes("document.querySelector('.source-page-minimal-route')"));
+assert(indexSource.includes('メール・ドメイン・会社名のいずれか1つを入力してください。'));
+assert(indexSource.includes('画面を閉じても継続'));
+assert(!indexSource.includes('POST / doPost startLeadCsvImport'));
+assert(!indexSource.includes('class="background-center-button"'));
+const collectionCommandCenterSource = indexSource.slice(
+  indexSource.indexOf('function renderCollectionCommandCenter(info)'),
+  indexSource.indexOf('function renderCollectionStatusStrip('),
+);
+assert(collectionCommandCenterSource.indexOf('renderCollectionTabPanel(activeTab, searchReady, dashboard)') < collectionCommandCenterSource.lastIndexOf('renderCollectionStatusStrip(searxng, reviewTargets, autoSettings)'), 'active collection form must render before the secondary status strip');
+assert(collectionCommandCenterSource.includes("if (!isOverview && activeTab === 'sourcePage')"), 'source-page estimate refresh must remain inside renderCollectionCommandCenter where its route state is defined');
+const searchActivityPanelSource = indexSource.slice(
+  indexSource.indexOf('function renderSearchActivityPanel()'),
+  indexSource.indexOf('function renderProspectingProgressDashboard()'),
+);
+assert(!searchActivityPanelSource.includes('isOverview'), 'search activity rendering must not reference collection-only route state');
+assert(!searchActivityPanelSource.includes('activeTab'), 'search activity rendering must not reference collection-only activeTab');
+assert(indexSource.includes('class="collection-route-back"'));
+assert(indexSource.includes('tabindex="-1"'));
+assert(indexSource.includes('業種・地域から探す'));
+assert(indexSource.includes('一覧ページから取り込む'));
+assert(indexSource.includes('function renderCollectionLastResult()'));
+assert(indexSource.includes('この条件で収集を開始'));
+assert(indexSource.includes('id="sourcePageSubmitButton"'));
+assert(indexSource.includes('class="source-page-field-heading">ソースを選択'));
+assert(indexSource.includes('class="source-page-source-selector" role="group" aria-label="一覧ページの入力方法"'));
+assert(indexSource.includes('aria-pressed="${inputMode === \'new\' ? \'true\' : \'false\'}"'));
+assert(!indexSource.includes('class="source-page-source-selector" role="tablist"'), 'the source selector behaves as a two-option button group, not an incomplete ARIA tab widget');
+assert(indexSource.includes('body.modal-open'));
+assert(indexSource.includes('function getActiveModalDialog()'));
+assert(indexSource.includes('function keepFocusInsideDialog(event, dialog)'));
+assert(indexSource.includes('function closeActiveModalDialog()'));
+assert(indexSource.includes('function focusActiveSectionHeading(sectionId)'));
+assert(indexSource.includes('focusActiveSectionHeading(name);'));
+assert(indexSource.includes('.section-header h1:focus-visible'));
+assert(indexSource.includes('function focusTaskCenterClose()'));
+assert(indexSource.includes('closeTaskCenter({ restoreFocus: false });'));
+assert(indexSource.includes('aria-labelledby="templateEditDialogTitle" tabindex="-1"'));
+assert(indexSource.includes('aria-labelledby="templateTestDialogTitle" tabindex="-1"'));
+assert(indexSource.includes('aria-labelledby="emailBatchConfirmTitle" tabindex="-1"'));
+assert(indexSource.includes('id="leadDetailDialog" class="lead-detail-backdrop"'));
+assert(indexSource.includes('aria-labelledby="leadFormTitle" tabindex="-1"'));
+assert(indexSource.includes('id="adminSettingsSearch" type="search" aria-label="設定を検索"'));
+assert(indexSource.includes('id="templateTestTo" type="email" aria-label="テスト送信先"'));
+assert(indexSource.includes('id="jobResultEmail_${escapeHtml(item.id)}" inputmode="email" aria-label='));
+assert(indexSource.includes('id="jobResultForm_${escapeHtml(item.id)}" inputmode="url" aria-label='));
+assert(indexSource.includes('id="genreEditName_${escapeHtml(genre.id)}" aria-label="ジャンル名を編集"'));
+assert(indexSource.includes('id="genreEditDescription_${escapeHtml(genre.id)}" aria-label="ジャンルの説明を編集"'));
+assert(indexSource.includes('id="reasonEditName_${escapeHtml(reason.id)}" aria-label="理由名を編集"'));
+assert(indexSource.includes('id="reasonEditDescription_${escapeHtml(reason.id)}" aria-label="理由の説明を編集"'));
+assert(indexSource.includes("scope.matches('[data-ui-icon]')"), 'dynamic icon hydration must also handle an inserted icon node itself');
+assert(indexSource.includes('hydrateLegacyUtilityIcons(root);'), 'newly rendered controls must receive their utility icons');
+assert(indexSource.includes("title: '確認待ちの営業先はありません'"));
+assert(indexSource.includes("actionLabel: '営業先を収集'"));
+assert(indexSource.includes("title: '条件に一致する営業先はありません'"));
+assert(indexSource.includes("actionLabel: '検索条件をクリア'"));
+assert(indexSource.includes("title: 'テンプレートはまだありません'"));
+assert(indexSource.includes("actionLabel: 'テンプレートを作成'"));
+assert(indexSource.includes("emptyLabel.setAttribute('role', 'status')"));
+assert(indexSource.includes("title: 'バックグラウンド処理はありません'"));
+assert(indexSource.includes("title: '送信できる営業先はありません'"));
+assert(indexSource.includes("title: '同期履歴はまだありません'"));
+assert(indexSource.includes("scope.closest('table')"), 'empty-state enhancement must reach the parent table when tbody or a row is inserted');
+assert(indexSource.includes('class="section-load-error"') || indexSource.includes("className = 'section-load-error'"));
+assert(indexSource.includes("renderSectionLoadError(name, error);"), 'deferred screen failures must expose a local retry action');
+assert(indexSource.includes("if (!state.hasCompletedInitialLoad) await refreshAll();"), 'startup retry must reload the initial application data');
+assert(indexSource.includes("renderSectionLoadError(currentTab || 'reviewLeads', error);"), 'startup failures must expose the same persistent recovery action');
+const hydrateUtilityIconsSource = indexSource.slice(
+  indexSource.indexOf('function hydrateLegacyUtilityIcons(root)'),
+  indexSource.indexOf('function enhancePageHeaders()', indexSource.indexOf('function hydrateLegacyUtilityIcons(root)')),
+);
+const dynamicIconContext = {
+  document: { nodeType: 9, querySelectorAll: () => [] },
+  legacyUiIcon: (key) => `<svg data-test-icon="${key}"></svg>`,
+};
+vm.runInNewContext(`${hydrateUtilityIconsSource}; this.hydrateLegacyUtilityIcons = hydrateLegacyUtilityIcons;`, dynamicIconContext);
+const dynamicIconTarget = {
+  nodeType: 1,
+  innerHTML: '',
+  matches: (selector) => selector === '[data-ui-icon]',
+  querySelectorAll: () => [],
+  getAttribute: () => 'checkCircle',
+  removeAttribute: function removeAttribute() { this.removed = true; },
+  classList: { add: function add(value) { this.value = value; } },
+};
+dynamicIconContext.hydrateLegacyUtilityIcons(dynamicIconTarget);
+assert(dynamicIconTarget.innerHTML.includes('checkCircle'), 'an inserted icon node must be hydrated even when it is the mutation root');
+assert.strictEqual(dynamicIconTarget.classList.value, 'button-icon');
+assert.strictEqual(dynamicIconTarget.removed, true);
+
+const enhanceEmptyTableStatesSource = indexSource.slice(
+  indexSource.indexOf('function enhanceEmptyTableStates(root)'),
+  indexSource.indexOf('function initializeDesignSystem()', indexSource.indexOf('function enhanceEmptyTableStates(root)')),
+);
+const configuredEmptyTableIds = Array.from(enhanceEmptyTableStatesSource.matchAll(/^\s+([A-Za-z][\w]*Table): \{/gm), (match) => match[1]);
+configuredEmptyTableIds.forEach((tableId) => {
+  assert(indexSource.includes(`id="${tableId}"`), `guided empty state references missing table ${tableId}`);
+});
+const legacyIconRegistrySource = indexSource.slice(
+  indexSource.indexOf('const LEGACY_UI_ICON_SVGS'),
+  indexSource.indexOf('function legacyUiIcon(key)'),
+);
+const legacyIconKeys = new Set(Array.from(legacyIconRegistrySource.matchAll(/^\s+([A-Za-z][\w]*):/gm), (match) => match[1]));
+Array.from(enhanceEmptyTableStatesSource.matchAll(/icon: '([^']+)'/g), (match) => match[1]).forEach((iconKey) => {
+  assert(legacyIconKeys.has(iconKey), `guided empty state references missing icon ${iconKey}`);
+});
+const emptyStateButtons = [];
+let emptyStateNavigation = '';
+const emptyStateContext = {
+  document: {
+    createElement: () => {
+      const button = {
+        type: '',
+        className: '',
+        textContent: '',
+        addEventListener: function addEventListener(_event, action) { this.action = action; },
+      };
+      emptyStateButtons.push(button);
+      return button;
+    },
+  },
+  legacyUiIcon: (key) => `<svg data-test-icon="${key}"></svg>`,
+  escapeHtml: (value) => String(value),
+  showTab: (name) => { emptyStateNavigation = name; },
+  clearLeadFilters: () => {},
+  newTemplate: () => {},
+  setLeadFilter: () => {},
+};
+vm.runInNewContext(`${enhanceEmptyTableStatesSource}; this.enhanceEmptyTableStates = enhanceEmptyTableStates;`, emptyStateContext);
+const emptyStateLabel = {
+  dataset: {},
+  textContent: 'データがありません',
+  className: '',
+  innerHTML: '',
+  attributes: {},
+  setAttribute: function setAttribute(name, value) { this.attributes[name] = value; },
+  appendChild: function appendChild(child) { this.child = child; },
+};
+const emptyReviewTable = {
+  id: 'reviewLeadTable',
+  nodeType: 1,
+  matches: (selector) => selector === 'table',
+  querySelectorAll: () => [],
+  querySelector: () => emptyStateLabel,
+};
+emptyStateContext.enhanceEmptyTableStates(emptyReviewTable);
+assert.strictEqual(emptyStateLabel.dataset.emptyEnhanced, 'true');
+assert.strictEqual(emptyStateLabel.attributes.role, 'status');
+assert(emptyStateLabel.innerHTML.includes('確認待ちの営業先はありません'));
+assert.strictEqual(emptyStateLabel.child.textContent, '営業先を収集');
+emptyStateLabel.child.action();
+assert.strictEqual(emptyStateNavigation, 'search');
+const dynamicEmptyStateLabel = {
+  dataset: {},
+  textContent: 'データがありません',
+  className: '',
+  innerHTML: '',
+  attributes: {},
+  setAttribute: function setAttribute(name, value) { this.attributes[name] = value; },
+  appendChild: function appendChild(child) { this.child = child; },
+};
+const dynamicEmptyTable = {
+  id: 'sendingPlanTable',
+  querySelector: () => dynamicEmptyStateLabel,
+};
+const insertedTableBody = {
+  nodeType: 1,
+  matches: () => false,
+  closest: (selector) => selector === 'table' ? dynamicEmptyTable : null,
+  querySelectorAll: () => [],
+};
+emptyStateContext.enhanceEmptyTableStates(insertedTableBody);
+assert.strictEqual(dynamicEmptyStateLabel.dataset.emptyEnhanced, 'true', 'an inserted tbody must enhance its containing table');
+assert(dynamicEmptyStateLabel.innerHTML.includes('送信できる営業先はありません'));
+assert.strictEqual(dynamicEmptyStateLabel.child.textContent, '営業リストを見る');
+const customEmptyStateLabel = {
+  dataset: {},
+  textContent: '除外ドメインはまだ登録されていません',
+  className: '',
+  innerHTML: '',
+  attributes: {},
+  setAttribute: function setAttribute(name, value) { this.attributes[name] = value; },
+  appendChild: function appendChild(child) { this.child = child; },
+};
+const customEmptyTable = {
+  id: 'excludedTable',
+  nodeType: 1,
+  matches: (selector) => selector === 'table',
+  closest: () => null,
+  querySelectorAll: () => [],
+  querySelector: () => customEmptyStateLabel,
+};
+emptyStateContext.enhanceEmptyTableStates(customEmptyTable);
+assert.strictEqual(customEmptyStateLabel.dataset.emptyEnhanced, 'true', 'a configured table must enhance its custom empty copy');
+assert(customEmptyStateLabel.innerHTML.includes('除外サイトの登録はありません'));
+const sectionLoadErrorSource = indexSource.slice(
+  indexSource.indexOf('function sectionLoadErrorId(name)'),
+  indexSource.indexOf('function ensureDataLoaded(key, loader)'),
+);
+let insertedSectionError = null;
+const sectionLoadHeader = {
+  insertAdjacentElement: (_position, element) => { insertedSectionError = element; },
+};
+const sectionLoadSection = {
+  prepend: (element) => { insertedSectionError = element; },
+  querySelector: (selector) => selector === '.section-header' ? sectionLoadHeader : null,
+};
+const sectionLoadErrorContext = {
+  apiErrorText: (error) => error && error.message ? error.message : String(error || ''),
+  clearTimeout,
+  document: {
+    createElement: () => ({
+      attributes: {},
+      className: '',
+      id: '',
+      innerHTML: '',
+      setAttribute: function setAttribute(name, value) { this.attributes[name] = value; },
+    }),
+    getElementById: (id) => id === 'analytics' ? sectionLoadSection : null,
+  },
+  ensureTabDataLoaded: async () => {},
+  escapeHtml: (value) => String(value),
+  escapeJsString: (value) => String(value),
+  legacyUiIcon: (key) => `<svg data-test-icon="${key}"></svg>`,
+  setBusy: () => {},
+};
+vm.runInNewContext(`${sectionLoadErrorSource}; this.renderSectionLoadError = renderSectionLoadError;`, sectionLoadErrorContext);
+sectionLoadErrorContext.renderSectionLoadError('analytics', new Error('一時的に読み込めません'));
+assert(insertedSectionError, 'a failed screen load must insert a visible section error');
+assert.strictEqual(insertedSectionError.id, 'sectionLoadError_analytics');
+assert.strictEqual(insertedSectionError.attributes.role, 'alert');
+assert(insertedSectionError.innerHTML.includes('画面データを読み込めませんでした'));
+assert(insertedSectionError.innerHTML.includes("retrySectionLoad('analytics')"));
+assert(insertedSectionError.innerHTML.includes('一時的に読み込めません'));
+assert(indexSource.includes('--green: #087f5b;'));
+assert(indexSource.includes('--amber: #9a5b08;'));
+assert(/\.source-page-url-command input::placeholder\s*\{\s*color: var\(--muted\);/.test(indexSource), 'URL placeholder text must use the readable muted-text token');
+assert(!indexSource.includes('gmailStatusPills'), 'dead Gmail fallback must not reference a DOM node that is never rendered');
+assert(!indexSource.includes('Collection activity'));
+assert(!indexSource.includes('Send check'));
+const staticIdDefinitions = new Set(Array.from(indexSource.matchAll(/\bid\s*=\s*["']([A-Za-z][\w:-]*)["']/g), (match) => match[1]));
+const literalIdReferences = Array.from(indexSource.matchAll(/getElementById\(\s*['"]([A-Za-z][\w:-]*)['"]\s*\)/g), (match) => match[1]);
+assert.deepStrictEqual(
+  Array.from(new Set(literalIdReferences.filter((id) => !staticIdDefinitions.has(id)))).sort(),
+  [],
+  'literal getElementById references must resolve to a rendered DOM id',
+);
+const applicationSections = Array.from(indexSource.matchAll(/<section id="([^"]+)" class="section(?: active)?">/g), (match) => match[1]);
+assert.strictEqual(applicationSections.length, 20, 'the app-wide audit contract must cover all 20 routed screens');
+const tabLoaderSource = indexSource.slice(
+  indexSource.indexOf('async function ensureTabDataLoaded(name)'),
+  indexSource.indexOf('async function onCollectionSupportToggle', indexSource.indexOf('async function ensureTabDataLoaded(name)')),
+);
+const directlyLoadedTabs = Array.from(tabLoaderSource.matchAll(/name === '([^']+)'/g), (match) => match[1]);
+const groupedLoadedTabs = Array.from(tabLoaderSource.matchAll(/\[([^\]]+)\]\.includes\(name\)/g), (match) => (
+  Array.from(match[1].matchAll(/'([^']+)'/g), (item) => item[1])
+)).flat();
+assert.deepStrictEqual(
+  Array.from(new Set(directlyLoadedTabs.concat(groupedLoadedTabs))).sort(),
+  applicationSections.slice().sort(),
+  'every routed screen must have an explicit lazy-load/render branch',
+);
+const tabTitleSource = indexSource.slice(indexSource.indexOf('const TAB_TITLES'), indexSource.indexOf('const PAGE_DESCRIPTIONS'));
+const pageDescriptionSource = indexSource.slice(indexSource.indexOf('const PAGE_DESCRIPTIONS'), indexSource.indexOf('const RECENT_BACKGROUND_JOB_MS'));
+applicationSections.forEach((sectionId) => {
+  assert(new RegExp(`\\b${sectionId}\\s*:`).test(tabTitleSource), `${sectionId} must have a document title`);
+  assert(new RegExp(`\\b${sectionId}\\s*:`).test(pageDescriptionSource), `${sectionId} must have a concise task description`);
+  const sectionStart = indexSource.indexOf(`<section id="${sectionId}" class="section`);
+  const nextSectionStart = indexSource.indexOf('<section id="', sectionStart + 20);
+  const sectionMarkup = indexSource.slice(sectionStart, nextSectionStart > sectionStart ? nextSectionStart : indexSource.indexOf('</main>', sectionStart));
+  assert(sectionMarkup.includes('<h1>'), `${sectionId} must expose one visible page heading`);
+});
+const inlineClientMatch = indexSource.match(/<script>([\s\S]*?)<\/script>/);
+assert(inlineClientMatch, 'the application must expose one inline client script');
+const clientDeclarationSource = inlineClientMatch[1].replace(
+  /\n\s*hydrateLegacyNavigationIcons\(\);\s*\n\s*hydrateLegacyUtilityIcons\(\);\s*\n\s*initializeDesignSystem\(\);\s*\n\s*refreshAll\(\);\s*$/,
+  '',
+);
+const clientStorageMock = { getItem: () => null, setItem: () => {}, removeItem: () => {}, key: () => null, length: 0 };
+const clientDocumentMock = {
+  addEventListener: () => {},
+  createElement: () => ({
+    addEventListener: () => {},
+    appendChild: () => {},
+    classList: { add: () => {}, remove: () => {}, toggle: () => {} },
+    click: () => {},
+    dataset: {},
+    remove: () => {},
+    style: {},
+  }),
+  getElementById: () => null,
+  querySelector: () => null,
+  querySelectorAll: () => [],
+  body: { appendChild: () => {}, classList: { add: () => {}, remove: () => {}, toggle: () => {} } },
+};
+const clientWindowMock = {
+  addEventListener: () => {},
+  clearTimeout,
+  history: { pushState: () => {}, replaceState: () => {} },
+  location: { hash: '', search: '' },
+  requestAnimationFrame: (callback) => callback(),
+  scrollTo: () => {},
+  sessionStorage: clientStorageMock,
+  setTimeout,
+};
+clientWindowMock.window = clientWindowMock;
+const fullClientContext = vm.createContext({
+  Array,
+  Blob: class Blob {},
+  Boolean,
+  Date,
+  Intl,
+  JSON,
+  Map,
+  Math,
+  MutationObserver: class MutationObserver { observe() {} },
+  Number,
+  Object,
+  Promise,
+  RegExp,
+  Set,
+  String,
+  URL,
+  URLSearchParams,
+  clearTimeout,
+  console,
+  document: clientDocumentMock,
+  setTimeout,
+  window: clientWindowMock,
+});
+vm.runInContext(clientDeclarationSource, fullClientContext, { filename: 'Index.inline.runtime.js' });
+[
+  'ensureTabDataLoaded',
+  'renderAdminScreen',
+  'renderAnalyticsScreen',
+  'renderBackgroundActivityScreen',
+  'renderBackgroundJobsScreen',
+  'renderDealsScreen',
+  'renderErrorDetailsScreen',
+  'renderGmailScreen',
+  'renderHistoriesScreen',
+  'renderOpsReadinessPanel',
+  'renderSyncScreen',
+  'showTab',
+].forEach((functionName) => {
+  assert.strictEqual(typeof fullClientContext[functionName], 'function', `${functionName} must remain callable at application scope`);
+});
+const clientFunctionDefinitions = new Set(Array.from(indexSource.matchAll(/\b(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g), (match) => match[1]));
+const inlineHandlerAttributes = Array.from(indexSource.matchAll(/\bon(?:click|change|submit|input|toggle|keydown|keyup|blur|focus)\s*=\s*(["'])(.*?)\1/g), (match) => match[2]);
+const inlineHandlerCalls = inlineHandlerAttributes.flatMap((handler) => Array.from(handler.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g), (match) => match[1]));
+const nativeInlineCalls = new Set(['alert', 'confirm', 'focus', 'getElementById', 'Number', 'preventDefault', 'scrollIntoView', 'stopPropagation', 'String', 'test']);
+assert.deepStrictEqual(
+  Array.from(new Set(inlineHandlerCalls.filter((name) => !clientFunctionDefinitions.has(name) && !nativeInlineCalls.has(name)))).sort(),
+  [],
+  'every inline UI action must resolve to a client function or a known browser method',
+);
+assert(indexSource.includes('<input id="sourcePageUrls" type="text" inputmode="url" aria-label="一覧ページのURL"'));
+assert(!indexSource.includes('<textarea id="sourcePageUrls"'), 'source page URL must use a closed single-line input so following HTML cannot be swallowed');
+assert(indexSource.includes('class="source-page-conditions-stack"'));
+assert(indexSource.includes('収集を開始</button>'));
+assert(indexSource.includes('追加したURLと進捗'));
+assert(indexSource.includes('過去に追加したURL'));
+assert(!indexSource.includes('body.collection-source-focus #search .collection-saved-sources,'));
+assert(
+  indexSource.indexOf('<details class="collection-saved-sources" open>') <
+    indexSource.indexOf('${renderSourcePageTargetProgress()}'),
+  'past source-page URL progress must appear before the current-job progress panel',
+);
+const clientApiActions = Array.from(new Set(Array.from(indexSource.matchAll(/\bapi(?:Quiet|ReadOnly)?\(\s*['"]([^'"]+)['"]/g), (match) => match[1]))).sort();
+const postApiActions = new Set(Array.from(webAppSource.matchAll(/action\s*===\s*['"]([^'"]+)['"]/g), (match) => match[1]));
+assert.deepStrictEqual(clientApiActions.filter((action) => !postApiActions.has(action)), [], 'every literal client API action must have a matching WebApp dispatch route');
+assert(!/message\([^\n]*,\s*['"]bad['"]\s*\)/.test(indexSource), 'global messages must use a supported tone such as error or ok');
 assert(codeSource.includes("BACKGROUND_WORKER_CLAIM_JSON: 'BACKGROUND_WORKER_CLAIM_JSON'"));
 assert(!serperSource.includes('waitMs: 90000'), 'search and contact operations must not wait on one script lock for 90 seconds');
 assert(/function claimSearchJobRun_[\s\S]*?waitMs: 6000, attempts: 5, retryDelayMs: 400/.test(serperSource));
@@ -3170,6 +4660,8 @@ const duplicateCandidatesBody = codeSource.slice(duplicateCandidatesStart, dupli
 assert(duplicateCandidatesBody.includes("readSheetRecordFields_('leads', leadDuplicateCandidateFields_(), { maxGapColumns: 0 })"));
 assert(!duplicateCandidatesBody.includes('readSheetRecords_('), 'lead detail duplicate checks must not read every lead column');
 assert(codeSource.includes('function updateReviewLeadDecision'));
+assert(codeSource.includes('function updateReviewLeadDecisions'));
+assert(webAppSource.includes("if (action === 'updateReviewLeadDecisions') return updateReviewLeadDecisions(data);"));
 const markFormStart = codeSource.indexOf('function markLeadFormSent(leadId, options)');
 const markFormEnd = codeSource.indexOf('\nfunction ', markFormStart + 10);
 const markFormBody = codeSource.slice(markFormStart, markFormEnd);
@@ -3189,6 +4681,10 @@ assert(codeSource.includes('function repairNonAdvertiserReviewLeads'));
 assert(codeSource.includes('function repairNonAdvertiserCleanupOverreach'));
 assert(codeSource.includes('function repairDuplicateLeadDomains'));
 assert(fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8').includes("if (action === 'repairDuplicateLeadDomains')"));
+assert(codeSource.includes('function repairHistoricalReviewDomainDuplicates'));
+assert(fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8').includes("if (action === 'repairHistoricalReviewDomainDuplicates')"));
+assert(codeSource.includes('function repairBrokenReviewLeads(options)'));
+assert(fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8').includes("if (action === 'repairBrokenReviewLeads') return repairBrokenReviewLeads(data);"));
 const reviewEditIndexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 assert(reviewEditIndexSource.includes('function saveReviewInboxLeadEdit'));
 assert(reviewEditIndexSource.includes('施設名・メール・ジャンルを編集'));
@@ -3224,6 +4720,58 @@ const nonAdvertiserRequiredHeaders = nonAdvertiserRepairBody.slice(
 });
 assert(nonAdvertiserRepairBody.includes("withScriptLock_('repairNonAdvertiserReviewLeads:batch'"));
 assert(!nonAdvertiserRepairBody.includes('sheet.getRange(startRow, 1, Math.max(lastScannedRow'), 'lead cleanup must not re-read the full scan while locked');
+const collectionBlockContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), collectionBlockContext, { filename: file });
+});
+let collectionBlockCache = '';
+let collectionBlockLeadReads = 0;
+collectionBlockContext.CacheService = {
+  getScriptCache: () => ({
+    get: () => collectionBlockCache,
+    put: (_key, value) => { collectionBlockCache = value; },
+    remove: () => { collectionBlockCache = ''; },
+  }),
+};
+collectionBlockContext.readAllActiveSheetRecords_ = (sheetName) => {
+  assert.strictEqual(sheetName, 'excluded_domains');
+  return [{ domain: 'configured-block.example', reason: '手動除外' }];
+};
+collectionBlockContext.readSheetRecordFields_ = (sheetName, fields, options) => {
+  assert.strictEqual(sheetName, 'leads');
+  assert.deepStrictEqual(
+    JSON.parse(JSON.stringify(fields)),
+    ['website_url', 'form_url', 'email', 'send_ng', 'status']
+  );
+  assert.strictEqual(options.maxGapColumns, 0);
+  collectionBlockLeadReads += 1;
+  return [
+    { website_url: 'https://blocked.example/path', send_ng: true, status: '送信NG' },
+    { form_url: 'https://forms.blocked-two.example/contact', send_ng: false, status: '送信NG' },
+    { email: 'info@mail-blocked.example', send_ng: true, status: '未対応' },
+    { website_url: 'https://allowed.example/', send_ng: false, status: '未対応' },
+    { website_url: 'https://www.blocked.example/other', send_ng: true, status: '送信NG' },
+  ];
+};
+const collectionBlockedDomains = collectionBlockContext.getLeadCollectionExcludedDomainRecords_();
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(collectionBlockedDomains.map((record) => record.domain).sort())),
+  ['blocked.example', 'configured-block.example', 'forms.blocked-two.example', 'mail-blocked.example']
+);
+assert.strictEqual(
+  collectionBlockContext.isLeadCollectionExcludedUrl_('https://shop.blocked.example/new-page', collectionBlockedDomains),
+  true,
+  'subdomains of a send-NG lead domain must be excluded before collection'
+);
+assert.strictEqual(
+  collectionBlockContext.isLeadCollectionExcludedUrl_('https://allowed.example/', collectionBlockedDomains),
+  false
+);
+collectionBlockContext.getLeadCollectionExcludedDomainRecords_();
+assert.strictEqual(collectionBlockLeadReads, 1, 'send-NG domains should be cached between collection candidates');
+collectionBlockContext.clearLeadCollectionSendNgDomainsCache_();
+collectionBlockContext.getLeadCollectionExcludedDomainRecords_();
+assert.strictEqual(collectionBlockLeadReads, 2, 'clearing the send-NG domain cache must refresh lead status changes');
 const repairSafetyContext = vm.createContext({ console, URL });
 files.forEach((file) => {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), repairSafetyContext, { filename: file });
@@ -3231,11 +4779,11 @@ files.forEach((file) => {
 const repairSafetyHeaders = [
   'id', 'source', 'company_name', 'facility_name', 'status', 'website_url', 'form_url',
   'last_sent_at', 'send_count', 'reply_checked', 'deal_status', 'form_status', 'next_send_at',
-  'no_action_reason', 'no_action_memo', 'archived_at', 'updated_at',
+  'no_action_reason', 'no_action_memo', 'source_payload_json', 'archived_at', 'updated_at',
 ];
 const repairSafetyRows = [
-  ['sent', 'source_page', '送信済み会社', '送信済み施設', '初回メール送信済み', 'https://directory.example/sent', '', '2026-07-19T00:00:00+09:00', 1, false, '未設定', '未対応', '', '', '', '', ''],
-  ['unsent', 'source_page', '未送信会社', '未送信施設', '未対応', 'https://directory.example/unsent', '', '', 0, false, '未設定', '未対応', '', '', '', '', ''],
+  ['sent', 'source_page', '送信済み会社', '送信済み施設', '初回メール送信済み', 'https://directory.example/sent', '', '2026-07-19T00:00:00+09:00', 1, false, '未設定', '未対応', '', '', '', '', '', ''],
+  ['unsent', 'source_page', '未送信会社', '未送信施設', '未対応', 'https://directory.example/unsent', '', '', 0, false, '未設定', '未対応', '', '', '', '', '', ''],
 ];
 const repairSafetySheet = {
   getLastRow: () => repairSafetyRows.length + 1,
@@ -3310,6 +4858,165 @@ assert.strictEqual(context.isNonAdvertiserCleanupCandidate_({
 assert.strictEqual(context.isNonAdvertiserCleanupCandidate_({
   source: 'source_page', status: '送信NG', website_url: 'https://yamagatakanko.com/attractions/detail_234.html', send_count: 0, last_sent_at: '', reply_checked: false, deal_status: '未設定', archived_at: '',
 }, []), true, 'known tourism portals should be archived even when previously marked send NG');
+assert.strictEqual(context.isTourismPortalCleanupCandidate_({
+  source: 'source_page', status: '未対応', website_url: 'https://tomikan.jp/area/yunomaru/camp/', send_count: 0, last_sent_at: '', reply_checked: false, deal_status: '未設定', archived_at: '',
+}), true, 'review candidates on tourism portals must be archived');
+assert.strictEqual(context.isTourismPortalCleanupCandidate_({
+  source: 'source_page', status: '未対応', website_url: 'https://www.motosuko-camp.com/', send_count: 0, last_sent_at: '', reply_checked: false, deal_status: '未設定', archived_at: '',
+}), false, 'facility-specific official sites must not be archived as tourism portals');
+assert.strictEqual(context.isBlogMediaCleanupCandidate_({
+  source: 'source_page',
+  status: '未対応',
+  website_url: 'https://www.niwadandyism.top/9363',
+  send_count: 0,
+  last_sent_at: '',
+  reply_checked: false,
+  deal_status: '未設定',
+  archived_at: '',
+}), true, 'known personal-blog domains must be removed from the review queue');
+assert.strictEqual(context.isBlogMediaCleanupCandidate_({
+  source: 'source_page',
+  status: '未対応',
+  website_url: 'https://unknown-editorial.example/9363/',
+  source_payload_json: JSON.stringify({
+    serper: {
+      selected: {
+        source: {
+          title: '星空キャンプ場へ行ってきました',
+          link: 'https://unknown-editorial.example/9363/',
+          snippet: 'キャンプ場体験記と実体験レビュー',
+        },
+      },
+    },
+  }),
+  send_count: 0,
+  last_sent_at: '',
+  reply_checked: false,
+  deal_status: '未設定',
+  archived_at: '',
+}), true, 'stored search evidence must remove unknown editorial blog articles');
+assert.strictEqual(context.isBlogMediaCleanupCandidate_({
+  source: 'source_page',
+  status: '未対応',
+  website_url: 'https://official-operator.example/2026/07/20/summer-event/',
+  source_payload_json: JSON.stringify({
+    serper: {
+      selected: {
+        source: {
+          title: '星空キャンプ場 公式サイト',
+          link: 'https://official-operator.example/2026/07/20/summer-event/',
+          snippet: '宿泊予約・お問い合わせ受付中',
+        },
+      },
+    },
+  }),
+  send_count: 0,
+  last_sent_at: '',
+  reply_checked: false,
+  deal_status: '未設定',
+  archived_at: '',
+}), false, 'official operator pages must remain in review');
+assert.strictEqual(context.isTourismPortalCleanupCandidate_({
+  source: 'source_page',
+  status: '未対応',
+  website_url: 'https://regional.example/area/yunomaru/camp/',
+  source_payload_json: JSON.stringify({
+    serper: {
+      selected: {
+        source: {
+          title: '湯の丸キャンプ場 – 一般社団法人 信州とうみ観光協会',
+          link: 'https://regional.example/area/yunomaru/camp/',
+          snippet: '観光協会による施設紹介',
+        },
+      },
+    },
+  }),
+  send_count: 0,
+  last_sent_at: '',
+  reply_checked: false,
+  deal_status: '未設定',
+  archived_at: '',
+}), true, 'rich search-result evidence must exclude tourism portals without obvious domain tokens');
+assert.strictEqual(context.isTourismPortalCleanupCandidate_({
+  source: 'source_page',
+  status: '未対応',
+  website_url: 'https://www.motosuko-camp.com/',
+  source_payload_json: JSON.stringify({
+    serper: {
+      selected: {
+        source: {
+          title: '本栖湖キャンプ場 オフィシャルHP 本栖湖観光協会が運営',
+          link: 'https://www.motosuko-camp.com/',
+          snippet: '予約・お問い合わせ受付中',
+        },
+      },
+    },
+  }),
+  send_count: 0,
+  last_sent_at: '',
+  reply_checked: false,
+  deal_status: '未設定',
+  archived_at: '',
+}), false, 'tourism-association ownership alone must not exclude a facility-specific official site');
+assert.strictEqual(context.isSuspendedLeadCleanupCandidate_({
+  source: 'source_page',
+  status: '未対応',
+  facility_name: '【R3.12 休業】森の家キャンプ場',
+  website_url: 'https://takamori.camp/',
+  send_count: 0,
+  last_sent_at: '',
+  reply_checked: false,
+  deal_status: '未設定',
+  archived_at: '',
+}), true, 'review candidates with 休業 in their facility name must be archived');
+assert.strictEqual(context.isSuspendedLeadCleanupCandidate_({
+  source: 'source_page',
+  status: '未対応',
+  facility_name: '森の家キャンプ場',
+  website_url: 'https://takamori.camp/',
+  source_payload_json: JSON.stringify({
+    serper: {
+      selected: {
+        source: {
+          title: '森の家キャンプ場 冬季休業のお知らせ',
+          snippet: '営業再開日は未定です。',
+        },
+      },
+    },
+  }),
+  send_count: 0,
+  last_sent_at: '',
+  reply_checked: false,
+  deal_status: '未設定',
+  archived_at: '',
+}), true, 'review candidates with 休業 in stored search titles must be archived');
+assert.strictEqual(context.isSuspendedLeadCleanupCandidate_({
+  source: 'source_page',
+  status: '未対応',
+  facility_name: '営業中の森の家キャンプ場',
+  website_url: 'https://takamori.camp/',
+  source_payload_json: JSON.stringify({
+    serper: {
+      selected: {
+        source: {
+          title: '森の家キャンプ場 公式サイト',
+          snippet: '毎週火曜日は休業日です。',
+        },
+      },
+    },
+  }),
+  send_count: 0,
+  last_sent_at: '',
+  reply_checked: false,
+  deal_status: '未設定',
+  archived_at: '',
+}), false, '休業 in a snippet alone must not archive an otherwise active facility');
+assert(codeSource.includes('function repairTourismPortalReviewLeads(options)'));
+assert(webAppSource.includes("if (action === 'repairTourismPortalReviewLeads') return repairTourismPortalReviewLeads(data);"));
+assert(codeSource.includes('function repairBlogMediaReviewLeads(options)'));
+assert(webAppSource.includes("if (action === 'repairBlogMediaReviewLeads') return repairBlogMediaReviewLeads(data);"));
+assert(codeSource.includes('function repairSuspendedReviewLeads(options)'));
+assert(webAppSource.includes("if (action === 'repairSuspendedReviewLeads') return repairSuspendedReviewLeads(data);"));
 assert(codeSource.includes('function runLeadCollectionQualityMigrationV215_'));
 assert(codeSource.includes('assertLeadCollectionDestinationAllowed_(lead);'));
 assert(codeSource.includes('function classifyLeadListState_'));
@@ -3328,6 +5035,8 @@ assert(mastersSource.includes("ngMasters: readAllActiveSheetRecords_('ng_masters
 assert(mastersSource.includes("excludedDomains: readAllActiveSheetRecords_('excluded_domains')"));
 assert(mastersSource.includes('function clearMasterBlockRulesCache_'));
 assert(repositorySource.includes('clearMasterBlockRulesCache_();'));
+assert(codeSource.includes('function getLeadCollectionSendNgDomainRecords_()'));
+assert(repositorySource.includes('clearLeadCollectionSendNgDomainsCache_();'));
 assert(!mastersSource.includes("listSheetRecords('email_templates', { limit: 1000, includeInactive: true })"));
 assert(emailSource.includes("const templates = readAllActiveSheetRecords_('email_templates')"));
 assert(codeSource.includes("'FORM_SEND_NOT_RECORDED'"));
@@ -3465,7 +5174,6 @@ const sourcePageLeadIndexEnd = serperSource.indexOf('\nfunction ', sourcePageLea
 const sourcePageLeadIndexBody = serperSource.slice(sourcePageLeadIndexStart, sourcePageLeadIndexEnd);
 assert(sourcePageLeadIndexBody.includes("readSheetRecordFields_('leads', sourcePageLeadIndexFields_(), { maxGapColumns: 0 })"));
 assert(!sourcePageLeadIndexBody.includes('readSheetRecords_('), 'source-page collection must not read every lead column for duplicate indexing');
-const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 assert(!webAppSource.includes("readAllSheetRecordsByName_('search_jobs'"), 'dashboard must not read all search-job columns');
 assert(!webAppSource.includes("readAllSheetRecordsByName_('sync_logs'"), 'dashboard must not read all sync-log columns');
 assert(!webAppSource.includes("readAllSheetRecordsByName_('search_usage_logs'"), 'dashboard must not read all search-usage columns');
@@ -3493,7 +5201,7 @@ const searchSupportLoadBody = searchSupportIndexSource.slice(searchSupportLoadSt
 assert(searchSupportLoadBody.includes("fields: ['id', 'job_id', 'lead_id', 'query', 'result_type', 'title', 'url', 'snippet', 'rank', 'review_status', 'review_action', 'reviewed_at', 'created_at', 'updated_at']"));
 assert(searchSupportLoadBody.includes("fields: ['created_at', 'purpose', 'query', 'result_count', 'status']"));
 assert(!searchSupportLoadBody.includes("'raw_json'"));
-assert(searchSupportLoadBody.includes("fields: ['id', 'job_type', 'status', 'query_json', 'total_count', 'processed_count', 'cursor_json', 'last_error', 'error_count', 'started_at', 'finished_at', 'created_at', 'updated_at']"));
+assert(searchSupportLoadBody.includes("fields: ['id', 'job_type', 'status', 'query_json', 'total_count', 'processed_count', 'cursor_json', 'progress_json', 'last_error', 'error_count', 'started_at', 'finished_at', 'created_at', 'updated_at']"));
 assert(!searchSupportLoadBody.includes("'request_key'"), 'search screen job list must not transfer request keys');
 assert(!searchSupportLoadBody.includes("'lock_token'"), 'search screen job list must not transfer job lock tokens');
 const historyLoadStart = searchSupportIndexSource.indexOf('async function loadHistoryData(options)');
@@ -3511,8 +5219,8 @@ assert(!syncLogLoadBody.includes("'context_json'"), 'initial sync-log load must 
 const jobLoadStart = searchSupportIndexSource.indexOf('async function loadJobData(options)');
 const jobLoadEnd = searchSupportIndexSource.indexOf('\n      async function loadOpsData(options)', jobLoadStart + 20);
 const jobLoadBody = searchSupportIndexSource.slice(jobLoadStart, jobLoadEnd);
-assert(jobLoadBody.includes("fields: ['id', 'job_type', 'status', 'source', 'cursor_json', 'total_count', 'processed_count', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'found_results_json', 'current_query', 'last_error', 'started_at', 'finished_at', 'created_at', 'updated_at']"));
-assert(jobLoadBody.includes("fields: ['id', 'job_type', 'status', 'query_json', 'total_count', 'processed_count', 'cursor_json', 'last_error', 'error_count', 'started_at', 'finished_at', 'created_at', 'updated_at']"));
+assert(jobLoadBody.includes("fields: ['id', 'job_type', 'status', 'source', 'cursor_json', 'total_count', 'processed_count', 'added_count', 'filled_count', 'duplicate_skip_count', 'excluded_count', 'error_count', 'found_results_json', 'current_query', 'last_error', 'last_heartbeat_at', 'attempt_count', 'started_at', 'finished_at', 'created_at', 'updated_at']"));
+assert(jobLoadBody.includes("fields: ['id', 'job_type', 'status', 'query_json', 'total_count', 'processed_count', 'cursor_json', 'progress_json', 'last_error', 'error_count', 'last_heartbeat_at', 'attempt_count', 'started_at', 'finished_at', 'created_at', 'updated_at']"));
 assert(!jobLoadBody.includes("'payload_json'"), 'operations job list must not transfer unused job payloads');
 assert(!jobLoadBody.includes("'request_key'"), 'operations job list must not transfer request keys');
 assert(!jobLoadBody.includes("'lock_token'"), 'operations job list must not transfer job lock tokens');
@@ -3605,7 +5313,7 @@ assert(!operationsSource.includes(fullSendHistoryRead), 'reply checks must not t
 assert(emailSource.includes('let histories = readMailSendSafetyHistories_()'));
 assert(emailSource.includes("const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 })"));
 assert(!emailSource.includes("const leads = readSheetRecords_(ensureSheet_(getOrCreateSpreadsheet_(), 'leads'))"), 'automatic mail planning must not read all lead columns');
-const scheduledJobClaimStart = emailSource.indexOf('function claimScheduledEmailJob_()');
+const scheduledJobClaimStart = emailSource.indexOf('function claimScheduledEmailJobOnce_()');
 const scheduledJobClaimEnd = emailSource.indexOf('\nfunction ', scheduledJobClaimStart + 10);
 const scheduledJobClaimBody = emailSource.slice(scheduledJobClaimStart, scheduledJobClaimEnd);
 assert(scheduledJobClaimBody.includes("readSheetRecordFields_('jobs', scheduledEmailJobClaimFields_(), { maxGapColumns: 0 })"));
@@ -3632,7 +5340,6 @@ assert(webAppSource.includes('getSchemaStatus({ settingsRecords: settings })'));
 assert(codeSource.includes('clearReferenceDataCache_();'));
 assert(serperSource.includes('function writeSerperApiKeyRecords_'));
 assert((serperSource.match(/clearReferenceDataCache_\(\);/g) || []).length >= 3);
-const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
 assert(indexSource.includes('class="workflow-nav" aria-label="主要な業務フロー"'));
 assert(indexSource.includes('data-tab="dashboard" onclick="showTab(\'dashboard\')"'));
 assert(indexSource.includes('data-tab="search" onclick="showTab(\'search\')"'));
@@ -3641,6 +5348,21 @@ assert(indexSource.includes('data-tab="emailLeads" onclick="showTab(\'emailLeads
 assert(indexSource.includes('data-tab="analytics" onclick="showTab(\'analytics\')"'));
 assert(indexSource.includes('id="navReviewCount" class="nav-count" hidden'));
 assert(indexSource.includes('id="navSendCount" class="nav-count" hidden'));
+assert(indexSource.includes('<h1>今日の営業フロー</h1>'));
+assert(indexSource.includes('id="dashboardWorkflow" class="dashboard-workflow"'));
+assert(indexSource.includes('id="dashboardTaskQueue" class="dashboard-task-queue"'));
+assert(indexSource.includes('id="dashboardOperations" class="dashboard-operation-list"'));
+assert(indexSource.includes('id="dashboardOutcomes" class="dashboard-outcome-grid"'));
+assert(indexSource.includes('class="dashboard-detail-disclosure"'));
+assert(indexSource.includes("dashboardWorkflowStep({ label: '確認'"));
+assert(indexSource.includes("dashboardTaskItem({ label: '確認待ちを進める'"));
+assert(indexSource.includes("dashboardTaskItem({ label: '送信キューを確認する'"));
+assert(indexSource.includes("dashboardOperationRow('API連携'"));
+assert(indexSource.includes("dashboardOutcomeItem('今月新規リスト'"));
+assert(indexSource.includes('aria-current="step"'));
+assert(indexSource.includes('@media (max-width: 620px)'));
+assert(!indexSource.includes('id="dashboardSignals"'));
+assert(!indexSource.includes('id="dashboardActions"'));
 assert(indexSource.includes('class="nav-more nav-section" data-nav-tabs="leads,backgroundJobs,forms,sending,histories,templates,deals"'));
 assert(indexSource.includes("disclosure.open = hasActiveTab;"));
 assert(indexSource.includes("tab.setAttribute('aria-current', 'page')"));
@@ -3727,14 +5449,29 @@ assert(indexSource.includes("includeFields: ['meeting_start_at', 'contact_name',
 assert(webAppSource.includes("if (action === 'getLead') return getLead(data.id || data.leadId || data.lead_id || data);"));
 assert(indexSource.includes("api('startLeadCsvImport', csvText, options || {})"));
 assert(indexSource.includes("api('advanceLeadCsvImportJob', job.id, { maxItems: 25, runtimeBudgetMs: 90000 })"));
-assert(indexSource.includes("apiQuiet('updateReviewLeadDecision'"));
+assert(indexSource.includes("callReviewApiWithLockRetry('updateReviewLeadDecision'"));
 assert(indexSource.includes('function saveReviewLeadDecisionWithRetry'));
+assert(indexSource.includes('const REVIEW_SAVE_LOCK_RETRY_DELAYS_MS = Object.freeze([1000, 2500, 5000])'));
+assert(indexSource.includes('function callReviewApiWithLockRetry'));
+assert(indexSource.includes('function saveReviewLeadDecisionsWithRetry'));
 assert(indexSource.includes('function isLockTimeoutApiError'));
 assert(indexSource.includes('function enqueueReviewLeadDecisionSave'));
 assert(indexSource.includes('reviewLeadSaveQueue = task.then'));
-assert(indexSource.includes("const NAP_CAMP_GENRE_NAME = 'キャンプ'"));
-assert(indexSource.includes('function syncSourcePageGenreWithUrl'));
+assert(indexSource.includes('class="source-page-universal-form"'));
+assert(indexSource.includes('新しい一覧ページURL'));
+assert(indexSource.includes('保存済みURLを使う'));
+assert(indexSource.includes('placeholder="例：${HTTPS_PROTOCOL_PREFIX}example.com/company-list"'));
+assert(indexSource.includes('function sourcePageUrlIsValid'));
+assert(indexSource.includes('function sourcePageInputState'));
 assert(indexSource.includes('function sourcePageDefaultGenre'));
+assert(indexSource.includes('const genericOption = `<option value=""'));
+assert(indexSource.includes('>未分類</option>`'));
+assert(!indexSource.includes('function syncSourcePageGenreWithUrl'));
+assert(!indexSource.includes('なっぷ全国版を自動入力'));
+assert(repositorySource.includes('maxItems: Math.floor(maxItems)'));
+assert(repositorySource.includes('useSerperFallback: normalizeStrictSettingBoolean_'));
+assert(serperSource.includes('const SOURCE_PAGE_FULL_CRAWL_MAX_CANDIDATES = 500'));
+assert(serperSource.includes('payload.crawl_all === true ? SOURCE_PAGE_FULL_CRAWL_MAX_CANDIDATES : requestedLimit'));
 assert(indexSource.includes('reviewPendingLeadIds'));
 assert(indexSource.includes('pendingJobResultIds'));
 assert(indexSource.includes("item.review_status === 'unconfirmed' || item.review_status === 'adding'"));
@@ -3799,6 +5536,29 @@ assert(indexSource.includes("api('repairBackgroundJobs'"));
 assert(serperSource.includes('function listSourcePageSiteStatuses'));
 assert(indexSource.includes("request('listSourcePageSiteStatuses'"));
 assert(indexSource.includes('全件調査完了'));
+assert(codeSource.includes("'progress_json'"));
+assert(webAppSource.includes("if (action === 'startSearchJob') return startSearchJob(data);"));
+assert(serperSource.includes('function startSearchJob(input)'));
+assert(indexSource.includes("await api('startSearchJob', payload)"));
+assert(indexSource.includes('収集対象サイトの進捗'));
+assert(indexSource.includes('収集中は約8秒ごとに自動更新します。'));
+assert(indexSource.includes('scheduleSourcePageProgressRefresh'));
+assert(indexSource.includes('advanceQueuedSourcePageJobIfNeeded'));
+assert(indexSource.includes("apiQuiet('advanceSearchJob', targetJob.id"));
+assert(indexSource.includes("apiQuiet('repairBackgroundJobs', { jobId: targetJob.id"));
+assert(indexSource.includes('progress_json'));
+assert(indexSource.includes('runtimeBudgetMs: 180000'));
+assert(operationsSource.includes('function advanceQueuedJobsNow'));
+assert(operationsSource.includes('runtimeBudgetMs: BACKGROUND_JOB_DEFAULT_RUNTIME_MS'));
+assert(operationsSource.includes('timeBased().after(normalizedDelayMs).create()'));
+assert(operationsSource.includes("reason: stoppedForRuntime ? 'runtime_exhausted' : remainingJobs > 0 ? 'jobs_pending' : 'runtime_reserved'"));
+assert(serperSource.includes('summary.pausedForRetry ? BACKGROUND_JOB_RETRY_DELAY_MS : BACKGROUND_JOB_IMMEDIATE_DELAY_MS'));
+assert(serperSource.includes("}, false, { bestEffort: true });"));
+assert(repositorySource.includes('if (input.clearCaches !== false) clearRuntimeCaches_(sheetName);'));
+assert(serperSource.includes('function buildSourcePageStatusSites_'));
+assert(serperSource.includes('function normalizeSourcePageDisplayLabel_'));
+assert(indexSource.includes('function syncSourcePageLabelWithUrl(sourceUrl)'));
+assert(indexSource.includes("const label = resolveSourcePageLabel(document.getElementById('sourcePageLabel').value, urls[0]);"));
 assert(indexSource.includes("const DEFAULT_GMAIL_SENDER_NAME = '【Ad Clutch】村松 侑哉'"));
 
 const sourcePageStatusContext = vm.createContext({ console });
@@ -3855,6 +5615,20 @@ const sourcePageStatusJobs = [
       items: [{ source_url: 'https://example.com/list', crawl_all: true, total_candidates: 1000 }],
     }),
     cursor_json: JSON.stringify({ offset: 124 }),
+    progress_json: JSON.stringify({
+      itemIndex: 0,
+      sourceUrl: 'https://example.com/list',
+      processedTargets: 124,
+      totalTargets: 1000,
+      currentTargetName: '確認中キャンプ場',
+      currentTargetUrl: 'https://camp.example/current',
+      phase: 'processing',
+      counts: { added: 80, duplicate: 20, excluded: 15, unresolved: 8, error: 1 },
+      recentTargets: [
+        { name: '直近キャンプ場', url: 'https://camp.example/recent', outcome: 'added', processedAt: '2026-07-17T00:00:00+09:00' },
+      ],
+      updatedAt: '2026-07-17T00:00:00+09:00',
+    }),
     total_count: 1,
     processed_count: 0,
     updated_at: '2026-07-17T00:00:00+09:00',
@@ -3867,6 +5641,27 @@ const sourcePageStatusJobs = [
     error_count: 1,
     last_error: '取得に失敗しました',
     updated_at: '2026-07-17T00:01:00+09:00',
+  },
+  {
+    id: 'historical-job',
+    job_type: 'source_page',
+    status: 'completed',
+    query_json: JSON.stringify({
+      source_url: 'https://history.example/list',
+      label: '過去の収集サイト',
+      crawl_all: true,
+      total_candidates: 20,
+      items: [{
+        source_url: 'https://history.example/list',
+        label: '過去の収集サイト',
+        crawl_all: true,
+        total_candidates: 20,
+      }],
+    }),
+    total_count: 1,
+    processed_count: 1,
+    finished_at: '2026-07-15T00:00:00+09:00',
+    updated_at: '2026-07-15T00:00:00+09:00',
   },
 ];
 let sourcePageStatusReads = 0;
@@ -3885,8 +5680,9 @@ sourcePageStatusContext.readSheetRecordFields_ = (_sheetName, fields) => {
   return sourcePageStatusJobs;
 };
 const sourcePageStatuses = JSON.parse(JSON.stringify(sourcePageStatusContext.listSourcePageSiteStatuses()));
-assert.strictEqual(sourcePageStatuses.total, 4);
-assert.strictEqual(sourcePageStatuses.completed, 1);
+assert.strictEqual(sourcePageStatuses.total, 5);
+assert.strictEqual(sourcePageStatuses.savedTotal, 4);
+assert.strictEqual(sourcePageStatuses.completed, 2);
 assert.strictEqual(sourcePageStatuses.running, 1);
 assert.strictEqual(sourcePageStatuses.attention, 1);
 assert.strictEqual(sourcePageStatuses.notStarted, 1);
@@ -3900,8 +5696,50 @@ assert.strictEqual(sourcePageStatuses.items[1].percent, 12);
 assert.strictEqual(sourcePageStatuses.items[2].statusLabel, '調査失敗');
 assert.strictEqual(sourcePageStatuses.items[2].lastError, '取得に失敗しました');
 assert.strictEqual(sourcePageStatuses.items[3].statusLabel, '未実行');
+const historicalSourcePageStatus = sourcePageStatuses.items.find((item) => item.url === 'https://history.example/list');
+assert(historicalSourcePageStatus, 'historical source-page URLs must remain visible even when they are no longer in saved settings');
+assert.strictEqual(historicalSourcePageStatus.label, '過去の収集サイト');
+assert.strictEqual(historicalSourcePageStatus.statusLabel, '全件調査完了');
+assert.strictEqual(historicalSourcePageStatus.processed, 20);
+assert.strictEqual(historicalSourcePageStatus.total, 20);
+assert.strictEqual(historicalSourcePageStatus.percent, 100);
+const emptySourcePageSiteStatus = sourcePageStatusContext.buildSourcePageSiteStatus_({
+  id: 'empty-source',
+  label: '候補なしサイト',
+  url: 'https://empty-source.example/',
+  crawlAll: true,
+}, [{
+  job: {
+    id: 'empty-source-job',
+    job_type: 'source_page',
+    status: 'completed',
+    total_count: 1,
+    processed_count: 1,
+    updated_at: '2026-07-17T00:02:00+09:00',
+  },
+  payload: {
+    job_type: 'source_page',
+    source_url: 'https://empty-source.example/',
+    crawl_all: true,
+    total_candidates: 0,
+    items: [{ source_url: 'https://empty-source.example/' }],
+  },
+}]);
+assert.strictEqual(emptySourcePageSiteStatus.statusKey, 'no_candidates');
+assert.strictEqual(emptySourcePageSiteStatus.statusLabel, '候補未検出');
+assert.strictEqual(emptySourcePageSiteStatus.completed, false);
+assert.strictEqual(emptySourcePageSiteStatus.processed, 0);
+assert.strictEqual(emptySourcePageSiteStatus.total, 0);
+assert.strictEqual(emptySourcePageSiteStatus.percent, 0);
+assert.strictEqual(sourcePageStatuses.jobs[0].id, 'running-job');
+assert.strictEqual(sourcePageStatuses.jobs[0].processedTargets, 124);
+assert.strictEqual(sourcePageStatuses.jobs[0].totalTargets, 1000);
+assert.strictEqual(sourcePageStatuses.jobs[0].currentTargetName, '確認中キャンプ場');
+assert.strictEqual(sourcePageStatuses.jobs[0].counts.added, 80);
+assert.strictEqual(sourcePageStatuses.jobs[0].recentTargets[0].outcomeLabel, '追加');
 assert.strictEqual(sourcePageStatusReads, 1);
 assert(sourcePageStatusRequestedFields.includes('query_json'));
+assert(sourcePageStatusRequestedFields.includes('progress_json'));
 assert(!sourcePageStatusRequestedFields.includes('request_key'));
 assert(!sourcePageStatusRequestedFields.includes('lock_token'));
 const cachedSourcePageStatuses = sourcePageStatusContext.listSourcePageSiteStatuses();
@@ -3909,6 +5747,40 @@ assert.strictEqual(cachedSourcePageStatuses.cached, true);
 assert.strictEqual(sourcePageStatusReads, 1, 'repeated source-page status checks must use the five-minute cache');
 sourcePageStatusContext.listSourcePageSiteStatuses({ bypassCache: true });
 assert.strictEqual(sourcePageStatusReads, 2, 'manual refresh must bypass the source-page status cache');
+
+let progressSnapshot = {};
+sourcePageStatusContext.updateClaimedSearchJob_ = (_jobId, _lockToken, patch) => {
+  progressSnapshot = JSON.parse(patch.progress_json);
+  return { owned: true, record: { progress_json: patch.progress_json } };
+};
+const reportTargetProgress = sourcePageStatusContext.createSourcePageProgressReporter_(
+  'job-progress',
+  'lock-progress',
+  0,
+  { source_url: 'https://directory.example/list' },
+  { source_url: 'https://directory.example/list' },
+  {},
+  () => {}
+);
+assert.strictEqual(reportTargetProgress({
+  phase: 'processing',
+  processedTargets: 2,
+  totalTargets: 10,
+  targetName: '株式会社進捗',
+  targetUrl: 'https://progress.example/',
+}), true);
+assert.strictEqual(reportTargetProgress({
+  phase: 'processed',
+  processedTargets: 3,
+  totalTargets: 10,
+  targetName: '株式会社進捗',
+  targetUrl: 'https://progress.example/',
+  outcome: 'added',
+}), true);
+assert.strictEqual(progressSnapshot.processedTargets, 3);
+assert.strictEqual(progressSnapshot.totalTargets, 10);
+assert.strictEqual(progressSnapshot.counts.added, 1);
+assert.strictEqual(progressSnapshot.recentTargets[0].name, '株式会社進捗');
 
 const resolvedSettingIssue = context.classifySyncLogIssue_({
   level: 'error',
@@ -3954,10 +5826,245 @@ const currentLockIssue = context.classifySyncLogIssue_({
   created_at: '2026-07-20T04:00:00.000Z',
 }, {});
 assert.strictEqual(currentLockIssue.issue_status, 'open');
+const resolvedSheetsOutage = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'createLead',
+  message: 'ドキュメントにアクセス中に スプレッドシート のサービスに接続できなくなりました。',
+  created_at: '2026-07-15T13:38:10+09:00',
+}, {});
+assert.strictEqual(resolvedSheetsOutage.issue_status, 'resolved');
+const currentSheetsOutage = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'createLead',
+  message: 'ドキュメントにアクセス中に スプレッドシート のサービスに接続できなくなりました。',
+  created_at: '2026-07-22T04:00:00+09:00',
+}, {});
+assert.strictEqual(currentSheetsOutage.issue_status, 'open');
+const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
+  mailQuotaRemaining: 100,
+  sentToday: 0,
+  triggerCount: 1,
+  urlFetchRecordedToday: 0,
+  batchRuntimeBudgetMs: 240000,
+});
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 326);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
+assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
+assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
+const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
+  gasUsage: {
+    alerts: [
+      { key: 'versions', tone: 'bad' },
+      { key: 'email', tone: 'warn' },
+    ],
+    versions: { used: 282, limit: 200 },
+    status: 'danger',
+  },
+});
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 326);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
+const gasUsageWithUnsafeRuntime = context.buildConsumerGasUsageStatus_({
+  mailQuotaRemaining: 100,
+  sentToday: 0,
+  triggerCount: 1,
+  urlFetchRecordedToday: 0,
+  batchRuntimeBudgetMs: 360000,
+});
+assert.strictEqual(gasUsageWithUnsafeRuntime.runtime.budgetSeconds, 240, 'runtime budget must leave recovery time before the Apps Script execution ceiling');
+assert(gasUsageWithUnsafeRuntime.alerts.some((item) => item.key === 'runtime'), 'an unsafe configured runtime must remain visible after the effective value is clamped');
+const resolvedAuditProbe = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'doPost',
+  message: 'Unknown sheet definition: undefined',
+  created_at: '2026-07-22T03:08:30+09:00',
+}, {});
+assert.strictEqual(resolvedAuditProbe.issue_status, 'resolved');
+const futureUnknownSheetIssue = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'doPost',
+  message: 'Unknown sheet definition: undefined',
+  created_at: '2026-07-22T04:00:00+09:00',
+}, {});
+assert.strictEqual(futureUnknownSheetIssue.issue_status, 'open');
+const reviewLockIssueBeforeV323 = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'updateReviewLeadDecision',
+  message: 'ロックのタイムアウト: 別の処理が実行中です。',
+  created_at: '2026-08-02T16:57:36+09:00',
+}, {});
+assert.strictEqual(reviewLockIssueBeforeV323.issue_status, 'resolved');
+const reviewLockIssueAfterV323 = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'updateReviewLeadDecision',
+  message: 'ロックのタイムアウト: 別の処理が実行中です。',
+  created_at: '2026-08-02T21:40:00+09:00',
+}, {});
+assert.strictEqual(reviewLockIssueAfterV323.issue_status, 'open', 'new lock failures after v323 must remain visible');
+const resolvedV322AuditProbe = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'doPost',
+  message: 'No valid fields requested for undefined.',
+  created_at: '2026-08-02T21:13:02+09:00',
+}, {});
+assert.strictEqual(resolvedV322AuditProbe.issue_status, 'resolved');
+const resolvedBackgroundWorkerLock = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'claimBackgroundWorkerRun',
+  message: 'ロックのタイムアウト: 別の処理が実行中です。',
+  created_at: '2026-08-02T16:57:27+09:00',
+}, {});
+assert.strictEqual(resolvedBackgroundWorkerLock.issue_status, 'resolved');
+const futureBackgroundWorkerLock = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'claimBackgroundWorkerRun',
+  message: 'ロックのタイムアウト: 別の処理が実行中です。',
+  created_at: '2026-08-02T21:30:00+09:00',
+}, {});
+assert.strictEqual(futureBackgroundWorkerLock.issue_status, 'open');
+const resolvedTourismAction = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'doPost',
+  message: 'Unknown action: repairTourismPortalReviewLeads',
+  created_at: '2026-07-29T23:06:30+09:00',
+}, {});
+assert.strictEqual(resolvedTourismAction.issue_status, 'resolved');
+const resolvedSourcePageExtraction = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'advanceSearchJob',
+  message: '一覧ページから施設候補を抽出できませんでした。施設一覧ページのURLまたはサイト構造を確認してください。',
+  created_at: '2026-07-26T20:01:32+09:00',
+}, {});
+assert.strictEqual(resolvedSourcePageExtraction.issue_status, 'resolved');
+const futureSourcePageExtraction = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'advanceSearchJob',
+  message: '一覧ページから施設候補を抽出できませんでした。施設一覧ページのURLまたはサイト構造を確認してください。',
+  created_at: '2026-08-03T20:01:32+09:00',
+}, {});
+assert.strictEqual(futureSourcePageExtraction.issue_status, 'open');
+const resolvedScheduledEmailTimeout = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'claimScheduledEmailJob',
+  message: 'ドキュメントにアクセス中に スプレッドシート のサービスがタイムアウトしました。',
+  created_at: '2026-07-22T07:14:25+09:00',
+}, {});
+assert.strictEqual(resolvedScheduledEmailTimeout.issue_status, 'resolved');
+const futureScheduledEmailTimeout = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'claimScheduledEmailJob',
+  message: 'ドキュメントにアクセス中に スプレッドシート のサービスがタイムアウトしました。',
+  created_at: '2026-08-03T07:14:25+09:00',
+}, {});
+assert.strictEqual(futureScheduledEmailTimeout.issue_status, 'open');
+const resolvedSettingValidation = context.classifySyncLogIssue_({
+  level: 'error',
+  operation: 'setSettingValue',
+  message: 'email_send_window start must be earlier than end.',
+  created_at: '2026-07-12T16:55:45+09:00',
+}, {});
+assert.strictEqual(resolvedSettingValidation.issue_status, 'resolved');
 assert(webAppSource.includes("if (action === 'getAppBootstrap') return getInitialData();"));
 assert(webAppSource.includes("if (action === 'getDashboardData') return getDashboardStats(data);"));
 assert(webAppSource.includes("if (!isExpectedOperationError_(error))"));
 assert(indexSource.includes('解消済みの履歴'));
 assert(indexSource.includes("logs.filter((log) => appDateKey(log.created_at) === today)"));
+const reviewInboxActionsStart = indexSource.indexOf('<div class="review-inbox-actions">');
+const reviewInboxActionsEnd = indexSource.indexOf('</div>', reviewInboxActionsStart);
+assert(reviewInboxActionsStart >= 0 && reviewInboxActionsEnd > reviewInboxActionsStart);
+const reviewInboxActionsSource = indexSource.slice(reviewInboxActionsStart, reviewInboxActionsEnd);
+assert.strictEqual((reviewInboxActionsSource.match(/<button /g) || []).length, 3);
+assert(reviewInboxActionsSource.includes("reviewInboxUpdate('対応中')"));
+assert(reviewInboxActionsSource.includes('startReviewInboxEdit('));
+assert(reviewInboxActionsSource.includes("reviewInboxUpdate('送信NG')"));
+assert(!reviewInboxActionsSource.includes('deferReviewInboxLead()'));
+assert(!reviewInboxActionsSource.includes("reviewInboxUpdate('対応不要')"));
+const reviewInboxHeaderStart = indexSource.indexOf('<header class="review-inbox-detail-header">');
+const reviewInboxHeaderEnd = indexSource.indexOf('</header>', reviewInboxHeaderStart);
+assert(reviewInboxHeaderStart >= 0 && reviewInboxHeaderEnd > reviewInboxHeaderStart);
+const reviewInboxHeaderSource = indexSource.slice(reviewInboxHeaderStart, reviewInboxHeaderEnd);
+assert(reviewInboxHeaderSource.includes('${headerWebsite}'));
+assert(!reviewInboxHeaderSource.includes("selected.company_name || ''"), 'the review detail header must not repeat the company or facility name');
+assert(indexSource.includes('class="review-inbox-detail-url"'));
+assert(indexSource.includes("'<p class=\"muted\">URL未取得</p>'"));
+assert(indexSource.includes('id="reviewBulkActionBar"'));
+assert(indexSource.includes('selectedReviewLeadIds: []'));
+assert(indexSource.includes('function toggleReviewLeadSelection(id, checked)'));
+assert(indexSource.includes('function toggleAllReviewLeadSelection(checked)'));
+assert(indexSource.includes("function bulkUpdateSelectedReviewLeads(status)"));
+assert(indexSource.includes("callReviewApiWithLockRetry('updateReviewLeadDecisions'"));
+assert(codeSource.includes('function enqueuePendingReviewDecision_'));
+assert(codeSource.includes('function overlayPendingReviewDecisionsOnLeads_'));
+assert(operationsSource.includes('function processPendingReviewLeadDecisionsNow'));
+assert(operationsSource.includes("source: source + ':background_safety_net'"));
+assert(indexSource.includes('画面を閉じても自動的に反映します'));
+assert(codeSource.includes('function writeLeadRecordsToRowsGroupedLocked_'));
+assert(indexSource.includes('class="review-lead-select-input"'));
+assert(indexSource.includes('除外対象にする'));
+const reviewStatusUpdateStart = indexSource.indexOf('function updateReviewLeadStatus(id, status, options)');
+const reviewStatusUpdateEnd = indexSource.indexOf('\n      function ', reviewStatusUpdateStart + 10);
+const reviewStatusUpdateSource = indexSource.slice(reviewStatusUpdateStart, reviewStatusUpdateEnd);
+assert(reviewStatusUpdateSource.includes('const configuredLead = config.lead && config.lead.id === id ? config.lead : null;'));
+assert(reviewStatusUpdateSource.includes('const reviewLead = (state.reviewLeads || []).find'));
+assert(reviewStatusUpdateSource.includes("expected_status: '未対応'"));
+assert(!reviewStatusUpdateSource.includes('expected_status: mutation.previousStatus'));
+assert(indexSource.includes('{ skipConfirm: true, allowUndo: true, lead: selected }'));
 
-console.log('v274 review genre edit regression tests passed.');
+const highPriorityReview = context.decorateReviewLeadForList_({
+  id: 'priority-high',
+  source: 'source_page',
+  genre: 'キャンプ',
+  website_url: 'https://operator.example/camp',
+  email: 'info@operator.example',
+  form_url: 'https://operator.example/contact',
+  address: '東京都',
+});
+const lowPriorityReview = context.decorateReviewLeadForList_({
+  id: 'priority-low',
+  source: 'source_page',
+  website_url: '',
+  email: '',
+  form_url: '',
+});
+assert.strictEqual(highPriorityReview.review_priority_tier, 'high');
+assert.strictEqual(lowPriorityReview.review_priority_tier, 'low');
+assert(highPriorityReview.review_priority_score > lowPriorityReview.review_priority_score);
+const reviewRelations = JSON.parse(JSON.stringify(context.reviewLeadRelatedCandidates_({
+  id: 'current',
+  facility_name: '山のキャンプ場',
+  website_url: 'https://camp.operator.example/current',
+  email: 'info@operator.example',
+}, [
+  { id: 'exact-email', facility_name: '別施設', website_url: 'https://other.example', email: 'info@operator.example', status: '対応中' },
+  { id: 'same-root', facility_name: '海のキャンプ場', website_url: 'https://villa.operator.example', status: '未対応' },
+], 8)));
+assert.strictEqual(reviewRelations[0].id, 'exact-email');
+assert.strictEqual(reviewRelations[0].confidence, 'high');
+assert(reviewRelations.some((item) => item.id === 'same-root' && item.confidence === 'caution'));
+const reviewListOptions = context.normalizeListOptions_({
+  filter: 'review',
+  sort: 'review_priority_desc',
+  reviewPriority: 'high',
+  reviewContact: 'email',
+});
+assert.strictEqual(reviewListOptions.sort, 'review_priority_desc');
+assert.strictEqual(reviewListOptions.reviewPriority, 'high');
+assert.strictEqual(reviewListOptions.reviewContact, 'email');
+assert(vm.runInContext('SHEET_DEFINITIONS.review_activity_logs.includes("reversible_until")', context));
+assert(codeSource.includes('function getReviewLeadWorkspace(leadId, options)'));
+assert(codeSource.includes('function undoReviewActivity(activityId)'));
+assert(codeSource.includes('function appendReviewActivityRecordsBestEffortLocked_'));
+assert(webAppSource.includes("if (action === 'getReviewLeadWorkspace')"));
+assert(webAppSource.includes("if (action === 'listReviewActivities')"));
+assert(webAppSource.includes("if (action === 'undoReviewActivity')"));
+assert(indexSource.includes('id="reviewConvenienceToolbar"'));
+assert(indexSource.includes('function renderReviewIntelligencePanel(lead)'));
+assert(indexSource.includes('id="reviewActivityPanel"'));
+assert(indexSource.includes('function undoReviewActivityFromPanel(activityId)'));
+assert(indexSource.includes('id="backgroundJobControlBar"'));
+assert(indexSource.includes('function backgroundJobActionMarkup(job)'));
+assert(indexSource.includes("onclick=\"loadJobs()\">最新状態を取得"));
+assert(operationsSource.includes("['failed', 'cancelled'].indexOf(String(job.status || '')) !== -1"));
+
+console.log('v326 review-workspace regression tests passed.');

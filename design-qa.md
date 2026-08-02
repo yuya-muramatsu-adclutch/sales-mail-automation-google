@@ -1,3 +1,392 @@
+# Design QA: 全画面実機監査と操作状態の明確化 v292
+
+## Source visual truth
+
+- User-selected reference: `/var/folders/dt/65rjch0j08vc0l_nbx7pv2y00000gn/T/codex-clipboard-d03de244-a09e-4e9f-9555-7f990ea8207a.png` (1586 x 992).
+- Repository copy: `docs/design-references/collection-source-reference-v281.png`.
+- Signed-in production comparison: `docs/design-audit/v292-live/07-reference-vs-v292.jpg`.
+- Final clean collection state: `docs/design-audit/v292-live/08-source-page-final-clean.png`.
+
+## Full-screen audit scope
+
+Chromeでログイン済みの固定Web appを開き、主要20画面とバックグラウンド実行状態を実データで確認した。変更を伴う収集、メール送信、フォーム送信、マスター登録は実行していない。
+
+| 画面 | 実機確認 | 判定・対応 |
+| --- | --- | --- |
+| 確認待ち | `v291-live/01-review.png` | 候補数、次操作、一覧の階層が明確。維持。 |
+| 今日 | `v291-live/02-dashboard.png` | 作業優先順位と異常確認が明確。維持。 |
+| 収集方法 | `v291-live/03-collection-overview.png` | キーワード型と一覧ページ型の選択が明確。維持。 |
+| 一覧ページ収集 | `v292-live/08-source-page-final-clean.png` | 参考画像と同じ順序へ整理し、戻る導線も初期表示へ復元。 |
+| メール送信対象 | `v291-live/05-email-targets.png` | 初回表示が空白に見えたため、画面固有の読込案内を追加。 |
+| 成果・分析 | `v291-live/06-results-analytics.png` | KPI、内訳、推移の順序が明確。遅延読込案内を共通化。 |
+| 営業リスト | `v291-live/07-leads.png` | 絞り込み、件数、表の関係が明確。維持。 |
+| 収集の進捗 | `v291-live/08-background-jobs.png` | 初回の空白を読込案内へ置換。 |
+| フォーム送信 | `v291-live/09-forms.png` | KPIと対象一覧が明確。維持。 |
+| 送信プレビュー | `v291-live/10-send-preview.png` | 送信前確認の階層は明確。読込案内を共通化。 |
+| 送信履歴 | `v291-live/11-histories.png` | 横長表だが実務上必要な列を保持。初回読込案内を追加。 |
+| 営業テンプレート | `v291-live/12-templates.png` | テンプレート操作が理解可能。初回読込案内を追加。 |
+| 返信・商談 | `v291-live/13-deals.png` | 返信と商談の状態が明確。初回読込案内を追加。 |
+| データ取り込み | `v292-live/02-sync-plain-language.png` | `doPost`等の内部用語を、上書き・重複・継続ルールの日本語表示へ変更。 |
+| 送信NG | `v292-live/03-send-ng-guidance.png` | 例、必須条件、無効状態、成功/失敗メッセージを追加。 |
+| 除外ドメイン | `v291-live/16-exclusions.png` | 対象と空状態が明確。維持。 |
+| エラー詳細 | `v291-live/17-errors.png` | 固定の戻るボタンが内容へ重なるため撤去。既存のヘッダー導線を使用。 |
+| Gmail連携 | `v291-live/18-gmail.png` | 認可状態と次操作が明確。維持。 |
+| アプリ設定 | `v291-live/19-admin.png` | 検索と設定グループが明確。維持。 |
+| 運用状況 | `v292-live/04-ops-no-overlay.png` | 重なる固定ボタンを撤去し、ヘッダーへ「ダッシュボードへ」を追加。 |
+| バックグラウンド実行 | `v291-live/21-background-activity.png` | 実行履歴は維持し、固定ボタンによる下部の遮蔽を解消。 |
+
+## Findings and repairs
+
+- [P1 repaired] 一覧ページ収集へ進んだ直後にフォームまでスクロールし、選択した参考画像にある「戻る」と画面タイトルが見えない状態を、ルート先頭へ合わせるよう修正した。
+- [P1 repaired] 遅延データを持つ画面が初回表示で空白に見えた。画面固有の読込中表示、`aria-busy`、完了後の自動除去、失敗時の既存再試行導線を統一した。
+- [P1 repaired] データ取り込み画面に`POST / doPost`、`fill_blanks`等の実装用語が露出していた。業務上必要な「空欄だけ補完」「重複判定」「画面を閉じても継続」に置き換えた。
+- [P1 repaired] エラー、運用、バックグラウンド画面の固定戻るボタンが本文へ重なっていた。固定要素を撤去し、画面ヘッダー内の文脈に合う戻り先へ統一した。
+- [P2 repaired] 送信NG登録は何を入力すれば有効になるか不明確だった。入力例、いずれか1項目の必須条件、登録前の無効状態、登録結果メッセージを追加し、保存後の再読込をマスターだけへ限定した。
+
+## Signed-in Chrome verification
+
+- Version marker `v292` was visible on production; `isOverview is not defined` and escaped/raw HTML were absent.
+- Loading state appeared immediately on the mail-target screen (`v292-live/01-email-leads-loading.png`), then cleared and rendered 1,924 targets (`v292-live/05-email-leads-loaded.png`).
+- The collection screen used generic member/store/facility/exhibitor-list copy, contained no Napp-specific recommendation, and retained both source choices.
+- Sync exposed no `POST /`, `doPost`, or `fill_blanks`; Send NG showed all input examples and a disabled submit until valid; operations had no `.background-center-button` and exposed a visible dashboard return action.
+- The selected reference and production screenshot were reviewed in the same comparison artifact. Remaining visible differences are the unavoidable Google Apps Script host notice and the live Chrome viewport width; the task hierarchy, spacing system, controls, and action placement match the selected direction.
+
+## Verification
+
+- `node scripts/smoke-test.js`: passed (`v292 full UI audit and loading-state regression tests passed.`).
+- All Apps Script `.gs` files and the single inline `Index.html` script compiled successfully.
+- `git diff --check` and `clasp status`: passed; all nine Apps Script project files remained tracked.
+- `clasp push`, Apps Script version creation `295`, and fixed production deployment update `@295`: passed.
+- No external search, email delivery, form delivery, lead mutation, or Send NG registration was executed during verification.
+
+final result: passed
+
+# Design QA: 初期起動と画面読込の共通復旧 v291
+
+## Source visual truth
+
+- User-selected reference: `/var/folders/dt/65rjch0j08vc0l_nbx7pv2y00000gn/T/codex-clipboard-d03de244-a09e-4e9f-9555-7f990ea8207a.png` (1586 x 992).
+- Repository copy: `docs/design-references/collection-source-reference-v281.png`.
+- The v290 recovery surface is reused without changing the approved visual hierarchy.
+
+## Findings and repairs
+
+- [P1 repaired in code] A retry before initial app data finished loading previously called the deferred route loader, which immediately returned. It now reruns the complete startup request and restores the normal application state.
+- [P1 repaired in code] Non-authorization startup errors now produce the same persistent in-context recovery action as later screen-load failures; authorization errors continue to use the dedicated Google consent gate.
+- [P1 open] The signed-in production UI still needs visual and interaction verification for startup failure, route failure, keyboard focus, and responsive layout.
+
+## Verification
+
+- Startup and route retry branches, persistent error connection, all 20 route loaders, DOM notice semantics, client runtime evaluation, smoke suite, JavaScript compilation, and `git diff --check`: passed.
+- Production deployment: fixed Web app `@294`, app marker `20260723_apps_script_full_workflow_v291_startup_section_recovery`.
+- Full visual comparison: blocked; no rendered result is inferred from static or DOM-mock evidence.
+
+final result: blocked
+
+# Design QA: 画面データ読込エラーの復旧導線 v290
+
+## Source visual truth
+
+- User-selected reference: `/var/folders/dt/65rjch0j08vc0l_nbx7pv2y00000gn/T/codex-clipboard-d03de244-a09e-4e9f-9555-7f990ea8207a.png` (1586 x 992).
+- Repository copy: `docs/design-references/collection-source-reference-v281.png`.
+- New error recovery reuses the approved 8px bordered surface, compact icon/copy/action layout, and existing button hierarchy.
+
+## Findings and repairs
+
+- [P1 repaired in code] Deferred screen failures previously produced only a global error and console warning. Each affected route now shows a persistent in-context explanation and one retry action below its visible heading.
+- [P1 repaired in code] Retry runs only the active screen's loader, removes stale failure copy before starting, and replaces it with the newest result if the request fails again.
+- [P2 repaired in code] The recovery notice is announced as an alert and reflows to a full-width retry button below 720px.
+- [P1 repaired in tests] All 20 routes must remain represented in the lazy-load controller, and the generated recovery notice must retain the route-specific retry target.
+- [P1 open] Visual hierarchy, wrapping, focus movement, and retry behavior in the signed-in production UI still require the selected Chrome connection.
+
+## Verification
+
+- Route coverage, failure-notice DOM, alert semantics, retry target, client runtime evaluation, smoke suite, JavaScript compilation, and `git diff --check`: passed.
+- Production deployment: fixed Web app `@293`, app marker `20260723_apps_script_full_workflow_v290_section_load_recovery`.
+- Full visual comparison: blocked; no rendered result is inferred from static or DOM-mock evidence.
+
+final result: blocked
+
+# Design QA: 固有文言の空状態・クライアント実行契約 v289
+
+## Source visual truth
+
+- User-selected reference: `/var/folders/dt/65rjch0j08vc0l_nbx7pv2y00000gn/T/codex-clipboard-d03de244-a09e-4e9f-9555-7f990ea8207a.png` (1586 x 992).
+- Repository copy: `docs/design-references/collection-source-reference-v281.png`.
+- The approved navy sidebar, white workspace, blue action hierarchy, and existing icon library remain the visual target.
+
+## Findings and repairs
+
+- [P1 repaired in code] The exclusion table uses its own empty copy, so the previous enhancer rejected it before reading the table-specific configuration. Configured tables now receive their intended guidance regardless of the original empty label.
+- [P1 repaired in tests] Every guided state must reference a rendered table and an icon from the existing library; stale IDs and blank icons now fail the regression suite.
+- [P1 repaired in tests] The complete client declaration script now executes in a minimal DOM runtime and proves that routing, lazy loading, and key screen renderers remain callable at application scope.
+- [P1 open] Signed-in screenshots, same-viewport reference comparison, keyboard interaction, responsive reflow, and console review still require the selected Chrome connection.
+
+## Verification
+
+- Custom exclusion empty copy, dynamically inserted table body, configured actions, and application-scope renderer checks: passed.
+- `node scripts/smoke-test.js`, `node --check scripts/smoke-test.js`, inline JavaScript compilation, and `git diff --check`: passed.
+- Production deployment: fixed Web app `@292`, app marker `20260723_apps_script_full_workflow_v289_empty_state_runtime_contract`.
+- Full visual comparison: blocked; no pixel-level claim is inferred from static or mocked runtime evidence.
+
+final result: blocked
+
+# Design QA: 動的な空状態の反映・主要一覧の案内拡張 v288
+
+## Source visual truth
+
+- User-selected reference: `/var/folders/dt/65rjch0j08vc0l_nbx7pv2y00000gn/T/codex-clipboard-d03de244-a09e-4e9f-9555-7f990ea8207a.png` (1586 x 992).
+- Repository copy: `docs/design-references/collection-source-reference-v281.png`.
+- Existing navy/white/blue visual language and the selected reference's single-primary-action hierarchy are unchanged.
+
+## Implementation target
+
+- Production deployment: fixed Web app `@291`, app marker `20260723_apps_script_full_workflow_v288_dynamic_empty_state_coverage`.
+- Required comparison: signed-in desktop at the reference viewport, covering dynamically rendered empty tables and the collection source-page route.
+- Implementation screenshot: unavailable because the selected Chrome connection is not loaded in the current Codex process.
+
+## Findings and repairs
+
+- [P1 repaired in code] The observer receives inserted `thead`/`tbody` nodes, but the v287 enhancer only inspected the inserted node and descendant tables. It now resolves the nearest parent table, so post-load and post-filter empty states are actually enhanced.
+- [P1 repaired in code] Major collection, background, sending, history, sync, deal, exclusion, and analytics tables now explain what an empty result means and expose one useful next action where applicable.
+- [P2 repaired in code] The empty-state query now targets only the table cell's direct label, preventing nested copy spans from being treated as a new unenhanced state.
+- [P1 open] Same-viewport rendered comparison, keyboard focus inspection, responsive wrapping, and console review still require the selected Chrome connection.
+
+## Verification
+
+- DOM regression: inserted `tbody` resolves its containing `sendingPlanTable` and receives the correct guided empty state and action.
+- Static application contract: all 20 routed screens, UI handlers, API routes, labels, and literal DOM references remain covered by the smoke suite.
+- `node scripts/smoke-test.js`, `node --check scripts/smoke-test.js`, inline JavaScript compilation, and `git diff --check`: passed.
+- Fixed production deployment updated to `@291`.
+- Full-view and focused-region visual comparison: blocked until Chrome control is loaded; no pixel-level result is inferred from static code.
+
+final result: blocked
+
+# Design QA: 全画面の案内付き空状態・動的アイコン v287
+
+## Source visual truth
+
+- User-selected reference: `/var/folders/dt/65rjch0j08vc0l_nbx7pv2y00000gn/T/codex-clipboard-d03de244-a09e-4e9f-9555-7f990ea8207a.png` (1586 x 992).
+- Repository copy: `docs/design-references/collection-source-reference-v281.png`.
+- Target language preserved: navy workflow sidebar, white content surface, blue primary actions, low-radius bordered cards, concise task-first copy.
+
+## Implementation target
+
+- Production deployment: fixed Web app `@290`, app marker `20260723_apps_script_full_workflow_v287_guided_empty_states_dynamic_icons`.
+- Viewport/state required for comparison: signed-in desktop at the same 1586 x 992 content viewport, covering all 20 routes plus empty list states and the collection source-page route.
+- Implementation screenshot: unavailable in the current run because the selected Chrome connection was configured after the current Codex process started.
+- CSS viewport and density normalization: pending browser capture; no implementation pixels were inferred from code.
+
+## Findings and repairs
+
+- [P1 repaired in code] Dynamically rendered review command buttons retained `data-ui-icon` placeholders because icon hydration only ran against the initial DOM. The mutation observer now hydrates the inserted root and descendants.
+- [P1 repaired in code] Empty tables across eight high-use surfaces only said that data was absent. They now explain what the state means and, where useful, provide one direct next action.
+- [P2 repaired in code] Guided empty states now reflow from a three-column cue/copy/action layout to a stacked mobile action without changing the surrounding table structure.
+- [P1 open] A same-viewport rendered comparison is still required to judge actual wrapping, table-cell height, icon size, focus states, and interaction behavior.
+
+## Verification
+
+- Full-view comparison evidence: blocked; no current signed-in implementation screenshot.
+- Focused region comparison evidence: blocked for the same reason.
+- Fonts and typography: source and CSS tokens inspected; rendered fidelity not yet proven.
+- Spacing and layout rhythm: responsive CSS and table structure verified statically; rendered fidelity not yet proven.
+- Colors and visual tokens: existing approved navy/white/blue tokens reused; rendered contrast still needs browser inspection.
+- Image and icon fidelity: existing in-app icon library reused; dynamic hydration is covered by a DOM unit regression.
+- Copy and content: empty-state text and direct actions are covered by regression assertions.
+- Primary interactions tested: dynamic icon root hydration and review-empty-state action routing passed in the local DOM unit regression. Signed-in clicks remain pending.
+- Console errors checked: blocked without the selected Chrome connection.
+
+## Comparison history
+
+- Pass 1: code and DOM regression identified and repaired dynamic icon hydration and unguided empty states. Browser-rendered comparison remains unavailable.
+
+final result: blocked
+
+# Structural QA: 動的入力と画面遷移 v286
+
+## Scope and evidence
+
+- Routed-screen contract: all 20 sections have a title, concise task description, and visible `h1`.
+- Interaction contract: all 356 inline UI bindings resolve to declared client functions or known browser methods.
+- Control-name audit: 114 inputs, 33 selects, and 12 textareas have an explicit or enclosing visible label after the dynamic-control repairs.
+- Fixed deployment: `@289`, app marker `20260722_apps_script_full_workflow_v286_dynamic_control_accessibility`.
+
+## Repairs
+
+- Added screen-reader names to editable job-result email/form fields, genre and reason master fields, the fixed template-test recipient, and the source-page URL input.
+- Added SPA route focus management so every screen change announces the destination heading, with a visible keyboard focus ring.
+- Added task-center focus entry, redraw preservation, close return, and destination-heading handoff.
+- Darkened success/warning tokens and the source URL placeholder while preserving the selected reference design's blue/white hierarchy.
+
+## Verification and limitation
+
+- `node scripts/smoke-test.js`, inline JavaScript compilation, DOM/action contracts, and `git diff --check`: passed.
+- `clasp push` and fixed deployment update to `@289`: passed.
+- Chrome control is still unavailable in this task. Under the Product Design audit contract, signed-in screenshots and same-viewport comparison remain unverified rather than inferred from static code.
+- No external search, mail delivery, form delivery, or lead mutation was executed.
+
+final result: structural and keyboard-accessibility coverage strengthened and deployed; signed-in visual audit still requires Chrome control
+
+# App-wide QA: 共通操作とランタイムガード v285
+
+## Scope and evidence
+
+- Static accessibility inventory: 84 static buttons, 2 static links, and 51 form controls; every button/link has an accessible name, and the one unlabeled search control was repaired.
+- Literal DOM reference audit: every string-based `getElementById` target resolves to a static DOM ID; the dead Gmail fallback was removed.
+- Dialog audit: lead details, template edit, template test, and batch-send confirmation now share focus entry, focus trapping, Escape close, focus return, and background scroll locking.
+- Fixed deployment: `@288`, app marker `20260722_apps_script_full_workflow_v285_dialog_accessibility_and_runtime_guard`.
+
+## Repairs
+
+- Replaced the source selector's incomplete ARIA tab semantics with a pressed-state button group matching its actual behavior.
+- Moved dialog semantics from backdrops to the interactive panels and connected each panel to its visible title.
+- Added an accessible name to the admin settings search, removed the nonexistent `gmailStatusPills` fallback, localized remaining English helper labels, and aligned success/warning colors to the existing accessible dark tokens.
+- Fixed a dead runtime warning condition by retaining the configured value before clamping the effective batch budget to 330 seconds.
+
+## Verification and limitation
+
+- `node scripts/smoke-test.js`: passed with v285 dialog, DOM-reference, source-selector, and runtime-alert regressions.
+- `Index.html` inline JavaScript compilation and `git diff --check`: passed; `clasp push` and fixed deployment update to `@288`: passed.
+- Anonymous production reachability redirects normally to Google sign-in. The selected Chrome control runtime and `clasp run` permission are unavailable in this task, so the signed-in 20-screen image/interaction sweep and authenticated v285 API marker remain pending.
+- No external search, mail delivery, form delivery, or lead mutation was executed.
+
+final result: v285 deployed with common keyboard/accessibility and runtime-guard repairs; signed-in visual sweep pending Chrome control availability
+
+# App-wide QA: 全20画面の整合性監査 v284
+
+## Scope and evidence
+
+- Static inventory: 20 page sections, 356 inline UI event bindings, and 68 literal client API actions.
+- Production read audit: 24 read-only routes passed with the corrected server argument shapes.
+- Runtime health: schema 7/7 ready, background worker healthy, storage healthy, unresolved error count 0.
+- Fixed deployment: `@287`, app marker `20260722_apps_script_full_workflow_v284_app_wide_audit_cleanup`.
+
+## Repairs
+
+- Added the missing Web app dispatch for `getLeadListStats` and standardized unsupported global error tones.
+- Replaced ambiguous or English-only page labels with consistent Japanese task names across headings, navigation, and document titles.
+- Removed the false Apps Script version-quota alarm: a release label is now informational and is never treated as the count of stored versions. Old cached alerts are normalized on read.
+- Avoided opening SpreadsheetApp during `getAppInfo` when `SPREADSHEET_ID` is already stored.
+- Repaired the production schema with the existing safe setup path and classified only the exact historical/transient audit errors as resolved; future recurrences remain open.
+
+## Verification
+
+- `node scripts/smoke-test.js`: passed.
+- `Index.html` inline JavaScript compilation: passed.
+- Client API to Web app route parity: passed.
+- `git diff --check`: passed.
+- Authenticated production HTML: HTTP 200 with all updated page-title markers and intact source-page workbench markup.
+- No external search, mail delivery, form delivery, or lead mutation was executed.
+
+## Visual verification limitation
+
+- The selected Codex Browser control runtime is not exposed in this task. A signed-in same-viewport screenshot pass across all 20 pages remains pending; the provided collection-page reference was implemented and runtime-verified separately in v281.
+
+final result: code, API, schema, and production delivery verified; signed-in visual sweep pending Browser availability
+
+# Runtime QA: 収集画面描画停止 v279
+
+## Evidence
+
+- User-provided Chrome screen showed `isOverview is not defined` above the page header on both Collection and Review routes.
+- The Collection route stopped before rendering the workbench body; the Review route rendered partially but retained the global error.
+
+## Root cause and repair
+
+- A source-page estimate refresh block referenced collection-local variables from `renderSearchActivityPanel`.
+- The block now runs only inside `renderCollectionCommandCenter`, after the active collection markup exists.
+- Regression assertions ensure Search Activity and Job Results renderers do not reference `isOverview` or `activeTab`.
+
+## Verification
+
+- `node scripts/smoke-test.js`: passed with v279 render-scope assertions.
+- `Index.html` inline JavaScript syntax compilation: passed.
+- `git diff --check`: passed.
+- Fixed Web app deployment updated to `@282`.
+- Authenticated `getAppInfo` returned `20260722_apps_script_full_workflow_v279_collection_render_scope_fix`.
+- A fresh user-browser screenshot is still required to confirm the signed-in rendered state after refresh.
+
+final result: root cause fixed and deployed; signed-in visual confirmation pending refresh
+
+# Design QA: 汎用一覧ページ収集ワークベンチ v278
+
+## Source visual truth
+
+- User-selected design: source-first URL collection layout.
+- Repository reference: `docs/design-references/collection-universal-v278.png` (1586 x 992).
+- Existing product constraints preserved: navy workflow sidebar, blue/white palette, line-icon library, existing collection routes, background processing, exclusion rules, and review workflow.
+
+## Implementation
+
+- Removed the visible nap-camp/camping preset and made the first choice `新しい一覧ページURL` or `保存済みURLを使う`.
+- The primary flow is URL input, concise condition summary, optional detailed conditions, collection preview, then save or start.
+- Classification defaults to `未分類`; batch size, full-page processing, search completion, and a reusable saved name remain optional.
+- Saved sources now preserve batch size and search-completion settings in addition to URL, label, classification, and full-page mode.
+- Generic server extraction is regression-tested against internal detail links and external official-site links. Full-page mode can continue up to 200 candidates through the existing cursor/background worker.
+- Existing controls, APIs, duplicate/exclusion safety, contact discovery, saved-source monitoring, and background progress remain functional.
+
+## Static and runtime evidence
+
+- `node scripts/smoke-test.js`: passed with v278 generic-source assertions.
+- `Index.html` inline JavaScript syntax compilation: passed.
+- Source-page control ID uniqueness: passed.
+- `git diff --check`: passed.
+- `clasp push`: passed.
+- Fixed Web app deployment updated to `@281` with app code `20260722_apps_script_full_workflow_v278_universal_source_collection`.
+- Authenticated `getAppInfo` returned the v278 marker.
+- Authenticated Web app HTML returned HTTP 200 and contained all six required generic-workbench markers.
+
+## Visual verification limitation
+
+- The user-selected Codex Browser control runtime is not exposed in this task, so a signed-in implementation screenshot and same-viewport side-by-side comparison could not be captured.
+- Static structure, responsive CSS, saved-setting behavior, generic parsing, deployment metadata, and authenticated runtime markers are verified.
+
+final result: v278 implemented and runtime-verified; rendered comparison pending Browser availability
+
+# Design QA: 営業リスト収集ツール v277
+
+## Source visual truth
+
+- User-provided production screenshot: `docs/audits/v277-collection-focus/01-current-source-page.png` (3360 x 1856).
+- Full audit: `docs/audits/v277-collection-focus/AUDIT.md`.
+- Existing navy sidebar, blue/white visual language, icon library, controls, routes, and collection behavior are preserved.
+
+## Audit findings addressed
+
+- The first viewport prioritized three large status cells, a large method-change panel, and the alternative-method disclosure before the actual URL field.
+- The selected method name and explanation repeated in the route bar and form heading.
+- The backward action `方法を選び直す` competed visually with the forward collection task.
+- URL, options, preview, and submit were stacked vertically despite the available desktop width, pushing the primary CTA below the fold.
+- Automatic collection `OFF` appeared as a prominent status even though it does not block manual source-page collection.
+
+## Implementation
+
+- Active methods now use a compact breadcrumb-style row with a small `方法選択` back action and `手順 2 / 4` state.
+- The active form renders immediately below that row; status cells and alternative methods move below the current task.
+- Desktop forms use the left column for URL/keywords and options, with a sticky right-side preview and submit card so the primary action remains visible.
+- The form collapses to one column below 980px; status cells collapse below 620px.
+- Active-page heading, spacing, cards, textareas, and secondary status cells are compacted without changing existing IDs or collection APIs.
+- Method changes move focus to the form panel so keyboard users receive the updated context.
+- The v276 four-step overview, three-step form labels, optional settings, result banner, and saved-URL disclosure remain intact.
+- Existing IDs and collection APIs are preserved; no search, mail, or sales-data operation was executed during verification.
+
+## Static and runtime evidence
+
+- `node scripts/smoke-test.js`: passed with v277 focus-mode regression assertions.
+- `Index.html` inline JavaScript syntax compilation: passed.
+- `git diff --check`: passed.
+- `clasp push`: passed.
+- Fixed Web app deployment updated to `@280` with app code `20260722_apps_script_full_workflow_v277_collection_focus_mode`.
+- Authenticated `getAppInfo` returned the v277 marker.
+- Authenticated Web app HTML returned HTTP 200 and contained the active-focus class and primary source-page action.
+
+## Visual verification limitation
+
+- The requested Codex Browser control runtime was not exposed in this task, so click-through behavior and a same-viewport rendered screenshot could not be captured.
+- The deployed HTML, version marker, static structure, responsive breakpoints, and JavaScript regressions are verified. Final visual sign-off still requires a hard refresh in the signed-in browser.
+
+final result: v277 deployed and runtime-verified; rendered screenshot pending Browser availability
+
 # Design QA: 営業リスト上部メニュー v214
 
 ## Source visual truth
@@ -143,6 +532,59 @@ final result: code paths verified; authenticated timing comparison pending
 - Static form hierarchy, responsive one-column fallback, save/cancel behavior, and production API/version checks passed.
 
 final result: blocked on authenticated production screenshot; implementation and runtime checks passed
+
+# Design QA: 営業フロー・ステップボード v275
+
+## Source visual truth
+
+- User-selected design: option 2, `営業フロー・ステップボード`.
+- Repository reference: `docs/design-reference-dashboard-v275.png`.
+- Original generated source: `/Users/muramatsuyuuya/.codex/generated_images/019f8532-e84f-72a1-9e89-a1012412650b/exec-00339ec5-8baf-432a-a169-cb2cf6684432.png`.
+- Existing product constraints preserved: navy workflow sidebar, established colors and icon library, 8px radius, top send-safety strip, existing routes, and existing detailed operational controls.
+
+## Audit findings addressed
+
+- The previous first viewport repeated send, API, and monthly metrics across multiple large card groups.
+- The highest-volume work item, review pending, appeared below summary cards instead of leading the daily workflow.
+- Healthy API status occupied primary space while the next operator action began below the fold.
+- Mail controls, collection status, monthly summaries, and breakdown tables competed with the daily decision path.
+
+## Implementation
+
+- The first section now exposes five direct workflow steps: `今日 → 収集 → 確認 → 送信 → 成果`.
+- The active bottleneck uses both text and emphasis, and each workflow card is a keyboard-accessible button with an accessible label.
+- Review, error, and send work is consolidated into one prioritized task queue with direct actions.
+- API health, the automatic-send window, and today's sent count use one compact operations column.
+- Monthly new leads, replies, and deals use one compact outcome strip.
+- Mail control, collection status, legacy KPI totals, and status/genre breakdowns remain available under `詳細な運用データ`.
+- At narrow widths, the workflow remains horizontally scrollable, task controls stack, and outcome cards collapse to one column.
+
+## Static and functional evidence
+
+- `node scripts/smoke-test.js`: passed.
+- `Index.html` inline script syntax compilation: passed.
+- `git diff --check`: passed.
+- New dashboard IDs are unique in static markup.
+- Regression assertions cover the new workflow, task queue, operations, outcomes, detail disclosure, active-step accessibility, and responsive breakpoint.
+- The fixed Web app deployment was updated in place to `@277` with app code v275.
+
+## Visual comparison evidence
+
+- The exact selected reference is stored in the repository.
+- A rendered implementation screenshot could not be captured because the requested Codex in-app browser runtime is not exposed in this task.
+- The user's visible Chrome was intentionally not used after the user requested that their screen remain untouched.
+- Source-only and code-only review do not qualify as a visual comparison pass.
+
+## Production checklist
+
+- Hard-refresh the fixed Web app URL and confirm the first viewport matches the selected five-stage composition.
+- Confirm `確認` shows the live pending count and is emphasized when pending work exists.
+- Confirm each workflow step and task action opens the intended existing route.
+- Confirm `送信時間外` remains visible in the global safety strip and in the operations column.
+- Confirm the workflow scrolls horizontally without clipping at 900px and below.
+- Open `詳細な運用データ` and confirm mail control, collection status, and both breakdown tables remain usable.
+
+final result: blocked on same-viewport Codex Browser screenshot comparison; implementation and static checks passed
 
 ## v222 follow-up
 

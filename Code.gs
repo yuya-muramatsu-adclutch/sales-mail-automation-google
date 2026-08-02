@@ -1,5 +1,13 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260720_apps_script_full_workflow_v274_review_genre_edit';
+const APP_VERSION = '20260802_apps_script_full_workflow_v326_review_workspace';
+const BACKGROUND_JOB_SAFE_RUNTIME_MAX_MS = 240000;
+const BACKGROUND_JOB_DEFAULT_RUNTIME_MS = 240000;
+const BACKGROUND_JOB_IMMEDIATE_DELAY_MS = 5000;
+const BACKGROUND_JOB_RETRY_DELAY_MS = 60000;
+const REVIEW_DECISION_QUEUE_PROPERTY_PREFIX_ = 'REVIEW_DECISION_QUEUE_V1_';
+const REVIEW_DECISION_QUEUE_TRIGGER_HANDLER_ = 'processPendingReviewLeadDecisionsNow';
+const REVIEW_DECISION_QUEUE_BATCH_SIZE_ = 50;
+const REVIEW_ACTIVITY_UNDO_WINDOW_MS_ = 24 * 60 * 60 * 1000;
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -184,6 +192,7 @@ const SHEET_DEFINITIONS = Object.freeze({
     'daily_limit',
     'job_limit',
     'cursor_json',
+    'progress_json',
     'last_error',
     'error_count',
     'lock_token',
@@ -271,6 +280,24 @@ const SHEET_DEFINITIONS = Object.freeze({
     'stack',
     'context_json',
     'created_at',
+  ],
+  review_activity_logs: [
+    'id',
+    'lead_id',
+    'facility_name',
+    'website_url',
+    'action_type',
+    'action_label',
+    'previous_status',
+    'next_status',
+    'snapshot_json',
+    'detail_json',
+    'reversible_until',
+    'undone_at',
+    'undo_log_id',
+    'actor',
+    'created_at',
+    'updated_at',
   ],
   jobs: [
     'id',
@@ -412,9 +439,9 @@ const DEFAULT_SETTINGS = Object.freeze([
   },
   {
     key: 'batch_runtime_budget_ms',
-    value: '300000',
+    value: '240000',
     value_type: 'number',
-    description: 'Maximum runtime budget per batch. Apps Script hard limit is 6 minutes.',
+    description: 'Safe runtime budget per batch. Leaves recovery time before the Apps Script 6-minute limit.',
   },
 ]);
 
@@ -542,6 +569,13 @@ function getAppInfo() {
     } catch (error) {
       console.warn('App info cache read skipped: ' + error.message);
     }
+    return {
+      appName: APP_NAME,
+      version: APP_VERSION,
+      reference: EXISTING_APP_REFERENCE,
+      spreadsheetId: storedId,
+      spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/' + encodeURIComponent(storedId),
+    };
   }
   const spreadsheet = getOrCreateSpreadsheet_();
   const info = {
@@ -691,7 +725,8 @@ function createLead(input) {
   return createLeadWithLockOptions_(input, null);
 }
 
-function createLeadWithLockOptions_(input, lockOptions) {
+function createLeadWithLockOptions_(input, lockOptions, validationOptions) {
+  assertAutomatedLeadSiteAvailableBeforeCreate_(input, validationOptions);
   return withScriptLock_('createLead', function () {
     return createLeadLocked_(input);
   }, lockOptions);
@@ -744,8 +779,455 @@ function getLeadById(id) {
   return found.record;
 }
 
+function reviewDecisionQueuePropertyKey_(leadId, requestId) {
+  return REVIEW_DECISION_QUEUE_PROPERTY_PREFIX_ + encodeURIComponent(String(leadId || '')) + '_' + String(requestId || '');
+}
+
+function createReviewDecisionRequestId_() {
+  try {
+    if (typeof Utilities !== 'undefined' && typeof Utilities.getUuid === 'function') {
+      return String(Utilities.getUuid()).replace(/[^A-Za-z0-9_-]/g, '');
+    }
+  } catch (error) {
+    // Fall back to a timestamp-based id in local tests or restricted runtimes.
+  }
+  return String(Date.now()) + '_' + Math.random().toString(36).slice(2, 10);
+}
+
+function normalizePendingReviewDecisionRecord_(propertyKey, value) {
+  try {
+    const parsed = JSON.parse(String(value || ''));
+    const leadId = String(parsed.id || parsed.leadId || '').trim();
+    const requestId = String(parsed.requestId || parsed.request_id || '').trim();
+    const status = String(parsed.status || '').trim();
+    const expectedStatus = String(parsed.expectedStatus || parsed.expected_status || '').trim();
+    if (!leadId || !requestId || !status || !expectedStatus) return null;
+    return {
+      propertyKey: String(propertyKey || ''),
+      id: leadId,
+      requestId: requestId,
+      mode: String(parsed.mode || 'decision'),
+      expectedStatus: expectedStatus,
+      status: status,
+      requestedAt: String(parsed.requestedAt || parsed.requested_at || ''),
+      queuedReason: String(parsed.queuedReason || parsed.queued_reason || ''),
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function listPendingReviewDecisionRecords_() {
+  try {
+    if (typeof PropertiesService === 'undefined') return [];
+    const properties = PropertiesService.getScriptProperties();
+    if (!properties || typeof properties.getProperties !== 'function') return [];
+    const values = properties.getProperties() || {};
+    return Object.keys(values).filter(function (key) {
+      return key.indexOf(REVIEW_DECISION_QUEUE_PROPERTY_PREFIX_) === 0;
+    }).map(function (key) {
+      return normalizePendingReviewDecisionRecord_(key, values[key]);
+    }).filter(Boolean).sort(function (a, b) {
+      return String(a.requestedAt || '').localeCompare(String(b.requestedAt || '')) ||
+        String(a.requestId || '').localeCompare(String(b.requestId || ''));
+    });
+  } catch (error) {
+    console.warn('確認結果の保存待ち一覧を読み込めませんでした: ' + String(error.message || error));
+    return [];
+  }
+}
+
+function latestPendingReviewDecisionsByLead_() {
+  return listPendingReviewDecisionRecords_().reduce(function (result, record) {
+    result[record.id] = record;
+    return result;
+  }, {});
+}
+
+function overlayPendingReviewDecisionsOnLeads_(rows) {
+  const latestByLead = latestPendingReviewDecisionsByLead_();
+  return (Array.isArray(rows) ? rows : []).map(function (lead) {
+    const pending = latestByLead[String(lead && lead.id || '')];
+    if (!pending) return lead;
+    const currentStatus = String(lead.status || '');
+    if (currentStatus !== pending.expectedStatus && currentStatus !== pending.status) return lead;
+    return Object.assign({}, lead, {
+      status: pending.status,
+      review_decision_pending: true,
+      review_decision_requested_at: pending.requestedAt,
+    });
+  });
+}
+
+function enqueuePendingReviewDecision_(leadId, decision, reason, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const id = requireId_(leadId);
+  const requestId = createReviewDecisionRequestId_();
+  const record = {
+    id: id,
+    requestId: requestId,
+    mode: String(decision.mode || 'decision'),
+    expectedStatus: String(decision.expectedStatus || ''),
+    status: String(decision.nextStatus || decision.status || ''),
+    requestedAt: nowIso_(),
+    queuedReason: String(reason || 'lock_timeout'),
+  };
+  const properties = PropertiesService.getScriptProperties();
+  properties.setProperty(reviewDecisionQueuePropertyKey_(id, requestId), JSON.stringify(record));
+  if (input.bumpCache !== false) bumpLeadListCacheRevision_();
+  const trigger = input.scheduleTrigger === false
+    ? { result: null, warning: '' }
+    : (typeof ensurePendingReviewDecisionTriggerBestEffort_ === 'function'
+      ? ensurePendingReviewDecisionTriggerBestEffort_(BACKGROUND_JOB_IMMEDIATE_DELAY_MS)
+      : { result: null, warning: '保存待ちの自動再実行トリガーを確認できませんでした。' });
+  return {
+    record: record,
+    trigger: trigger.result,
+    triggerWarning: trigger.warning || '',
+  };
+}
+
 function getLead(id) {
   return getLeadById(id);
+}
+
+function reviewLeadPriorityScore_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  let score = 25;
+  if (String(source.website_url || '').trim()) score += 20;
+  if (isValidEmailAddress_(source.email)) score += 25;
+  if (String(source.form_url || '').trim()) score += 15;
+  if (String(source.address || '').trim()) score += 5;
+  if (String(source.genre || '').trim()) score += 5;
+  if (isAutomatedLeadCollectionSource_(source.source)) score += 5;
+  if (!isValidEmailAddress_(source.email) && !String(source.form_url || '').trim()) score -= 20;
+  if (isKnownNonAdvertiserLeadUrl_(source.website_url || source.form_url || '')) score -= 40;
+  if (isClearlyClosedLead_(source) || isLeadLinkDefinitelyBroken_(source)) score = 0;
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function reviewLeadPriorityTier_(score) {
+  const value = Number(score || 0);
+  if (value >= 70) return 'high';
+  if (value >= 45) return 'medium';
+  return 'low';
+}
+
+function reviewLeadPriorityLabel_(score) {
+  const tier = reviewLeadPriorityTier_(score);
+  if (tier === 'high') return '優先';
+  if (tier === 'medium') return '通常';
+  return '要確認';
+}
+
+function reviewLeadReasonItems_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  const reasons = [];
+  const add = function (key, label, detail, tone) {
+    reasons.push({ key: key, label: label, detail: detail || '', tone: tone || 'info' });
+  };
+  if (String(source.website_url || '').trim()) {
+    add(
+      'website',
+      isKnownNonAdvertiserLeadUrl_(source.website_url) ? '情報サイトの可能性' : '公式サイト候補あり',
+      normalizeDomain_(source.website_url),
+      isKnownNonAdvertiserLeadUrl_(source.website_url) ? 'warn' : 'good'
+    );
+  } else {
+    add('website_missing', 'WEBサイト未取得', '公式サイトの再探索を推奨', 'warn');
+  }
+  if (isValidEmailAddress_(source.email)) add('email', 'メール取得済み', String(source.email || ''), 'good');
+  if (String(source.form_url || '').trim()) add('form', '問い合わせフォームあり', normalizeDomain_(source.form_url), 'good');
+  if (!isValidEmailAddress_(source.email) && !String(source.form_url || '').trim()) {
+    add('contact_missing', '連絡先未取得', 'メール・フォームを確認してください', 'warn');
+  }
+  if (String(source.address || '').trim()) add('address', '住所取得済み', String(source.address || ''), 'info');
+  add('source', '追加元を記録', String(source.source || '不明'), 'info');
+  return reasons;
+}
+
+function decorateReviewLeadForList_(lead) {
+  const score = reviewLeadPriorityScore_(lead);
+  return Object.assign({}, lead, {
+    review_priority_score: score,
+    review_priority_tier: reviewLeadPriorityTier_(score),
+    review_priority_label: reviewLeadPriorityLabel_(score),
+    review_reason_items: reviewLeadReasonItems_(lead),
+  });
+}
+
+function reviewRegistrableDomain_(value) {
+  const domain = normalizeDomain_(value);
+  if (!domain) return '';
+  const parts = domain.split('.').filter(Boolean);
+  if (parts.length <= 2) return domain;
+  const publicSuffix = parts.slice(-2).join('.');
+  const multiPartSuffixes = [
+    'co.jp', 'or.jp', 'ne.jp', 'ac.jp', 'go.jp', 'lg.jp', 'gr.jp',
+    'co.uk', 'org.uk', 'com.au', 'net.au', 'com.sg', 'com.tw',
+  ];
+  return multiPartSuffixes.indexOf(publicSuffix) !== -1
+    ? parts.slice(-3).join('.')
+    : parts.slice(-2).join('.');
+}
+
+function isSharedReviewRootDomain_(domain) {
+  const root = reviewRegistrableDomain_(domain);
+  return [
+    'wixsite.com', 'jimdosite.com', 'wordpress.com', 'amebaownd.com', 'fc2.com',
+    'webnode.jp', 'strikingly.com', 'studio.site', 'google.com', 'notion.site',
+  ].indexOf(root) !== -1;
+}
+
+function reviewLeadComparableNames_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  return Array.from(new Set([
+    normalizeCompanyName_(source.facility_name || ''),
+    normalizeCompanyName_(source.company_name || ''),
+    normalizeCompanyName_(source.normalized_company_name || ''),
+  ].filter(function (name) { return name && name.length >= 4; })));
+}
+
+function reviewLeadRelatedCandidates_(current, leads, limit) {
+  const source = current && typeof current === 'object' ? current : {};
+  const currentId = String(source.id || '');
+  const currentDomain = normalizeDomain_(source.website_domain || source.website_url || '');
+  const currentRoot = reviewRegistrableDomain_(currentDomain);
+  const currentEmail = String(source.email || '').trim().toLowerCase();
+  const currentNames = reviewLeadComparableNames_(source);
+  const maxItems = Math.min(Math.max(Number(limit) || 8, 1), 20);
+
+  return (leads || []).map(function (lead) {
+    if (!lead || String(lead.id || '') === currentId) return null;
+    const domain = normalizeDomain_(lead.website_domain || lead.website_url || '');
+    const root = reviewRegistrableDomain_(domain);
+    const email = String(lead.email || '').trim().toLowerCase();
+    const names = reviewLeadComparableNames_(lead);
+    const reasons = [];
+    let score = 0;
+    if (currentDomain && domain && currentDomain === domain) {
+      reasons.push('公式サイトのドメイン一致');
+      score = Math.max(score, 100);
+    }
+    if (currentEmail && email && currentEmail === email) {
+      reasons.push('メールアドレス一致');
+      score = Math.max(score, 98);
+    }
+    if (currentNames.some(function (name) { return names.indexOf(name) !== -1; })) {
+      reasons.push('施設名・会社名一致');
+      score = Math.max(score, 82);
+    }
+    if (currentDomain && domain && currentDomain !== domain && currentRoot && currentRoot === root && !isSharedReviewRootDomain_(root)) {
+      reasons.push('親ドメイン一致');
+      score = Math.max(score, 55);
+    }
+    if (!reasons.length) return null;
+    return {
+      id: String(lead.id || ''),
+      facility_name: String(lead.facility_name || lead.company_name || '名称未取得'),
+      company_name: String(lead.company_name || ''),
+      website_url: String(lead.website_url || ''),
+      domain: domain,
+      status: String(lead.status || ''),
+      source: String(lead.source || ''),
+      archived: isArchivedLead_(lead),
+      updated_at: String(lead.updated_at || lead.created_at || ''),
+      confidence: score >= 90 ? 'high' : score >= 75 ? 'medium' : 'caution',
+      confidence_label: score >= 90 ? '一致度 高' : score >= 75 ? '一致度 中' : '関連候補',
+      score: score,
+      reasons: reasons,
+    };
+  }).filter(Boolean).sort(function (left, right) {
+    return Number(right.score || 0) - Number(left.score || 0) ||
+      String(right.updated_at || '').localeCompare(String(left.updated_at || ''));
+  }).slice(0, maxItems);
+}
+
+function reviewLeadWorkspaceFields_() {
+  return [
+    'id', 'source', 'company_name', 'normalized_company_name', 'facility_name', 'email',
+    'website_url', 'website_domain', 'status', 'created_at', 'updated_at', 'archived_at',
+  ];
+}
+
+function getReviewLeadWorkspace(leadId, options) {
+  const recordId = requireId_(leadId);
+  const query = options && typeof options === 'object' ? options : {};
+  const current = getLeadById(recordId);
+  const leads = readSheetRecordFields_('leads', reviewLeadWorkspaceFields_(), { maxGapColumns: 2 });
+  const decorated = decorateReviewLeadForList_(current);
+  const activities = listReviewActivities({ leadId: recordId, limit: 30 }).items;
+  const timeline = [{
+    id: 'collected_' + recordId,
+    lead_id: recordId,
+    action_type: 'collected',
+    action_label: '収集して確認待ちに追加',
+    detail: String(current.source || '不明') + 'から追加',
+    created_at: String(current.created_at || ''),
+    reversible: false,
+  }].concat(activities);
+  return {
+    leadId: recordId,
+    priority: {
+      score: decorated.review_priority_score,
+      tier: decorated.review_priority_tier,
+      label: decorated.review_priority_label,
+    },
+    reasons: decorated.review_reason_items,
+    related: reviewLeadRelatedCandidates_(current, leads, query.relatedLimit || query.related_limit || 8),
+    timeline: timeline.sort(function (left, right) {
+      return String(right.created_at || '').localeCompare(String(left.created_at || ''));
+    }),
+    generatedAt: nowIso_(),
+  };
+}
+
+function reviewActivityFields_() {
+  return SHEET_DEFINITIONS.review_activity_logs.slice();
+}
+
+function listReviewActivities(options) {
+  const query = options && typeof options === 'object' ? options : {};
+  const leadId = String(query.leadId || query.lead_id || '').trim();
+  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
+  const nowMs = Date.now();
+  const rows = readSheetRecordFields_('review_activity_logs', reviewActivityFields_(), { maxGapColumns: 0 })
+    .filter(function (record) { return !leadId || String(record.lead_id || '') === leadId; })
+    .sort(function (left, right) {
+      return String(right.created_at || '').localeCompare(String(left.created_at || ''));
+    });
+  const items = rows.slice(0, limit).map(function (record) {
+    const reversibleUntilMs = new Date(record.reversible_until || 0).getTime();
+    return Object.assign({}, record, {
+      reversible: !record.undone_at && Number.isFinite(reversibleUntilMs) && reversibleUntilMs > nowMs,
+    });
+  });
+  return { total: rows.length, limit: limit, items: items };
+}
+
+function buildReviewActivityRecord_(write, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const previous = write && write.previous || {};
+  const record = write && write.record || {};
+  const nextStatus = String(record.status || input.nextStatus || '');
+  const labels = { '対応中': '確認済みに更新', '送信NG': '送信NGに更新', '対応不要': '対応不要に更新', '未対応': '確認待ちに復元' };
+  const reversible = input.reversible !== false && nextStatus !== '未対応';
+  const createdAt = nowIso_();
+  return {
+    lead_id: String(record.id || previous.id || ''),
+    facility_name: String(record.facility_name || record.company_name || previous.facility_name || previous.company_name || '名称未取得'),
+    website_url: String(record.website_url || previous.website_url || ''),
+    action_type: String(input.actionType || (nextStatus === '未対応' ? 'review_undo' : 'review_decision')),
+    action_label: String(input.actionLabel || labels[nextStatus] || '確認状態を更新'),
+    previous_status: String(previous.status || input.previousStatus || ''),
+    next_status: nextStatus,
+    snapshot_json: safeJsonStringify_({
+      status: String(previous.status || ''),
+      send_ng: normalizeBooleanLike_(previous.send_ng),
+      send_ng_reason: String(previous.send_ng_reason || ''),
+      send_ng_memo: String(previous.send_ng_memo || ''),
+      form_status: String(previous.form_status || ''),
+      next_send_at: String(previous.next_send_at || ''),
+      no_action_reason: String(previous.no_action_reason || ''),
+      no_action_memo: String(previous.no_action_memo || ''),
+    }),
+    detail_json: safeJsonStringify_({ source: String(record.source || previous.source || ''), request_id: String(input.requestId || '') }),
+    reversible_until: reversible ? new Date(Date.now() + REVIEW_ACTIVITY_UNDO_WINDOW_MS_).toISOString() : '',
+    undone_at: '',
+    undo_log_id: String(input.undoLogId || ''),
+    actor: String(input.actor || 'app_user'),
+    created_at: createdAt,
+    updated_at: createdAt,
+  };
+}
+
+function appendReviewActivityRecordsLocked_(spreadsheet, records) {
+  const source = (Array.isArray(records) ? records : [records]).filter(function (record) {
+    return record && String(record.lead_id || '').trim();
+  });
+  if (!source.length) return [];
+  const targetSpreadsheet = spreadsheet || getOrCreateSpreadsheet_();
+  if (!targetSpreadsheet || typeof targetSpreadsheet.getSheetByName !== 'function') return [];
+  const sheet = ensureSheet_(targetSpreadsheet, 'review_activity_logs');
+  const headers = getHeaders_(sheet);
+  const now = nowIso_();
+  const saved = source.map(function (record) {
+    return Object.assign({}, record, {
+      id: record.id || Utilities.getUuid(),
+      created_at: record.created_at || now,
+      updated_at: record.updated_at || now,
+    });
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, saved.length, headers.length).setValues(saved.map(function (record) {
+    return headers.map(function (header) { return valueOrBlank_(record[header]); });
+  }));
+  return saved;
+}
+
+function appendReviewActivityRecordsBestEffortLocked_(spreadsheet, records) {
+  try {
+    return {
+      records: appendReviewActivityRecordsLocked_(spreadsheet, records),
+      warning: '',
+    };
+  } catch (error) {
+    const warning = '確認結果は保存しましたが、操作履歴の記録を保留しました: ' + String(error.message || error);
+    console.warn(warning);
+    return { records: [], warning: warning };
+  }
+}
+
+function undoReviewActivity(activityId) {
+  const recordId = requireId_(activityId);
+  const result = withScriptLock_('undoReviewActivity', function () {
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const activitySheet = ensureSheet_(spreadsheet, 'review_activity_logs');
+    const activityFound = findRowById_(activitySheet, recordId);
+    if (!activityFound) throw createExpectedOperationError_('操作履歴が見つかりませんでした。', 'REVIEW_ACTIVITY_NOT_FOUND');
+    const activity = activityFound.record;
+    if (activity.undone_at) throw createExpectedOperationError_('この操作はすでに取り消されています。', 'REVIEW_ACTIVITY_ALREADY_UNDONE');
+    const reversibleUntilMs = new Date(activity.reversible_until || 0).getTime();
+    if (!Number.isFinite(reversibleUntilMs) || reversibleUntilMs <= Date.now()) {
+      throw createExpectedOperationError_('この操作の取り消し期限（24時間）を過ぎています。', 'REVIEW_ACTIVITY_EXPIRED');
+    }
+    const leadSheet = ensureSheet_(spreadsheet, 'leads');
+    const leadFound = findRowById_(leadSheet, activity.lead_id);
+    if (!leadFound) throw createExpectedOperationError_('対象の営業先が見つかりませんでした。', 'REVIEW_ACTIVITY_LEAD_NOT_FOUND');
+    const currentStatus = String(leadFound.record.status || '');
+    if (currentStatus !== String(activity.next_status || '')) {
+      throw createExpectedOperationError_('履歴の後に状態が変更されているため、安全のため取り消しませんでした。', 'REVIEW_ACTIVITY_CONFLICT');
+    }
+    const snapshot = parseJsonObjectSafe_(activity.snapshot_json);
+    const restoreStatus = String(snapshot.status || activity.previous_status || '未対応');
+    const restored = buildUpdatedLeadRecord_(leadFound, {
+      status: restoreStatus,
+      send_ng: normalizeBooleanLike_(snapshot.send_ng),
+      send_ng_reason: String(snapshot.send_ng_reason || ''),
+      send_ng_memo: String(snapshot.send_ng_memo || ''),
+      form_status: String(snapshot.form_status || '未対応'),
+      next_send_at: String(snapshot.next_send_at || ''),
+      no_action_reason: String(snapshot.no_action_reason || ''),
+      no_action_memo: String(snapshot.no_action_memo || ''),
+    });
+    writeLeadRecordsToRowsGroupedLocked_(leadSheet, leadFound.headers || getHeaders_(leadSheet), [{
+      rowNumber: leadFound.rowNumber,
+      previous: leadFound.record,
+      record: restored,
+    }]);
+    const undoLog = appendReviewActivityRecordsLocked_(spreadsheet, [buildReviewActivityRecord_({
+      previous: leadFound.record,
+      record: restored,
+    }, { actionType: 'review_undo', reversible: false, undoLogId: recordId })])[0];
+    const activityHeaders = activityFound.headers || getHeaders_(activitySheet);
+    writeRecordToRow_(activitySheet, activityFound.rowNumber, activityHeaders, Object.assign({}, activity, {
+      undone_at: nowIso_(),
+      undo_log_id: undoLog.id,
+      updated_at: nowIso_(),
+    }));
+    return { ok: true, lead: restored, activity: undoLog };
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+  clearReviewLeadCachesBestEffort_();
+  return result;
 }
 
 function leadListFields_(additionalFields) {
@@ -880,11 +1362,67 @@ function leadListCachePayload_(query) {
     includeArchived: source.includeArchived === true,
     includeStats: source.includeStats === true,
     includeFields: (source.includeFields || []).slice().sort(),
+    reviewPriority: source.reviewPriority || 'all',
+    reviewContact: source.reviewContact || 'all',
   };
 }
 
-function buildLeadListMasterContext_() {
-  return buildMasterBlockRulesContext_();
+function buildReviewDuplicateLeadIds_(rows) {
+  const suppressed = {};
+  const index = buildSourcePageLeadIndexFromRecords_([]);
+  (rows || []).forEach(function (lead) {
+    if (lead && isArchivedLead_(lead)) addLeadToSourcePageIndex_(index, lead);
+  });
+  (rows || []).forEach(function (lead) {
+    if (!lead || isArchivedLead_(lead)) return;
+    const displayName = String(lead.facility_name || lead.company_name || '').trim();
+    const existing = findExistingSourcePageLead_({
+      source_id: lead.source_id || '',
+      detail_url: lead.external_id || '',
+    }, displayName, lead.website_url || '', index);
+    const leadId = String(lead.id || '').trim();
+    if (leadId && existing && isLeadReviewPending_(lead) && shouldSuppressReviewDuplicate_(lead, existing)) {
+      suppressed[leadId] = String(existing.id || '');
+      return;
+    }
+    addLeadToSourcePageIndex_(index, lead);
+  });
+  return suppressed;
+}
+
+function shouldSuppressReviewDuplicate_(candidate, existing) {
+  const lead = candidate && typeof candidate === 'object' ? candidate : {};
+  const current = existing && typeof existing === 'object' ? existing : {};
+  const candidateSourceId = String(lead.source_id || '').trim();
+  const existingSourceId = String(current.source_id || '').trim();
+  if (candidateSourceId && existingSourceId && candidateSourceId === existingSourceId) return true;
+
+  const candidateExternal = normalizeSourcePageComparableUrl_(lead.external_id || '');
+  const existingExternal = normalizeSourcePageComparableUrl_(current.external_id || '');
+  if (candidateExternal && existingExternal && candidateExternal === existingExternal) return true;
+
+  const candidateWebsite = normalizeSourcePageComparableUrl_(lead.website_url || '');
+  const existingWebsite = normalizeSourcePageComparableUrl_(current.website_url || '');
+  if (candidateWebsite && existingWebsite && candidateWebsite === existingWebsite) return true;
+
+  const candidateDomain = leadDuplicateWebsiteDomain_(lead);
+  const existingDomain = leadDuplicateWebsiteDomain_(current);
+  if (candidateDomain && existingDomain && candidateDomain === existingDomain) return true;
+
+  const candidateName = String(lead.facility_name || lead.company_name || '');
+  const existingName = String(current.facility_name || current.company_name || '');
+  if (!areSourcePageLeadNamesClearlySame_(candidateName, existingName)) return false;
+  return String(current.status || '').trim() !== '未対応' ||
+    String(current.form_status || '').trim() === '対応不要' ||
+    normalizeBooleanLike_(current.send_ng) ||
+    Number(current.send_count || 0) > 0 ||
+    Boolean(String(current.last_sent_at || '').trim());
+}
+
+function buildLeadListMasterContext_(rows) {
+  return Object.assign({}, buildMasterBlockRulesContext_(), {
+    reviewDuplicateLeadIds: buildReviewDuplicateLeadIds_(rows),
+  });
 }
 
 function canBuildLeadListPrimaryFilterBundle_(query) {
@@ -949,11 +1487,16 @@ function listLeads(options) {
   const cachePayload = leadListCachePayload_(query);
   const cached = readLeadListCache_('page', cachePayload);
   if (cached) return cached;
-  const rows = readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: LEAD_LIST_READ_MAX_GAP_COLUMNS_ });
-  const masterContext = leadListQueryNeedsMasterContext_(query) ? buildLeadListMasterContext_() : {};
+  const rows = overlayPendingReviewDecisionsOnLeads_(
+    readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: LEAD_LIST_READ_MAX_GAP_COLUMNS_ })
+  );
+  const masterContext = leadListQueryNeedsMasterContext_(query) ? buildLeadListMasterContext_(rows) : {};
   const primaryFilterResponse = buildLeadListPrimaryFilterBundle_(rows, query, masterContext);
   if (primaryFilterResponse) return primaryFilterResponse;
-  const filtered = rows.filter(function (lead) {
+  const preparedRows = query.filter === 'review' ? rows.map(function (lead) {
+    return isLeadReviewPending_(lead) ? decorateReviewLeadForList_(lead) : lead;
+  }) : rows;
+  const filtered = preparedRows.filter(function (lead) {
     if (!query.includeArchived && isArchivedLead_(lead)) {
       return false;
     }
@@ -967,6 +1510,9 @@ function listLeads(options) {
       return false;
     }
     if (!matchesLeadListFilter_(lead, query.filter, masterContext)) {
+      return false;
+    }
+    if (query.filter === 'review' && !matchesReviewLeadConvenienceFilters_(lead, query)) {
       return false;
     }
     if (!query.search) {
@@ -998,6 +1544,11 @@ function listLeads(options) {
     sort: query.sort,
     items: filtered.slice(query.offset, query.offset + query.limit),
   };
+  if (query.filter === 'review') {
+    response.reviewOverallTotal = preparedRows.filter(function (lead) {
+      return !isArchivedLead_(lead) && matchesLeadListFilter_(lead, 'review', masterContext);
+    }).length;
+  }
   if (query.includeStats) {
     response.stats = buildLeadListStats_(rows, masterContext, query.genre);
     response.filteredStats = buildLeadListStats_(filtered, masterContext, query.genre);
@@ -1014,8 +1565,10 @@ function getLeadListStats(options) {
   const cached = readLeadListCache_('stats', cachePayload);
   if (cached) return cached;
 
-  const rows = readSheetRecordFields_('leads', leadListFields_([]), { maxGapColumns: LEAD_LIST_READ_MAX_GAP_COLUMNS_ });
-  const stats = buildLeadListStats_(rows, buildLeadListMasterContext_(), genre);
+  const rows = overlayPendingReviewDecisionsOnLeads_(
+    readSheetRecordFields_('leads', leadListFields_(['source_payload_json']), { maxGapColumns: LEAD_LIST_READ_MAX_GAP_COLUMNS_ })
+  );
+  const stats = buildLeadListStats_(rows, buildLeadListMasterContext_(rows), genre);
   const response = {
     genre: genre,
     stats: stats,
@@ -1031,7 +1584,7 @@ function leadListQueryNeedsMasterContext_(query) {
   const filter = String(source.filter || 'all');
   if (source.includeStats !== false) return true;
   if (filter.indexOf('state_') === 0 || filter.indexOf('group_') === 0) return true;
-  return ['email', 'form', 'unsent'].indexOf(filter) !== -1;
+  return ['email', 'form', 'unsent', 'review'].indexOf(filter) !== -1;
 }
 
 function listEmailSendCandidates(options) {
@@ -1063,6 +1616,10 @@ function listEmailSendCandidates(options) {
 
 function sortLeads_(leads, sort) {
   leads.sort(function (a, b) {
+    if (sort === 'review_priority_desc') {
+      return Number(b.review_priority_score || reviewLeadPriorityScore_(b)) - Number(a.review_priority_score || reviewLeadPriorityScore_(a)) ||
+        String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
+    }
     if (sort === 'company_asc') {
       return String(a.company_name || a.facility_name || '').localeCompare(String(b.company_name || b.facility_name || ''), 'ja');
     }
@@ -1079,6 +1636,21 @@ function sortLeads_(leads, sort) {
     }
     return String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
   });
+}
+
+function matchesReviewLeadConvenienceFilters_(lead, query) {
+  const source = query && typeof query === 'object' ? query : {};
+  const priority = String(source.reviewPriority || 'all');
+  const contact = String(source.reviewContact || 'all');
+  const tier = String(lead.review_priority_tier || reviewLeadPriorityTier_(reviewLeadPriorityScore_(lead)));
+  if (priority !== 'all' && tier !== priority) return false;
+  const hasEmail = isValidEmailAddress_(lead.email);
+  const hasForm = Boolean(String(lead.form_url || '').trim());
+  if (contact === 'contact' && !hasEmail && !hasForm) return false;
+  if (contact === 'no_contact' && (hasEmail || hasForm)) return false;
+  if (contact === 'email' && !hasEmail) return false;
+  if (contact === 'form' && !hasForm) return false;
+  return true;
 }
 
 function matchesLeadListFilter_(lead, filter, masterContext) {
@@ -1115,7 +1687,7 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   if (value === 'no_contact') return !sendNg && !isValidEmailAddress_(lead.email) && !lead.form_url;
   if (value === 'won') return dealStatus === '受注' || status === '受注';
   if (value === 'lost') return dealStatus === '失注' || status === '失注';
-  if (value === 'review') return isLeadReviewPending_(lead);
+  if (value === 'review') return isLeadReviewPending_(lead) && !isSuppressedReviewDuplicate_(lead, masterContext);
   return true;
 }
 
@@ -1132,6 +1704,9 @@ function classifyLeadListState_(lead, masterContext) {
   if (normalizeBooleanLike_(source.reply_checked) || status === '返信あり') return 'reply';
   if (normalizeBooleanLike_(source.send_ng) || status === '送信NG') return 'send_ng';
   if (status === '対応不要' || formStatus === '対応不要') return 'no_action';
+  if (isClearlyClosedLead_(source)) return 'no_action';
+  if (isLeadLinkDefinitelyBroken_(source)) return 'no_action';
+  if (isSuppressedReviewDuplicate_(source, masterContext)) return 'no_action';
   if (isLeadReviewPending_(source)) return 'review';
   if (sent) return 'sent';
   if (status === 'フォーム対応済み' || formStatus === '対応済み') return 'form_completed';
@@ -1186,7 +1761,111 @@ function isLeadReviewPending_(lead) {
   return Boolean(lead) &&
     String(lead.status || '') === '未対応' &&
     isReviewLeadSource_(lead) &&
-    hasLeadReviewDestination_(lead);
+    hasLeadReviewDestination_(lead) &&
+    !isClearlyClosedLead_(lead) &&
+    !isLeadLinkDefinitelyBroken_(lead);
+}
+
+function isSuppressedReviewDuplicate_(lead, masterContext) {
+  const leadId = String(lead && lead.id || '').trim();
+  const suppressed = masterContext && masterContext.reviewDuplicateLeadIds;
+  return Boolean(leadId && suppressed && suppressed[leadId]);
+}
+
+function isClearlyClosedLead_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  if (isSuspendedLeadTitle_(source)) return true;
+  const label = [
+    String(source.company_name || '').trim(),
+    String(source.facility_name || '').trim(),
+  ].filter(Boolean).join(' ');
+  if (!label) return false;
+  if (/(?:移転|リニューアル|新店舗|新施設|新サイト|新しい(?:店舗|施設|サイト|ホームページ)).{0,50}(?:営業中|営業しております|オープン|開設|こちら)/i.test(label)) {
+    return false;
+  }
+  return /(?:閉鎖|閉店|閉館|閉園|閉業|廃業|営業(?:を|は|が)?終了|サービス(?:を|は|が)?終了|運営(?:を|は|が)?終了)/i.test(label);
+}
+
+function suspendedLeadTitleTexts_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  const payload = parseJsonObjectSafe_(source.source_payload_json);
+  const serper = payload.serper && typeof payload.serper === 'object' ? payload.serper : {};
+  const searchProvider = payload.search_provider && typeof payload.search_provider === 'object'
+    ? payload.search_provider
+    : {};
+  const selectedSerper = serper.selected && serper.selected.source &&
+    typeof serper.selected.source === 'object'
+    ? serper.selected.source
+    : {};
+  const selectedProvider = searchProvider.selected && searchProvider.selected.source &&
+    typeof searchProvider.selected.source === 'object'
+    ? searchProvider.selected.source
+    : {};
+  const candidate = payload.candidate && typeof payload.candidate === 'object'
+    ? payload.candidate
+    : {};
+  return [
+    source.company_name,
+    source.facility_name,
+    source.title,
+    payload.title,
+    selectedSerper.title,
+    selectedProvider.title,
+    candidate.facility_name,
+    candidate.text,
+    candidate.title,
+  ].map(function (value) {
+    return String(value || '').trim();
+  }).filter(Boolean);
+}
+
+function isSuspendedLeadTitle_(lead) {
+  return suspendedLeadTitleTexts_(lead).some(function (text) {
+    return /休業/i.test(text);
+  });
+}
+
+function isDefinitiveBrokenLinkError_(value) {
+  const message = String(value || '').trim();
+  if (!message) return false;
+  return /\bHTTP\s+(?:404|410)\b|DNS\s*(?:error|failure|lookup)|could\s+not\s+resolve\s+host|cannot\s+resolve\s+host|name\s+or\s+service\s+not\s+known|host(?:name)?\s+(?:not\s+found|does\s+not\s+exist|unreachable)|no\s+such\s+host|unknown\s+host|address\s+unavailable|invalid\s+(?:argument[^\r\n]*?)?(?:url|uri)|malformed\s+(?:url|uri)|unsupported\s+protocol|connection\s+refused|certificate[^\r\n]*(?:error|expired|invalid|verify\s+failed)|SSL\s+(?:error|certificate|handshake)|PKIX\s+path\s+building\s+failed|ドメイン名.*(?:見つかりません|解決できません)|ホスト名.*(?:見つかりません|解決できません)|DNS.*(?:失敗|エラー)|アドレス.*利用できません|URL.*(?:不正|無効)|証明書.*(?:エラー|期限切れ|無効)|接続を拒否/i.test(message);
+}
+
+function leadSourcePayloadErrorText_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  const payload = parseJsonObjectSafe_(source.source_payload_json);
+  const contact = payload.contact && typeof payload.contact === 'object' ? payload.contact : {};
+  return [
+    payload.contact_error,
+    payload.detail_error,
+    payload.fetch_error,
+    payload.link_error,
+    payload.error,
+    contact.errorMessage,
+    contact.error_message,
+  ].filter(Boolean).join(' / ');
+}
+
+function isLeadLinkDefinitelyBroken_(lead) {
+  return isDefinitiveBrokenLinkError_(leadSourcePayloadErrorText_(lead));
+}
+
+function assertAutomatedLeadSiteAvailableBeforeCreate_(lead, options) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  const input = options && typeof options === 'object' ? options : {};
+  if (!isAutomatedLeadCollectionSource_(source.source) ||
+      input.siteAvailabilityChecked === true ||
+      input.site_availability_checked === true) return true;
+  const targetUrl = normalizeUrl_(source.website_url || source.form_url || '');
+  if (!targetUrl) return true;
+  const availability = inspectProspectingSiteAvailability_(targetUrl);
+  if (!availability.closed && !availability.broken) return true;
+  const reason = availability.reason || (availability.closed ? 'サイト停止' : 'リンク切れ');
+  throw createExpectedOperationError_(
+    (availability.closed ? '閉鎖・営業終了・休業' : 'リンク切れ') +
+      'が確認できるため、確認待ちリストへ追加しませんでした: ' + reason,
+    availability.closed ? 'CLOSED_SITE' : 'BROKEN_LINK'
+  );
 }
 
 function isReviewLeadSource_(lead) {
@@ -1365,6 +2044,12 @@ function repairReviewLeadsWithoutContact(options) {
 function repairNonAdvertiserReviewLeads(options) {
   const input = options && typeof options === 'object' ? options : {};
   const dryRun = input.dryRun !== false && input.dry_run !== false;
+  const tourismOnly = input.tourismOnly === true || input.tourism_only === true;
+  const suspendedOnly = input.suspendedOnly === true || input.suspended_only === true;
+  const blogMediaOnly = input.blogMediaOnly === true || input.blog_media_only === true;
+  const registerExcludedDomains = (tourismOnly || blogMediaOnly) &&
+    input.registerExcludedDomains !== false &&
+    input.register_excluded_domains !== false;
   const startRow = Math.max(Number(input.startRow || input.start_row) || 2, 2);
   const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 20000, 1), 20000);
   const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 250, 1), 500);
@@ -1387,6 +2072,7 @@ function repairNonAdvertiserReviewLeads(options) {
     'next_send_at',
     'no_action_reason',
     'no_action_memo',
+    'source_payload_json',
     'archived_at',
     'updated_at',
   ];
@@ -1399,6 +2085,9 @@ function repairNonAdvertiserReviewLeads(options) {
     return {
       ok: true,
       dryRun: dryRun,
+      tourismOnly: tourismOnly,
+      suspendedOnly: suspendedOnly,
+      blogMediaOnly: blogMediaOnly,
       startRow: startRow,
       nextRow: startRow,
       lastRow: lastRow,
@@ -1432,18 +2121,30 @@ function repairNonAdvertiserReviewLeads(options) {
       send_count: values[index][indexes.send_count],
       reply_checked: values[index][indexes.reply_checked],
       deal_status: values[index][indexes.deal_status],
+      source_payload_json: values[index][indexes.source_payload_json],
       archived_at: values[index][indexes.archived_at],
     };
-    if (!isNonAdvertiserCleanupCandidate_(lead, excludedDomains)) continue;
-    const blockedUrl = [lead.website_url, lead.form_url].filter(Boolean).find(function (url) {
-      return isLeadCollectionExcludedUrl_(url, excludedDomains);
-    });
-    if (!blockedUrl) continue;
+    const isCleanupCandidate = suspendedOnly
+      ? isSuspendedLeadCleanupCandidate_(lead)
+      : blogMediaOnly
+        ? isBlogMediaCleanupCandidate_(lead)
+      : tourismOnly
+        ? isTourismPortalCleanupCandidate_(lead)
+        : isNonAdvertiserCleanupCandidate_(lead, excludedDomains);
+    if (!isCleanupCandidate) continue;
+    const leadUrls = [lead.website_url, lead.form_url].filter(Boolean);
+    const blockedUrl = tourismOnly || suspendedOnly || blogMediaOnly
+      ? leadUrls[0] || ''
+      : leadUrls.find(function (url) {
+        return isLeadCollectionExcludedUrl_(url, excludedDomains);
+      });
+    if (!blockedUrl && !suspendedOnly) continue;
     targets.push({
       rowNumber: rowNumber,
       id: String(lead.id || ''),
       name: String(lead.facility_name || lead.company_name || ''),
       domain: normalizeDomain_(blockedUrl),
+      url: normalizeUrl_(blockedUrl),
     });
     if (targets.length >= maxUpdates) break;
   }
@@ -1451,6 +2152,9 @@ function repairNonAdvertiserReviewLeads(options) {
   const baseResult = {
     ok: true,
     dryRun: dryRun,
+    tourismOnly: tourismOnly,
+    suspendedOnly: suspendedOnly,
+    blogMediaOnly: blogMediaOnly,
     startRow: startRow,
     nextRow: lastScannedRow + 1,
     lastRow: lastRow,
@@ -1462,6 +2166,28 @@ function repairNonAdvertiserReviewLeads(options) {
     items: targets.slice(0, 50),
   };
   if (dryRun || !targets.length) return baseResult;
+
+  let exclusions = { ok: true, inserted: 0, updated: 0, skipped: 0, total: 0 };
+  if (registerExcludedDomains) {
+    const recordsByDomain = {};
+    targets.forEach(function (target) {
+      const domain = normalizeDomain_(target.domain || target.url || '');
+      if (!domain || isDomainOrSubdomain_(domain, 'honda.co.jp')) return;
+      recordsByDomain[domain] = {
+        domain: domain,
+        reason: blogMediaOnly
+          ? 'ブログ・編集メディア・施設検索サイトのため収集対象外'
+          : '観光協会・自治体観光案内・旅行情報メディアのため収集対象外',
+        active: true,
+      };
+    });
+    exclusions = importExcludedDomains({
+      records: Object.keys(recordsByDomain).sort().map(function (domain) {
+        return recordsByDomain[domain];
+      }),
+      lockWaitMs: Math.max(lockWaitMs, 6000),
+    });
+  }
 
   let deleted = 0;
   const batches = partitionLeadRepairTargets_(targets);
@@ -1476,6 +2202,8 @@ function repairNonAdvertiserReviewLeads(options) {
         if (String(current[indexes.id] || '') !== String(target.id || '')) return;
         const lead = {
           source: current[indexes.source],
+          company_name: current[indexes.company_name],
+          facility_name: current[indexes.facility_name],
           status: current[indexes.status],
           website_url: current[indexes.website_url],
           form_url: current[indexes.form_url],
@@ -1483,9 +2211,17 @@ function repairNonAdvertiserReviewLeads(options) {
           send_count: current[indexes.send_count],
           reply_checked: current[indexes.reply_checked],
           deal_status: current[indexes.deal_status],
+          source_payload_json: current[indexes.source_payload_json],
           archived_at: current[indexes.archived_at],
         };
-        if (isNonAdvertiserCleanupCandidate_(lead, excludedDomains)) verifiedRows.push(Number(target.rowNumber));
+        const isCleanupCandidate = suspendedOnly
+          ? isSuspendedLeadCleanupCandidate_(lead)
+          : blogMediaOnly
+            ? isBlogMediaCleanupCandidate_(lead)
+          : tourismOnly
+            ? isTourismPortalCleanupCandidate_(lead)
+            : isNonAdvertiserCleanupCandidate_(lead, excludedDomains);
+        if (isCleanupCandidate) verifiedRows.push(Number(target.rowNumber));
       });
 
       if (verifiedRows.length) {
@@ -1499,8 +2235,26 @@ function repairNonAdvertiserReviewLeads(options) {
         setColumnValue('status', '対応不要');
         setColumnValue('form_status', '対応不要');
         setColumnValue('next_send_at', '');
-        setColumnValue('no_action_reason', '収集対象外サイト');
-        setColumnValue('no_action_memo', '広告主の公式サイトではないポータル・比較・観光情報ページのため自動削除');
+        setColumnValue(
+          'no_action_reason',
+          suspendedOnly
+            ? '休業'
+            : blogMediaOnly
+              ? 'ブログ・情報サイト'
+              : tourismOnly
+                ? '観光サイト'
+                : '収集対象外サイト'
+        );
+        setColumnValue(
+          'no_action_memo',
+          suspendedOnly
+            ? '施設名・ページタイトル・見出しに休業の表記があるため自動除外'
+            : blogMediaOnly
+            ? '個人ブログ・編集記事・施設検索／紹介サイトのため自動除外'
+            : tourismOnly
+            ? '観光協会・自治体観光案内・旅行情報メディアの紹介ページのため自動除外'
+            : '広告主の公式サイトではないポータル・比較・観光情報ページのため自動削除'
+        );
         setColumnValue('archived_at', now);
         setColumnValue('updated_at', now);
         clearRuntimeCaches_('leads');
@@ -1513,7 +2267,164 @@ function repairNonAdvertiserReviewLeads(options) {
   return Object.assign({}, baseResult, {
     deleted: deleted,
     lockBatches: batches.length,
+    exclusions: exclusions,
   });
+}
+
+function repairTourismPortalReviewLeads(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  return repairNonAdvertiserReviewLeads(Object.assign({}, input, {
+    tourismOnly: true,
+    registerExcludedDomains: input.registerExcludedDomains !== false &&
+      input.register_excluded_domains !== false,
+  }));
+}
+
+function repairBlogMediaReviewLeads(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  return repairNonAdvertiserReviewLeads(Object.assign({}, input, {
+    blogMediaOnly: true,
+    registerExcludedDomains: input.registerExcludedDomains !== false &&
+      input.register_excluded_domains !== false,
+  }));
+}
+
+function repairSuspendedReviewLeads(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  return repairNonAdvertiserReviewLeads(Object.assign({}, input, {
+    suspendedOnly: true,
+    registerExcludedDomains: false,
+  }));
+}
+
+function isVerifiedBrokenReviewFinding_(finding) {
+  const source = finding && typeof finding === 'object' ? finding : {};
+  const statusCode = Number(source.statusCode || source.status_code || 0);
+  if (statusCode === 404 || statusCode === 410) return true;
+  return isDefinitiveBrokenLinkError_(
+    source.reason || source.errorMessage || source.error_message || ''
+  );
+}
+
+function brokenReviewLeadTargetUrl_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  return normalizeUrl_(source.website_url || source.form_url || '');
+}
+
+function isBrokenReviewLeadCleanupCandidate_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  return isSafeNonAdvertiserLeadCleanupTarget_(source) &&
+    String(source.status || '') === '未対応' &&
+    isReviewLeadSource_(source) &&
+    Boolean(brokenReviewLeadTargetUrl_(source));
+}
+
+function repairBrokenReviewLeads(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const dryRun = input.dryRun !== false && input.dry_run !== false;
+  const findings = Array.isArray(input.findings) ? input.findings : [];
+  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 500, 1), 500);
+  const lockWaitMs = Math.min(Math.max(Number(input.lockWaitMs || input.lock_wait_ms) || 6000, 1000), 6000);
+  const verifiedFindings = {};
+  findings.forEach(function (finding) {
+    const id = String(finding && finding.id || '').trim();
+    const url = normalizeUrl_(finding && finding.url || '');
+    if (!id || !url || !isVerifiedBrokenReviewFinding_(finding)) return;
+    verifiedFindings[id] = {
+      id: id,
+      url: url,
+      statusCode: Number(finding.statusCode || finding.status_code || 0),
+      reason: String(finding.reason || finding.errorMessage || finding.error_message || '').trim(),
+    };
+  });
+
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
+  const headers = getHeaders_(sheet);
+  const requiredHeaders = [
+    'id', 'source', 'status', 'website_url', 'form_url', 'last_sent_at', 'send_count',
+    'reply_checked', 'deal_status', 'form_status', 'next_send_at', 'no_action_reason',
+    'no_action_memo', 'source_payload_json', 'archived_at', 'updated_at',
+  ];
+  requiredHeaders.forEach(function (header) {
+    if (headers.indexOf(header) === -1) throw new Error('leadsシートに' + header + '列が必要です。');
+  });
+  const indexes = {};
+  requiredHeaders.forEach(function (header) { indexes[header] = headers.indexOf(header); });
+  const lastRow = sheet.getLastRow();
+  const rowCount = Math.max(lastRow - 1, 0);
+  if (!rowCount || !Object.keys(verifiedFindings).length) {
+    return { ok: true, dryRun: dryRun, findings: findings.length, verified: 0, matched: 0, archived: 0, items: [] };
+  }
+
+  const values = sheet.getRange(2, 1, rowCount, headers.length).getValues();
+  const targets = [];
+  values.some(function (row, index) {
+    const id = String(row[indexes.id] || '').trim();
+    const finding = verifiedFindings[id];
+    if (!finding) return false;
+    const lead = rowToRecord_(headers, row);
+    if (!isBrokenReviewLeadCleanupCandidate_(lead) ||
+        brokenReviewLeadTargetUrl_(lead) !== finding.url) return false;
+    targets.push({
+      rowNumber: index + 2,
+      id: id,
+      url: finding.url,
+      statusCode: finding.statusCode,
+      reason: finding.reason || ('HTTP ' + finding.statusCode),
+    });
+    return targets.length >= maxUpdates;
+  });
+
+  const result = {
+    ok: true,
+    dryRun: dryRun,
+    findings: findings.length,
+    verified: Object.keys(verifiedFindings).length,
+    matched: targets.length,
+    archived: 0,
+    items: targets.slice(0, 100),
+  };
+  if (dryRun || !targets.length) return result;
+
+  let archived = 0;
+  const batches = partitionLeadRepairTargets_(targets);
+  batches.forEach(function (batch) {
+    archived += withScriptLock_('repairBrokenReviewLeads:batch', function () {
+      const firstRow = Number(batch[0].rowNumber);
+      const lastBatchRow = Number(batch[batch.length - 1].rowNumber);
+      const range = sheet.getRange(firstRow, 1, lastBatchRow - firstRow + 1, headers.length);
+      const currentValues = range.getValues();
+      let updated = 0;
+      const now = nowIso_();
+      batch.forEach(function (target) {
+        const offset = Number(target.rowNumber) - firstRow;
+        const row = currentValues[offset] || [];
+        const lead = rowToRecord_(headers, row);
+        if (String(lead.id || '') !== target.id ||
+            !isBrokenReviewLeadCleanupCandidate_(lead) ||
+            brokenReviewLeadTargetUrl_(lead) !== target.url) return;
+        const payload = parseJsonObjectSafe_(lead.source_payload_json);
+        payload.link_error = target.reason;
+        payload.link_checked_at = now;
+        row[indexes.status] = '対応不要';
+        row[indexes.form_status] = '対応不要';
+        row[indexes.next_send_at] = '';
+        row[indexes.no_action_reason] = 'リンク切れ';
+        row[indexes.no_action_memo] = '公式サイトへアクセスできないため自動除外: ' + target.reason;
+        row[indexes.source_payload_json] = safeJsonStringify_(payload);
+        row[indexes.archived_at] = now;
+        row[indexes.updated_at] = now;
+        updated += 1;
+      });
+      if (updated) {
+        range.setValues(currentValues);
+        clearRuntimeCaches_('leads');
+        SpreadsheetApp.flush();
+      }
+      return updated;
+    }, { waitMs: lockWaitMs, attempts: 5, retryDelayMs: 400 });
+  });
+  return Object.assign({}, result, { archived: archived, lockBatches: batches.length });
 }
 
 function repairNonAdvertiserCleanupOverreach(options) {
@@ -1797,6 +2708,147 @@ function repairDuplicateLeadDomains(options) {
   return Object.assign({}, result, { archived: archived, merged: merged });
 }
 
+function historicalReviewDomainDuplicateTargetsFromRecords_(records) {
+  const groups = {};
+  (records || []).forEach(function (lead) {
+    if (!lead) return;
+    const domain = leadDuplicateWebsiteDomain_(lead);
+    if (!domain) return;
+    if (!groups[domain]) groups[domain] = [];
+    groups[domain].push(lead);
+  });
+
+  const targets = [];
+  Object.keys(groups).sort().forEach(function (domain) {
+    const leads = groups[domain];
+    const candidates = leads.filter(function (lead) {
+      return !isArchivedLead_(lead) &&
+        isLeadReviewPending_(lead) &&
+        isSafeNonAdvertiserLeadCleanupTarget_(lead);
+    });
+    if (!candidates.length) return;
+
+    const candidateIds = {};
+    candidates.forEach(function (lead) { candidateIds[String(lead.id || '')] = true; });
+    const existing = leads.filter(function (lead) {
+      return !candidateIds[String(lead.id || '')];
+    }).sort(function (left, right) {
+      return String(left.created_at || '').localeCompare(String(right.created_at || '')) ||
+        String(left.id || '').localeCompare(String(right.id || ''));
+    });
+    if (!existing.length) return;
+    const matched = existing[0];
+    candidates.forEach(function (candidate) {
+      targets.push({
+        rowNumber: Number(candidate.__rowNumber || 0),
+        id: String(candidate.id || ''),
+        name: String(candidate.facility_name || candidate.company_name || ''),
+        domain: domain,
+        url: normalizeUrl_(candidate.website_url || ''),
+        existingRowNumber: Number(matched.__rowNumber || 0),
+        existingId: String(matched.id || ''),
+        existingName: String(matched.facility_name || matched.company_name || ''),
+        existingArchived: isArchivedLead_(matched),
+      });
+    });
+  });
+  return targets;
+}
+
+function repairHistoricalReviewDomainDuplicates(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const dryRun = input.dryRun !== false && input.dry_run !== false;
+  const scanLimit = Math.min(Math.max(Number(input.scanLimit || input.scan_limit) || 20000, 1), 20000);
+  const maxUpdates = Math.min(Math.max(Number(input.maxUpdates || input.max_updates) || 500, 1), 500);
+  const lockWaitMs = Math.min(Math.max(Number(input.lockWaitMs || input.lock_wait_ms) || 6000, 1000), 6000);
+  const sheet = ensureSheet_(getOrCreateSpreadsheet_(), 'leads');
+  const headers = getHeaders_(sheet);
+  const requiredHeaders = [
+    'id', 'source', 'company_name', 'facility_name', 'website_url', 'form_url', 'email',
+    'status', 'form_status', 'next_send_at', 'last_sent_at', 'send_count', 'reply_checked',
+    'deal_status', 'no_action_reason', 'no_action_memo', 'source_payload_json',
+    'created_at', 'updated_at', 'archived_at',
+  ];
+  requiredHeaders.forEach(function (header) {
+    if (headers.indexOf(header) === -1) throw new Error('leadsシートに' + header + '列が必要です。');
+  });
+  const indexes = {};
+  requiredHeaders.forEach(function (header) { indexes[header] = headers.indexOf(header); });
+  const lastRow = sheet.getLastRow();
+  const rowCount = Math.min(scanLimit, Math.max(lastRow - 1, 0));
+  if (!rowCount) {
+    return { ok: true, dryRun: dryRun, scanned: 0, matched: 0, archived: 0, done: true, items: [] };
+  }
+
+  const records = sheet.getRange(2, 1, rowCount, headers.length).getValues().map(function (row, index) {
+    const record = rowToRecord_(headers, row);
+    record.__rowNumber = index + 2;
+    return record;
+  });
+  const allTargets = historicalReviewDomainDuplicateTargetsFromRecords_(records);
+  const targets = allTargets.slice(0, maxUpdates);
+  const result = {
+    ok: true,
+    dryRun: dryRun,
+    scanned: rowCount,
+    matched: allTargets.length,
+    archived: 0,
+    done: allTargets.length <= maxUpdates,
+    items: targets.slice(0, 100),
+  };
+  if (dryRun || !targets.length) return result;
+
+  let archived = 0;
+  const batches = partitionLeadRepairTargets_(targets);
+  batches.forEach(function (batch) {
+    archived += withScriptLock_('repairHistoricalReviewDomainDuplicates:batch', function () {
+      const firstRow = Number(batch[0].rowNumber);
+      const lastBatchRow = Number(batch[batch.length - 1].rowNumber);
+      const currentValues = sheet.getRange(
+        firstRow,
+        1,
+        lastBatchRow - firstRow + 1,
+        headers.length
+      ).getValues();
+      const verifiedRows = [];
+      batch.forEach(function (target) {
+        if (target.rowNumber < 2 || target.existingRowNumber < 2) return;
+        const candidateRow = currentValues[Number(target.rowNumber) - firstRow] || [];
+        const candidate = rowToRecord_(headers, candidateRow);
+        if (String(candidate.id || '') !== target.id ||
+          leadDuplicateWebsiteDomain_(candidate) !== target.domain) return;
+        if (isArchivedLead_(candidate) || !isLeadReviewPending_(candidate) ||
+          !isSafeNonAdvertiserLeadCleanupTarget_(candidate)) return;
+        verifiedRows.push(Number(target.rowNumber));
+      });
+
+      if (verifiedRows.length) {
+        const now = nowIso_();
+        const setColumnValue = function (header, value) {
+          const columnA1 = columnNumberToA1_(indexes[header] + 1);
+          sheet.getRangeList(verifiedRows.map(function (rowNumber) {
+            return columnA1 + rowNumber;
+          })).setValue(value);
+        };
+        setColumnValue('status', '対応不要');
+        setColumnValue('form_status', '対応不要');
+        setColumnValue('next_send_at', '');
+        setColumnValue('no_action_reason', '既存ドメイン');
+        setColumnValue('no_action_memo', '営業リストに同一ドメインが登録済みのため自動除外');
+        setColumnValue('archived_at', now);
+        setColumnValue('updated_at', now);
+        clearRuntimeCaches_('leads');
+        SpreadsheetApp.flush();
+      }
+      return verifiedRows.length;
+    }, { waitMs: lockWaitMs, attempts: 5, retryDelayMs: 400 });
+  });
+  return Object.assign({}, result, {
+    archived: archived,
+    lockBatches: batches.length,
+  });
+}
+
 function runLeadCollectionQualityMigrationV215_(options) {
   const input = options && typeof options === 'object' ? options : {};
   const lockWaitMs = input.interactive === true ? 2000 : 6000;
@@ -1902,57 +2954,320 @@ function updateReviewLeadDecision(id, input) {
   const source = input && typeof input === 'object' ? input : {};
   const mode = String(source.mode || 'decision').trim();
   const nextStatus = String(source.status || source.nextStatus || source.next_status || '').trim();
-  const expectedStatus = String(source.expectedStatus || source.expected_status || (mode === 'undo' ? '' : '未対応')).trim();
+  const requestedExpectedStatus = String(source.expectedStatus || source.expected_status || '').trim();
+  const expectedStatus = mode === 'decision' ? '未対応' : requestedExpectedStatus;
   const decisionStatuses = ['対応中', '送信NG', '対応不要'];
 
   if (mode === 'undo') {
     if (nextStatus !== '未対応' || decisionStatuses.indexOf(expectedStatus) === -1) {
       throw createExpectedOperationError_('確認操作の取り消し条件が不正です。', 'REVIEW_DECISION_INVALID');
     }
-  } else if (mode !== 'decision' || expectedStatus !== '未対応' || decisionStatuses.indexOf(nextStatus) === -1) {
+  } else if (mode !== 'decision' || decisionStatuses.indexOf(nextStatus) === -1) {
     throw createExpectedOperationError_('確認待ちで選べない更新内容です。', 'REVIEW_DECISION_INVALID');
   }
 
-  return withScriptLock_('updateReviewLeadDecision', function () {
-    const leadId = requireId_(id);
-    const spreadsheet = getOrCreateSpreadsheet_();
-    const sheet = ensureSheet_(spreadsheet, 'leads');
-    const found = findRowById_(sheet, leadId);
-    if (!found) throw new Error('Lead not found: ' + leadId);
-    const current = found.record;
-    const currentStatus = String(current.status || '');
-    const reviewSource = ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(current.source || '')) !== -1;
-
-    if (!reviewSource) {
-      return buildReviewLeadConflict_(current, 'この営業先は確認待ち由来ではないため更新しませんでした。');
+  const leadId = requireId_(id);
+  const decision = {
+    mode: mode,
+    expectedStatus: expectedStatus,
+    nextStatus: nextStatus,
+  };
+  try {
+    const outcome = withScriptLock_('updateReviewLeadDecision', function () {
+      const spreadsheet = getOrCreateSpreadsheet_();
+      const sheet = ensureSheet_(spreadsheet, 'leads');
+      return applyReviewLeadDecisionLocked_(sheet, leadId, decision);
+    }, { waitMs: 2500, attempts: 2, retryDelayMs: 250, logErrors: false });
+    if (outcome.cacheDirty) clearReviewLeadCachesBestEffort_();
+    return outcome.response;
+  } catch (error) {
+    if (!isScriptLockTimeoutError_(error)) {
+      if (!isExpectedOperationError_(error)) logError_('updateReviewLeadDecision', error, { lead_id: leadId });
+      throw error;
     }
-    if (currentStatus === nextStatus) {
+    try {
+      const queued = enqueuePendingReviewDecision_(leadId, decision, 'lock_timeout');
       return {
         ok: true,
-        reused: true,
+        queued: true,
+        reused: false,
         conflict: false,
-        lead: current,
+        lead: null,
         previous_status: expectedStatus,
         status: nextStatus,
+        request_id: queued.record.requestId,
+        triggerWarning: queued.triggerWarning || '',
+        message: '確認結果を保存待ちとして受け付けました。自動的に再実行します。',
       };
+    } catch (queueError) {
+      logError_('updateReviewLeadDecision', queueError, {
+        lead_id: leadId,
+        fallback_from: 'lock_timeout',
+      });
+      throw error;
     }
-    if (currentStatus !== expectedStatus) {
-      return buildReviewLeadConflict_(current, '別の処理で状態が「' + (currentStatus || '未設定') + '」に更新されたため、古い確認操作では上書きしませんでした。');
-    }
-    if (mode === 'decision' && !isLeadReviewPending_(current)) {
-      return buildReviewLeadConflict_(current, 'この営業先はすでに確認待ちではないため更新しませんでした。');
-    }
+  }
+}
 
-    const updated = updateLeadFoundLocked_(sheet, found, { status: nextStatus });
-    return {
+function applyReviewLeadDecisionLocked_(sheet, leadId, decision) {
+  const found = findRowById_(sheet, leadId);
+  if (!found) throw new Error('Lead not found: ' + leadId);
+  const outcome = buildReviewLeadDecisionOutcome_(found, decision);
+  let activity = null;
+  if (outcome.write) {
+    writeLeadRecordsToRowsGroupedLocked_(sheet, found.headers || getHeaders_(sheet), [outcome.write]);
+    const spreadsheet = sheet && typeof sheet.getParent === 'function' ? sheet.getParent() : null;
+    if (spreadsheet) {
+      const activityResult = appendReviewActivityRecordsBestEffortLocked_(spreadsheet, [buildReviewActivityRecord_(outcome.write, {
+        actionType: String(decision.mode || 'decision') === 'undo' ? 'review_undo' : 'review_decision',
+        reversible: String(decision.mode || 'decision') !== 'undo',
+      })]);
+      activity = activityResult.records[0] || null;
+      if (activityResult.warning) outcome.response.warning = activityResult.warning;
+    }
+    if (activity) outcome.response.activity_id = activity.id;
+  }
+  return {
+    response: outcome.response,
+    cacheDirty: Boolean(outcome.write),
+    activity: activity,
+  };
+}
+
+function buildReviewLeadDecisionOutcome_(found, decision) {
+  if (!found || !found.record) throw new Error('Lead row is required for review decision.');
+  const mode = String(decision.mode || 'decision');
+  const expectedStatus = String(decision.expectedStatus || '');
+  const nextStatus = String(decision.nextStatus || decision.status || '');
+  const current = found.record;
+  const currentStatus = String(current.status || '');
+  const reviewSource = ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(current.source || '')) !== -1;
+
+  if (!reviewSource) {
+    return { response: buildReviewLeadConflict_(current, 'この営業先は確認待ち由来ではないため更新しませんでした。'), write: null };
+  }
+  if (currentStatus === nextStatus) {
+    return { response: {
+      ok: true,
+      reused: true,
+      conflict: false,
+      lead: current,
+      previous_status: expectedStatus,
+      status: nextStatus,
+    }, write: null };
+  }
+  if (currentStatus !== expectedStatus) {
+    return { response: buildReviewLeadConflict_(current, '別の処理で状態が「' + (currentStatus || '未設定') + '」に更新されたため、古い確認操作では上書きしませんでした。'), write: null };
+  }
+  if (mode === 'decision' && !isLeadReviewPending_(current)) {
+    return { response: buildReviewLeadConflict_(current, 'この営業先はすでに確認待ちではないため更新しませんでした。'), write: null };
+  }
+
+  const updated = buildUpdatedLeadRecord_(found, { status: nextStatus });
+  return {
+    response: {
       ok: true,
       reused: false,
       conflict: false,
       lead: updated,
       previous_status: expectedStatus,
       status: nextStatus,
+    },
+    write: {
+      rowNumber: found.rowNumber,
+      previous: current,
+      record: updated,
+    },
+  };
+}
+
+function clearReviewLeadCachesBestEffort_() {
+  try {
+    clearRuntimeCaches_('leads');
+    return '';
+  } catch (error) {
+    const warning = '確認結果は保存しましたが、一覧キャッシュを更新できませんでした: ' + String(error.message || error);
+    console.warn(warning);
+    return warning;
+  }
+}
+
+function updateReviewLeadDecisions(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  const mode = String(source.mode || 'decision').trim();
+  const nextStatus = String(source.status || source.nextStatus || source.next_status || '').trim();
+  const requestedExpectedStatus = String(source.expectedStatus || source.expected_status || '').trim();
+  const expectedStatus = mode === 'decision' ? '未対応' : requestedExpectedStatus;
+  const decisionStatuses = ['対応中', '送信NG'];
+  const rawIds = Array.isArray(source.ids) ? source.ids
+    : Array.isArray(source.leadIds) ? source.leadIds
+      : Array.isArray(source.lead_ids) ? source.lead_ids
+        : [];
+  const ids = Array.from(new Set(rawIds.map(function (id) {
+    return String(id || '').trim();
+  }).filter(Boolean)));
+
+  if (!ids.length) {
+    throw createExpectedOperationError_('一括更新する確認待ちを選択してください。', 'REVIEW_BULK_EMPTY');
+  }
+  if (ids.length > 50) {
+    throw createExpectedOperationError_('一括更新は50件までです。', 'REVIEW_BULK_LIMIT');
+  }
+  if (mode === 'undo') {
+    if (nextStatus !== '未対応' || decisionStatuses.indexOf(expectedStatus) === -1) {
+      throw createExpectedOperationError_('確認待ち一括操作の取り消し条件が不正です。', 'REVIEW_DECISION_INVALID');
+    }
+  } else if (mode !== 'decision' || decisionStatuses.indexOf(nextStatus) === -1) {
+    throw createExpectedOperationError_('確認待ち一括操作で選べない更新内容です。', 'REVIEW_DECISION_INVALID');
+  }
+
+  const decision = {
+    mode: mode,
+    expectedStatus: expectedStatus,
+    nextStatus: nextStatus,
+  };
+  let result;
+  try {
+    result = withScriptLock_('updateReviewLeadDecisions', function () {
+      const spreadsheet = getOrCreateSpreadsheet_();
+      const sheet = ensureSheet_(spreadsheet, 'leads');
+      const values = sheet.getDataRange().getValues();
+    const headers = values.length ? values[0].map(function (value) {
+      return String(value || '').trim();
+    }) : [];
+    const idColumnIndex = headers.indexOf('id');
+    if (idColumnIndex === -1) throw new Error('Sheet is missing id header: leads');
+
+    const requested = {};
+    ids.forEach(function (id) { requested[id] = true; });
+    const foundById = {};
+    values.slice(1).forEach(function (row, index) {
+      const id = String(row[idColumnIndex] || '').trim();
+      if (!requested[id] || foundById[id]) return;
+      foundById[id] = {
+        rowNumber: index + 2,
+        headers: headers,
+        record: rowToRecord_(headers, row),
+      };
+    });
+
+    const items = [];
+    const pendingWrites = [];
+    let updated = 0;
+    let reused = 0;
+    let conflicts = 0;
+    ids.forEach(function (id) {
+      const found = foundById[id];
+      if (!found) {
+        conflicts += 1;
+        items.push({ id: id, ok: false, reused: false, conflict: true, lead: null, message: '営業先が見つかりませんでした。' });
+        return;
+      }
+      const current = found.record;
+      const currentStatus = String(current.status || '');
+      if (!isReviewLeadSource_(current)) {
+        conflicts += 1;
+        items.push(buildReviewLeadConflict_(current, 'この営業先は確認待ち由来ではないため更新しませんでした。'));
+        return;
+      }
+      if (currentStatus === nextStatus) {
+        reused += 1;
+        items.push({ ok: true, reused: true, conflict: false, lead: current, previous_status: expectedStatus, status: nextStatus });
+        return;
+      }
+      if (currentStatus !== expectedStatus) {
+        conflicts += 1;
+        items.push(buildReviewLeadConflict_(current, '別の処理で状態が「' + (currentStatus || '未設定') + '」に更新されたため、古い一括操作では上書きしませんでした。'));
+        return;
+      }
+      if (mode === 'decision' && !isLeadReviewPending_(current)) {
+        conflicts += 1;
+        items.push(buildReviewLeadConflict_(current, 'この営業先はすでに確認待ちではないため更新しませんでした。'));
+        return;
+      }
+
+      const lead = buildUpdatedLeadRecord_(found, { status: nextStatus });
+      pendingWrites.push({
+        rowNumber: found.rowNumber,
+        previous: current,
+        record: lead,
+      });
+      updated += 1;
+      items.push({ ok: true, reused: false, conflict: false, lead: lead, previous_status: expectedStatus, status: nextStatus });
+    });
+    if (updated > 0) {
+      writeLeadRecordsToRowsGroupedLocked_(sheet, headers, pendingWrites);
+      const activityResult = appendReviewActivityRecordsBestEffortLocked_(spreadsheet, pendingWrites.map(function (write) {
+        return buildReviewActivityRecord_(write, {
+          actionType: mode === 'undo' ? 'review_undo' : 'review_decision',
+          reversible: mode !== 'undo',
+        });
+      }));
+      if (activityResult.warning) {
+        items.forEach(function (item) {
+          if (item && item.ok && !item.reused) item.warning = activityResult.warning;
+        });
+      }
+    }
+
+    return {
+      ok: true,
+      mode: mode,
+      status: nextStatus,
+      requested: ids.length,
+      updated: updated,
+      reused: reused,
+      conflicts: conflicts,
+      items: items,
     };
-  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+    }, { waitMs: 2500, attempts: 2, retryDelayMs: 250, logErrors: false });
+  } catch (error) {
+    if (!isScriptLockTimeoutError_(error)) {
+      if (!isExpectedOperationError_(error)) logError_('updateReviewLeadDecisions', error, { requested: ids.length });
+      throw error;
+    }
+    try {
+      const items = ids.map(function (leadId) {
+        const queued = enqueuePendingReviewDecision_(leadId, decision, 'bulk_lock_timeout', {
+          bumpCache: false,
+          scheduleTrigger: false,
+        });
+        return {
+          id: leadId,
+          ok: true,
+          queued: true,
+          reused: false,
+          conflict: false,
+          lead: null,
+          previous_status: expectedStatus,
+          status: nextStatus,
+          request_id: queued.record.requestId,
+        };
+      });
+      bumpLeadListCacheRevision_();
+      const trigger = ensurePendingReviewDecisionTriggerBestEffort_(BACKGROUND_JOB_IMMEDIATE_DELAY_MS);
+      return {
+        ok: true,
+        queued: ids.length,
+        mode: mode,
+        status: nextStatus,
+        requested: ids.length,
+        updated: ids.length,
+        reused: 0,
+        conflicts: 0,
+        items: items,
+        triggerWarning: trigger.warning || '',
+      };
+    } catch (queueError) {
+      logError_('updateReviewLeadDecisions', queueError, {
+        requested: ids.length,
+        fallback_from: 'lock_timeout',
+      });
+      throw error;
+    }
+  }
+  if (result.updated > 0) clearReviewLeadCachesBestEffort_();
+  return result;
 }
 
 function buildReviewLeadConflict_(lead, message) {
@@ -1978,12 +3293,29 @@ function updateLeadLocked_(id, patch) {
   return updateLeadFoundLocked_(sheet, found, patch);
 }
 
-function updateLeadFoundLocked_(sheet, found, patch) {
+function updateLeadFoundLocked_(sheet, found, patch, options) {
   if (!sheet || !found || !found.record || !found.rowNumber) {
     throw new Error('Lead row is required for update.');
   }
 
   const headers = found.headers || getHeaders_(sheet);
+  const nextRecord = buildUpdatedLeadRecord_(found, patch);
+  const explicitFields = new Set(Object.keys(normalizeLeadPatch_(patch)));
+  if (['email', 'website_url', 'form_url'].some(function (field) { return explicitFields.has(field); })) {
+    assertNoDuplicateLead_(sheet, nextRecord, { excludeLeadId: found.record.id });
+  }
+
+  writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+  if (!options || options.clearCaches !== false) clearRuntimeCaches_('leads');
+
+  return nextRecord;
+}
+
+function buildUpdatedLeadRecord_(found, patch) {
+  if (!found || !found.record) {
+    throw new Error('Lead row is required for update.');
+  }
+
   const updates = normalizeLeadPatch_(patch);
   const explicitFields = new Set(Object.keys(updates));
   const nextRecord = Object.assign({}, found.record, updates, {
@@ -1995,14 +3327,46 @@ function updateLeadFoundLocked_(sheet, found, patch) {
   if (explicitFields.has('status')) {
     applyLeadStatusSideEffects_(nextRecord, explicitFields);
   }
-  if (['email', 'website_url', 'form_url'].some(function (field) { return explicitFields.has(field); })) {
-    assertNoDuplicateLead_(sheet, nextRecord, { excludeLeadId: found.record.id });
-  }
-
-  writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
-  clearRuntimeCaches_('leads');
-
   return nextRecord;
+}
+
+function writeLeadRecordsToRowsGroupedLocked_(sheet, headers, writes) {
+  const source = Array.isArray(writes) ? writes : [];
+  if (!source.length) return 0;
+  const normalizedHeaders = Array.isArray(headers) ? headers : [];
+  const deferredHeaders = ['status', 'updated_at'];
+  const orderedHeaders = normalizedHeaders.filter(function (header) {
+    return deferredHeaders.indexOf(header) === -1;
+  }).concat(deferredHeaders.filter(function (header) {
+    return normalizedHeaders.indexOf(header) !== -1;
+  }));
+  let writeGroups = 0;
+
+  orderedHeaders.forEach(function (header) {
+    const columnIndex = normalizedHeaders.indexOf(header);
+    if (columnIndex === -1) return;
+    const groups = {};
+    source.forEach(function (item) {
+      const before = valueOrBlank_(item && item.previous ? item.previous[header] : '');
+      const after = valueOrBlank_(item && item.record ? item.record[header] : '');
+      if (before === after) return;
+      const key = typeof after + ':' + String(after);
+      if (!groups[key]) groups[key] = { value: after, rows: [] };
+      groups[key].rows.push(Number(item.rowNumber));
+    });
+    Object.keys(groups).forEach(function (key) {
+      const group = groups[key];
+      const ranges = group.rows.filter(function (rowNumber) {
+        return Number.isFinite(rowNumber) && rowNumber >= 2;
+      }).map(function (rowNumber) {
+        return columnNumberToA1_(columnIndex + 1) + rowNumber;
+      });
+      if (!ranges.length) return;
+      sheet.getRangeList(ranges).setValue(group.value);
+      writeGroups += 1;
+    });
+  });
+  return writeGroups;
 }
 
 function deleteLead(id, options) {
@@ -2834,6 +4198,10 @@ function applyLeadStatusSideEffects_(lead, explicitFields) {
     lead.form_status = '対応不要';
   }
 
+  if (status === '未対応' && !explicitFields.has('form_status') && String(lead.form_status || '') === '対応不要') {
+    lead.form_status = '未対応';
+  }
+
   if (status === '送信NG') {
     lead.send_ng = true;
   }
@@ -2914,7 +4282,13 @@ function assertNoDuplicateLead_(sheet, lead, options) {
 function areLeadRecordsDuplicateForCreate_(existing, candidate) {
   const current = existing && typeof existing === 'object' ? existing : {};
   const lead = candidate && typeof candidate === 'object' ? candidate : {};
-  if (isArchivedLead_(current)) return false;
+  const existingWebsiteDomain = leadDuplicateWebsiteDomain_(current);
+  const candidateWebsiteDomain = leadDuplicateWebsiteDomain_(lead);
+  if (isArchivedLead_(current)) {
+    return isAutomatedLeadCollectionSource_(lead.source) &&
+      Boolean(existingWebsiteDomain && candidateWebsiteDomain &&
+        existingWebsiteDomain === candidateWebsiteDomain);
+  }
 
   const existingEmail = String(current.email || '').trim().toLowerCase();
   const candidateEmail = String(lead.email || '').trim().toLowerCase();
@@ -2930,8 +4304,6 @@ function areLeadRecordsDuplicateForCreate_(existing, candidate) {
   const candidateWebsite = normalizeLeadComparableUrl_(lead.website_url || '');
   if (existingWebsite && candidateWebsite && existingWebsite === candidateWebsite) return true;
 
-  const existingWebsiteDomain = leadDuplicateWebsiteDomain_(current);
-  const candidateWebsiteDomain = leadDuplicateWebsiteDomain_(lead);
   if (existingWebsiteDomain && candidateWebsiteDomain && existingWebsiteDomain === candidateWebsiteDomain) return true;
 
   const existingForm = normalizeLeadComparableUrl_(current.form_url || '');
@@ -3049,6 +4421,15 @@ const NON_ADVERTISER_LEAD_DOMAINS_ = Object.freeze([
   'web-odai.info',
   'gozashirahama.com',
   'kankomie.or.jp',
+  'tomikan.jp',
+  'doshi-kanko.jp',
+  'odekake-wanko-bu.com',
+  'moroyama-kanko.jp',
+  'chichibuji.gr.jp',
+  'rumoi-rasisa.jp',
+  'kamishihoro.jp',
+  'tic.mombetsu.net',
+  'nakagawatourism.com',
   'bunto.com',
   'furunavi.jp',
   'katch.co.jp',
@@ -3057,6 +4438,7 @@ const NON_ADVERTISER_LEAD_DOMAINS_ = Object.freeze([
   'campla.jp',
   'campiii.com',
   'hatinosu.net',
+  'japancamp.jp',
   'my-kagawa.jp',
   'jalan.net',
   'rurubu.jp',
@@ -3071,6 +4453,70 @@ const NON_ADVERTISER_LEAD_DOMAINS_ = Object.freeze([
   'travel.rakuten.co.jp',
   'booking.com',
   'agoda.com',
+  'togakushi-21.jp',
+  'ta-kankoukyoukai.com',
+  'takibi-reservation.style',
+  'boso-asobo.com',
+  'campet.net',
+  'tateyamacity.com',
+  'agakanren.com',
+  'oze-katashina.info',
+  'enjoy-minakami.jp',
+  'maebashi-cvb.com',
+  'takasaki-kankoukyoukai.or.jp',
+  'guruttoonuma.net',
+  'apoi-geopark.jp',
+  'hokkaido-hidaka-kankonavi.com',
+  'engaru.jp',
+  'kitamikanko.jp',
+  'visitshibetsu.com',
+  'hakobura.jp',
+  'teshiotown.hokkaido.jp',
+  'mashike.jp',
+  'niikappu.jp',
+  'sounkyo.net',
+  'akkeshi-town.jp',
+  'ms11.or.jp',
+  'urakawa-tabi.com',
+  'toya-colors.com',
+  'gimmig.co.jp',
+  'town-kyogoku.jp',
+  'go-to-ashibetsu.com',
+  'tabirai.net',
+  'kochi-tabi.jp',
+  'higashihiroshima-digital.com',
+  'wankonowa.com',
+  'cm-boso.com',
+  'joypark-pv.com',
+  'niwadandyism.top',
+  'touring.hokkaido.world',
+  'hokkaido-michinoeki.jp',
+  'mori-locationmatch.net',
+  'koureisha-jutaku.com',
+  'job.kiracare.jp',
+  'tonosoto.com',
+  'colocal.jp',
+  'ibaraki-camp.jp',
+  'roushikyo-hokkaido.jp',
+  'walkerplus.com',
+  'ameblo.jp',
+  'hatenablog.com',
+  'hatenablog.jp',
+  'blogspot.com',
+  'blog.fc2.com',
+  'livedoor.blog',
+  'seesaa.net',
+  'exblog.jp',
+  'cocolog-nifty.com',
+  'blog.goo.ne.jp',
+  'muragon.com',
+  'wordpress.com',
+  'note.com',
+  'jugem.jp',
+  'webry.info',
+  'ss-blog.jp',
+  'diary.to',
+  'plaza.rakuten.co.jp',
 ]);
 
 function isGovernmentOrMunicipalLeadDomain_(value) {
@@ -3106,18 +4552,100 @@ function isKnownNonAdvertiserLeadUrl_(value) {
   // then link visitors to a separate operator site. Reject only when both the host
   // and the directory-like path indicate a guide/listing so an operator's ordinary
   // /information or /news page is not removed by the generic rule.
-  const tourismPortalDomain = /(?:^|[.-])(?:kanko|kankou|tourism|travel|visit)(?:[.-]|$)/i.test(domain);
+  const tourismPortalDomain = /(?:^|[.-])(?:kanko|kankou|tourism|visit|odekake)(?:[.-]|$)/i.test(domain);
+  const travelContentDomain = /(?:^|[.-])(?:travel|tabi|trip)(?:[.-]|$)/i.test(domain);
   const listingPath = /\/(?:attractions?|sightseeing|spots?|places?|see|articles?|archives?|guides?|guideposts?|features?|information|search|facilit(?:y|ies)|shisetsu|accommodations?|lodgings?|stay(?:ing)?(?:[_-][^/]*)?|play|leisure|detail(?:[_-][^/]*)?)(?:\/|$)/i.test(path) ||
     /\/(?:目的で選ぶ|観光スポット|施設|宿泊|遊ぶ)(?:\/|$)/i.test(decodedPath);
-  return tourismPortalDomain && listingPath;
+  const sharedCorporateTourismContent =
+    isDomainOrSubdomain_(domain, 'honda.co.jp') && /^\/dog\/travel(?:\/|$)/i.test(path);
+  return tourismPortalDomain || (travelContentDomain && listingPath) || sharedCorporateTourismContent;
+}
+
+function leadCollectionSendNgDomainsCacheKey_() {
+  return 'lead_collection_send_ng_domains_' + String(APP_VERSION || 'v1');
+}
+
+function clearLeadCollectionSendNgDomainsCache_() {
+  try {
+    if (typeof CacheService === 'undefined') return;
+    const cache = CacheService.getScriptCache();
+    if (cache && typeof cache.remove === 'function') cache.remove(leadCollectionSendNgDomainsCacheKey_());
+  } catch (error) {}
+}
+
+function getLeadCollectionSendNgDomainRecords_() {
+  try {
+    if (typeof CacheService !== 'undefined') {
+      const cache = CacheService.getScriptCache();
+      const cached = cache && typeof cache.get === 'function'
+        ? cache.get(leadCollectionSendNgDomainsCacheKey_())
+        : '';
+      if (cached) {
+        const domains = JSON.parse(cached);
+        if (Array.isArray(domains)) {
+          return domains.map(function (domain) {
+            return { domain: String(domain || ''), source: 'send_ng_lead' };
+          }).filter(function (record) { return Boolean(record.domain); });
+        }
+      }
+    }
+  } catch (error) {}
+
+  const domains = {};
+  try {
+    const leads = readSheetRecordFields_('leads', [
+      'website_url',
+      'form_url',
+      'email',
+      'send_ng',
+      'status',
+    ], { maxGapColumns: 0 });
+    leads.forEach(function (lead) {
+      const source = lead && typeof lead === 'object' ? lead : {};
+      if (!normalizeBooleanLike_(source.send_ng) && String(source.status || '') !== '送信NG') return;
+      [
+        normalizeDomain_(source.website_url || ''),
+        normalizeDomain_(source.form_url || ''),
+        extractDomainFromEmail_(source.email || ''),
+      ].filter(Boolean).forEach(function (domain) {
+        domains[String(domain).toLowerCase()] = true;
+      });
+    });
+  } catch (error) {}
+
+  const domainList = Object.keys(domains).sort();
+  try {
+    if (typeof CacheService !== 'undefined') {
+      const cache = CacheService.getScriptCache();
+      if (cache && typeof cache.put === 'function') {
+        cache.put(
+          leadCollectionSendNgDomainsCacheKey_(),
+          JSON.stringify(domainList),
+          300
+        );
+      }
+    }
+  } catch (error) {}
+  return domainList.map(function (domain) {
+    return { domain: domain, source: 'send_ng_lead' };
+  });
 }
 
 function getLeadCollectionExcludedDomainRecords_() {
+  let configured = [];
   try {
-    return readAllActiveSheetRecords_('excluded_domains');
+    configured = readAllActiveSheetRecords_('excluded_domains');
   } catch (error) {
-    return [];
+    configured = [];
   }
+  const merged = {};
+  configured.concat(getLeadCollectionSendNgDomainRecords_()).forEach(function (record) {
+    const source = record && typeof record === 'object' ? record : {};
+    const domain = normalizeDomain_(source.domain || '');
+    if (!domain || merged[domain]) return;
+    merged[domain] = Object.assign({}, source, { domain: domain });
+  });
+  return Object.keys(merged).map(function (domain) { return merged[domain]; });
 }
 
 function isLeadCollectionExcludedUrl_(value, excludedDomains) {
@@ -3155,9 +4683,55 @@ function isNonAdvertiserCleanupCandidate_(lead, excludedDomains) {
   return urls.some(function (url) { return isLeadCollectionExcludedUrl_(url, excludedDomains); });
 }
 
+function isTourismPortalCleanupCandidate_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  if (!isSafeNonAdvertiserLeadCleanupTarget_(source)) return false;
+  const blockedByUrl = [source.website_url, source.form_url].filter(Boolean).some(function (url) {
+    return isKnownNonAdvertiserLeadUrl_(url);
+  });
+  if (blockedByUrl) return true;
+  const payload = parseJsonObjectSafe_(source.source_payload_json);
+  const selected = payload && payload.serper && payload.serper.selected &&
+    payload.serper.selected.source && typeof payload.serper.selected.source === 'object'
+    ? payload.serper.selected.source
+    : null;
+  return Boolean(selected && typeof isTourismAssociationListingSearchResult_ === 'function' &&
+    isTourismAssociationListingSearchResult_(selected));
+}
+
+function isBlogMediaCleanupCandidate_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  if (!isSafeNonAdvertiserLeadCleanupTarget_(source)) return false;
+  if (String(source.status || '') !== '未対応') return false;
+  const blockedByUrl = [source.website_url, source.form_url].filter(Boolean).some(function (url) {
+    return isKnownNonAdvertiserLeadUrl_(url);
+  });
+  if (blockedByUrl) return true;
+  const payload = parseJsonObjectSafe_(source.source_payload_json);
+  const selected = payload && payload.serper && payload.serper.selected &&
+    payload.serper.selected.source && typeof payload.serper.selected.source === 'object'
+    ? payload.serper.selected.source
+    : null;
+  return Boolean(selected && typeof isBlogOrEditorialSearchResult_ === 'function' &&
+    isBlogOrEditorialSearchResult_(selected));
+}
+
+function isSuspendedLeadCleanupCandidate_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  return isSafeNonAdvertiserLeadCleanupTarget_(source) &&
+    String(source.status || '') === '未対応' &&
+    isSuspendedLeadTitle_(source);
+}
+
 function assertLeadCollectionDestinationAllowed_(lead) {
   const source = lead && typeof lead === 'object' ? lead : {};
   if (!isAutomatedLeadCollectionSource_(source.source)) return true;
+  if (isSuspendedLeadTitle_(source)) {
+    throw createExpectedOperationError_(
+      '施設名・ページタイトル・見出しに休業の表記があるため収集対象から除外しました。',
+      'SUSPENDED_SITE'
+    );
+  }
   const blockedUrl = [source.website_url, source.form_url].filter(Boolean).find(function (url) {
     return isLeadCollectionExcludedUrl_(url);
   });
@@ -3211,12 +4785,14 @@ function normalizeListOptions_(options) {
   const filter = String(input.filter || 'all').trim() || 'all';
   const formStatus = String(input.formStatus || input.form_status || '').trim();
   const sort = String(input.sort || 'updated_desc').trim() || 'updated_desc';
+  const reviewPriority = String(input.reviewPriority || input.review_priority || 'all').trim() || 'all';
+  const reviewContact = String(input.reviewContact || input.review_contact || 'all').trim() || 'all';
   const allowedFilters = ['all', 'email', 'has_email', 'form', 'form_all', 'excluded', 'send_ng', 'review', 'unsent', 'sent', 'reply', 'deal', 'no_contact', 'won', 'lost'].concat(LEAD_LIST_STATE_DEFINITIONS_.map(function (definition) {
     return 'state_' + definition.key;
   })).concat(LEAD_LIST_STATE_GROUP_DEFINITIONS_.map(function (definition) {
     return 'group_' + definition.key;
   }));
-  const allowedSorts = ['updated_desc', 'created_desc', 'company_asc', 'status_asc', 'last_sent_desc'];
+  const allowedSorts = ['updated_desc', 'created_desc', 'company_asc', 'status_asc', 'last_sent_desc', 'review_priority_desc'];
 
   if (status && LEAD_STATUSES.indexOf(status) === -1) {
     throw new Error('Invalid lead status: ' + status);
@@ -3230,6 +4806,23 @@ function normalizeListOptions_(options) {
   if (allowedSorts.indexOf(sort) === -1) {
     throw new Error('Invalid lead sort: ' + sort);
   }
+  if (['all', 'high', 'medium', 'low'].indexOf(reviewPriority) === -1) {
+    throw new Error('Invalid review priority filter: ' + reviewPriority);
+  }
+  if (['all', 'contact', 'no_contact', 'email', 'form'].indexOf(reviewContact) === -1) {
+    throw new Error('Invalid review contact filter: ' + reviewContact);
+  }
+  const includeFields = Array.isArray(input.includeFields || input.include_fields)
+    ? (input.includeFields || input.include_fields).slice()
+    : [];
+  if (['review', 'state_review', 'group_review'].indexOf(filter) !== -1) {
+    [
+      'source_id', 'external_id', 'normalized_company_name', 'email_domain', 'website_domain',
+      'address', 'no_action_reason', 'no_action_memo', 'source_payload_json',
+    ].forEach(function (fieldName) {
+      if (includeFields.indexOf(fieldName) === -1) includeFields.push(fieldName);
+    });
+  }
 
   return {
     limit: limit,
@@ -3239,12 +4832,12 @@ function normalizeListOptions_(options) {
     filter: filter,
     formStatus: formStatus,
     sort: sort,
+    reviewPriority: reviewPriority,
+    reviewContact: reviewContact,
     search: String(input.search || '').trim().toLowerCase(),
     includeArchived: input.includeArchived === true,
     includeStats: input.includeStats !== false,
-    includeFields: Array.isArray(input.includeFields || input.include_fields)
-      ? (input.includeFields || input.include_fields)
-      : [],
+    includeFields: includeFields,
   };
 }
 
@@ -3314,6 +4907,7 @@ function withScriptLock_(operation, callback, options) {
   const waitMs = Math.min(Math.max(Number(lockOptions.waitMs) || 6000, 1000), 300000);
   const attempts = Math.min(Math.max(Number(lockOptions.attempts) || 5, 1), 10);
   const retryDelayMs = Math.min(Math.max(Number(lockOptions.retryDelayMs) || 400, 0), 5000);
+  const logErrors = lockOptions.logErrors !== false;
   let lastError = null;
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -3334,7 +4928,7 @@ function withScriptLock_(operation, callback, options) {
       lastError = error;
       const retryable = !acquired && isScriptLockTimeoutError_(error) && attempt < attempts;
       if (!retryable) {
-        if (!isExpectedOperationError_(error)) {
+        if (logErrors && !isExpectedOperationError_(error)) {
           logError_(operation, error, { lock_attempt: attempt, lock_attempts: attempts });
         }
         throw error;
@@ -3355,6 +4949,14 @@ function withScriptLock_(operation, callback, options) {
   }
 
   throw lastError || createScriptLockTimeoutError_(operation, attempts, attempts);
+}
+
+function normalizeBackgroundRuntimeBudgetMs_(value, fallback) {
+  const defaultValue = Number(fallback) || BACKGROUND_JOB_DEFAULT_RUNTIME_MS;
+  return Math.min(
+    Math.max(Number(value) || defaultValue, 10000),
+    BACKGROUND_JOB_SAFE_RUNTIME_MAX_MS
+  );
 }
 
 function createScriptLockTimeoutError_(operation, attempt, attempts) {
@@ -3408,6 +5010,10 @@ function classifySyncLogIssue_(log, context) {
     const cutoffMs = Date.parse(isoText);
     return Number.isFinite(createdAtMs) && Number.isFinite(cutoffMs) && createdAtMs <= cutoffMs;
   };
+  const occurredAtOrAfter = function (isoText) {
+    const cutoffMs = Date.parse(isoText);
+    return Number.isFinite(createdAtMs) && Number.isFinite(cutoffMs) && createdAtMs >= cutoffMs;
+  };
   const resolved = function (resolution) {
     return {
       issue_status: 'resolved',
@@ -3446,6 +5052,70 @@ function classifySyncLogIssue_(log, context) {
     (isScriptLockTimeoutError_({ message: message }) || /updateLead/i.test(operation) && /ロック/i.test(message))
   ) {
     return resolved('短時間ロック・分割書き込み・自動再試行へ変更済みです。');
+  }
+  if (
+    occurredBefore('2026-07-16T00:00:00.000Z') &&
+    /スプレッドシート[^\n]*サービスに接続できなくなりました|Service Spreadsheets failed while accessing/i.test(message)
+  ) {
+    return resolved('一時的なGoogle Sheets接続障害です。現在の保存先とバックグラウンド処理は正常です。');
+  }
+  if (
+    operation === 'doPost' &&
+    occurredAtOrAfter('2026-07-22T03:08:00+09:00') &&
+    occurredBefore('2026-07-22T03:10:00+09:00') &&
+    /^Unknown sheet definition: undefined$/i.test(message.trim())
+  ) {
+    return resolved('全画面API監査の入力形式確認で発生した検証ログです。正しい引数で再検証済みです。');
+  }
+  if (
+    operation === 'doPost' &&
+    occurredAtOrAfter('2026-08-02T21:12:00+09:00') &&
+    occurredBefore('2026-08-02T21:14:00+09:00') &&
+    /^No valid fields requested for undefined\.$/i.test(message.trim())
+  ) {
+    return resolved('v322本番監査の入力形式確認で発生した検証ログです。正しい引数で再確認済みです。');
+  }
+  if (
+    operation === 'updateReviewLeadDecision' &&
+    occurredBefore('2026-08-02T21:32:00+09:00') &&
+    isScriptLockTimeoutError_({ message: message })
+  ) {
+    return resolved('v323で短時間保存と永続的な保存待ちキューへ変更し、ロック競合時も自動反映するよう修正済みです。');
+  }
+  if (
+    operation === 'claimBackgroundWorkerRun' &&
+    occurredBefore('2026-08-02T21:20:00+09:00') &&
+    isScriptLockTimeoutError_({ message: message })
+  ) {
+    return resolved('v322で競合時の不要なエラーログを抑え、30秒後に自動再試行するよう修正済みです。');
+  }
+  if (
+    operation === 'doPost' &&
+    occurredBefore('2026-07-29T23:19:00+09:00') &&
+    /^Unknown action:\s*repairTourismPortalReviewLeads$/i.test(message.trim())
+  ) {
+    return resolved('観光サイト除外APIを現在のWebアプリへ接続済みです。');
+  }
+  if (
+    operation === 'advanceSearchJob' &&
+    occurredBefore('2026-07-26T20:29:00+09:00') &&
+    /一覧ページから施設候補を抽出できませんでした/.test(message)
+  ) {
+    return resolved('一覧ページとサイトマップからの候補抽出、および候補未検出時の判定を改善済みです。');
+  }
+  if (
+    operation === 'claimScheduledEmailJob' &&
+    occurredBefore('2026-07-23T00:00:00+09:00') &&
+    isRetryableGoogleSheetsServiceError_({ message: message })
+  ) {
+    return resolved('Google Sheetsの一時障害時に自動再試行し、失敗が続く場合だけエラーとして記録するよう修正済みです。');
+  }
+  if (
+    operation === 'setSettingValue' &&
+    occurredBefore('2026-07-13T00:00:00+09:00') &&
+    /email_send_window start must be earlier than end/i.test(message)
+  ) {
+    return resolved('設定値の入力不備は利用者向けの案内として返し、障害ログには記録しないよう修正済みです。');
   }
   return {
     issue_status: 'open',

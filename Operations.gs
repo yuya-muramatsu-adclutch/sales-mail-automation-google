@@ -24,7 +24,10 @@ function checkRepliesForLeads(options) {
   }
   const maxChecks = Math.min(Math.max(Number(input.maxThreads) || Number(replySetting.maxThreads || 100), 1), 500);
   const candidateLimit = Math.min(Math.max(Number(input.limit || 200), 1), 1000);
-  const runtimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000, 10000), 330000);
+  const runtimeBudgetMs = normalizeBackgroundRuntimeBudgetMs_(
+    input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', BACKGROUND_JOB_DEFAULT_RUNTIME_MS),
+    BACKGROUND_JOB_DEFAULT_RUNTIME_MS
+  );
   const runClaim = claimGmailReplyCheckRun_(runtimeBudgetMs);
   if (!runClaim.claimed) {
     return {
@@ -221,7 +224,7 @@ function claimGmailReplyCheckRun_(runtimeBudgetMs) {
       current = {};
     }
     const lockedAtMs = new Date(current.lockedAt || 0).getTime();
-    const leaseMs = Math.max(420000, Number(runtimeBudgetMs || 300000) + 90000);
+    const leaseMs = Math.max(420000, normalizeBackgroundRuntimeBudgetMs_(runtimeBudgetMs) + 90000);
     if (current.token && Number.isFinite(lockedAtMs) && Date.now() - lockedAtMs < leaseMs) {
       return { claimed: false, busy: true, reason: 'already_running' };
     }
@@ -794,6 +797,12 @@ function assertCalendarInviteAllowed_(lead, guests) {
   if (!lead || isArchivedLead_(lead)) {
     throw createExpectedOperationError_('営業対象外のためCalendar招待を送信できません。', 'CALENDAR_INVITE_BLOCKED');
   }
+  if (isClearlyClosedLead_(lead)) {
+    throw createExpectedOperationError_('閉鎖・営業終了・休業が確認できるためCalendar招待を送信できません。', 'CALENDAR_INVITE_BLOCKED');
+  }
+  if (isLeadLinkDefinitelyBroken_(lead)) {
+    throw createExpectedOperationError_('リンク切れが確認できるためCalendar招待を送信できません。', 'CALENDAR_INVITE_BLOCKED');
+  }
   if (isLeadReviewPending_(lead)) {
     throw createExpectedOperationError_('確認待ちのためCalendar招待を送信できません。', 'CALENDAR_INVITE_BLOCKED');
   }
@@ -1114,7 +1123,7 @@ function recoverStaleCsvPreparationJobs_() {
 function advanceLeadCsvImportJob(jobId, options) {
   const input = options && typeof options === 'object' ? options : {};
   const maxItems = Math.min(Math.max(Number(input.maxItems) || 250, 1), 1000);
-  const runtimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs) || 240000, 10000), 330000);
+  const runtimeBudgetMs = normalizeBackgroundRuntimeBudgetMs_(input.runtimeBudgetMs, BACKGROUND_JOB_DEFAULT_RUNTIME_MS);
   const runWindow = buildSearchJobRunWindow_(runtimeBudgetMs, Date.now());
   const claim = claimLeadCsvImportJobRun_(jobId, runtimeBudgetMs);
   if (!claim.claimed) {
@@ -1571,12 +1580,16 @@ function advanceQueuedJobs(options) {
   const input = options && typeof options === 'object' ? options : {};
   const source = String(input.source || 'trigger');
   const maxJobs = Math.min(Math.max(Number(input.maxJobs) || 3, 1), 10);
-  const totalRuntimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', 300000)) || 300000, 10000), 330000);
+  const totalRuntimeBudgetMs = normalizeBackgroundRuntimeBudgetMs_(
+    input.runtimeBudgetMs || getSettingValue_('batch_runtime_budget_ms', BACKGROUND_JOB_DEFAULT_RUNTIME_MS),
+    BACKGROUND_JOB_DEFAULT_RUNTIME_MS
+  );
   const workerClaim = claimBackgroundWorkerRun_({
     source: source,
     runtimeBudgetMs: totalRuntimeBudgetMs,
   });
   if (!workerClaim.claimed) {
+    const resumeTrigger = ensureImmediateBackgroundJobTriggerBestEffort_(30000);
     return {
       skipped: true,
       busy: true,
@@ -1587,6 +1600,8 @@ function advanceQueuedJobs(options) {
       resumable: true,
       remainingJobs: null,
       workerClaim: workerClaim.claim || {},
+      resumeTrigger: resumeTrigger.result,
+      triggerWarning: resumeTrigger.warning || '',
     };
   }
 
@@ -1595,6 +1610,10 @@ function advanceQueuedJobs(options) {
     recoveredStaleClaim: workerClaim.recoveredStaleClaim === true,
   });
   try {
+    const pendingReviewDecisions = processPendingReviewLeadDecisions_({
+      maxItems: REVIEW_DECISION_QUEUE_BATCH_SIZE_,
+      source: source + ':background_safety_net',
+    });
     const recoveredSearchJobs = recoverStaleSearchJobs_();
     const recoveredPreparations = recoverStaleCsvPreparationJobs_();
     const runWindow = buildSearchJobRunWindow_(totalRuntimeBudgetMs, Date.now());
@@ -1654,7 +1673,7 @@ function advanceQueuedJobs(options) {
     let collectionQualityMigration = getLeadCollectionQualityMigrationV215Status_();
     const qualityMigrationMinimumRuntimeMs = 150000;
     let remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
-    if (!stoppedForRuntime && collectionQualityMigration.pending === true && remainingRuntimeMs >= qualityMigrationMinimumRuntimeMs) {
+    if (!stoppedForRuntime && remainingJobs === 0 && collectionQualityMigration.pending === true && remainingRuntimeMs >= qualityMigrationMinimumRuntimeMs) {
       try {
         collectionQualityMigration = runLeadCollectionQualityMigrationV215_({ source: source });
       } catch (error) {
@@ -1672,17 +1691,17 @@ function advanceQueuedJobs(options) {
     } else if (collectionQualityMigration.pending === true) {
       collectionQualityMigration = Object.assign({}, collectionQualityMigration, {
         skipped: true,
-        reason: stoppedForRuntime ? 'runtime_exhausted' : 'runtime_reserved',
+        reason: stoppedForRuntime ? 'runtime_exhausted' : remainingJobs > 0 ? 'jobs_pending' : 'runtime_reserved',
       });
     }
     let dashboardCacheRefresh = {
       refreshed: false,
       skipped: true,
-      reason: stoppedForRuntime ? 'runtime_exhausted' : 'runtime_reserved',
+      reason: stoppedForRuntime ? 'runtime_exhausted' : remainingJobs > 0 ? 'jobs_pending' : 'runtime_reserved',
     };
     const dashboardRefreshMinimumRuntimeMs = 90000;
     remainingRuntimeMs = Math.max(runWindow.deadlineMs - Date.now(), 0);
-    if (!stoppedForRuntime && remainingRuntimeMs >= dashboardRefreshMinimumRuntimeMs) {
+    if (!stoppedForRuntime && remainingJobs === 0 && remainingRuntimeMs >= dashboardRefreshMinimumRuntimeMs) {
       try {
         dashboardCacheRefresh = refreshDashboardStatsCacheIfDue_({ source: source });
       } catch (error) {
@@ -1697,6 +1716,9 @@ function advanceQueuedJobs(options) {
         });
       }
     }
+    const resumeTrigger = remainingJobs > 0
+      ? ensureImmediateBackgroundJobTriggerBestEffort_(errors.length ? BACKGROUND_JOB_RETRY_DELAY_MS : BACKGROUND_JOB_IMMEDIATE_DELAY_MS)
+      : { result: null, warning: '' };
     const response = {
       jobs: results,
       errors: errors,
@@ -1706,8 +1728,11 @@ function advanceQueuedJobs(options) {
       remainingJobs: remainingJobs,
       recoveredPreparations: recoveredPreparations,
       recoveredSearchJobs: recoveredSearchJobs,
+      pendingReviewDecisions: pendingReviewDecisions,
       collectionQualityMigration: collectionQualityMigration,
       dashboardCacheRefresh: dashboardCacheRefresh,
+      resumeTrigger: resumeTrigger.result,
+      triggerWarning: resumeTrigger.warning || '',
       workerClaim: {
         recoveredStaleClaim: workerClaim.recoveredStaleClaim === true,
       },
@@ -1716,13 +1741,17 @@ function advanceQueuedJobs(options) {
       source: source,
       remainingJobs: remainingJobs,
       recoveredSearchJobs: recoveredSearchJobs.length,
+      pendingReviewDecisions: Number(pendingReviewDecisions.remaining || 0),
       errorCount: errors.length,
     });
     return response;
   } catch (error) {
+    const recoveryTrigger = ensureImmediateBackgroundJobTriggerBestEffort_(BACKGROUND_JOB_RETRY_DELAY_MS);
     recordBackgroundWorkerStatus_('failed', {
       source: source,
       error: String(error && error.message ? error.message : error),
+      recoveryScheduled: Boolean(recoveryTrigger.result),
+      triggerWarning: recoveryTrigger.warning || '',
     });
     throw error;
   } finally {
@@ -1855,7 +1884,7 @@ function claimBackgroundWorkerRun_(options) {
   const input = options && typeof options === 'object' ? options : {};
   const source = String(input.source || 'trigger');
   const nowMs = Number.isFinite(Number(input.nowMs)) ? Number(input.nowMs) : Date.now();
-  const runtimeBudgetMs = Math.min(Math.max(Number(input.runtimeBudgetMs) || 300000, 10000), 330000);
+  const runtimeBudgetMs = normalizeBackgroundRuntimeBudgetMs_(input.runtimeBudgetMs, BACKGROUND_JOB_DEFAULT_RUNTIME_MS);
   const leaseMs = Math.min(Math.max(runtimeBudgetMs + 90000, 120000), 480000);
   try {
     return withScriptLock_('claimBackgroundWorkerRun', function () {
@@ -1885,7 +1914,7 @@ function claimBackgroundWorkerRun_(options) {
         recoveredStaleClaim: recoveredStaleClaim,
         claim: backgroundWorkerClaimSummary_(claim, nowMs),
       };
-    }, { waitMs: 5000, attempts: 2, retryDelayMs: 250 });
+    }, { waitMs: 5000, attempts: 2, retryDelayMs: 250, logErrors: false });
   } catch (error) {
     if (!isScriptLockTimeoutError_(error)) throw error;
     return {
@@ -1945,11 +1974,14 @@ function getBackgroundWorkerHealth() {
   const triggers = ScriptApp.getProjectTriggers().filter(function (trigger) {
     return trigger.getHandlerFunction() === 'advanceQueuedJobs';
   });
+  const pendingReviewDecisions = listPendingReviewDecisionRecords_();
   return {
     ok: triggers.length > 0,
     triggerCount: triggers.length,
     activeJobCount: activeJobs.length,
     staleJobIds: activeJobs.filter(function (job) { return isStaleSearchJob_(job); }).map(function (job) { return job.id; }),
+    pendingReviewDecisionCount: pendingReviewDecisions.length,
+    pendingReviewDecisionLeadCount: Array.from(new Set(pendingReviewDecisions.map(function (record) { return record.id; }))).length,
     worker: worker,
     workerClaim: workerClaim,
   };
@@ -2043,8 +2075,23 @@ function repairBackgroundJobs(options) {
   const recoveredPreparations = jobId ? recoverStaleCsvPreparationJobs_() : 0;
   let runResult = null;
   if (jobId) {
-    const job = findSheetRecordById_('search_jobs', jobId);
+    let job = findSheetRecordById_('search_jobs', jobId);
     if (!job) throw new Error('Search job not found: ' + jobId);
+    if (['failed', 'cancelled'].indexOf(String(job.status || '')) !== -1) {
+      job = withScriptLock_('retryFailedSearchJob', function () {
+        const current = findSheetRecordById_('search_jobs', jobId);
+        if (!current) throw new Error('Search job not found: ' + jobId);
+        if (['failed', 'cancelled'].indexOf(String(current.status || '')) === -1) return current;
+        return updateSheetRecord_('search_jobs', jobId, {
+          status: 'queued',
+          lock_token: '',
+          locked_at: '',
+          last_heartbeat_at: nowIso_(),
+          finished_at: '',
+          attempt_count: Number(current.attempt_count || 0) + 1,
+        });
+      }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+    }
     if (['queued', 'running'].indexOf(String(job.status || '')) !== -1) {
       runResult = advanceSearchJob(jobId, {
         maxItems: 1,
@@ -2082,6 +2129,240 @@ function ensureBackgroundJobTriggerBestEffort_() {
     return { result: ensureBackgroundJobTrigger_(), warning: '' };
   } catch (error) {
     const warning = 'バックグラウンド自動再開トリガーを確認できませんでした: ' + String(error.message || error);
+    console.warn(warning);
+    return { result: null, warning: warning };
+  }
+}
+
+function clearProjectTriggersForHandler_(handler) {
+  const target = String(handler || '');
+  const matches = ScriptApp.getProjectTriggers().filter(function (trigger) {
+    return trigger.getHandlerFunction() === target;
+  });
+  matches.forEach(function (trigger) {
+    ScriptApp.deleteTrigger(trigger);
+  });
+  return matches.length;
+}
+
+function advanceQueuedJobsNow() {
+  clearProjectTriggersForHandler_('advanceQueuedJobsNow');
+  return advanceQueuedJobs({
+    maxJobs: 1,
+    maxItems: 1,
+    runtimeBudgetMs: BACKGROUND_JOB_DEFAULT_RUNTIME_MS,
+    source: 'immediate_trigger',
+  });
+}
+
+function ensureImmediateBackgroundJobTrigger_(delayMs) {
+  const normalizedDelayMs = Math.min(
+    Math.max(Number(delayMs) || BACKGROUND_JOB_IMMEDIATE_DELAY_MS, BACKGROUND_JOB_IMMEDIATE_DELAY_MS),
+    300000
+  );
+  return ensureSingleProjectTrigger_('advanceQueuedJobsNow', function () {
+    return ScriptApp.newTrigger('advanceQueuedJobsNow').timeBased().after(normalizedDelayMs).create();
+  });
+}
+
+function ensureImmediateBackgroundJobTriggerBestEffort_(delayMs) {
+  try {
+    return { result: ensureImmediateBackgroundJobTrigger_(delayMs), warning: '' };
+  } catch (error) {
+    const warning = 'バックグラウンド即時再開トリガーを確認できませんでした: ' + String(error.message || error);
+    console.warn(warning);
+    return { result: null, warning: warning };
+  }
+}
+
+function processPendingReviewLeadDecisionsNow() {
+  clearProjectTriggersForHandler_(REVIEW_DECISION_QUEUE_TRIGGER_HANDLER_);
+  return processPendingReviewLeadDecisions_({
+    maxItems: REVIEW_DECISION_QUEUE_BATCH_SIZE_,
+    source: 'immediate_trigger',
+  });
+}
+
+function processPendingReviewLeadDecisions_(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const maxItems = Math.min(Math.max(Number(input.maxItems) || REVIEW_DECISION_QUEUE_BATCH_SIZE_, 1), 50);
+  const queuedRecords = listPendingReviewDecisionRecords_();
+  const latestByLead = queuedRecords.reduce(function (result, record) {
+    result[record.id] = record;
+    return result;
+  }, {});
+  const selected = Object.keys(latestByLead).map(function (leadId) {
+    return latestByLead[leadId];
+  }).slice(0, maxItems);
+  if (!selected.length) {
+    return {
+      ok: true,
+      busy: false,
+      processed: 0,
+      updated: 0,
+      reused: 0,
+      conflicts: 0,
+      remaining: 0,
+      items: [],
+    };
+  }
+
+  let outcome;
+  try {
+    outcome = withScriptLock_('processPendingReviewLeadDecisions', function () {
+      const currentLatestByLead = latestPendingReviewDecisionsByLead_();
+      const active = selected.filter(function (record) {
+        const current = currentLatestByLead[record.id];
+        return current && current.requestId === record.requestId;
+      });
+      const spreadsheet = getOrCreateSpreadsheet_();
+      const sheet = ensureSheet_(spreadsheet, 'leads');
+      const values = sheet.getDataRange().getValues();
+      const headers = values.length ? values[0].map(function (value) {
+        return String(value || '').trim();
+      }) : [];
+      const idColumnIndex = headers.indexOf('id');
+      if (idColumnIndex === -1) throw new Error('Sheet is missing id header: leads');
+      const selectedIds = {};
+      selected.forEach(function (record) { selectedIds[record.id] = true; });
+      const foundById = {};
+      values.slice(1).forEach(function (row, index) {
+        const id = String(row[idColumnIndex] || '').trim();
+        if (!selectedIds[id] || foundById[id]) return;
+        foundById[id] = {
+          rowNumber: index + 2,
+          headers: headers,
+          record: rowToRecord_(headers, row),
+        };
+      });
+
+      const writes = [];
+      const items = [];
+      let updated = 0;
+      let reused = 0;
+      let conflicts = 0;
+      active.forEach(function (record) {
+        const found = foundById[record.id];
+        if (!found) {
+          conflicts += 1;
+          items.push({
+            id: record.id,
+            request_id: record.requestId,
+            ok: false,
+            conflict: true,
+            message: '営業先が見つかりませんでした。',
+          });
+          return;
+        }
+        const result = buildReviewLeadDecisionOutcome_(found, {
+          mode: record.mode,
+          expectedStatus: record.expectedStatus,
+          nextStatus: record.status,
+        });
+        if (result.write) {
+          writes.push(result.write);
+          updated += 1;
+        } else if (result.response && result.response.reused) {
+          reused += 1;
+        } else {
+          conflicts += 1;
+        }
+        items.push(Object.assign({
+          id: record.id,
+          request_id: record.requestId,
+        }, result.response || {}));
+      });
+      if (writes.length) {
+        writeLeadRecordsToRowsGroupedLocked_(sheet, headers, writes);
+        const activityResult = appendReviewActivityRecordsBestEffortLocked_(spreadsheet, writes.map(function (write) {
+          const isUndo = String(write && write.record && write.record.status || '') === '未対応';
+          return buildReviewActivityRecord_(write, {
+            actionType: isUndo ? 'review_undo' : 'review_decision',
+            reversible: !isUndo,
+            actor: 'background_retry',
+          });
+        }));
+        if (activityResult.warning) {
+          items.forEach(function (item) {
+            if (item && item.ok && !item.reused) item.warning = activityResult.warning;
+          });
+        }
+      }
+      return {
+        processed: active.length,
+        superseded: selected.length - active.length,
+        updated: updated,
+        reused: reused,
+        conflicts: conflicts,
+        items: items,
+        cacheDirty: writes.length > 0,
+      };
+    }, { waitMs: 2500, attempts: 2, retryDelayMs: 250, logErrors: false });
+  } catch (error) {
+    if (!isScriptLockTimeoutError_(error)) {
+      appendSyncError_('processPendingReviewLeadDecisions', error, { source: String(input.source || '') });
+    }
+    const retry = ensurePendingReviewDecisionTriggerBestEffort_(30000);
+    return {
+      ok: false,
+      busy: isScriptLockTimeoutError_(error),
+      processed: 0,
+      updated: 0,
+      reused: 0,
+      conflicts: 0,
+      remaining: queuedRecords.length,
+      items: [],
+      error: String(error.message || error),
+      triggerWarning: retry.warning || '',
+    };
+  }
+
+  const selectedIds = {};
+  selected.forEach(function (record) { selectedIds[record.id] = true; });
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    queuedRecords.filter(function (record) {
+      return selectedIds[record.id];
+    }).forEach(function (record) {
+      properties.deleteProperty(record.propertyKey);
+    });
+  } catch (error) {
+    console.warn('処理済みの確認結果キューを削除できませんでした: ' + String(error.message || error));
+  }
+  if (outcome.cacheDirty) clearReviewLeadCachesBestEffort_();
+  const remaining = listPendingReviewDecisionRecords_().length;
+  const continuation = remaining > 0
+    ? ensurePendingReviewDecisionTriggerBestEffort_(BACKGROUND_JOB_IMMEDIATE_DELAY_MS)
+    : { result: null, warning: '' };
+  return {
+    ok: true,
+    busy: false,
+    processed: outcome.processed,
+    superseded: outcome.superseded,
+    updated: outcome.updated,
+    reused: outcome.reused,
+    conflicts: outcome.conflicts,
+    remaining: remaining,
+    items: outcome.items,
+    triggerWarning: continuation.warning || '',
+  };
+}
+
+function ensurePendingReviewDecisionTrigger_(delayMs) {
+  const normalizedDelayMs = Math.min(
+    Math.max(Number(delayMs) || BACKGROUND_JOB_IMMEDIATE_DELAY_MS, BACKGROUND_JOB_IMMEDIATE_DELAY_MS),
+    300000
+  );
+  return ensureSingleProjectTrigger_(REVIEW_DECISION_QUEUE_TRIGGER_HANDLER_, function () {
+    return ScriptApp.newTrigger(REVIEW_DECISION_QUEUE_TRIGGER_HANDLER_).timeBased().after(normalizedDelayMs).create();
+  });
+}
+
+function ensurePendingReviewDecisionTriggerBestEffort_(delayMs) {
+  try {
+    return { result: ensurePendingReviewDecisionTrigger_(delayMs), warning: '' };
+  } catch (error) {
+    const warning = '確認結果の保存待ちトリガーを確認できませんでした: ' + String(error.message || error);
     console.warn(warning);
     return { result: null, warning: warning };
   }

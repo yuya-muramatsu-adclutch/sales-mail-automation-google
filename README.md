@@ -40,6 +40,7 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `AppSafetyStrip` / `AppTopShortcutBar` / `AppRouteProgress` に寄せた運用ステータスバー、上部ショートカット、タブ切替進行バー
 - 確認待ち専用メニュー、確認待ち/収集ツールを優先した上部ショートカット、確認待ち候補だけを読む軽量キュー画面、施設名・メールの画面内編集
 - 公式サイトドメイン単位の作成・編集・収集時重複防止、および履歴を保全する既存重複アーカイブ整理
+- 自動収集URLの404・410・DNS・証明書エラーを登録前に除外し、既存の確認待ちも再監査できるリンク切れガード
 - 毎日3時台に公式サイトドメインの重複を自動監査し、履歴を優先して重複側をアーカイブする日次トリガー
 - 旧Next/Supabase版の `AppFrame` に寄せたサイドバーのリスト/運用グループ順序
 - 旧Next/Supabase版の `AppNavLink` / `AppTopShortcutBar` に寄せた線アイコン表示と一次メニューのみのサイドバー構成
@@ -67,7 +68,9 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - 旧Next/Supabase版の `LeadPagination` / `url-mini-link` / `button.primary` に寄せたページング、URL小リンク、一次ボタン色
 - 旧Next/Supabase版の `JobResultsReviewTable` に寄せた検索結果レビューの5列カテゴリ、カードグリッド、一括確認、追加読み込み導線
 - 全ページ共通の見出し・説明・余白・文字階層、低頻度メニューの折りたたみ、正常ステータスの非表示、主要操作＋その他メニュー、文脈別の空状態を備えた運用UI
+- 全20画面の日本語見出しとナビゲーション名称を業務目的に統一し、現在地を画面名・ブラウザタイトル・サイドバーで一致させたUI
 - 確認待ち受信トレイ、キーボード移動、操作取り消し、今日の作業、共通タスクセンター、収集プリセット/概算、保存ビュー、設定検索、送信安全サマリー
+- 任意の会員・企業・店舗・施設一覧URLを入力し、分類・処理件数・検索補完を調整してプレビュー後に収集できる汎用URL収集ワークベンチ
 
 ## ファイル
 
@@ -98,8 +101,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @276 / production code v274: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
-- Apps Script HEAD / repository code v274: `20260720_apps_script_full_workflow_v274_review_genre_edit`
+- Web app deployment @335 / production code v326: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Apps Script HEAD / repository code v326: `20260802_apps_script_full_workflow_v326_review_workspace`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -277,6 +280,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 - Apps Script Version 129 / code v129で各ページ上部を共通フォーマット化。正常時の運用ステータス帯は非表示にし、異常時だけ原因チップを表示。テーブル行アクションの強弱、Pillの最大幅・省略・title保持を全体で強化しました
 - Apps Script Version 130 / code v130でメール送信の二重送信防止を強化。送信直前チェック、MailApp送信、履歴保存、リード更新を同一 `LockService` 範囲にまとめ、`send_histories` の成功履歴と同一メールアドレスも送信候補から除外します
 - Apps Script Version 134 / code v134で営業リスト収集ツールを「キーワード型」「サイト収集型」の2パターンへ整理。キーワード型はキーワード×エリア×補助語をまとめて複数Serper検索できます。サイト収集型はまとめサイトURLから施設/URLを抽出し、公式URLが見つかった場合はSerperを使わずメール/フォームを取得、公式URLがない場合のみSerper補完します
+- Apps Script Version 280 / code v277で営業リスト収集画面を集中レイアウトへ再構成。選択中の方法では入力フォームを状態表示より先に出し、PCは入力・条件と確認・実行の2列、タブレット以下は1列で表示します。収集ステータスとその他の方法はフォーム後へ移し、実行ボタンを初期表示内で確認しやすくしました
+- Apps Script Version 278 / code v276で営業リスト収集ツールをガイド型UIへ再構成。初期画面で4手順を示し、キーワード検索と一覧ページ取り込みを同じ3段階フォームへ統一しました。任意設定と保存済みURLは折りたたみへ移動し、実行後は追加・重複・除外件数から進捗または確認待ちへ直接移動できます
 - Apps Script Version 87 / code v87で営業リスト収集ツール上部の収集状況をコンパクト化し、空の直近検索テーブルを折りたたみ/空状態にして収集メニューがすぐ見える密度へ調整。空状態アイコンの巨大化も抑制済み
 - Apps Script Version 85 / code v85で営業リスト収集ツールを旧アプリの `ProspectingCollectionTool` に寄せ、収集状況→収集メニューの順序、アイコン付き0〜4操作カード、状態バー、除外ドメイン導線を復元
 - Version 68は `clasp deploy -V 68 -i AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g` で既存Web app URLへ反映済み。ローカルスモークで `messageCircleReply`, `refreshCw`, `rotateCcw`, 返信チェック注意帯、誤判定候補カード、Calendar保存アイコンを確認済み
