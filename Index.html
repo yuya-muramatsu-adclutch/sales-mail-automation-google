@@ -15148,6 +15148,7 @@
                       </select></label>
                       <label>ステータス<select id="leadStatus"></select></label>
                       <label>並び替え<select id="leadSort">
+                        <option value="review_email_first">メール取得済みを先頭</option>
                         <option value="updated_desc">更新が新しい順</option>
                         <option value="created_desc">作成が新しい順</option>
                         <option value="company_asc">会社名順</option>
@@ -18720,6 +18721,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function setLeadFilter(filter) {
         document.getElementById('leadQuickFilter').value = filter || 'all';
+        if (filter === 'review') document.getElementById('leadSort').value = 'review_email_first';
         updateLeadLoadModeFromFilter();
         filterLeads();
       }
@@ -18857,7 +18859,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         document.getElementById('leadQuickFilter').value = 'review';
         document.getElementById('leadStatus').value = '';
         document.getElementById('leadGenreFilter').value = '';
-        document.getElementById('leadSort').value = 'updated_desc';
+        document.getElementById('leadSort').value = 'review_email_first';
         document.getElementById('leadLimit').value = String(INITIAL_REVIEW_LEAD_LIMIT);
         state.leadPage.offset = 0;
         updateLeadLoadModeFromFilter('review');

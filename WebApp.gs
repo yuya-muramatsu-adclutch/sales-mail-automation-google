@@ -494,14 +494,14 @@ function getDashboardStats(options) {
   }).map(function (lead) {
     return decorateReviewLeadForList_(lead);
   }).sort(function (left, right) {
-    return Number(isValidEmailAddress_(right.email)) - Number(isValidEmailAddress_(left.email)) ||
+    return Number(hasLeadEmailForSort_(right)) - Number(hasLeadEmailForSort_(left)) ||
       String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
   }).slice(0, 3).map(function (lead) {
     return {
       type: 'review',
       id: String(lead.id || ''),
       label: String(lead.facility_name || lead.company_name || '名称未取得'),
-      detail: (isValidEmailAddress_(lead.email) ? 'メール取得済み' : 'メール未取得') + ' / ' + Number(lead.review_priority_score || 0) + '点',
+      detail: (hasLeadEmailForSort_(lead) ? 'メール取得済み' : 'メール未取得') + ' / ' + Number(lead.review_priority_score || 0) + '点',
       count: 1,
       tab: 'reviewLeads',
     };

@@ -101,8 +101,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @338 / production code v329: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
-- Apps Script HEAD / repository code v329: `20260803_apps_script_full_workflow_v329_review_email_first`
+- Web app deployment @339 / production code v330: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Apps Script HEAD / repository code v330: `20260803_apps_script_full_workflow_v330_review_email_first_all_views`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -353,6 +353,12 @@ const archived = deleteLead(lead.id);
 `deleteLead(id)` はデフォルトでソフト削除です。`deleteLead(id, { hardDelete: true })` は送信履歴・返信ログ・検索結果・Calendarイベントがない営業先だけに限定され、関連データがある場合はUUID参照を守るため拒否されます。
 
 ## 重要な実装方針
+
+### v330 メール取得済み順を全画面へ統一
+
+- 確認待ち専用画面だけでなく、「一括操作／一覧ページ」と一覧の確認待ちフィルターでも、メール取得済みを初期表示の先頭にしました。
+- 画面の「メールあり」と同じく、メール欄に値があるかどうかで並び順を判定します。メール送信時の有効性チェックは従来どおり別途行います。
+- メール取得済みの中、未取得の中では、それぞれ更新日時の新しい順に表示します。
 
 ### v329 自動仕分けの撤回とメール取得済み優先
 

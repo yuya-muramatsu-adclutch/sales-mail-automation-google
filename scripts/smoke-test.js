@@ -4225,7 +4225,7 @@ const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-assert(codeSource.includes('20260803_apps_script_full_workflow_v329_review_email_first'));
+assert(codeSource.includes('20260803_apps_script_full_workflow_v330_review_email_first_all_views'));
 const appInfoContext = vm.createContext({ console });
 vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
 appInfoContext.PropertiesService = {
@@ -5851,7 +5851,7 @@ const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
   urlFetchRecordedToday: 0,
   batchRuntimeBudgetMs: 240000,
 });
-assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 329);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 330);
 assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
 assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
 assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
@@ -5865,7 +5865,7 @@ const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
     status: 'danger',
   },
 });
-assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 329);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 330);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
@@ -6089,9 +6089,11 @@ const emailFirstReviewLeads = [
 analyticsContext.sortLeads_(emailFirstReviewLeads, 'review_email_first');
 assert.deepStrictEqual(
   emailFirstReviewLeads.map((lead) => lead.id),
-  ['email-newer', 'email-older', 'no-email-newest', 'invalid-email'],
-  'valid email leads must be listed first, with newest updates first inside each group'
+  ['invalid-email', 'email-newer', 'email-older', 'no-email-newest'],
+  'leads with a captured email must be listed first, with newest updates first inside each group'
 );
+assert.strictEqual(analyticsContext.hasLeadEmailForSort_({ email: 'not-an-email' }), true, 'the sort must match the UI email-present indicator');
+assert.strictEqual(analyticsContext.hasLeadEmailForSort_({ email: '   ' }), false);
 assert(!codeSource.includes('function reviewLeadTriage_'));
 assert(!codeSource.includes('function matchesReviewLeadTriageFilter_'));
 assert(!codeSource.includes('reviewBucket'));
@@ -6099,7 +6101,9 @@ assert(!webAppSource.includes("if (action === 'setReviewTriageOverride')"));
 assert(!indexSource.includes('id="reviewTriagePanel"'));
 assert(!indexSource.includes('review-triage-chip'));
 assert(indexSource.includes('メール取得済みを先頭'));
-assert(webAppSource.includes('Number(isValidEmailAddress_(right.email)) - Number(isValidEmailAddress_(left.email))'));
+assert(indexSource.includes("if (filter === 'review') document.getElementById('leadSort').value = 'review_email_first';"));
+assert(indexSource.includes("document.getElementById('leadSort').value = 'review_email_first';"));
+assert(webAppSource.includes('Number(hasLeadEmailForSort_(right)) - Number(hasLeadEmailForSort_(left))'));
 assert.deepStrictEqual(JSON.parse(JSON.stringify(analyticsContext.collectionSourceUrlsFromJob_({
   query_json: JSON.stringify({ source_url: 'https://one.example/list', items: [{ source_url: 'https://two.example/list' }] }),
 }))), ['https://one.example/list', 'https://two.example/list']);
@@ -6116,4 +6120,4 @@ assert(indexSource.includes('function renderReviewBulkPreviewDialog()'));
 assert(indexSource.includes('function renderCollectionSourcePerformance()'));
 assert(indexSource.includes('function openDomainHistory(value)'));
 
-console.log('v329 review-email-first regression tests passed.');
+console.log('v330 review-email-first-all-views regression tests passed.');

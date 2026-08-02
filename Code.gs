@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260803_apps_script_full_workflow_v329_review_email_first';
+const APP_VERSION = '20260803_apps_script_full_workflow_v330_review_email_first_all_views';
 const BACKGROUND_JOB_SAFE_RUNTIME_MAX_MS = 240000;
 const BACKGROUND_JOB_DEFAULT_RUNTIME_MS = 240000;
 const BACKGROUND_JOB_IMMEDIATE_DELAY_MS = 5000;
@@ -1616,7 +1616,7 @@ function listEmailSendCandidates(options) {
 function sortLeads_(leads, sort) {
   leads.sort(function (a, b) {
     if (sort === 'review_email_first') {
-      return Number(isValidEmailAddress_(b.email)) - Number(isValidEmailAddress_(a.email)) ||
+      return Number(hasLeadEmailForSort_(b)) - Number(hasLeadEmailForSort_(a)) ||
         String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
     }
     if (sort === 'review_priority_desc') {
@@ -1639,6 +1639,10 @@ function sortLeads_(leads, sort) {
     }
     return String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
   });
+}
+
+function hasLeadEmailForSort_(lead) {
+  return Boolean(String(lead && lead.email || '').trim());
 }
 
 function matchesReviewLeadConvenienceFilters_(lead, query) {

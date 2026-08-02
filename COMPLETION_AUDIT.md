@@ -5,9 +5,18 @@
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @338 / production code v329: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @339 / production code v330: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v329_review_email_first`
+- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v330_review_email_first_all_views`
+
+## v330 メール取得済み順を全画面へ統一
+
+- v329では確認待ち専用画面のサーバー要求だけをメール優先にしていたため、「一括操作／一覧ページ」へ移動すると一覧の並び順が`updated_desc`へ戻っていた。
+- 一覧ページの並び順へ`review_email_first`を追加し、確認待ちを開くすべての導線で初期選択するよう修正した。
+- 並び替え条件を画面の「メールあり」表示と同じメール欄の有無へ統一した。送信可否のメール形式チェックは変更していない。
+- 本番Sheetsを読み取り専用で確認し、概算の確認待ち候補316件中11件にメールがあり、メール優先時は11件が先頭グループになることを確認した。
+- `node scripts/smoke-test.js`、全`.gs`構文確認、`Index.html`インラインJavaScript構文確認、`git diff --check`が成功。Apps Script version `339`を作成し、固定Web appを`@339`へ更新した。
+- 本番営業リストの更新、収集、メール送信は行っていない。
 
 ## v329 自動仕分けの撤回とメール取得済み優先
 
