@@ -4,6 +4,8 @@ const PRODUCTION_SEND_RESERVED_RESULT_ = '送信中';
 const DEFAULT_GMAIL_SENDER_NAME_ = '【Ad Clutch】村松 侑哉';
 const DEFAULT_GMAIL_PRIMARY_SENDER_EMAIL_ = 'yuya.adclutch@gmail.com';
 const MAIL_DELIVERY_RECEIPT_PREFIX_ = 'MAIL_DELIVERY_RECEIPT_V1_';
+const SCHEDULED_EMAIL_DEFAULT_RUNTIME_BUDGET_MS_ = 240000;
+const SCHEDULED_EMAIL_MAX_RUNTIME_BUDGET_MS_ = 240000;
 
 function getDefaultGmailSenderName_() {
   const configured = String(getSettingValue_('gmail_sender_name', DEFAULT_GMAIL_SENDER_NAME_) || '').trim();
@@ -224,12 +226,20 @@ function sendLeadEmailBatch(leadIds, templateId, options) {
     throw createExpectedOperationError_('送信対象がありません。', 'EMPTY_MAIL_BATCH');
   }
 
-  const results = ids.map(function (id) {
+  const runtimeDeadlineMs = Number(input.runtimeDeadlineMs || input.runtime_deadline_ms) || 0;
+  const results = [];
+  let runtimeBudgetReached = false;
+  for (let index = 0; index < ids.length; index += 1) {
+    const id = ids[index];
+    if (runtimeDeadlineMs > 0 && Date.now() >= runtimeDeadlineMs) {
+      runtimeBudgetReached = true;
+      break;
+    }
     try {
       const prepared = withScriptLock_('prepareLeadEmailBatchItem', function () {
         return prepareLeadEmailSend_(id, templateId, input, true);
       }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
-      return deliverPreparedLeadEmail_(prepared);
+      results.push(deliverPreparedLeadEmail_(prepared));
     } catch (error) {
       if (!isExpectedOperationError_(error)) {
         logError_('sendLeadEmailBatch:item', error, {
@@ -237,28 +247,37 @@ function sendLeadEmailBatch(leadIds, templateId, options) {
           target_id: id,
         });
       }
-      return {
+      results.push({
         ok: false,
         blocked: isExpectedOperationError_(error),
         leadId: id,
         errorMessage: error.message || String(error),
-      };
+      });
     }
-  });
+  }
   const success = results.filter(function (result) { return result.ok; }).length;
   const blocked = results.filter(function (result) { return result.blocked; }).length;
   return {
     ok: success === results.length,
     total: results.length,
+    requestedTotal: ids.length,
     success: success,
     failed: results.length - success,
     blocked: blocked,
+    deferred: Math.max(0, ids.length - results.length),
+    runtimeBudgetReached: runtimeBudgetReached,
     results: results,
   };
 }
 
 function runScheduledEmailBatch(options) {
   const input = options && typeof options === 'object' ? options : {};
+  const runtimeStartedAtMs = Date.now();
+  const runtimeBudgetMs = Math.min(Math.max(Number(
+    input.runtimeBudgetMs || input.runtime_budget_ms ||
+    getSettingValue_('batch_runtime_budget_ms', SCHEDULED_EMAIL_DEFAULT_RUNTIME_BUDGET_MS_)
+  ) || SCHEDULED_EMAIL_DEFAULT_RUNTIME_BUDGET_MS_, 10000), SCHEDULED_EMAIL_MAX_RUNTIME_BUDGET_MS_);
+  const runtimeDeadlineMs = runtimeStartedAtMs + runtimeBudgetMs;
   const control = getMailSendingControl_();
   if (!control.enabled) {
     return buildScheduledEmailSkipResult_('mail_disabled', control.reason || '自動送信停止中です。');
@@ -302,16 +321,24 @@ function runScheduledEmailBatch(options) {
     let success = 0;
     let failed = 0;
     let blocked = 0;
-    plan.groups.forEach(function (group) {
+    let runtimeBudgetReached = false;
+    for (let groupIndex = 0; groupIndex < plan.groups.length; groupIndex += 1) {
+      const group = plan.groups[groupIndex];
+      if (Date.now() >= runtimeDeadlineMs) {
+        runtimeBudgetReached = true;
+        break;
+      }
       try {
         const batch = sendLeadEmailBatch(group.leadIds, group.templateId, {
           send_type: '初回メール',
           sender_name: getDefaultGmailSenderName_(),
           source: 'automatic_email_trigger',
+          runtimeDeadlineMs: runtimeDeadlineMs,
         });
         success += Number(batch.success || 0);
         failed += Number(batch.failed || 0);
         blocked += Number(batch.blocked || 0);
+        runtimeBudgetReached = runtimeBudgetReached || batch.runtimeBudgetReached === true;
         Array.prototype.push.apply(results, batch.results || []);
       } catch (error) {
         const expected = isExpectedOperationError_(error);
@@ -327,7 +354,8 @@ function runScheduledEmailBatch(options) {
         });
       }
       heartbeatScheduledEmailJob_(job.id, success + failed, plan.selectedCount);
-    });
+      if (runtimeBudgetReached) break;
+    }
 
     const issueMessages = results.filter(function (result) {
       return !result.ok || result.warning;
@@ -336,8 +364,11 @@ function runScheduledEmailBatch(options) {
     }).filter(Boolean);
     const status = success === 0 && failed > 0 ? 'failed' : 'completed';
     const deliveryRecoveryCount = Number((plan.deliveryRecovery || {}).processed || 0);
+    const staleRecoveryCount = Number((plan.staleRecovery || {}).processed || 0);
+    const deferred = Math.max(0, Number(plan.selectedCount || 0) - success - failed);
     const message = '完全自動送信: 成功 ' + success + '件 / 失敗 ' + failed + '件 / 対象外 ' + blocked + '件' +
-      (deliveryRecoveryCount > 0 ? ' / 履歴復旧 ' + deliveryRecoveryCount + '件' : '');
+      (deliveryRecoveryCount + staleRecoveryCount > 0 ? ' / 履歴復旧 ' + (deliveryRecoveryCount + staleRecoveryCount) + '件' : '') +
+      (deferred > 0 ? ' / 次回へ繰越 ' + deferred + '件' : '');
     finalizeScheduledEmailJob_(job.id, {
       status: status,
       total: plan.selectedCount,
@@ -358,8 +389,12 @@ function runScheduledEmailBatch(options) {
       success: success,
       failed: failed,
       blocked: blocked,
+      deferred: deferred,
+      runtimeBudgetReached: runtimeBudgetReached,
+      runtimeBudgetMs: runtimeBudgetMs,
       groups: sanitizedPlan.groups,
       deliveryRecovery: sanitizedPlan.deliveryRecovery,
+      staleRecovery: sanitizedPlan.staleRecovery,
       message: message,
     };
   } catch (error) {
@@ -397,6 +432,10 @@ function buildScheduledEmailBatchPlan_(options) {
   if (deliveryRecovery.processed > 0) {
     histories = readMailSendSafetyHistories_();
   }
+  const staleRecovery = reconcileStaleMailReservations_(histories, { maxItems: 5 });
+  if (staleRecovery.processed > 0) {
+    histories = readMailSendSafetyHistories_();
+  }
   const pendingStatus = buildPendingSendReservationStatus_(histories);
   if (pendingStatus.staleCount > 0) {
     return {
@@ -405,6 +444,7 @@ function buildScheduledEmailBatchPlan_(options) {
       selectedCount: 0,
       groups: [],
       deliveryRecovery: deliveryRecovery,
+      staleRecovery: staleRecovery,
     };
   }
 
@@ -424,6 +464,7 @@ function buildScheduledEmailBatchPlan_(options) {
       mailQuota: mailQuota,
       groups: [],
       deliveryRecovery: deliveryRecovery,
+      staleRecovery: staleRecovery,
     };
   }
 
@@ -447,6 +488,7 @@ function buildScheduledEmailBatchPlan_(options) {
       mailQuota: mailQuota,
       groups: [],
       deliveryRecovery: deliveryRecovery,
+      staleRecovery: staleRecovery,
     };
   }
 
@@ -461,6 +503,7 @@ function buildScheduledEmailBatchPlan_(options) {
       mailQuota: mailQuota,
       groups: [],
       deliveryRecovery: deliveryRecovery,
+      staleRecovery: staleRecovery,
     };
   }
 
@@ -473,6 +516,7 @@ function buildScheduledEmailBatchPlan_(options) {
     batchLimit: batchLimit,
     groups: selection.groups,
     deliveryRecovery: deliveryRecovery,
+    staleRecovery: staleRecovery,
   };
 }
 
@@ -562,6 +606,7 @@ function selectScheduledEmailCandidates_(leads, templates, masterContext, limit)
 function sanitizeScheduledEmailPlan_(plan) {
   const source = plan && typeof plan === 'object' ? plan : {};
   const recovery = source.deliveryRecovery && typeof source.deliveryRecovery === 'object' ? source.deliveryRecovery : {};
+  const staleRecovery = source.staleRecovery && typeof source.staleRecovery === 'object' ? source.staleRecovery : {};
   return {
     selectedCount: Number(source.selectedCount || 0),
     dailyRemaining: Number(source.dailyRemaining || 0),
@@ -572,6 +617,13 @@ function sanitizeScheduledEmailPlan_(plan) {
       recoveredSuccess: Number(recovery.recoveredSuccess || 0),
       recoveredFailure: Number(recovery.recoveredFailure || 0),
       errorCount: Array.isArray(recovery.errors) ? recovery.errors.length : 0,
+    },
+    staleRecovery: {
+      found: Number(staleRecovery.found || 0),
+      processed: Number(staleRecovery.processed || 0),
+      recoveredSuccess: Number(staleRecovery.recoveredSuccess || 0),
+      recoveredFailure: Number(staleRecovery.recoveredFailure || 0),
+      errorCount: Array.isArray(staleRecovery.errors) ? staleRecovery.errors.length : 0,
     },
     groups: (source.groups || []).map(function (group) {
       return {
@@ -1047,6 +1099,106 @@ function reconcileMailDeliveryReceipts_(historyRecords, options) {
     }
   });
   return summary;
+}
+
+function reconcileStaleMailReservations_(historyRecords, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const maxItems = Math.min(Math.max(Number(input.maxItems) || 5, 1), 20);
+  const currentMs = Number.isFinite(Number(input.nowMs)) ? Number(input.nowMs) : Date.now();
+  const stale = (Array.isArray(historyRecords) ? historyRecords : []).filter(function (history) {
+    if (!isProductionSendReservationHistory_(history)) return false;
+    const timestampMs = new Date(String(history.sent_at || history.created_at || '') || 0).getTime();
+    return !Number.isFinite(timestampMs) || currentMs - timestampMs >= 30 * 60 * 1000;
+  }).slice(0, maxItems);
+  const summary = {
+    found: stale.length,
+    processed: 0,
+    recoveredSuccess: 0,
+    recoveredFailure: 0,
+    errors: [],
+  };
+
+  stale.forEach(function (history) {
+    const reservationId = String(history.id || '').trim();
+    if (!reservationId) return;
+    try {
+      const current = findSheetRecordById_('send_histories', reservationId);
+      if (!current || !isProductionSendReservationHistory_(current)) return;
+      const delivery = findSentGmailMessageForReservation_(current);
+      const desiredResult = delivery.found ? '成功' : '失敗';
+      const finalized = withScriptLock_('reconcileStaleMailReservation', function () {
+        const latest = findSheetRecordById_('send_histories', reservationId);
+        if (!latest) throw new Error('送信履歴が見つかりません: ' + reservationId);
+        if (!isProductionSendReservationHistory_(latest)) return latest;
+        return updateSheetRecord_('send_histories', reservationId, {
+          send_result: desiredResult,
+          error_message: delivery.found
+            ? ''
+            : '自動送信処理が中断し、Gmail送信済みに該当メールがないため自動解除しました。',
+          gmail_message_id: delivery.messageId || '',
+          gmail_thread_id: delivery.threadId || '',
+        });
+      }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+      if (desiredResult === '成功' && String(finalized.send_result || '') === '成功') {
+        reconcileLeadSendTrackingFromHistory_(finalized);
+      }
+      clearMailDeliveryReceipt_(reservationId);
+      summary.processed += 1;
+      if (desiredResult === '成功') summary.recoveredSuccess += 1;
+      else summary.recoveredFailure += 1;
+    } catch (error) {
+      summary.errors.push({ reservationId: reservationId, message: error.message || String(error) });
+      if (!isExpectedOperationError_(error)) {
+        logError_('reconcileStaleMailReservation', error, {
+          target_sheet: 'send_histories',
+          target_id: reservationId,
+        });
+      }
+    }
+  });
+  return summary;
+}
+
+function findSentGmailMessageForReservation_(history) {
+  const source = history && typeof history === 'object' ? history : {};
+  const email = normalizeEmailForSendSafety_(source.to_email || '');
+  const subject = String(source.subject || '').trim();
+  const sentAtMs = new Date(String(source.sent_at || source.created_at || '') || 0).getTime();
+  if (!email || !subject || !Number.isFinite(sentAtMs)) {
+    throw new Error('送信済み照合に必要な宛先・件名・送信日時が不足しています。');
+  }
+  if (typeof GmailApp === 'undefined' || typeof GmailApp.search !== 'function') {
+    throw new Error('Gmail送信済みを照合できません。');
+  }
+  const timezone = typeof Session !== 'undefined' && Session.getScriptTimeZone
+    ? (Session.getScriptTimeZone() || 'Asia/Tokyo')
+    : 'Asia/Tokyo';
+  const queryStart = new Date(sentAtMs - 24 * 60 * 60 * 1000);
+  const queryEnd = new Date(sentAtMs + 2 * 24 * 60 * 60 * 1000);
+  const query = 'in:sent to:' + email +
+    ' after:' + Utilities.formatDate(queryStart, timezone, 'yyyy/MM/dd') +
+    ' before:' + Utilities.formatDate(queryEnd, timezone, 'yyyy/MM/dd');
+  const threads = GmailApp.search(query, 0, 50) || [];
+  let closest = null;
+  threads.forEach(function (thread) {
+    (thread.getMessages ? thread.getMessages() : []).forEach(function (message) {
+      const messageDate = message.getDate ? message.getDate() : null;
+      const messageMs = messageDate && messageDate.getTime ? messageDate.getTime() : NaN;
+      if (!Number.isFinite(messageMs) || Math.abs(messageMs - sentAtMs) > 6 * 60 * 60 * 1000) return;
+      if (String(message.getSubject ? message.getSubject() : '').trim() !== subject) return;
+      if (String(message.getTo ? message.getTo() : '').toLowerCase().indexOf(email) === -1) return;
+      const distance = Math.abs(messageMs - sentAtMs);
+      if (!closest || distance < closest.distance) {
+        closest = {
+          found: true,
+          messageId: String(message.getId ? message.getId() : ''),
+          threadId: String(thread.getId ? thread.getId() : ''),
+          distance: distance,
+        };
+      }
+    });
+  });
+  return closest || { found: false, messageId: '', threadId: '' };
 }
 
 function reconcileLeadSendTrackingFromHistory_(history) {
