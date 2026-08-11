@@ -434,6 +434,61 @@ assert.strictEqual(failedReceiptRecovery.errors.length, 1);
 assert(mailReceiptProperties['MAIL_DELIVERY_RECEIPT_V1_receipt-error'], 'a failed reconciliation must retain its receipt for the next run');
 assert.strictEqual(receiptLoggedErrors.length, 1);
 
+const staleMailContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), staleMailContext, { filename: 'Code.gs' });
+vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), staleMailContext, { filename: 'Email.gs' });
+const staleMailHistories = {
+  'stale-missing': {
+    id: 'stale-missing', lead_id: 'lead-missing', to_email: 'missing@example.com',
+    subject: 'Missing subject', sent_at: '2026-08-03T07:00:00+09:00',
+    send_type: '初回メール', send_result: '送信中', error_message: '送信結果の確定待ち',
+  },
+  'stale-sent': {
+    id: 'stale-sent', lead_id: 'lead-sent', to_email: 'sent@example.com',
+    subject: 'Sent subject', sent_at: '2026-08-03T07:05:00+09:00',
+    send_type: '初回メール', send_result: '送信中', error_message: '送信結果の確定待ち',
+  },
+};
+staleMailContext.findSheetRecordById_ = (_sheet, id) => staleMailHistories[id] ? Object.assign({}, staleMailHistories[id]) : null;
+staleMailContext.updateSheetRecord_ = (_sheet, id, patch) => {
+  staleMailHistories[id] = Object.assign({}, staleMailHistories[id], patch);
+  return Object.assign({}, staleMailHistories[id]);
+};
+staleMailContext.withScriptLock_ = (_operation, callback) => callback();
+staleMailContext.clearMailDeliveryReceipt_ = () => true;
+staleMailContext.reconcileLeadSendTrackingFromHistory_ = () => true;
+staleMailContext.isExpectedOperationError_ = () => false;
+staleMailContext.logError_ = () => {};
+staleMailContext.Session = { getScriptTimeZone: () => 'Asia/Tokyo' };
+staleMailContext.Utilities = { formatDate: () => '2026/08/03' };
+const sentMessageDate = new Date('2026-08-03T07:05:05+09:00');
+staleMailContext.GmailApp = {
+  search: (query) => {
+    if (query.indexOf('to:missing@example.com') !== -1) return [];
+    return [{
+      getId: () => 'gmail-thread-1',
+      getMessages: () => [{
+        getDate: () => sentMessageDate,
+        getSubject: () => 'Sent subject',
+        getTo: () => 'sent@example.com',
+        getId: () => 'gmail-message-1',
+      }],
+    }];
+  },
+};
+const staleRecovery = staleMailContext.reconcileStaleMailReservations_(Object.values(staleMailHistories), {
+  maxItems: 5,
+  nowMs: new Date('2026-08-03T08:00:00+09:00').getTime(),
+});
+assert.strictEqual(staleRecovery.processed, 2);
+assert.strictEqual(staleRecovery.recoveredFailure, 1);
+assert.strictEqual(staleRecovery.recoveredSuccess, 1);
+assert.strictEqual(staleMailHistories['stale-missing'].send_result, '失敗');
+assert.match(staleMailHistories['stale-missing'].error_message, /自動解除/);
+assert.strictEqual(staleMailHistories['stale-sent'].send_result, '成功');
+assert.strictEqual(staleMailHistories['stale-sent'].gmail_message_id, 'gmail-message-1');
+assert.strictEqual(staleMailHistories['stale-sent'].gmail_thread_id, 'gmail-thread-1');
+
 let creditFetches = 0;
 let fetchesObservedAtLock = -1;
 let creditWriteCount = 0;
@@ -2147,6 +2202,7 @@ let scheduledClaimCount = 0;
 let scheduledHeartbeat = null;
 let scheduledFinal = null;
 scheduledRunContext.getMailSendingControl_ = () => ({ enabled: true, reason: '' });
+scheduledRunContext.getSettingValue_ = (_key, fallback) => fallback;
 scheduledRunContext.buildSendWindowStatus_ = () => ({ enabled: true, allowed: true, label: '07:00-08:00' });
 scheduledRunContext.claimScheduledEmailJob_ = () => { scheduledClaimCount += 1; return { busy: false, job: { id: 'automatic-job' } }; };
 scheduledRunContext.buildScheduledEmailBatchPlan_ = () => ({
@@ -2159,6 +2215,7 @@ scheduledRunContext.sendLeadEmailBatch = (ids, templateId, options) => {
   assert.deepStrictEqual(JSON.parse(JSON.stringify(ids)), ['lead-1', 'lead-2']);
   assert.strictEqual(templateId, 'template-camp');
   assert.strictEqual(options.source, 'automatic_email_trigger');
+  assert(Number(options.runtimeDeadlineMs) > Date.now());
   return { success: 2, failed: 0, blocked: 0, results: ids.map((id) => ({ ok: true, leadId: id })) };
 };
 scheduledRunContext.getDefaultGmailSenderName_ = () => '【Ad Clutch】村松 侑哉';
@@ -2171,6 +2228,8 @@ const scheduledRun = scheduledRunContext.runScheduledEmailBatch({});
 assert.strictEqual(scheduledRun.success, 2);
 assert.strictEqual(scheduledRun.failed, 0);
 assert.strictEqual(scheduledRun.deliveryRecovery.processed, 0);
+assert.strictEqual(scheduledRun.staleRecovery.processed, 0);
+assert.strictEqual(scheduledRun.runtimeBudgetMs, 240000);
 assert.strictEqual(scheduledClaimCount, 1);
 assert.deepStrictEqual(scheduledHeartbeat, { jobId: 'automatic-job', processed: 2, total: 2 });
 assert.strictEqual(scheduledFinal.summary.status, 'completed');
@@ -2180,6 +2239,18 @@ const scheduledOutsideWindow = scheduledRunContext.runScheduledEmailBatch({});
 assert.strictEqual(scheduledOutsideWindow.skipped, true);
 assert.strictEqual(scheduledOutsideWindow.reason, 'outside_send_window');
 assert.strictEqual(scheduledClaimCount, 1, 'outside-window trigger checks must not create a send job');
+
+const runtimeBatchContext = vm.createContext({ console });
+vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), runtimeBatchContext, { filename: 'Code.gs' });
+vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), runtimeBatchContext, { filename: 'Email.gs' });
+runtimeBatchContext.assertProductionMailDeliveryAllowed_ = () => {};
+runtimeBatchContext.getSettingValue_ = () => 20;
+const deferredBatch = runtimeBatchContext.sendLeadEmailBatch(['lead-1', 'lead-2'], 'template-camp', {
+  runtimeDeadlineMs: Date.now() - 1,
+});
+assert.strictEqual(deferredBatch.total, 0);
+assert.strictEqual(deferredBatch.deferred, 2);
+assert.strictEqual(deferredBatch.runtimeBudgetReached, true);
 
 const triggerContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Operations.gs'), 'utf8'), triggerContext, { filename: 'Operations.gs' });
@@ -4261,7 +4332,7 @@ const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-assert(codeSource.includes('20260803_apps_script_full_workflow_v332_send_ng_immediate_domain_exclusion'));
+assert(codeSource.includes('20260811_apps_script_full_workflow_v333_mail_runtime_stale_recovery'));
 const appInfoContext = vm.createContext({ console });
 vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
 appInfoContext.PropertiesService = {
@@ -5890,7 +5961,7 @@ const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
   urlFetchRecordedToday: 0,
   batchRuntimeBudgetMs: 240000,
 });
-assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 332);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 333);
 assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
 assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
 assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
@@ -5904,7 +5975,7 @@ const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
     status: 'danger',
   },
 });
-assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 332);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 333);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
@@ -6186,4 +6257,4 @@ assert(operationsSource.includes('excludeDomainFromCollectionSpecified: record.e
 assert(indexSource.includes('function renderCollectionSourcePerformance()'));
 assert(indexSource.includes('function openDomainHistory(value)'));
 
-console.log('v332 immediate-send-ng-domain-exclusion regression tests passed.');
+console.log('v333 mail-runtime-stale-recovery regression tests passed.');
