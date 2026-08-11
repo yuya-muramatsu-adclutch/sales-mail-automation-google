@@ -1,13 +1,20 @@
 # 完成監査メモ
 
-最終更新: 2026-08-03
+最終更新: 2026-08-11
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @341 / production code v332: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @342 / production code v333: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260803_apps_script_full_workflow_v332_send_ng_immediate_domain_exclusion`
+- Apps Script HEAD / repository code: `20260811_apps_script_full_workflow_v333_mail_runtime_stale_recovery`
+
+## v333 自動メールの時間超過防止と滞留予約復旧
+
+- 本番の自動送信ジョブは2026-08-11も10分間隔で起動していたが、2026-08-03 07:08に残った送信履歴1件が「送信中」のままになり、二重送信防止の安全装置が以後の全実行を停止していた。
+- 対象メールはGmail送信済みに存在せず、対象営業先も送信回数0・最終送信日時なしだったため、該当履歴を失敗へ確定して安全に解除した。
+- 完全自動送信へ実行時間上限を追加し、上限到達時は未処理分を次回へ繰り越す。30分以上の送信予約はGmail送信済みを照合し、成功または失敗へ自動復旧する。Gmail照合エラー時は変更せず停止を維持する。
+- `node scripts/smoke-test.js`、全`.gs`構文確認、`Index.html`インラインJavaScript構文確認、`git diff --check`が成功。Apps Script version `342`を作成し、固定Web appを`@342`へ更新した。メール実送信は検証で行っていない。
 
 ## v332 送信NGの即時処理とドメイン除外
 
