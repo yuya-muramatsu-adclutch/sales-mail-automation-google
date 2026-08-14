@@ -16745,6 +16745,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         emailBatchGenre: null,
         dealLeads: [],
         dealTotal: 0,
+        emailGenrePriority: null,
+        emailGenrePriorityConfirmOpen: false,
+        emailGenrePriorityChanging: false,
         selectedEmailPreviewTemplateId: '',
         selectedEmailPreviewLeadId: '',
         emailBatchConfirmOpen: false,
@@ -16807,6 +16810,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           syncLogs: false,
           syncLogDetails: false,
           gmailAuth: false,
+          emailGenrePriority: false,
           emailLeads: false,
           formLeads: false,
           dealLeads: false,
@@ -16938,6 +16942,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         'saveNgMaster',
         'sendLeadEmail',
         'sendLeadEmailBatch',
+        'setEmailGenrePriority',
         'startSearchJob',
         'startLeadCsvImport',
         'unmarkLeadFormSent',
@@ -17692,6 +17697,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
       }
 
+      async function loadEmailGenrePriorityStatus(options) {
+        const config = options || {};
+        const request = config.quiet ? apiQuiet : api;
+        const result = await request('getEmailGenrePriorityStatus', { includeCounts: config.includeCounts !== false });
+        state.emailGenrePriority = result || null;
+        state.dataLoaded.emailGenrePriority = true;
+        renderAdminAutomationSettingsPanel();
+        renderSendingScreen();
+        renderEmailPreviewPanel();
+        return result;
+      }
+
       async function refreshGmailAuthorizationStatus() {
         try {
           const result = await loadGmailAuthorizationStatus();
@@ -17909,6 +17926,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             await Promise.all([
               ensureDataLoaded('templates', loadTemplates),
               ensureDataLoaded('emailLeads', loadEmailLeads),
+              ensureDataLoaded('emailGenrePriority', () => loadEmailGenrePriorityStatus({ quiet: true })),
             ]);
             const sendingOpsResults = await Promise.allSettled([
               ensureDataLoaded('histories', () => loadHistoryData({ render: false })),
@@ -17959,6 +17977,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           if (name === 'admin') {
             const adminLoadResults = await Promise.allSettled([
               ensureDataLoaded('gmailAuth', () => loadGmailAuthorizationStatus({ quiet: true })),
+              ensureDataLoaded('emailGenrePriority', () => loadEmailGenrePriorityStatus({ quiet: true })),
+              ensureDataLoaded('templates', loadTemplates),
             ]);
             adminLoadResults
               .filter((result) => result.status === 'rejected')
@@ -20629,9 +20649,35 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         state.dataLoaded.emailLeads = true;
       }
 
+      function emailGenrePriorityClientState() {
+        return state.emailGenrePriority && typeof state.emailGenrePriority === 'object'
+          ? state.emailGenrePriority
+          : { enabled: false, genreKeyword: 'グランピング', templateId: '' };
+      }
+
+      function emailGenrePriorityMatchesClient(genre) {
+        const priority = emailGenrePriorityClientState();
+        const value = String(genre || '').trim().toLowerCase();
+        const keyword = String(priority.genreKeyword || 'グランピング').trim().toLowerCase();
+        return Boolean(value && keyword && value.includes(keyword));
+      }
+
+      function isEmailGenrePriorityTemplateClient(template) {
+        const priority = emailGenrePriorityClientState();
+        return Boolean(template && priority.templateId && String(template.id || '') === String(priority.templateId));
+      }
+
       function selectedEmailPreviewTemplate() {
         const mailTemplates = (state.templates || []).filter((template) => template.template_type !== 'form');
         if (!mailTemplates.length) return null;
+        const priority = emailGenrePriorityClientState();
+        if (priority.enabled) {
+          const dedicated = mailTemplates.find((template) => isEmailGenrePriorityTemplateClient(template));
+          if (dedicated) {
+            state.selectedEmailPreviewTemplateId = dedicated.id;
+            return dedicated;
+          }
+        }
         if (!state.selectedEmailPreviewTemplateId || !mailTemplates.some((template) => template.id === state.selectedEmailPreviewTemplateId)) {
           const production = mailTemplates.find(isProductionTemplate);
           state.selectedEmailPreviewTemplateId = (production || mailTemplates[0]).id;
@@ -20640,7 +20686,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function loadEmailBatchCandidates(templateId) {
-        if (templateId) state.selectedEmailPreviewTemplateId = templateId;
+        const priority = emailGenrePriorityClientState();
+        if (priority.enabled && priority.templateId) state.selectedEmailPreviewTemplateId = priority.templateId;
+        else if (templateId) state.selectedEmailPreviewTemplateId = templateId;
         const template = selectedEmailPreviewTemplate();
         if (!template) {
           state.emailBatchLeads = [];
@@ -27164,12 +27212,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function renderSendingScreen() {
         const dashboard = state.dashboard || {};
         const leads = state.emailLeads || [];
+        const priority = emailGenrePriorityClientState();
+        const plannedLeads = priority.enabled ? leads.filter((lead) => emailGenrePriorityMatchesClient(lead && lead.genre)) : leads;
         const batchLimit = Number(getClientSetting('email_batch_send_limit', dashboard.emailBatchSendLimit || 20)) || 20;
-        const planned = leads.slice(0, Math.min(batchLimit, dashboard.todayRemaining || 0));
-        const canSend = dashboard.mailSendingEnabled !== false && (dashboard.todayRemaining || 0) > 0 && leads.length > 0;
+        const planned = plannedLeads.slice(0, Math.min(batchLimit, dashboard.todayRemaining || 0));
+        const canSend = dashboard.mailSendingEnabled !== false && (dashboard.todayRemaining || 0) > 0 && plannedLeads.length > 0 && !(priority.enabled && priority.templateBlockReason);
         document.getElementById('sendingPlanPill').outerHTML = `<span class="pill warn" id="sendingPlanPill" ${canSend ? 'hidden' : ''}>要確認</span>`;
         document.getElementById('sendingPlanGrid').innerHTML = [
-          ['初回対象', `${formatNumber(state.emailTotal)}件`],
+          [priority.enabled ? 'グランピング対象' : '初回対象', `${formatNumber(priority.enabled ? priority.targetCount || 0 : state.emailTotal)}件`],
           ['今回予定', `${formatNumber(planned.length)}件`],
           ['本日送信済み', `${formatNumber(dashboard.sentToday || 0)}件`],
           ['本日残り', `${formatNumber(dashboard.todayRemaining || 0)}件`],
@@ -27191,12 +27241,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['メール', escapeHtml(lead.email || '-')],
         ])).join(''));
         document.getElementById('sendingLimitPills').innerHTML = [
+          priority.enabled ? '<span class="pill good">グランピング優先中</span>' : '',
           dashboard.mailSendingEnabled === false ? '<span class="pill bad">メール送信 停止中</span>' : '',
           `<span class="pill warn">1日${formatNumber(dashboard.dailyMailLimit || 100)}件まで</span>`,
           `<span class="pill warn">1回${formatNumber(batchLimit)}件まで</span>`,
           dashboard.todayRemaining > 0 ? `<span class="pill info">本日残り ${formatNumber(dashboard.todayRemaining || 0)}件</span>` : '<span class="pill bad">本日残り 0件</span>',
         ].filter(Boolean).join('');
-        document.getElementById('sendingLimitText').textContent = `現在の送信可能リストは${formatNumber(state.emailTotal)}件です。Apps Script版では手動送信と時間主導トリガーで送信上限を守ります。`;
+        document.getElementById('sendingLimitText').textContent = priority.enabled
+          ? `グランピング優先中です。送信可能なグランピング施設は${formatNumber(priority.targetCount || 0)}件で、他ジャンルには送信しません。`
+          : `現在の送信可能リストは${formatNumber(state.emailTotal)}件です。Apps Script版では手動送信と時間主導トリガーで送信上限を守ります。`;
         const histories = (state.histories || []).slice(0, 5);
         document.getElementById('sendingHistoryPill').textContent = `${formatNumber(histories.length)}件`;
         document.getElementById('sendingHistoryTable').innerHTML = table(['日時', '種別', '宛先', '結果'], histories.map((history) => row([
@@ -27290,6 +27343,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           return;
         }
         const selectedTemplate = selectedEmailPreviewTemplate();
+        const priority = emailGenrePriorityClientState();
         const matchedLeads = getTemplateMatchedEmailLeads(selectedTemplate);
         if (!state.selectedEmailPreviewLeadId || !matchedLeads.some((lead) => lead.id === state.selectedEmailPreviewLeadId)) {
           const nextLead = matchedLeads.find((lead) => lead.email) || matchedLeads[0];
@@ -27314,13 +27368,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           </div>
           <div class="grid">
             <label>テンプレート<select id="previewTemplateSelect" onchange="setEmailPreviewTemplate(this.value)">
-              ${mailTemplates.map((template) => `<option value="${escapeHtml(template.id)}" ${template.id === selectedTemplate.id ? 'selected' : ''}>${escapeHtml([template.name, template.genre || 'ジャンルなし', templateTypeLabel(template.template_type)].filter(Boolean).join(' / '))}</option>`).join('')}
+              ${mailTemplates.map((template) => `<option value="${escapeHtml(template.id)}" ${template.id === selectedTemplate.id ? 'selected' : ''} ${priority.enabled && !isEmailGenrePriorityTemplateClient(template) ? 'disabled' : ''}>${escapeHtml([template.name, template.genre || 'ジャンルなし', templateTypeLabel(template.template_type)].filter(Boolean).join(' / '))}</option>`).join('')}
             </select></label>
             <label>営業先<select id="previewLeadSelect" onchange="setEmailPreviewLead(this.value)" ${matchedLeads.length ? '' : 'disabled'}>
               ${matchedLeads.length ? matchedLeads.map((lead) => `<option value="${escapeHtml(lead.id)}" ${selectedLead && lead.id === selectedLead.id ? 'selected' : ''}>${escapeHtml([lead.company_name || '会社名未入力', lead.facility_name || '-', lead.genre || 'ジャンルなし', lead.email || 'メールなし'].join(' / '))}</option>`).join('') : '<option value="">対象の営業先がありません</option>'}
             </select></label>
           </div>
-          <p class="${selectedTemplate.genre ? 'muted' : 'form-message'}">${selectedTemplate.genre ? `選択中テンプレートのジャンル「${escapeHtml(selectedTemplate.genre)}」に一致する営業先を優先表示しています。` : 'ジャンル未設定のテンプレートは誤送信防止のため本番送信前に確認してください。'}</p>
+          <p class="${selectedTemplate.genre ? 'muted' : 'form-message'}">${priority.enabled ? `グランピング優先中です。「${escapeHtml(priority.genreKeyword || 'グランピング')}」を含む営業先だけを表示しています。` : (selectedTemplate.genre ? `選択中テンプレートのジャンル「${escapeHtml(selectedTemplate.genre)}」に一致する営業先を優先表示しています。` : 'ジャンル未設定のテンプレートは誤送信防止のため本番送信前に確認してください。')}</p>
           <div class="preview-grid">
             <label>送信先<input readonly value="${escapeHtml(selectedLead ? selectedLead.email || 'メールアドレスなし' : '営業先なし')}"></label>
             <label>送信可否<input readonly value="${escapeHtml(blockReason ? `送信不可: ${blockReason}` : '送信可能')}"></label>
@@ -27358,6 +27412,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const hasMatchingBatchLoad = state.emailBatchGenre !== null && state.emailBatchGenre === genre;
         const leads = hasMatchingBatchLoad ? (state.emailBatchLeads || []) : (state.emailLeads || []);
         if (!template || !template.genre) return leads;
+        const priority = emailGenrePriorityClientState();
+        if (priority.enabled && isEmailGenrePriorityTemplateClient(template)) {
+          return leads.filter((lead) => emailGenrePriorityMatchesClient(lead && lead.genre));
+        }
         return leads.filter((lead) => lead.genre === template.genre);
       }
 
@@ -27370,11 +27428,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function getEmailPreviewBatchTargets(template) {
         if (!template) return [];
         const templateGenre = String(template.genre || '').trim();
+        const priority = emailGenrePriorityClientState();
         const seenEmails = new Set();
         return getTemplateMatchedEmailLeads(template)
           .filter((lead) => {
             if (!canEmailLead(lead)) return false;
-            if (templateGenre && String(lead.genre || '').trim() !== templateGenre) return false;
+            if (priority.enabled && isEmailGenrePriorityTemplateClient(template)) {
+              if (!emailGenrePriorityMatchesClient(lead && lead.genre)) return false;
+            } else if (templateGenre && String(lead.genre || '').trim() !== templateGenre) return false;
             const email = String(lead.email || '').trim().toLowerCase();
             if (email && seenEmails.has(email)) return false;
             if (email) seenEmails.add(email);
@@ -27557,6 +27618,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function setEmailPreviewTemplate(id) {
+        const priority = emailGenrePriorityClientState();
+        if (priority.enabled && String(id || '') !== String(priority.templateId || '')) {
+          message('現在はグランピング優先中です。専用テンプレート以外は選択できません。', 'error');
+          state.selectedEmailPreviewTemplateId = priority.templateId;
+          renderEmailPreviewPanel();
+          return;
+        }
         state.selectedEmailPreviewTemplateId = id;
         state.selectedEmailPreviewLeadId = '';
         state.emailBatchConfirmOpen = false;
@@ -27588,7 +27656,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function getSendBlockReasonClient(template, lead) {
         const dashboard = state.dashboard || {};
         const integrations = dashboard.integrations || {};
+        const priority = emailGenrePriorityClientState();
         if (!template) return 'テンプレートがありません';
+        if (priority.enabled && !isEmailGenrePriorityTemplateClient(template)) return '現在はグランピング優先中です。専用テンプレート以外では送信できません';
+        if (priority.enabled && priority.templateBlockReason) return priority.templateBlockReason;
         if (template.template_type === 'form') return 'フォーム用テンプレートはメール送信できません';
         if (!isProductionTemplate(template)) return 'テンプレートが本番OFFです';
         if (!template.genre) return 'テンプレートにジャンルが設定されていません';
@@ -27597,7 +27668,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if ((dashboard.todayRemaining || 0) <= 0) return '本日の送信上限に達しています';
         if (!lead) return '営業先がありません';
         if (!lead.genre) return '営業先のジャンルが設定されていません';
-        if (template.genre !== lead.genre) return 'テンプレートと営業先のジャンルが一致していません';
+        if (priority.enabled && !emailGenrePriorityMatchesClient(lead.genre)) return '現在はグランピング優先中です。他ジャンルには送信できません';
+        if (template.genre !== lead.genre && !(priority.enabled && isEmailGenrePriorityTemplateClient(template) && emailGenrePriorityMatchesClient(lead.genre))) return 'テンプレートと営業先のジャンルが一致していません';
         if (!lead.email) return 'メールアドレスがありません';
         if (normalizeBooleanLike(lead.send_ng) || lead.status === '送信NG') return '送信NGです';
         if (normalizeBooleanLike(lead.reply_checked) || lead.status === '返信あり') return '返信ありのため対象外です';
@@ -27610,7 +27682,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const dashboard = state.dashboard || {};
         const integrations = dashboard.integrations || {};
         const sendWindow = dashboard.sendWindow || {};
+        const priority = emailGenrePriorityClientState();
         if (!template) return 'テンプレートがありません';
+        if (priority.enabled && !isEmailGenrePriorityTemplateClient(template)) return '現在はグランピング優先中です。専用テンプレート以外では送信できません';
+        if (priority.enabled && priority.templateBlockReason) return priority.templateBlockReason;
         if (template.template_type === 'form') return 'フォーム用テンプレートはメール送信できません';
         if (!isProductionTemplate(template)) return 'テンプレートが本番OFFです';
         if (!template.genre) return 'テンプレートにジャンルが設定されていません';
@@ -27619,6 +27694,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if ((dashboard.todayRemaining || 0) <= 0) return '本日の送信上限に達しています';
         if (sendWindow.enabled !== false && sendWindow.allowed === false) return '自動送信時間外です';
         if (!(targets || []).length) return '送信対象がありません';
+        if (priority.enabled && (targets || []).some((lead) => !emailGenrePriorityMatchesClient(lead && lead.genre))) return '現在はグランピング優先中です。他ジャンルには送信できません';
         return '';
       }
 
@@ -29304,6 +29380,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const target = document.getElementById('adminAutomationSettingsPanel');
         if (!target) return;
         const dashboard = state.dashboard || {};
+        const priority = emailGenrePriorityClientState();
+        const priorityEnabled = priority.enabled === true;
+        const priorityReady = priority.canActivate === true;
+        const priorityTargetCount = Number(priority.targetCount || 0);
+        const priorityTemplateName = priority.templateName || 'グランピング向けChatGPT広告';
         const sendWindow = getClientSetting('email_send_window', { enabled: true, start: '07:00', end: '08:00', timezone: 'Asia/Tokyo' }) || {};
         const replyCheck = getClientSetting('gmail_reply_check', { enabled: false, maxThreads: 200 }) || {};
         const emailDiscovery = getClientSetting('email_discovery', { enabled: false, scheduleLabel: '03:00', skipRecentDays: 30 }) || {};
@@ -29325,12 +29406,35 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           <div class="admin-automation-summary">
             ${[
               { icon: 'clock3', label: '自動送信時間', ready: sendWindow.enabled !== false, detail: `${sendWindow.start || '07:00'}-${sendWindow.end || '08:00'}`, status: sendWindow.enabled !== false ? 'ON' : 'OFF', tone: sendWindow.enabled !== false ? 'good' : 'warn' },
+              { icon: 'wand2', label: 'グランピング優先', ready: priorityEnabled, detail: priorityEnabled ? `${formatNumber(priorityTargetCount)}件` : 'OFF', status: priorityEnabled ? 'ON' : 'OFF', tone: priorityEnabled ? 'good' : 'info' },
               { icon: 'reply', label: '返信自動チェック', ready: Boolean(replyCheck.enabled), detail: replyCheck.enabled ? `最大${formatNumber(replyCheck.maxThreads || 200)}件` : 'OFF', status: replyCheck.enabled ? 'ON' : 'OFF', tone: replyCheck.enabled ? 'good' : 'info' },
               { icon: 'mailSearch', label: 'メール自動取得', ready: Boolean(emailDiscovery.enabled), detail: emailDiscovery.enabled ? (emailDiscovery.scheduleLabel || '03:00') : 'OFF', status: emailDiscovery.enabled ? 'ON' : 'OFF', tone: emailDiscovery.enabled ? 'good' : 'info' },
               { icon: 'serverCog', label: '最大処理時間', ready: batchBudget > 0, detail: `${formatNumber(Math.round(batchBudget / 1000))}秒`, status: 'GAS', tone: 'info' },
             ].map(adminStatusItemMarkup).join('')}
           </div>
           <div class="admin-inner-disclosure-list">
+            <details class="admin-inner-disclosure" ${priorityEnabled || state.emailGenrePriorityConfirmOpen ? 'open' : ''}>
+              <summary><span>グランピング優先送信</span><small>${priorityEnabled ? 'ON' : 'OFF'}</small></summary>
+              <div class="admin-detail-body">
+                ${automationCardHeader('wand2', 'グランピング優先送信', '開始中は自動・手動・一括・再送のすべてで、グランピング以外へのメール送信を止めます。', `<span class="pill ${priorityEnabled ? 'good' : 'info'}">${priorityEnabled ? '優先中' : '停止中'}</span>`)}
+                <div class="send-check-grid">
+                  <span><small>送信可能な対象</small><strong>${formatNumber(priorityTargetCount)}件</strong></span>
+                  <span><small>専用テンプレート</small><strong>${escapeHtml(priorityTemplateName)}</strong></span>
+                  <span><small>他ジャンル送信</small><strong>${priorityEnabled ? '停止中' : '通常どおり'}</strong></span>
+                </div>
+                <p class="muted">対象が0件になると自動解除し、開始前に本番ONだった通常のグランピング用テンプレートへ戻します。送信時間帯・上限・二重送信防止は現在の設定を引き継ぎます。</p>
+                ${priority.lpUrl ? `<p><a href="${escapeHtml(priority.lpUrl)}" target="_blank" rel="noopener noreferrer">ChatGPT広告LPを確認</a></p>` : ''}
+                ${priority.templateBlockReason ? `<p class="message error">${escapeHtml(priority.templateBlockReason)}</p>` : ''}
+                ${priority.deactivatedReason && !priorityEnabled ? `<p class="muted">前回の解除理由: ${escapeHtml(priority.deactivatedReason)}</p>` : ''}
+                <div class="toolbar">
+                  ${priorityEnabled
+                    ? `<button type="button" class="button" onclick="releaseEmailGenrePriority()" ${!priority.canDeactivate || state.emailGenrePriorityChanging ? 'disabled' : ''}>${legacyUiIcon('power')}優先を解除</button>`
+                    : `<button type="button" class="button primary" onclick="openEmailGenrePriorityConfirm()" ${!priorityReady || state.emailGenrePriorityChanging ? 'disabled' : ''}>${legacyUiIcon('wand2')}グランピングを優先</button>`}
+                  <button type="button" onclick="refreshEmailGenrePriorityStatus()" ${state.emailGenrePriorityChanging ? 'disabled' : ''}>${legacyUiIcon('refreshCw')}状態を更新</button>
+                </div>
+                ${!priorityEnabled && !priorityReady && !priority.templateBlockReason ? '<p class="muted">送信可能なグランピング施設がないため開始できません。</p>' : ''}
+              </div>
+            </details>
             <details class="admin-inner-disclosure">
               <summary><span>自動送信時間</span><small>${sendWindow.enabled !== false ? 'ON' : 'OFF'}</small></summary>
               <div class="admin-detail-body">
@@ -29380,7 +29484,132 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               </div>
             </details>
           </div>
+          ${state.emailGenrePriorityConfirmOpen ? renderEmailGenrePriorityConfirmDialog(priority) : ''}
         `;
+        if (state.emailGenrePriorityConfirmOpen) {
+          activateDialogFocus(target.querySelector('.dialog-backdrop [role="dialog"]'));
+        }
+      }
+
+      function renderEmailGenrePriorityConfirmDialog(priorityInput) {
+        const priority = priorityInput || emailGenrePriorityClientState();
+        const changing = state.emailGenrePriorityChanging;
+        return `
+          <div class="dialog-backdrop" onclick="closeEmailGenrePriorityConfirmOnBackdrop(event)">
+            <div class="dialog-panel" role="dialog" aria-modal="true" aria-labelledby="emailGenrePriorityConfirmTitle" tabindex="-1" onclick="event.stopPropagation()">
+              <div class="section-title-row">
+                <div>
+                  <p class="eyebrow">優先送信の開始確認</p>
+                  <h2 id="emailGenrePriorityConfirmTitle">グランピングを優先しますか？</h2>
+                </div>
+                <span class="pill warn">管理者操作</span>
+              </div>
+              <p class="muted">開始後は複数日・複数回のトリガーをまたいで継続し、自動送信・1件送信・一括送信・再送のすべてで他ジャンルへのメールを停止します。</p>
+              <div class="send-check-grid">
+                <span><small>現在の送信対象</small><strong>${formatNumber(priority.targetCount || 0)}件</strong></span>
+                <span><small>使用テンプレート</small><strong>${escapeHtml(priority.templateName || 'グランピング向けChatGPT広告')}</strong></span>
+                <span><small>他ジャンルへの送信</small><strong>行いません</strong></span>
+              </div>
+              <p class="message ok">対象がなくなると自動解除し、開始前の通常テンプレートへ戻します。現在の時間帯・送信上限・二重送信防止設定は変更しません。</p>
+              ${priority.lpUrl ? `<p><a href="${escapeHtml(priority.lpUrl)}" target="_blank" rel="noopener noreferrer">使用するChatGPT広告LPを確認</a></p>` : ''}
+              <div class="dialog-actions">
+                <button type="button" onclick="closeEmailGenrePriorityConfirm()" ${changing ? 'disabled' : ''}>キャンセル</button>
+                <button type="button" class="button primary" onclick="startEmailGenrePriority()" ${!priority.canActivate || changing ? 'disabled' : ''}>${legacyUiIcon('wand2')}${changing ? '開始中...' : 'この内容で優先を開始'}</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      async function refreshEmailGenrePriorityStatus() {
+        try {
+          await loadEmailGenrePriorityStatus({ includeCounts: true });
+          message('グランピング優先の状態を更新しました。', 'ok');
+        } catch (error) {
+          message(`優先状態を更新できませんでした: ${apiErrorText(error)}`, 'error');
+        }
+      }
+
+      async function openEmailGenrePriorityConfirm() {
+        try {
+          const priority = state.dataLoaded.emailGenrePriority
+            ? emailGenrePriorityClientState()
+            : await loadEmailGenrePriorityStatus({ includeCounts: true });
+          if (!priority || !priority.canActivate) {
+            message(`グランピング優先を開始できません: ${(priority && priority.templateBlockReason) || '送信可能な対象がありません。'}`, 'error');
+            return;
+          }
+          rememberDialogReturnFocus();
+          state.emailGenrePriorityConfirmOpen = true;
+          renderAdminAutomationSettingsPanel();
+        } catch (error) {
+          message(`グランピング優先を確認できませんでした: ${apiErrorText(error)}`, 'error');
+        }
+      }
+
+      function closeEmailGenrePriorityConfirm() {
+        if (state.emailGenrePriorityChanging) return;
+        state.emailGenrePriorityConfirmOpen = false;
+        renderAdminAutomationSettingsPanel();
+        deactivateDialogFocus('#adminAutomationSettingsPanel button:not([disabled])');
+      }
+
+      function closeEmailGenrePriorityConfirmOnBackdrop(event) {
+        if (event && event.target === event.currentTarget) closeEmailGenrePriorityConfirm();
+      }
+
+      async function refreshEmailGenrePriorityDependentData() {
+        state.dataLoaded.templates = false;
+        await ensureDataLoaded('templates', loadTemplates);
+        if (state.dataLoaded.emailLeads) {
+          await loadEmailBatchCandidates();
+        }
+        renderSendingScreen();
+        renderEmailPreviewPanel();
+        renderAdminAutomationSettingsPanel();
+      }
+
+      async function startEmailGenrePriority() {
+        if (state.emailGenrePriorityChanging) return;
+        const priority = emailGenrePriorityClientState();
+        if (!priority.canActivate) {
+          message(`グランピング優先を開始できません: ${priority.templateBlockReason || '送信可能な対象がありません。'}`, 'error');
+          return;
+        }
+        state.emailGenrePriorityChanging = true;
+        renderAdminAutomationSettingsPanel();
+        try {
+          state.emailGenrePriority = await api('setEmailGenrePriority', { enabled: true });
+          state.dataLoaded.emailGenrePriority = true;
+          state.emailGenrePriorityConfirmOpen = false;
+          await refreshEmailGenrePriorityDependentData();
+          message('グランピング優先を開始しました。他ジャンルへのメール送信は停止しています。', 'ok');
+        } catch (error) {
+          message(`グランピング優先を開始できませんでした: ${apiErrorText(error)}`, 'error');
+        } finally {
+          state.emailGenrePriorityChanging = false;
+          renderAdminAutomationSettingsPanel();
+          deactivateDialogFocus('#adminAutomationSettingsPanel button:not([disabled])');
+        }
+      }
+
+      async function releaseEmailGenrePriority() {
+        if (state.emailGenrePriorityChanging) return;
+        if (!confirm('グランピング優先を解除し、通常のジャンル送信へ戻しますか？')) return;
+        state.emailGenrePriorityChanging = true;
+        renderAdminAutomationSettingsPanel();
+        try {
+          state.emailGenrePriority = await api('setEmailGenrePriority', { enabled: false, reason: '管理者が画面から解除しました。' });
+          state.dataLoaded.emailGenrePriority = true;
+          state.emailGenrePriorityConfirmOpen = false;
+          await refreshEmailGenrePriorityDependentData();
+          message('グランピング優先を解除し、通常のテンプレートへ戻しました。', 'ok');
+        } catch (error) {
+          message(`グランピング優先を解除できませんでした: ${apiErrorText(error)}`, 'error');
+        } finally {
+          state.emailGenrePriorityChanging = false;
+          renderAdminAutomationSettingsPanel();
+        }
       }
 
       async function saveSendWindowSetting() {

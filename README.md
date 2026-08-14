@@ -101,8 +101,8 @@ Google SheetsをDBとして使う自動営業リストアプリのApps Script版
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
 - Apps Script editor: `https://script.google.com/d/1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76/edit`
-- Web app deployment @342 / production code v333: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
-- Apps Script HEAD / repository code v333: `20260811_apps_script_full_workflow_v333_mail_runtime_stale_recovery`
+- Web app deployment @343 / production code v334: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Apps Script HEAD / repository code v334: `20260814_apps_script_full_workflow_v334_glamping_mail_priority`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
 
 初回はGoogleのOAuth承認が必要です。Web app URLを開くと承認リンクが表示されます。Apps Script editorを開いて `setup()` を手動実行して承認することもできます。承認後はWeb app URLまたはサイドバーから画面を利用できます。
@@ -353,6 +353,14 @@ const archived = deleteLead(lead.id);
 `deleteLead(id)` はデフォルトでソフト削除です。`deleteLead(id, { hardDelete: true })` は送信履歴・返信ログ・検索結果・Calendarイベントがない営業先だけに限定され、関連データがある場合はUUID参照を守るため拒否されます。
 
 ## 重要な実装方針
+
+### v334 グランピング優先送信
+
+- 設定・管理画面の管理者操作から「グランピングを優先」を開始・解除できます。開始確認には送信可能な対象件数、専用テンプレート、他ジャンルへ送らないことを表示します。
+- 優先状態は`settings.email_genre_priority`へ保存し、日付や自動送信トリガーをまたいで継続します。完全自動送信、1件送信、一括送信、再送の入口をサーバー側でも検査し、優先中の他ジャンル・他テンプレート送信を拒否します。
+- ジャンル名に「グランピング」を含み、既存のメールアドレス・未送信・送信NG・返信・商談・重複・除外ルールをすべて通過した営業先だけを送信候補にします。対象が0件になると自動解除し、開始前に本番ONだった通常のグランピング用テンプレートを復元します。
+- 専用テンプレート`glamping-chatgpt-ads-v1`はChatGPT広告LP `https://adclutch.jp/glamping-chatgpt-ads`を使用します。初期登録は本番OFF・未テストで、テスト送信済みになるまでは優先を開始できません。
+- 優先中に専用テンプレートが削除・無効化・本番OFF・読込失敗になった場合は、通常テンプレートへフォールバックせず送信を停止します。送信時間帯、日次・一括上限、二重送信防止は変更しません。
 
 ### v333 自動メールの時間超過防止と滞留予約復旧
 

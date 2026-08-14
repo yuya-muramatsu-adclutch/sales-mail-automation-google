@@ -2195,6 +2195,122 @@ assert.deepStrictEqual(
   [['template-camp', 2], ['template-care', 1]]
 );
 
+const genrePriorityContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), genrePriorityContext, { filename: file });
+});
+genrePriorityContext.isArchivedLead_ = (lead) => Boolean(lead.archived_at);
+genrePriorityContext.isEmailSendTarget_ = (lead) => Boolean(lead.sendable);
+const priorityTemplateFixture = {
+  id: 'glamping-chatgpt-ads-v1',
+  name: 'グランピング向けChatGPT広告',
+  genre: 'グランピング',
+  template_type: 'initial',
+  subject: 'グランピング施設向けのご提案',
+  body: 'グランピング施設向け\nhttps://adclutch.jp/glamping-chatgpt-ads',
+  active: true,
+  is_production: true,
+  last_test_sent_at: '2026-08-14T00:00:00.000Z',
+};
+const prioritySelection = genrePriorityContext.selectEmailGenrePriorityCandidates_([
+  { id: 'glamp-new', email: 'new@example.com', genre: '高級グランピング施設', sendable: true, updated_at: '2026-08-14T00:03:00Z' },
+  { id: 'glamp-old', email: 'same@example.com', genre: 'グランピング', sendable: true, updated_at: '2026-08-14T00:01:00Z' },
+  { id: 'glamp-duplicate', email: 'SAME@example.com', genre: 'グランピング施設', sendable: true, updated_at: '2026-08-14T00:02:00Z' },
+  { id: 'camp', email: 'camp@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-08-14T00:04:00Z' },
+  { id: 'blocked-glamp', email: 'blocked@example.com', genre: 'グランピング', sendable: false, updated_at: '2026-08-14T00:05:00Z' },
+], priorityTemplateFixture, {}, 10, 'グランピング');
+assert.strictEqual(prioritySelection.total, 2);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(prioritySelection.selected.map((item) => item.lead.id))),
+  ['glamp-new', 'glamp-duplicate'],
+  'genre priority must use contains matching, existing sendability rules, and email deduplication'
+);
+
+const activePrioritySetting = {
+  enabled: true,
+  genreKeyword: 'グランピング',
+  templateId: 'glamping-chatgpt-ads-v1',
+  previousProductionTemplateIds: ['old-glamping-template'],
+};
+genrePriorityContext.getSettingValue_ = (key, fallback) => key === 'email_genre_priority' ? activePrioritySetting : fallback;
+genrePriorityContext.findSheetRecordById_ = (_sheet, id) => id === priorityTemplateFixture.id ? priorityTemplateFixture : null;
+genrePriorityContext.buildMasterBlockContext_ = () => ({});
+genrePriorityContext.readSheetRecordFields_ = () => [
+  { id: 'glamp', email: 'glamp@example.com', genre: 'グランピング施設', sendable: true, updated_at: '2026-08-14T00:00:00Z' },
+];
+genrePriorityContext.getLeadById = (id) => id === 'other' ? { id, genre: 'ホテル' } : { id, genre: 'グランピング施設' };
+assert.throws(
+  () => genrePriorityContext.enforceEmailGenrePriorityForLeadIds_(['glamp'], 'normal-template'),
+  /専用テンプレート以外/,
+  'priority mode must block a manually selected normal template'
+);
+assert.throws(
+  () => genrePriorityContext.enforceEmailGenrePriorityForLeadIds_(['other'], priorityTemplateFixture.id),
+  /他ジャンルには送信できません/,
+  'priority mode must block manually selected non-glamping leads'
+);
+assert.doesNotThrow(() => genrePriorityContext.enforceEmailGenrePriorityForLeadIds_(['glamp'], priorityTemplateFixture.id));
+let priorityAutoReleaseReason = '';
+genrePriorityContext.readSheetRecordFields_ = () => [];
+genrePriorityContext.deactivateEmailGenrePrioritySystem_ = (reason) => {
+  priorityAutoReleaseReason = reason;
+  return Object.assign({}, activePrioritySetting, { enabled: false, previousProductionTemplateIds: [], deactivatedReason: reason });
+};
+const automaticPriorityRelease = genrePriorityContext.maybeAutoDeactivateEmailGenrePriority_();
+assert.strictEqual(automaticPriorityRelease.autoReleased, true);
+assert.strictEqual(automaticPriorityRelease.enabled, false);
+assert(priorityAutoReleaseReason.includes('0件'), 'priority mode must explain its automatic release when no sendable glamping leads remain');
+
+const priorityLifecycleContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), priorityLifecycleContext, { filename: file });
+});
+const lifecycleTemplates = {
+  'glamping-chatgpt-ads-v1': Object.assign({}, priorityTemplateFixture, { is_production: false }),
+  'old-glamping-template': {
+    id: 'old-glamping-template', name: '通常グランピング', genre: 'グランピング', template_type: 'initial',
+    subject: '通常', body: '通常', active: true, is_production: true, production_enabled_at: '2026-08-01T00:00:00.000Z',
+  },
+};
+let lifecycleSetting = {
+  enabled: false,
+  genreKeyword: 'グランピング',
+  templateId: 'glamping-chatgpt-ads-v1',
+  previousProductionTemplateIds: [],
+};
+priorityLifecycleContext.assertEmailGenrePriorityAdmin_ = () => ({ allowed: true, email: 'admin@example.com' });
+priorityLifecycleContext.withScriptLock_ = (_operation, callback) => callback();
+priorityLifecycleContext.getEmailGenrePrioritySetting_ = () => Object.assign({}, lifecycleSetting);
+priorityLifecycleContext.findSheetRecordById_ = (_sheet, id) => lifecycleTemplates[id] || null;
+priorityLifecycleContext.buildMasterBlockContext_ = () => ({});
+priorityLifecycleContext.readSheetRecordFields_ = () => [
+  { id: 'glamp', email: 'glamp@example.com', genre: 'グランピング施設', sendable: true, updated_at: '2026-08-14T00:00:00Z' },
+];
+priorityLifecycleContext.isArchivedLead_ = () => false;
+priorityLifecycleContext.isEmailSendTarget_ = (lead) => Boolean(lead.sendable);
+priorityLifecycleContext.readAllActiveSheetRecords_ = () => Object.values(lifecycleTemplates);
+priorityLifecycleContext.updateSheetRecord_ = (_sheet, id, patch) => {
+  lifecycleTemplates[id] = Object.assign({}, lifecycleTemplates[id], patch);
+  return lifecycleTemplates[id];
+};
+priorityLifecycleContext.clearRuntimeCaches_ = () => {};
+priorityLifecycleContext.saveEmailGenrePrioritySettingUnlocked_ = (next) => {
+  lifecycleSetting = Object.assign({}, next);
+  return lifecycleSetting;
+};
+priorityLifecycleContext.getEmailGenrePriorityStatus = () => Object.assign({}, lifecycleSetting);
+priorityLifecycleContext.nowIso_ = () => '2026-08-14T01:00:00.000Z';
+priorityLifecycleContext.setEmailGenrePriority({ enabled: true });
+assert.strictEqual(lifecycleTemplates['glamping-chatgpt-ads-v1'].is_production, true);
+assert.strictEqual(lifecycleTemplates['old-glamping-template'].is_production, false);
+assert.strictEqual(lifecycleSetting.enabled, true);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(lifecycleSetting.previousProductionTemplateIds)), ['old-glamping-template']);
+priorityLifecycleContext.setEmailGenrePriority({ enabled: false, reason: 'test release' });
+assert.strictEqual(lifecycleTemplates['glamping-chatgpt-ads-v1'].is_production, false);
+assert.strictEqual(lifecycleTemplates['old-glamping-template'].is_production, true);
+assert.strictEqual(lifecycleSetting.enabled, false);
+assert.strictEqual(lifecycleSetting.deactivatedReason, 'test release');
+
 const scheduledRunContext = vm.createContext({ console });
 vm.runInContext(fs.readFileSync(path.join(root, 'Code.gs'), 'utf8'), scheduledRunContext, { filename: 'Code.gs' });
 vm.runInContext(fs.readFileSync(path.join(root, 'Email.gs'), 'utf8'), scheduledRunContext, { filename: 'Email.gs' });
@@ -4332,7 +4448,14 @@ const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-assert(codeSource.includes('20260811_apps_script_full_workflow_v333_mail_runtime_stale_recovery'));
+assert(codeSource.includes('20260814_apps_script_full_workflow_v334_glamping_mail_priority'));
+assert(codeSource.includes("EMAIL_GENRE_PRIORITY_TEMPLATE_ID_ = 'glamping-chatgpt-ads-v1'"));
+assert(codeSource.includes("EMAIL_GENRE_PRIORITY_LP_URL_ = 'https://adclutch.jp/glamping-chatgpt-ads'"));
+assert(emailSource.includes('function setEmailGenrePriority(input)'));
+assert(emailSource.includes('function maybeAutoDeactivateEmailGenrePriority_()'));
+assert(emailSource.includes('previousProductionTemplateIds'));
+assert(webAppSource.includes("if (action === 'getEmailGenrePriorityStatus')"));
+assert(webAppSource.includes("if (action === 'setEmailGenrePriority')"));
 const appInfoContext = vm.createContext({ console });
 vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
 appInfoContext.PropertiesService = {
@@ -4403,6 +4526,10 @@ assert(indexSource.includes('closeTaskCenter({ restoreFocus: false });'));
 assert(indexSource.includes('aria-labelledby="templateEditDialogTitle" tabindex="-1"'));
 assert(indexSource.includes('aria-labelledby="templateTestDialogTitle" tabindex="-1"'));
 assert(indexSource.includes('aria-labelledby="emailBatchConfirmTitle" tabindex="-1"'));
+assert(indexSource.includes('aria-labelledby="emailGenrePriorityConfirmTitle" tabindex="-1"'));
+assert(indexSource.includes('function openEmailGenrePriorityConfirm()'));
+assert(indexSource.includes('function releaseEmailGenrePriority()'));
+assert(indexSource.includes('現在はグランピング優先中です。他ジャンルには送信できません'));
 assert(indexSource.includes('id="leadDetailDialog" class="lead-detail-backdrop"'));
 assert(indexSource.includes('aria-labelledby="leadFormTitle" tabindex="-1"'));
 assert(indexSource.includes('id="adminSettingsSearch" type="search" aria-label="設定を検索"'));
@@ -5961,7 +6088,7 @@ const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
   urlFetchRecordedToday: 0,
   batchRuntimeBudgetMs: 240000,
 });
-assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 333);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 334);
 assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
 assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
 assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
@@ -5975,7 +6102,7 @@ const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
     status: 'danger',
   },
 });
-assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 333);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 334);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
@@ -6257,4 +6384,4 @@ assert(operationsSource.includes('excludeDomainFromCollectionSpecified: record.e
 assert(indexSource.includes('function renderCollectionSourcePerformance()'));
 assert(indexSource.includes('function openDomainHistory(value)'));
 
-console.log('v333 mail-runtime-stale-recovery regression tests passed.');
+console.log('v334 glamping-mail-priority regression tests passed.');

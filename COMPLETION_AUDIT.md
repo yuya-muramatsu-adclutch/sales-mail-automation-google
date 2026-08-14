@@ -1,13 +1,22 @@
 # 完成監査メモ
 
-最終更新: 2026-08-11
+最終更新: 2026-08-15
 
 ## デプロイ
 
 - Script ID: `1IPcbftgkafJCBKkoIDnSBjw4fnQoOdXR8I0KjpUCLsq4MYp_7olPOk76`
-- Web app @342 / production code v333: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
+- Web app @343 / production code v334: `https://script.google.com/macros/s/AKfycbwJcZuTk-7wuFJapBdo4dk-yj64hFHk71BMuJxO-pl9BWpui3kOt17lmPT_7LfnZ0OV-g/exec`
 - Spreadsheet DB: `https://docs.google.com/spreadsheets/d/1IuJrWB7RGd2qIFDlhe5lfKaBnmUKN4RcnxdFFTuluZY/edit`
-- Apps Script HEAD / repository code: `20260811_apps_script_full_workflow_v333_mail_runtime_stale_recovery`
+- Apps Script HEAD / repository code: `20260814_apps_script_full_workflow_v334_glamping_mail_priority`
+
+## v334 グランピング優先送信
+
+- 本番`leads`を読み取り専用で調査し、ジャンルに「グランピング」を含む営業先が742件あることを確認した。送信可否は既存のメール形式、未送信、送信NG、返信・商談、除外マスター、送信履歴・予約による二重送信防止をそのまま利用する。
+- 管理者だけが設定画面から開始・解除できる永続的な優先状態を追加した。開始前確認には対象件数、専用テンプレート、他ジャンルへ送らないことを表示し、完全自動、1件、一括、再送のすべてをサーバー側で保護する。
+- 優先中はジャンル名に「グランピング」を含む送信可能な営業先だけを専用テンプレートで処理する。対象が0件になると自動解除し、開始前に本番ONだった通常のグランピング用テンプレートへ戻す。専用テンプレートが利用できない場合は通常テンプレートへ切り替えず送信を停止する。
+- 本番DBの`email_templates!A11:M11`へ`glamping-chatgpt-ads-v1`を本番OFF・未テストで追加し、`settings!A12:F12`へ`email_genre_priority`をOFFで追加した。既存の通常グランピング用テンプレート`email_templates!A5:M5`は本番ONのまま維持している。
+- `node scripts/smoke-test.js`、全`.gs`構文確認、`Index.html`インラインJavaScript構文確認、`git diff --check`が成功した。Apps Script version `343`を作成し、固定Web appを`@343`へ更新した。
+- メールの実送信、優先モードの有効化、認証済みブラウザでの画面目視確認は行っていない。専用テンプレートは画面で内容を確認してテスト送信した後に優先開始できる。
 
 ## v333 自動メールの時間超過防止と滞留予約復旧
 

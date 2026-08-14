@@ -413,29 +413,33 @@ function setSettingValue(key, value, valueType, description) {
     throw createExpectedOperationError_(error.message || String(error), 'SETTING_VALIDATION_ERROR');
   }
   return withScriptLock_('setSettingValue', function () {
-    const spreadsheet = getOrCreateSpreadsheet_();
-    const sheet = ensureSheet_(spreadsheet, 'settings');
-    const records = readSheetRecords_(sheet);
-    const found = records.find(function (record) {
-      return record.key === normalized.key;
-    });
-    const normalizedDescription = String(description || (found && found.description) || '').trim().slice(0, 500);
+    return upsertSettingValueUnlocked_(normalized, description);
+  });
+}
 
-    if (found) {
-      return updateSheetRecord_('settings', found.id, {
-        key: normalized.key,
-        value: normalized.value,
-        value_type: normalized.valueType,
-        description: normalizedDescription,
-      });
-    }
+function upsertSettingValueUnlocked_(normalized, description) {
+  const spreadsheet = getOrCreateSpreadsheet_();
+  const sheet = ensureSheet_(spreadsheet, 'settings');
+  const records = readSheetRecords_(sheet);
+  const found = records.find(function (record) {
+    return record.key === normalized.key;
+  });
+  const normalizedDescription = String(description || (found && found.description) || '').trim().slice(0, 500);
 
-    return appendSheetRecord_('settings', {
+  if (found) {
+    return updateSheetRecord_('settings', found.id, {
       key: normalized.key,
       value: normalized.value,
       value_type: normalized.valueType,
       description: normalizedDescription,
     });
+  }
+
+  return appendSheetRecord_('settings', {
+    key: normalized.key,
+    value: normalized.value,
+    value_type: normalized.valueType,
+    description: normalizedDescription,
   });
 }
 
@@ -453,6 +457,7 @@ function normalizeSettingForSave_(key, value, valueType) {
   const jsonKeys = [
     'email_send_window',
     'mail_sending_control',
+    'email_genre_priority',
     'gmail_reply_check',
     'calendar_auto_create',
     'auto_prospecting',
@@ -520,6 +525,22 @@ function normalizeJsonSettingObject_(key, source) {
       enabled: normalizeStrictSettingBoolean_(source.enabled, false),
       reason: String(source.reason || '').trim().slice(0, 500),
       updatedAt: source.updatedAt || source.updated_at || null,
+    };
+  }
+  if (key === 'email_genre_priority') {
+    const genreKeyword = String(source.genreKeyword || source.genre_keyword || EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_).trim().slice(0, 120);
+    const templateId = String(source.templateId || source.template_id || EMAIL_GENRE_PRIORITY_TEMPLATE_ID_).trim().slice(0, 200);
+    if (!genreKeyword) throw new Error('email_genre_priority.genreKeyword is required.');
+    if (!templateId) throw new Error('email_genre_priority.templateId is required.');
+    return {
+      enabled: normalizeStrictSettingBoolean_(source.enabled, false),
+      genreKeyword: genreKeyword,
+      templateId: templateId,
+      previousProductionTemplateIds: normalizeSettingStringList_(source.previousProductionTemplateIds || source.previous_production_template_ids, 20),
+      activatedAt: source.activatedAt || source.activated_at || null,
+      activatedBy: String(source.activatedBy || source.activated_by || '').trim().slice(0, 254),
+      updatedAt: source.updatedAt || source.updated_at || nowIso_(),
+      deactivatedReason: String(source.deactivatedReason || source.deactivated_reason || '').trim().slice(0, 500),
     };
   }
   if (key === 'gmail_reply_check') {

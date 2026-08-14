@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260811_apps_script_full_workflow_v333_mail_runtime_stale_recovery';
+const APP_VERSION = '20260814_apps_script_full_workflow_v334_glamping_mail_priority';
 const BACKGROUND_JOB_SAFE_RUNTIME_MAX_MS = 240000;
 const BACKGROUND_JOB_DEFAULT_RUNTIME_MS = 240000;
 const BACKGROUND_JOB_IMMEDIATE_DELAY_MS = 5000;
@@ -8,6 +8,24 @@ const REVIEW_DECISION_QUEUE_PROPERTY_PREFIX_ = 'REVIEW_DECISION_QUEUE_V1_';
 const REVIEW_DECISION_QUEUE_TRIGGER_HANDLER_ = 'processPendingReviewLeadDecisionsNow';
 const REVIEW_DECISION_QUEUE_BATCH_SIZE_ = 50;
 const REVIEW_ACTIVITY_UNDO_WINDOW_MS_ = 24 * 60 * 60 * 1000;
+const EMAIL_GENRE_PRIORITY_SETTING_KEY_ = 'email_genre_priority';
+const EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_ = 'グランピング';
+const EMAIL_GENRE_PRIORITY_TEMPLATE_ID_ = 'glamping-chatgpt-ads-v1';
+const EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_ = 'グランピング向けChatGPT広告';
+const EMAIL_GENRE_PRIORITY_LP_URL_ = 'https://adclutch.jp/glamping-chatgpt-ads';
+const EMAIL_GENRE_PRIORITY_TEMPLATE_ = Object.freeze({
+  id: EMAIL_GENRE_PRIORITY_TEMPLATE_ID_,
+  genre: EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_,
+  template_type: 'initial',
+  name: EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_,
+  subject: '【{{屋号}}様】ChatGPT広告を活用した予約集客のご提案',
+  body: '{{屋号}}\nご担当者様\n\nはじめまして。\nAd Clutch（アドクラッチ）の村松と申します。\n\nこの度、貴施設のホームページを拝見し、\nグランピング施設向けのChatGPT広告について、\n予約集客のお力になれるのではないかと思いご連絡いたしました。\n\n旅行者がChatGPTに希望や条件を相談する段階で、\n回答の下にスポンサー広告として施設をご案内し、\n公式サイトでの空室確認・予約につなげる広告施策です。\n\nGoogle広告やMeta広告とは異なる「相談中」の接点を加えることで、\n比較を始める前の旅行者にも施設を知っていただく機会をつくります。\n\nサービス内容はこちらにまとめております。\n' + EMAIL_GENRE_PRIORITY_LP_URL_ + '\n\n初期費用0円の初回限定プランもご用意しております。\nもし現在の集客状況や広告施策についてお悩みがございましたら、\n30分ほどの無料相談で、活用方法を具体的にご説明いたします。\n\nご関心がございましたら、上記ページよりお気軽にご相談ください。\n\nご検討のほど、どうぞよろしくお願いいたします。',
+  is_production: false,
+  production_enabled_at: '',
+  last_test_sent_at: '',
+  version: 1,
+  active: true,
+});
 const PROPERTY_KEYS = Object.freeze({
   SPREADSHEET_ID: 'SPREADSHEET_ID',
   SERPER_API_KEY: 'SERPER_API_KEY',
@@ -426,6 +444,21 @@ const DEFAULT_SETTINGS = Object.freeze([
     description: 'Automatic mail sending control ported from the existing app.',
   },
   {
+    key: EMAIL_GENRE_PRIORITY_SETTING_KEY_,
+    value: JSON.stringify({
+      enabled: false,
+      genreKeyword: EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_,
+      templateId: EMAIL_GENRE_PRIORITY_TEMPLATE_ID_,
+      previousProductionTemplateIds: [],
+      activatedAt: null,
+      activatedBy: '',
+      updatedAt: null,
+      deactivatedReason: '',
+    }),
+    value_type: 'json',
+    description: 'Exclusive email genre priority. Disabled until an administrator explicitly starts it.',
+  },
+  {
     key: 'gmail_reply_check',
     value: '{"enabled":false,"maxThreads":200}',
     value_type: 'json',
@@ -541,6 +574,7 @@ function setup() {
     seedDefaultSettings_(spreadsheet);
     seedDefaultGenres_(spreadsheet);
     seedDefaultReasons_(spreadsheet);
+    seedDefaultEmailTemplates_(spreadsheet);
     removeBlankDefaultSheets_(spreadsheet);
     clearReferenceDataCache_();
     clearAppInfoCache_();
@@ -645,7 +679,7 @@ function getSchemaStatus(options) {
       key: 'settings-core',
       label: 'settings 運用設定キー',
       sheet: 'settings',
-      settingKeys: ['gmail_sender_name', 'gmail_sender_email', 'gmail_daily_send_limit', 'email_batch_send_limit', 'email_send_window', 'mail_sending_control', 'gmail_reply_check', 'calendar_auto_create', 'batch_runtime_budget_ms'],
+      settingKeys: ['gmail_sender_name', 'gmail_sender_email', 'gmail_daily_send_limit', 'email_batch_send_limit', 'email_send_window', 'mail_sending_control', 'email_genre_priority', 'gmail_reply_check', 'calendar_auto_create', 'batch_runtime_budget_ms'],
     },
   ];
   const checks = schemaChecks.map(function (check) {
@@ -1607,9 +1641,13 @@ function listEmailSendCandidates(options) {
   const input = options && typeof options === 'object' ? options : {};
   const limit = Math.min(Math.max(Number(input.limit) || 100, 1), 100);
   const genre = String(input.genre || '').trim();
+  const priorityState = typeof getEmailGenrePrioritySetting_ === 'function'
+    ? getEmailGenrePrioritySetting_()
+    : { enabled: false, genreKeyword: EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_, templateId: EMAIL_GENRE_PRIORITY_TEMPLATE_ID_ };
   const masterContext = buildMasterBlockContext_();
   const candidates = readSheetRecordFields_('leads', leadListFields_(['contact_name']), { maxGapColumns: 0 }).filter(function (lead) {
     if (isArchivedLead_(lead) || !isEmailSendTarget_(lead, masterContext)) return false;
+    if (priorityState.enabled) return emailGenrePriorityMatches_(lead.genre, priorityState.genreKeyword);
     return !genre || String(lead.genre || '').trim() === genre;
   });
   sortLeads_(candidates, 'updated_desc');
@@ -1625,7 +1663,10 @@ function listEmailSendCandidates(options) {
   return {
     total: uniqueCandidates.length,
     limit: limit,
-    genre: genre,
+    genre: priorityState.enabled ? priorityState.genreKeyword : genre,
+    emailGenrePriority: typeof sanitizeEmailGenrePriorityState_ === 'function'
+      ? sanitizeEmailGenrePriorityState_(priorityState)
+      : priorityState,
     items: uniqueCandidates.slice(0, limit),
   };
 }

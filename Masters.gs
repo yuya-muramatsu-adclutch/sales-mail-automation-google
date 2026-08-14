@@ -2,6 +2,27 @@ function listEmailTemplates(options) {
   return listSheetRecords('email_templates', options || { limit: 200 });
 }
 
+function seedDefaultEmailTemplates_(spreadsheet) {
+  const sheet = ensureSheet_(spreadsheet, 'email_templates');
+  const records = readSheetRecords_(sheet);
+  const existing = records.find(function (record) {
+    return String(record.id || '') === EMAIL_GENRE_PRIORITY_TEMPLATE_ID_;
+  });
+  if (existing) return existing;
+
+  const headers = getHeaders_(sheet);
+  const now = nowIso_();
+  const record = Object.assign({}, EMAIL_GENRE_PRIORITY_TEMPLATE_, {
+    created_at: now,
+    updated_at: now,
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([headers.map(function (header) {
+    return valueOrBlank_(record[header]);
+  })]);
+  clearRuntimeCaches_('email_templates');
+  return record;
+}
+
 function saveEmailTemplate(input) {
   return withScriptLock_('saveEmailTemplate', function () {
     if (input && normalizeBooleanLike_(input.is_production || input.isProduction || false)) {

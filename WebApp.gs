@@ -115,6 +115,8 @@ function dispatchPostAction_(action, data) {
   if (action === 'reviewSearchResults') return reviewSearchResults(data);
   if (action === 'sendLeadEmail') return sendLeadEmail(data.leadId || data.lead_id, data.templateId || data.template_id, data.options || {});
   if (action === 'sendLeadEmailBatch') return sendLeadEmailBatch(data.leadIds || data.lead_ids || [], data.templateId || data.template_id, data.options || {});
+  if (action === 'getEmailGenrePriorityStatus') return getEmailGenrePriorityStatus(data);
+  if (action === 'setEmailGenrePriority') return setEmailGenrePriority(data);
   if (action === 'listLeadSendHistories') return listLeadSendHistories(data.leadId || data.lead_id, data.options || data);
   if (action === 'importSendHistories') return importSendHistories(data);
   if (action === 'sendTestEmail') return sendTestEmail(data.templateId || data.template_id, data.toEmail || data.to_email, data.sampleLead || data.sample_lead || {});

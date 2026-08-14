@@ -209,10 +209,14 @@ function isFormOutreachLead_(lead) {
 
 function sendLeadEmail(leadId, templateId, options) {
   const input = options && typeof options === 'object' ? options : {};
+  enforceEmailGenrePriorityForLeadIds_([leadId], templateId);
   const prepared = withScriptLock_('prepareLeadEmailSend', function () {
+    enforceEmailGenrePriorityForLeadIds_([leadId], templateId, { skipAvailabilityCheck: true });
     return prepareLeadEmailSend_(leadId, templateId, input, false);
   }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
-  return deliverPreparedLeadEmail_(prepared);
+  const result = deliverPreparedLeadEmail_(prepared);
+  result.emailGenrePriority = maybeAutoDeactivateEmailGenrePriority_();
+  return result;
 }
 
 function sendLeadEmailBatch(leadIds, templateId, options) {
@@ -225,6 +229,7 @@ function sendLeadEmailBatch(leadIds, templateId, options) {
   if (!ids.length) {
     throw createExpectedOperationError_('送信対象がありません。', 'EMPTY_MAIL_BATCH');
   }
+  enforceEmailGenrePriorityForLeadIds_(ids, templateId);
 
   const runtimeDeadlineMs = Number(input.runtimeDeadlineMs || input.runtime_deadline_ms) || 0;
   const results = [];
@@ -237,6 +242,7 @@ function sendLeadEmailBatch(leadIds, templateId, options) {
     }
     try {
       const prepared = withScriptLock_('prepareLeadEmailBatchItem', function () {
+        enforceEmailGenrePriorityForLeadIds_([id], templateId, { skipAvailabilityCheck: true });
         return prepareLeadEmailSend_(id, templateId, input, true);
       }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
       results.push(deliverPreparedLeadEmail_(prepared));
@@ -257,6 +263,7 @@ function sendLeadEmailBatch(leadIds, templateId, options) {
   }
   const success = results.filter(function (result) { return result.ok; }).length;
   const blocked = results.filter(function (result) { return result.blocked; }).length;
+  const emailGenrePriority = maybeAutoDeactivateEmailGenrePriority_();
   return {
     ok: success === results.length,
     total: results.length,
@@ -266,6 +273,7 @@ function sendLeadEmailBatch(leadIds, templateId, options) {
     blocked: blocked,
     deferred: Math.max(0, ids.length - results.length),
     runtimeBudgetReached: runtimeBudgetReached,
+    emailGenrePriority: emailGenrePriority,
     results: results,
   };
 }
@@ -322,6 +330,7 @@ function runScheduledEmailBatch(options) {
     let failed = 0;
     let blocked = 0;
     let runtimeBudgetReached = false;
+    let priorityAutoReleased = false;
     for (let groupIndex = 0; groupIndex < plan.groups.length; groupIndex += 1) {
       const group = plan.groups[groupIndex];
       if (Date.now() >= runtimeDeadlineMs) {
@@ -339,6 +348,7 @@ function runScheduledEmailBatch(options) {
         failed += Number(batch.failed || 0);
         blocked += Number(batch.blocked || 0);
         runtimeBudgetReached = runtimeBudgetReached || batch.runtimeBudgetReached === true;
+        priorityAutoReleased = priorityAutoReleased || Boolean(batch.emailGenrePriority && batch.emailGenrePriority.autoReleased);
         Array.prototype.push.apply(results, batch.results || []);
       } catch (error) {
         const expected = isExpectedOperationError_(error);
@@ -368,7 +378,8 @@ function runScheduledEmailBatch(options) {
     const deferred = Math.max(0, Number(plan.selectedCount || 0) - success - failed);
     const message = '完全自動送信: 成功 ' + success + '件 / 失敗 ' + failed + '件 / 対象外 ' + blocked + '件' +
       (deliveryRecoveryCount + staleRecoveryCount > 0 ? ' / 履歴復旧 ' + (deliveryRecoveryCount + staleRecoveryCount) + '件' : '') +
-      (deferred > 0 ? ' / 次回へ繰越 ' + deferred + '件' : '');
+      (deferred > 0 ? ' / 次回へ繰越 ' + deferred + '件' : '') +
+      (priorityAutoReleased ? ' / グランピング優先を自動解除' : '');
     finalizeScheduledEmailJob_(job.id, {
       status: status,
       total: plan.selectedCount,
@@ -395,6 +406,9 @@ function runScheduledEmailBatch(options) {
       groups: sanitizedPlan.groups,
       deliveryRecovery: sanitizedPlan.deliveryRecovery,
       staleRecovery: sanitizedPlan.staleRecovery,
+      emailGenrePriority: Object.assign({}, sanitizedPlan.emailGenrePriority || {}, {
+        autoReleased: priorityAutoReleased || Boolean((sanitizedPlan.emailGenrePriority || {}).autoReleased),
+      }),
       message: message,
     };
   } catch (error) {
@@ -473,13 +487,54 @@ function buildScheduledEmailBatchPlan_(options) {
     excludedDomains: readAllActiveSheetRecords_('excluded_domains'),
     mailSendSafety: safety,
   };
-  const templates = readAllActiveSheetRecords_('email_templates').filter(function (template) {
+  let templates = readAllActiveSheetRecords_('email_templates').filter(function (template) {
     return String(template.template_type || '') === 'initial' &&
       normalizeBooleanLike_(template.is_production) &&
       String(template.genre || '').trim() &&
       !getTemplateGenreContentMismatchReason_(template);
   });
-  if (!templates.length) {
+  const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 });
+  const priorityState = getEmailGenrePrioritySetting_();
+  let emailGenrePriority = sanitizeEmailGenrePriorityState_(priorityState);
+  let selection = null;
+  if (priorityState.enabled) {
+    const priorityTemplate = findSheetRecordById_('email_templates', priorityState.templateId);
+    const priorityTemplateBlockReason = getEmailGenrePriorityTemplateBlockReason_(priorityState, priorityTemplate, {
+      requireProduction: true,
+      requireTest: true,
+    });
+    emailGenrePriority.templateName = String(priorityTemplate && priorityTemplate.name || EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_);
+    if (priorityTemplateBlockReason) {
+      return {
+        blockCode: 'priority_template_unavailable',
+        blockReason: priorityTemplateBlockReason,
+        selectedCount: 0,
+        dailyRemaining: dailyRemaining,
+        mailQuota: mailQuota,
+        groups: [],
+        emailGenrePriority: emailGenrePriority,
+        deliveryRecovery: deliveryRecovery,
+        staleRecovery: staleRecovery,
+      };
+    }
+    selection = selectEmailGenrePriorityCandidates_(leads, priorityTemplate, masterContext, availableSlots, priorityState.genreKeyword);
+    if (!selection.selected.length) {
+      const released = deactivateEmailGenrePrioritySystem_('送信可能なグランピング施設が0件になったため自動解除しました。');
+      emailGenrePriority = Object.assign({}, sanitizeEmailGenrePriorityState_(released), {
+        autoReleased: true,
+        templateName: String(priorityTemplate.name || EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_),
+      });
+      templates = readAllActiveSheetRecords_('email_templates').filter(function (template) {
+        return String(template.template_type || '') === 'initial' &&
+          normalizeBooleanLike_(template.is_production) &&
+          String(template.genre || '').trim() &&
+          !getTemplateGenreContentMismatchReason_(template);
+      });
+      selection = null;
+    }
+  }
+
+  if (!selection && !templates.length) {
     return {
       blockCode: 'no_production_templates',
       blockReason: '本番ONの初回メールテンプレートがありません。',
@@ -487,13 +542,13 @@ function buildScheduledEmailBatchPlan_(options) {
       dailyRemaining: dailyRemaining,
       mailQuota: mailQuota,
       groups: [],
+      emailGenrePriority: emailGenrePriority,
       deliveryRecovery: deliveryRecovery,
       staleRecovery: staleRecovery,
     };
   }
 
-  const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 });
-  const selection = selectScheduledEmailCandidates_(leads, templates, masterContext, availableSlots);
+  if (!selection) selection = selectScheduledEmailCandidates_(leads, templates, masterContext, availableSlots);
   if (!selection.selected.length) {
     return {
       blockCode: 'no_sendable_targets',
@@ -502,6 +557,7 @@ function buildScheduledEmailBatchPlan_(options) {
       dailyRemaining: dailyRemaining,
       mailQuota: mailQuota,
       groups: [],
+      emailGenrePriority: emailGenrePriority,
       deliveryRecovery: deliveryRecovery,
       staleRecovery: staleRecovery,
     };
@@ -515,6 +571,7 @@ function buildScheduledEmailBatchPlan_(options) {
     mailQuota: mailQuota,
     batchLimit: batchLimit,
     groups: selection.groups,
+    emailGenrePriority: emailGenrePriority,
     deliveryRecovery: deliveryRecovery,
     staleRecovery: staleRecovery,
   };
@@ -540,6 +597,323 @@ function mailSendCandidateLeadFields_() {
     'updated_at',
     'archived_at',
   ];
+}
+
+function defaultEmailGenrePrioritySetting_() {
+  return {
+    enabled: false,
+    genreKeyword: EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_,
+    templateId: EMAIL_GENRE_PRIORITY_TEMPLATE_ID_,
+    previousProductionTemplateIds: [],
+    activatedAt: null,
+    activatedBy: '',
+    updatedAt: null,
+    deactivatedReason: '',
+  };
+}
+
+function getEmailGenrePrioritySetting_() {
+  const fallback = defaultEmailGenrePrioritySetting_();
+  const source = getSettingValue_(EMAIL_GENRE_PRIORITY_SETTING_KEY_, fallback);
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return fallback;
+  const previousTemplateIds = source.previousProductionTemplateIds || source.previous_production_template_ids || [];
+  return {
+    enabled: source.enabled === true,
+    genreKeyword: String(source.genreKeyword || source.genre_keyword || fallback.genreKeyword).trim() || fallback.genreKeyword,
+    templateId: String(source.templateId || source.template_id || fallback.templateId).trim() || fallback.templateId,
+    previousProductionTemplateIds: Array.from(new Set((Array.isArray(previousTemplateIds) ? previousTemplateIds : []).map(function (id) {
+      return String(id || '').trim();
+    }).filter(Boolean))),
+    activatedAt: source.activatedAt || source.activated_at || null,
+    activatedBy: String(source.activatedBy || source.activated_by || ''),
+    updatedAt: source.updatedAt || source.updated_at || null,
+    deactivatedReason: String(source.deactivatedReason || source.deactivated_reason || ''),
+  };
+}
+
+function sanitizeEmailGenrePriorityState_(state) {
+  const source = state && typeof state === 'object' ? state : defaultEmailGenrePrioritySetting_();
+  return {
+    enabled: source.enabled === true,
+    genreKeyword: String(source.genreKeyword || EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_),
+    templateId: String(source.templateId || EMAIL_GENRE_PRIORITY_TEMPLATE_ID_),
+    activatedAt: source.activatedAt || null,
+    updatedAt: source.updatedAt || null,
+    deactivatedReason: String(source.deactivatedReason || ''),
+    autoReleased: source.autoReleased === true,
+  };
+}
+
+function emailGenrePriorityMatches_(genre, keyword) {
+  const target = String(genre || '').trim().toLowerCase();
+  const needle = String(keyword || EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_).trim().toLowerCase();
+  return Boolean(target && needle && target.indexOf(needle) !== -1);
+}
+
+function getEmailGenrePriorityTemplateBlockReason_(state, template, options) {
+  const source = state && typeof state === 'object' ? state : defaultEmailGenrePrioritySetting_();
+  const input = options && typeof options === 'object' ? options : {};
+  if (!template) return 'グランピング優先用テンプレートが見つからないため、送信を停止しました。';
+  if (String(template.id || '') !== String(source.templateId || '')) return 'グランピング優先用テンプレートIDが一致しないため、送信を停止しました。';
+  if (normalizeBooleanLike_(template.active) === false) return 'グランピング優先用テンプレートが無効なため、送信を停止しました。';
+  if (String(template.template_type || '') !== 'initial') return 'グランピング優先用テンプレートが初回メールではないため、送信を停止しました。';
+  if (!emailGenrePriorityMatches_(template.genre, source.genreKeyword)) return 'グランピング優先用テンプレートのジャンルが一致しないため、送信を停止しました。';
+  if (!String(template.subject || '').trim() || !String(template.body || '').trim()) return 'グランピング優先用テンプレートの件名または本文が空です。';
+  if (String(template.body || '').indexOf(EMAIL_GENRE_PRIORITY_LP_URL_) === -1) return 'グランピング優先用テンプレートに専用LPが含まれていません。';
+  if (input.requireTest === true && !String(template.last_test_sent_at || '').trim()) return 'グランピング優先用テンプレートを本番利用する前にテスト送信してください。';
+  if (input.requireProduction === true && !normalizeBooleanLike_(template.is_production)) return 'グランピング優先用テンプレートが本番ONではないため、送信を停止しました。';
+  const mismatchReason = getTemplateGenreContentMismatchReason_(template);
+  return mismatchReason || '';
+}
+
+function selectEmailGenrePriorityCandidates_(leads, template, masterContext, limit, genreKeyword) {
+  const keyword = String(genreKeyword || EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_).trim();
+  const candidates = (Array.isArray(leads) ? leads : []).filter(function (lead) {
+    return emailGenrePriorityMatches_(lead && lead.genre, keyword) && !isArchivedLead_(lead) && isEmailSendTarget_(lead, masterContext);
+  });
+  sortLeads_(candidates, 'updated_desc');
+  const seenEmails = {};
+  const unique = candidates.filter(function (lead) {
+    const email = normalizeEmailForSendSafety_(lead.email);
+    if (!email || seenEmails[email]) return false;
+    seenEmails[email] = true;
+    return true;
+  });
+  const safeLimit = Math.max(0, Number(limit) || 0);
+  const selectedLeads = unique.slice(0, safeLimit);
+  return {
+    total: unique.length,
+    selected: selectedLeads.map(function (lead) { return { lead: lead, template: template }; }),
+    groups: selectedLeads.length ? [{
+      templateId: String(template.id || ''),
+      templateName: String(template.name || ''),
+      genre: keyword,
+      leadIds: selectedLeads.map(function (lead) { return lead.id; }),
+    }] : [],
+  };
+}
+
+function getEmailGenrePriorityAdminStatus_() {
+  let activeEmail = '';
+  let effectiveEmail = '';
+  try {
+    activeEmail = String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
+  } catch (error) {
+    activeEmail = '';
+  }
+  try {
+    effectiveEmail = String(Session.getEffectiveUser().getEmail() || '').trim().toLowerCase();
+  } catch (error) {
+    effectiveEmail = '';
+  }
+  const allowed = !activeEmail || !effectiveEmail || activeEmail === effectiveEmail;
+  return {
+    allowed: allowed,
+    email: activeEmail || effectiveEmail,
+    mode: activeEmail ? 'active_user' : 'myself_deployment',
+  };
+}
+
+function assertEmailGenrePriorityAdmin_() {
+  const admin = getEmailGenrePriorityAdminStatus_();
+  if (!admin.allowed) {
+    throw createExpectedOperationError_('グランピング優先は管理者だけが変更できます。', 'EMAIL_GENRE_PRIORITY_ADMIN_REQUIRED');
+  }
+  return admin;
+}
+
+function saveEmailGenrePrioritySettingUnlocked_(state) {
+  const normalized = normalizeSettingForSave_(EMAIL_GENRE_PRIORITY_SETTING_KEY_, state, 'json');
+  upsertSettingValueUnlocked_(normalized, 'Exclusive email genre priority. Disabled until an administrator explicitly starts it.');
+  return JSON.parse(normalized.value);
+}
+
+function deactivateEmailGenrePriorityUnlocked_(state, reason) {
+  const source = state && typeof state === 'object' ? state : getEmailGenrePrioritySetting_();
+  const dedicatedTemplate = findSheetRecordById_('email_templates', source.templateId);
+  if (dedicatedTemplate && normalizeBooleanLike_(dedicatedTemplate.is_production)) {
+    updateSheetRecord_('email_templates', dedicatedTemplate.id, {
+      is_production: false,
+      production_enabled_at: '',
+    }, { clearCaches: false });
+  }
+  (source.previousProductionTemplateIds || []).forEach(function (templateId) {
+    const template = findSheetRecordById_('email_templates', templateId);
+    if (!template || normalizeBooleanLike_(template.active) === false || String(template.template_type || '') !== 'initial') return;
+    updateSheetRecord_('email_templates', template.id, {
+      is_production: true,
+      production_enabled_at: nowIso_(),
+    }, { clearCaches: false });
+  });
+  clearRuntimeCaches_('email_templates');
+  return saveEmailGenrePrioritySettingUnlocked_(Object.assign({}, source, {
+    enabled: false,
+    previousProductionTemplateIds: [],
+    updatedAt: nowIso_(),
+    deactivatedReason: String(reason || '管理者が解除しました。').slice(0, 500),
+  }));
+}
+
+function deactivateEmailGenrePrioritySystem_(reason) {
+  return withScriptLock_('deactivateEmailGenrePrioritySystem', function () {
+    const state = getEmailGenrePrioritySetting_();
+    if (!state.enabled) return state;
+    return deactivateEmailGenrePriorityUnlocked_(state, reason);
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+}
+
+function setEmailGenrePriority(input) {
+  const source = input && typeof input === 'object' ? input : {};
+  if (typeof source.enabled !== 'boolean') {
+    throw createExpectedOperationError_('enabled is required.', 'EMAIL_GENRE_PRIORITY_INVALID_INPUT');
+  }
+  const admin = assertEmailGenrePriorityAdmin_();
+  withScriptLock_('setEmailGenrePriority', function () {
+    const current = getEmailGenrePrioritySetting_();
+    if (!source.enabled) {
+      if (current.enabled) deactivateEmailGenrePriorityUnlocked_(current, source.reason || '管理者が解除しました。');
+      return;
+    }
+    if (current.enabled) return;
+
+    const template = findSheetRecordById_('email_templates', current.templateId);
+    const blockReason = getEmailGenrePriorityTemplateBlockReason_(current, template, { requireTest: true });
+    if (blockReason) throw createExpectedOperationError_(blockReason, 'EMAIL_GENRE_PRIORITY_TEMPLATE_NOT_READY');
+
+    const masterContext = buildMasterBlockContext_();
+    const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 });
+    const selection = selectEmailGenrePriorityCandidates_(leads, template, masterContext, 1, current.genreKeyword);
+    if (!selection.total) {
+      throw createExpectedOperationError_('現時点で送信可能なグランピング施設が0件のため、優先を開始できません。', 'EMAIL_GENRE_PRIORITY_NO_TARGETS');
+    }
+
+    const productionTemplates = readAllActiveSheetRecords_('email_templates').filter(function (item) {
+      return String(item.id || '') !== String(template.id || '') &&
+        String(item.template_type || '') === 'initial' &&
+        normalizeBooleanLike_(item.is_production) &&
+        emailGenrePriorityMatches_(item.genre, current.genreKeyword);
+    });
+    const dedicatedWasProduction = normalizeBooleanLike_(template.is_production);
+    try {
+      productionTemplates.forEach(function (item) {
+        updateSheetRecord_('email_templates', item.id, {
+          is_production: false,
+          production_enabled_at: '',
+        }, { clearCaches: false });
+      });
+      updateSheetRecord_('email_templates', template.id, {
+        is_production: true,
+        production_enabled_at: nowIso_(),
+      }, { clearCaches: false });
+      clearRuntimeCaches_('email_templates');
+      saveEmailGenrePrioritySettingUnlocked_(Object.assign({}, current, {
+        enabled: true,
+        previousProductionTemplateIds: productionTemplates.map(function (item) { return item.id; }),
+        activatedAt: nowIso_(),
+        activatedBy: admin.email,
+        updatedAt: nowIso_(),
+        deactivatedReason: '',
+      }));
+    } catch (error) {
+      try {
+        updateSheetRecord_('email_templates', template.id, {
+          is_production: dedicatedWasProduction,
+          production_enabled_at: dedicatedWasProduction ? String(template.production_enabled_at || '') : '',
+        }, { clearCaches: false });
+        productionTemplates.forEach(function (item) {
+          updateSheetRecord_('email_templates', item.id, {
+            is_production: true,
+            production_enabled_at: String(item.production_enabled_at || nowIso_()),
+          }, { clearCaches: false });
+        });
+        clearRuntimeCaches_('email_templates');
+      } catch (rollbackError) {
+        logError_('setEmailGenrePriorityRollback', rollbackError, { original_error: error.message || String(error) });
+      }
+      throw error;
+    }
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+  return getEmailGenrePriorityStatus();
+}
+
+function getEmailGenrePriorityStatus(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const state = getEmailGenrePrioritySetting_();
+  const template = findSheetRecordById_('email_templates', state.templateId);
+  const admin = getEmailGenrePriorityAdminStatus_();
+  let targetCount = null;
+  if (input.includeCounts !== false) {
+    const masterContext = buildMasterBlockContext_();
+    const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 });
+    targetCount = selectEmailGenrePriorityCandidates_(leads, template || EMAIL_GENRE_PRIORITY_TEMPLATE_, masterContext, Number.MAX_SAFE_INTEGER, state.genreKeyword).total;
+  }
+  const templateBlockReason = getEmailGenrePriorityTemplateBlockReason_(state, template, {
+    requireTest: true,
+    requireProduction: state.enabled,
+  });
+  return Object.assign({}, sanitizeEmailGenrePriorityState_(state), {
+    adminAllowed: admin.allowed,
+    adminMode: admin.mode,
+    targetCount: targetCount,
+    templateName: String(template && template.name || EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_),
+    templateActive: Boolean(template && normalizeBooleanLike_(template.active)),
+    templateProduction: Boolean(template && normalizeBooleanLike_(template.is_production)),
+    templateTestedAt: String(template && template.last_test_sent_at || ''),
+    templateBlockReason: templateBlockReason,
+    canActivate: !state.enabled && admin.allowed && targetCount !== 0 && !templateBlockReason,
+    canDeactivate: state.enabled && admin.allowed,
+    lpUrl: EMAIL_GENRE_PRIORITY_LP_URL_,
+    exclusive: state.enabled,
+  });
+}
+
+function enforceEmailGenrePriorityForLeadIds_(leadIds, templateId, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const state = getEmailGenrePrioritySetting_();
+  if (!state.enabled) return sanitizeEmailGenrePriorityState_(state);
+  const template = findSheetRecordById_('email_templates', state.templateId);
+  const templateBlockReason = getEmailGenrePriorityTemplateBlockReason_(state, template, {
+    requireTest: true,
+    requireProduction: true,
+  });
+  if (templateBlockReason) throw createExpectedOperationError_(templateBlockReason, 'EMAIL_GENRE_PRIORITY_TEMPLATE_UNAVAILABLE');
+
+  if (input.skipAvailabilityCheck !== true) {
+    const masterContext = buildMasterBlockContext_();
+    const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 });
+    const selection = selectEmailGenrePriorityCandidates_(leads, template, masterContext, 1, state.genreKeyword);
+    if (!selection.total) {
+      const released = deactivateEmailGenrePrioritySystem_('送信可能なグランピング施設が0件になったため自動解除しました。');
+      return Object.assign({}, sanitizeEmailGenrePriorityState_(released), { autoReleased: true });
+    }
+  }
+  if (String(templateId || '') !== String(state.templateId || '')) {
+    throw createExpectedOperationError_('現在はグランピング優先中です。専用テンプレート以外では送信できません。', 'EMAIL_GENRE_PRIORITY_TEMPLATE_BLOCKED');
+  }
+  const invalidLead = (Array.isArray(leadIds) ? leadIds : []).map(function (leadId) {
+    return getLeadById(leadId);
+  }).find(function (lead) {
+    return !emailGenrePriorityMatches_(lead && lead.genre, state.genreKeyword);
+  });
+  if (invalidLead) {
+    throw createExpectedOperationError_('現在はグランピング優先中です。他ジャンルには送信できません。', 'EMAIL_GENRE_PRIORITY_GENRE_BLOCKED');
+  }
+  return sanitizeEmailGenrePriorityState_(state);
+}
+
+function maybeAutoDeactivateEmailGenrePriority_() {
+  const state = getEmailGenrePrioritySetting_();
+  if (!state.enabled) return sanitizeEmailGenrePriorityState_(state);
+  const template = findSheetRecordById_('email_templates', state.templateId);
+  if (getEmailGenrePriorityTemplateBlockReason_(state, template, { requireTest: true, requireProduction: true })) {
+    return sanitizeEmailGenrePriorityState_(state);
+  }
+  const masterContext = buildMasterBlockContext_();
+  const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 });
+  const selection = selectEmailGenrePriorityCandidates_(leads, template, masterContext, 1, state.genreKeyword);
+  if (selection.total) return sanitizeEmailGenrePriorityState_(state);
+  const released = deactivateEmailGenrePrioritySystem_('送信可能なグランピング施設が0件になったため自動解除しました。');
+  return Object.assign({}, sanitizeEmailGenrePriorityState_(released), { autoReleased: true });
 }
 
 function selectScheduledEmailCandidates_(leads, templates, masterContext, limit) {
@@ -625,6 +999,13 @@ function sanitizeScheduledEmailPlan_(plan) {
       recoveredFailure: Number(staleRecovery.recoveredFailure || 0),
       errorCount: Array.isArray(staleRecovery.errors) ? staleRecovery.errors.length : 0,
     },
+    emailGenrePriority: Object.assign({
+      enabled: false,
+      genreKeyword: EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_,
+      templateId: EMAIL_GENRE_PRIORITY_TEMPLATE_ID_,
+      templateName: EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_,
+      autoReleased: false,
+    }, source.emailGenrePriority || {}),
     groups: (source.groups || []).map(function (group) {
       return {
         templateId: String(group.templateId || ''),
@@ -1327,7 +1708,12 @@ function validateEmailSendTemplate_(template, lead, options) {
   const leadGenre = String(lead.genre || '').trim();
   if (!templateGenre) throw new Error('テンプレートにジャンルが設定されていません。');
   if (!leadGenre) throw new Error('営業先のジャンルが設定されていません。');
-  if (templateGenre !== leadGenre) {
+  const priorityState = getEmailGenrePrioritySetting_();
+  const priorityMatch = priorityState.enabled &&
+    String(template.id || '') === String(priorityState.templateId || '') &&
+    emailGenrePriorityMatches_(templateGenre, priorityState.genreKeyword) &&
+    emailGenrePriorityMatches_(leadGenre, priorityState.genreKeyword);
+  if (templateGenre !== leadGenre && !priorityMatch) {
     throw new Error('テンプレートと営業先のジャンルが一致していません。');
   }
 }
