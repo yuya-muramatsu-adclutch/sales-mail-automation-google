@@ -58,10 +58,13 @@ function dispatchPostAction_(action, data) {
   if (action === 'checkGmailIntegration') return checkGmailIntegration();
   if (action === 'getDashboardStats') return getDashboardStats(data);
   if (action === 'getDashboardData') return getDashboardStats(data);
+  if (action === 'getEmailDeliveryOverview') return getEmailDeliveryOverview(data);
+  if (action === 'getEmailDeliveryStatus') return getEmailDeliveryStatus(data);
   if (action === 'getAppInfo') return getAppInfo();
   if (action === 'getSchemaStatus') return getSchemaStatus();
   if (action === 'listLeads') return listLeads(data);
   if (action === 'getLeadListStats') return getLeadListStats(data);
+  if (action === 'listFormOutreachQueue') return listFormOutreachQueue(data);
   if (action === 'getLead') return getLead(data.id || data.leadId || data.lead_id || data);
   if (action === 'getReviewLeadWorkspace') return getReviewLeadWorkspace(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'listReviewActivities') return listReviewActivities(data);
@@ -76,7 +79,8 @@ function dispatchPostAction_(action, data) {
   if (action === 'deleteLead') return deleteLead(data.id, data.options || {});
   if (action === 'listLeadDuplicateCandidates') return listLeadDuplicateCandidates(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'markLeadFormSent') return markLeadFormSent(data.leadId || data.lead_id || data.id, data.options || data);
-  if (action === 'unmarkLeadFormSent') return unmarkLeadFormSent(data.leadId || data.lead_id || data.id);
+  if (action === 'markLeadFormUnavailable') return markLeadFormUnavailable(data.leadId || data.lead_id || data.id, data.options || data);
+  if (action === 'unmarkLeadFormSent') return unmarkLeadFormSent(data.leadId || data.lead_id || data.id, data.options || data);
   if (action === 'listSheetRecords') return listSheetRecords(data.sheetName || data.sheet_name, data.options || data);
   if (action === 'listErrorLogs') return listErrorLogs(data);
   if (action === 'getSendHistoryDetail') return getSendHistoryDetail(data.id || data.historyId || data.history_id || data);
@@ -406,6 +410,83 @@ function getClientEnums_() {
   };
 }
 
+function buildDashboardEmailTargetStatus_(leads, templates, histories, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const availableSlots = Math.max(0, Number(input.availableSlots) || 0);
+  const control = input.mailSendingControl || { enabled: false, reason: '' };
+  const sendWindow = input.sendWindow || { enabled: true };
+  if (!control.enabled) {
+    return { count: 0, blockCode: 'mail_disabled', blockReason: control.reason || '自動送信停止中です。' };
+  }
+  if (Number(input.automaticMailTriggerCount || 0) <= 0) {
+    return { count: 0, blockCode: 'trigger_missing', blockReason: '完全自動送信トリガーが設定されていません。' };
+  }
+  if (sendWindow.enabled === false) {
+    return { count: 0, blockCode: 'send_window_disabled', blockReason: '自動送信時間帯が無効です。' };
+  }
+  if (availableSlots <= 0) {
+    return { count: 0, blockCode: 'daily_limit_reached', blockReason: '本日のメール送信上限に達しています。' };
+  }
+
+  const pending = buildPendingSendReservationStatus_(histories || []);
+  if (pending.staleCount > 0) {
+    return {
+      count: 0,
+      blockCode: 'stale_send_reservations',
+      blockReason: '30分以上「送信中」の履歴が' + pending.staleCount + '件あるため、自動送信は停止します。',
+    };
+  }
+
+  const safety = buildMailSendSafetyContext_(histories || []);
+  const masterContext = Object.assign({}, buildMasterBlockRulesContext_(), { mailSendSafety: safety });
+  const allTemplates = Array.isArray(templates) ? templates : [];
+  let productionTemplates = allTemplates.filter(function (template) {
+    return isEmailDeliveryPreviewTemplate_(template) && normalizeBooleanLike_(template.is_production);
+  });
+  const priorityState = getEmailGenrePrioritySetting_();
+  if (priorityState.enabled) {
+    const priorityTemplate = allTemplates.find(function (template) {
+      return String(template.id || '') === String(priorityState.templateId || '');
+    }) || null;
+    const templateBlockReason = getEmailGenrePriorityTemplateBlockReason_(priorityState, priorityTemplate, {
+      requireTest: true,
+      requireProduction: true,
+    });
+    if (templateBlockReason) {
+      return { count: 0, blockCode: 'priority_template_unavailable', blockReason: templateBlockReason };
+    }
+    const prioritySelection = selectEmailGenrePriorityCandidates_(
+      leads,
+      priorityTemplate,
+      masterContext,
+      availableSlots,
+      priorityState.genreKeyword
+    );
+    if (prioritySelection.selected.length) {
+      return { count: prioritySelection.selected.length, blockCode: '', blockReason: '' };
+    }
+
+    const restoredTemplateIds = {};
+    (priorityState.previousProductionTemplateIds || []).forEach(function (id) {
+      restoredTemplateIds[String(id || '')] = true;
+    });
+    productionTemplates = allTemplates.filter(function (template) {
+      const productionAfterRelease = normalizeBooleanLike_(template.is_production) || restoredTemplateIds[String(template.id || '')];
+      return productionAfterRelease &&
+        String(template.id || '') !== String(priorityState.templateId || '') &&
+        isEmailDeliveryPreviewTemplate_(template);
+    });
+  }
+
+  if (!productionTemplates.length) {
+    return { count: 0, blockCode: 'no_production_templates', blockReason: '本番ONの初回メールテンプレートがありません。' };
+  }
+  const selection = selectScheduledEmailCandidates_(leads, productionTemplates, masterContext, availableSlots);
+  return selection.selected.length
+    ? { count: selection.selected.length, blockCode: '', blockReason: '' }
+    : { count: 0, blockCode: 'no_sendable_targets', blockReason: '本番テンプレートとジャンルが一致する送信可能な営業先がありません。' };
+}
+
 function getDashboardStats(options) {
   const input = options && typeof options === 'object' ? options : {};
   if (input.bypassCache !== true) {
@@ -461,15 +542,21 @@ function getDashboardStats(options) {
   const dailyMailLimit = Number(getSettingValue_('gmail_daily_send_limit', 80));
   const mailQuota = getMailQuotaStatus_(dailyMailLimit);
   const mailSendingControl = getMailSendingControl_();
+  const automaticMailTriggerCount = getProjectTriggerHandlerCount_('runScheduledEmailBatch');
   const todayRemaining = Math.max(0, Math.min(
     dailyMailLimit - sentToday - pendingSendReservations.count,
     mailQuota.remaining
   ));
-  const todayEmailTargets = mailSendingControl.enabled ? Math.min(listStats.sendable, todayRemaining) : 0;
+  const todayEmailTargetStatus = buildDashboardEmailTargetStatus_(leads, templates, sendHistories, {
+    availableSlots: todayRemaining,
+    automaticMailTriggerCount: automaticMailTriggerCount,
+    mailSendingControl: mailSendingControl,
+    sendWindow: sendWindow,
+  });
+  const todayEmailTargets = todayEmailTargetStatus.count;
   const serperInfo = getSerperApiKeyInfo();
   const serperLimits = serperInfo.limits || {};
   const triggerCount = getProjectTriggerCount_();
-  const automaticMailTriggerCount = getProjectTriggerHandlerCount_('runScheduledEmailBatch');
   const gasUsage = buildConsumerGasUsageStatus_({
     mailQuotaRemaining: mailQuota.remaining,
     sentToday: sentToday,
@@ -590,6 +677,8 @@ function getDashboardStats(options) {
     dailyMailLimit: dailyMailLimit,
     todayRemaining: todayRemaining,
     todayEmailTargets: todayEmailTargets,
+    todayEmailTargetBlockCode: todayEmailTargetStatus.blockCode,
+    todayEmailTargetBlockReason: todayEmailTargetStatus.blockReason,
     mailQuotaRemaining: mailQuota.remaining,
     mailQuotaAvailable: mailQuota.available,
     mailSendingEnabled: mailSendingControl.enabled,
@@ -1301,6 +1390,8 @@ function buildStartupDashboardPlaceholder_(startupSerperInfo) {
     dailyMailLimit: dailyMailLimit,
     todayRemaining: mailSendingControl.enabled ? dailyMailLimit : 0,
     todayEmailTargets: 0,
+    todayEmailTargetBlockCode: 'loading',
+    todayEmailTargetBlockReason: '送信候補を確認中です。',
     mailQuotaRemaining: dailyMailLimit,
     mailQuotaAvailable: true,
     mailSendingEnabled: mailSendingControl.enabled,
@@ -1438,6 +1529,7 @@ function setMailSendingControl(input) {
   if (typeof source.enabled !== 'boolean') {
     throw new Error('enabled is required.');
   }
+  assertEmailGenrePriorityAdmin_();
 
   const control = {
     enabled: source.enabled,

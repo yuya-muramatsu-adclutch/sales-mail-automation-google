@@ -159,6 +159,65 @@ unlockedMailContext.sendGmailMessage_({
 assert.strictEqual(primarySendPayload.options.from, undefined);
 assert.strictEqual(primarySendPayload.options.replyTo, 'yuya.adclutch@gmail.com');
 
+const priorityPrepareContext = vm.createContext({ console });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), priorityPrepareContext, { filename: file });
+});
+const priorityPrepareLead = {
+  id: 'priority-prepare-lead',
+  email: 'priority-prepare@glamp.test',
+  genre: 'グランピング',
+  facility_name: '送信直前確認施設',
+  status: '初回メール送信済み',
+  send_count: 1,
+  last_sent_at: '2026-07-01T00:00:00+09:00',
+  deal_status: '未設定',
+};
+const priorityPrepareTemplate = {
+  id: 'glamping-chatgpt-ads-v1',
+  name: 'グランピング向けChatGPT広告',
+  genre: 'グランピング',
+  template_type: 'initial',
+  subject: '専用件名',
+  body: '専用本文',
+  active: true,
+  is_production: true,
+};
+const priorityPrepareSafety = {
+  sentLeadIds: { 'priority-prepare-lead': true },
+  sentEmails: { 'priority-prepare@glamp.test': true },
+  sentTemplateLeadIds: {},
+  sentTemplateEmails: {},
+  latestSuccessfulAtByLeadId: { 'priority-prepare-lead': Date.parse('2026-07-01T00:00:00+09:00') },
+  latestSuccessfulAtByEmail: { 'priority-prepare@glamp.test': Date.parse('2026-07-01T00:00:00+09:00') },
+  reservedLeadIds: {},
+  reservedEmails: {},
+  successfulCountToday: 0,
+  reservedCountToday: 0,
+};
+priorityPrepareContext.assertProductionMailDeliveryAllowed_ = () => {};
+priorityPrepareContext.getLeadById = () => priorityPrepareLead;
+priorityPrepareContext.findSheetRecordById_ = () => priorityPrepareTemplate;
+priorityPrepareContext.validateEmailSendTemplate_ = () => {};
+priorityPrepareContext.buildMasterBlockContext_ = () => ({ ngMasters: [], excludedDomains: [], mailSendSafety: priorityPrepareSafety });
+priorityPrepareContext.assertEmailSendLimitAvailable_ = () => {};
+priorityPrepareContext.getSettingValue_ = (_key, fallback) => fallback;
+priorityPrepareContext.renderTemplateForLead_ = () => ({ subject: '専用件名', body: '専用本文', htmlBody: '専用本文' });
+priorityPrepareContext.nowIso_ = () => '2026-08-16T00:00:00+09:00';
+priorityPrepareContext.todayText_ = () => '2026-08-16';
+priorityPrepareContext.appendSheetRecord_ = (_sheet, record) => Object.assign({ id: 'priority-reservation' }, record);
+const priorityPrepared = priorityPrepareContext.prepareLeadEmailSend_('priority-prepare-lead', 'glamping-chatgpt-ads-v1', { send_type: '初回メール' }, false);
+assert.strictEqual(priorityPrepared.sendType, 'グランピングChatGPT広告');
+assert.strictEqual(priorityPrepared.reservation.send_type, 'グランピングChatGPT広告');
+priorityPrepareSafety.reservedLeadIds = {};
+priorityPrepareSafety.reservedEmails = {};
+priorityPrepareSafety.sentTemplateLeadIds['glamping-chatgpt-ads-v1\npriority-prepare-lead'] = true;
+assert.throws(
+  () => priorityPrepareContext.prepareLeadEmailSend_('priority-prepare-lead', 'glamping-chatgpt-ads-v1', {}, false),
+  /専用メールを送信済み/,
+  'the send-time safety check must reject a second dedicated campaign email'
+);
+
 const leadBreakdownContext = vm.createContext({ console });
 files.forEach((file) => {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), leadBreakdownContext, { filename: file });
@@ -317,8 +376,8 @@ assert.strictEqual(primaryFilterReads, 1, 'primary filter bundle must avoid anot
 unlockedMailContext.getOrCreateSpreadsheet_ = () => ({});
 unlockedMailContext.ensureSheet_ = () => ({});
 const unlockedMailHistoryFixtures = [
-  { lead_id: 'sent', to_email: 'sent@example.net', sent_at: '2026-07-15T00:00:00Z', send_result: '成功', send_type: '初回メール' },
-  { lead_id: 'reserved', to_email: 'reserved@example.net', sent_at: '2026-07-15T00:01:00Z', send_result: '送信中', send_type: '初回メール' },
+  { lead_id: 'sent', to_email: 'sent@example.net', sent_at: '2026-07-15T00:00:00Z', send_result: '成功', send_type: '初回メール', template_id: 'template-initial' },
+  { lead_id: 'reserved', to_email: 'reserved@example.net', sent_at: '2026-07-15T00:01:00Z', send_result: '送信中', send_type: '初回メール', template_id: 'template-initial' },
 ];
 unlockedMailContext.readSheetRecords_ = () => unlockedMailHistoryFixtures;
 let mailSafetyRequestedFields = [];
@@ -329,7 +388,10 @@ unlockedMailContext.readSheetRecordFields_ = (_sheetName, fields) => {
 const dailyMailSafety = unlockedMailContext.buildMailSendSafetyContext_();
 assert.strictEqual(dailyMailSafety.successfulCountToday, 1);
 assert.strictEqual(dailyMailSafety.reservedCountToday, 1);
-assert.deepStrictEqual(JSON.parse(JSON.stringify(mailSafetyRequestedFields)), ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'send_result', 'created_at']);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(mailSafetyRequestedFields)), ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'send_result', 'template_id', 'created_at']);
+assert.strictEqual(dailyMailSafety.sentTemplateLeadIds['template-initial\nsent'], true);
+assert.strictEqual(dailyMailSafety.sentTemplateEmails['template-initial\nsent@example.net'], true);
+assert.strictEqual(dailyMailSafety.latestSuccessfulAtByLeadId.sent, Date.parse('2026-07-15T00:00:00Z'));
 assert(!mailSafetyRequestedFields.includes('subject'));
 assert(!mailSafetyRequestedFields.includes('body'));
 assert(!mailSafetyRequestedFields.includes('error_message'));
@@ -2033,6 +2095,22 @@ replyUpdate = null;
 const alreadyRecordedReply = context.recordDetectedReply_('reply-lead', { thread_id: 'thread-1' });
 assert.strictEqual(alreadyRecordedReply.alreadyRecorded, true);
 assert.strictEqual(replyUpdate, null);
+replyLead = {
+  id: 'reply-lead',
+  status: '送信NG',
+  send_ng: true,
+  send_ng_reason: '先方依頼',
+  send_ng_memo: '今後の送信不要',
+  reply_checked: false,
+  archived_at: '',
+};
+replyUpdate = null;
+const recordedSendNgReply = context.recordDetectedReply_('reply-lead', { thread_id: 'thread-2', subject: '配信停止依頼' });
+assert.strictEqual(recordedSendNgReply.lead.status, '送信NG');
+assert.strictEqual(recordedSendNgReply.lead.send_ng, true);
+assert.strictEqual(recordedSendNgReply.lead.reply_checked, true);
+assert.strictEqual(replyUpdate.patch.status, '送信NG');
+assert.strictEqual(replyUpdate.patch.send_ng, true);
 assert.strictEqual(context.replyFalsePositiveRestoreStatus_({ source: 'source_page' }, null), '対応中');
 assert.strictEqual(context.replyFalsePositiveRestoreStatus_({ source: 'manual' }, null), '未対応');
 assert.strictEqual(context.replyFalsePositiveRestoreStatus_({}, { send_type: '初回メール' }), '初回メール送信済み');
@@ -2200,7 +2278,6 @@ files.forEach((file) => {
   vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), genrePriorityContext, { filename: file });
 });
 genrePriorityContext.isArchivedLead_ = (lead) => Boolean(lead.archived_at);
-genrePriorityContext.isEmailSendTarget_ = (lead) => Boolean(lead.sendable);
 const priorityTemplateFixture = {
   id: 'glamping-chatgpt-ads-v1',
   name: 'グランピング向けChatGPT広告',
@@ -2213,18 +2290,138 @@ const priorityTemplateFixture = {
   last_test_sent_at: '2026-08-14T00:00:00.000Z',
 };
 const prioritySelection = genrePriorityContext.selectEmailGenrePriorityCandidates_([
-  { id: 'glamp-new', email: 'new@example.com', genre: '高級グランピング施設', sendable: true, updated_at: '2026-08-14T00:03:00Z' },
-  { id: 'glamp-old', email: 'same@example.com', genre: 'グランピング', sendable: true, updated_at: '2026-08-14T00:01:00Z' },
-  { id: 'glamp-duplicate', email: 'SAME@example.com', genre: 'グランピング施設', sendable: true, updated_at: '2026-08-14T00:02:00Z' },
-  { id: 'camp', email: 'camp@example.com', genre: 'キャンプ', sendable: true, updated_at: '2026-08-14T00:04:00Z' },
-  { id: 'blocked-glamp', email: 'blocked@example.com', genre: 'グランピング', sendable: false, updated_at: '2026-08-14T00:05:00Z' },
-], priorityTemplateFixture, {}, 10, 'グランピング');
+  { id: 'glamp-new', email: 'new@glamp.test', genre: '高級グランピング施設', updated_at: '2026-08-14T00:03:00Z' },
+  { id: 'glamp-old', email: 'same@glamp.test', genre: 'グランピング', updated_at: '2026-08-14T00:01:00Z' },
+  { id: 'glamp-duplicate', email: 'SAME@glamp.test', genre: 'グランピング施設', updated_at: '2026-08-14T00:02:00Z' },
+  { id: 'camp', email: 'camp@camp.test', genre: 'キャンプ', updated_at: '2026-08-14T00:04:00Z' },
+  { id: 'blocked-glamp', email: 'blocked@glamp.test', genre: 'グランピング', send_ng: true, updated_at: '2026-08-14T00:05:00Z' },
+], priorityTemplateFixture, { ngMasters: [], excludedDomains: [], mailSendSafety: {} }, 10, 'グランピング');
 assert.strictEqual(prioritySelection.total, 2);
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(prioritySelection.selected.map((item) => item.lead.id))),
   ['glamp-new', 'glamp-duplicate'],
   'genre priority must use contains matching, existing sendability rules, and email deduplication'
 );
+
+const priorityNowMs = Date.parse('2026-08-16T00:00:00+09:00');
+genrePriorityContext.todayText_ = () => '2026-08-16';
+const prioritySafety = genrePriorityContext.buildMailSendSafetyContext_([
+  { id: 'normal-old', lead_id: 'normal-old-lead', to_email: 'normal-old@glamp.test', sent_at: '2026-07-01T00:00:00+09:00', send_result: '成功', send_type: '初回メール', template_id: 'normal-template' },
+  { id: 'normal-recent', lead_id: 'normal-recent-lead', to_email: 'normal-recent@glamp.test', sent_at: '2026-08-01T00:00:00+09:00', send_result: '成功', send_type: '初回メール', template_id: 'normal-template' },
+  { id: 'dedicated-old', lead_id: 'dedicated-lead', to_email: 'dedicated@glamp.test', sent_at: '2026-07-01T00:00:00+09:00', send_result: '成功', send_type: 'グランピングChatGPT広告', template_id: 'glamping-chatgpt-ads-v1' },
+]);
+const priorityMasterContext = { ngMasters: [], excludedDomains: [], mailSendSafety: prioritySafety };
+const unsentEligibility = genrePriorityContext.getEmailGenrePriorityEligibility_(
+  { id: 'unsent-lead', email: 'unsent@glamp.test', genre: 'グランピング', status: '未対応', send_count: 0 },
+  priorityTemplateFixture,
+  priorityMasterContext,
+  priorityNowMs
+);
+const normalOldEligibility = genrePriorityContext.getEmailGenrePriorityEligibility_(
+  { id: 'normal-old-lead', email: 'normal-old@glamp.test', genre: 'グランピング', status: '初回メール送信済み', send_count: 1, last_sent_at: '2026-07-01T00:00:00+09:00' },
+  priorityTemplateFixture,
+  priorityMasterContext,
+  priorityNowMs
+);
+const normalRecentEligibility = genrePriorityContext.getEmailGenrePriorityEligibility_(
+  { id: 'normal-recent-lead', email: 'normal-recent@glamp.test', genre: 'グランピング', status: '初回メール送信済み', send_count: 1, last_sent_at: '2026-08-01T00:00:00+09:00' },
+  priorityTemplateFixture,
+  priorityMasterContext,
+  priorityNowMs
+);
+const dedicatedEligibility = genrePriorityContext.getEmailGenrePriorityEligibility_(
+  { id: 'dedicated-lead', email: 'dedicated@glamp.test', genre: 'グランピング', status: '初回メール送信済み', send_count: 1, last_sent_at: '2026-07-01T00:00:00+09:00' },
+  priorityTemplateFixture,
+  priorityMasterContext,
+  priorityNowMs
+);
+assert.strictEqual(unsentEligibility.kind, 'unsent');
+assert.strictEqual(normalOldEligibility.kind, 'previously_sent');
+assert.match(normalRecentEligibility.blockReason, /30日未満/);
+assert.match(dedicatedEligibility.blockReason, /専用メールを送信済み/);
+const formCampaignContext = { ngMasters: [], excludedDomains: [], mailSendSafety: prioritySafety };
+const freshFormEligibility = genrePriorityContext.getGlampingChatgptFormEligibility_({
+  id: 'form-fresh', genre: 'グランピング施設', email: '', form_url: 'https://form-fresh.test/contact',
+  status: '未対応', form_status: '未対応', deal_status: '未設定', custom_fields_json: '{}',
+}, formCampaignContext, priorityNowMs);
+const oldNormalFormEligibility = genrePriorityContext.getGlampingChatgptFormEligibility_({
+  id: 'form-old', genre: 'グランピング', email: '', form_url: 'https://form-old.test/contact',
+  status: 'フォーム対応済み', form_status: '対応済み', deal_status: '未設定',
+  custom_fields_json: JSON.stringify({
+    form_send_count: 1,
+    last_form_sent_at: '2026-07-01T00:00:00+09:00',
+    last_form_template_id: 'normal-form-template',
+    form_send_events: [{ at: '2026-07-01T00:00:00+09:00', type: 'sent', template_id: 'normal-form-template', body: '通常フォーム' }],
+  }),
+}, formCampaignContext, priorityNowMs);
+const recentNormalFormEligibility = genrePriorityContext.getGlampingChatgptFormEligibility_({
+  id: 'form-recent', genre: 'グランピング', email: '', form_url: 'https://form-recent.test/contact',
+  status: 'フォーム対応済み', form_status: '対応済み', deal_status: '未設定',
+  custom_fields_json: JSON.stringify({ form_send_count: 1, last_form_sent_at: '2026-08-01T00:00:00+09:00' }),
+}, formCampaignContext, priorityNowMs);
+const dedicatedFormEligibility = genrePriorityContext.getGlampingChatgptFormEligibility_({
+  id: 'form-dedicated', genre: 'グランピング', email: '', form_url: 'https://form-dedicated.test/contact',
+  status: 'フォーム対応済み', form_status: '対応済み', deal_status: '未設定',
+  custom_fields_json: JSON.stringify({ glamping_chatgpt_ads_form_sent_at: '2026-07-01T00:00:00+09:00' }),
+}, formCampaignContext, priorityNowMs);
+const emailCampaignFormEligibility = genrePriorityContext.getGlampingChatgptFormEligibility_({
+  id: 'dedicated-lead', genre: 'グランピング', email: '', form_url: 'https://dedicated.test/contact',
+  status: '未対応', form_status: '未対応', deal_status: '未設定', custom_fields_json: '{}',
+}, formCampaignContext, priorityNowMs);
+assert.strictEqual(freshFormEligibility.kind, 'unsent');
+assert.strictEqual(oldNormalFormEligibility.kind, 'previously_sent');
+assert.match(recentNormalFormEligibility.blockReason, /30日未満/);
+assert.match(dedicatedFormEligibility.blockReason, /フォームで送信済み/);
+assert.match(emailCampaignFormEligibility.blockReason, /メールで送信済み/);
+const emailBlockedByDedicatedForm = genrePriorityContext.getEmailGenrePriorityEligibility_({
+  id: 'email-after-form', email: 'email-after-form@glamp.test', genre: 'グランピング', status: '未対応', send_count: 0,
+  custom_fields_json: JSON.stringify({ glamping_chatgpt_ads_form_sent_at: '2026-08-10T00:00:00+09:00' }),
+}, priorityTemplateFixture, { ngMasters: [], excludedDomains: [], mailSendSafety: {} }, priorityNowMs);
+assert.match(emailBlockedByDedicatedForm.blockReason, /フォームで送信済み/);
+const formEmailPreferredLeadIds = genrePriorityContext.buildFormEmailPreferredLeadIds_([
+  { id: 'email-channel-lead', genre: 'グランピング', facility_name: '星空グランピング', email: 'info@hoshizora.example', form_url: '' },
+  { id: 'duplicate-form-lead', genre: 'グランピング', company_name: '星空グランピング', email: '', form_url: 'https://form.example/contact' },
+  { id: 'shared-domain-email', genre: 'キャンプ', facility_name: '海辺キャンプ場', email: 'info@shared.example', website_url: 'https://directory.example/a' },
+  { id: 'shared-domain-form', genre: 'キャンプ', facility_name: '山のキャンプ場', email: '', website_url: 'https://directory.example/b', form_url: 'https://directory.example/b/contact' },
+  { id: 'different-genre-form', genre: 'ホテル', facility_name: '星空グランピング', email: '', form_url: 'https://hotel.example/contact' },
+]);
+assert.strictEqual(formEmailPreferredLeadIds['duplicate-form-lead'], 'email-channel-lead', 'a duplicate form-only record must defer to the same facility email record');
+assert.strictEqual(formEmailPreferredLeadIds['shared-domain-form'], undefined, 'shared directory domains must not hide unrelated facilities');
+assert.strictEqual(formEmailPreferredLeadIds['different-genre-form'], undefined, 'the same short name in a different genre must not be suppressed automatically');
+assert.strictEqual(
+  genrePriorityContext.matchesLeadListFilter_(
+    { id: 'duplicate-form-lead', genre: 'グランピング', company_name: '星空グランピング', email: '', form_url: 'https://form.example/contact' },
+    'form_all',
+    { formEmailPreferredLeadIds }
+  ),
+  false,
+  'email-preferred duplicate facilities must not be returned to the form outreach list'
+);
+assert.strictEqual(
+  genrePriorityContext.matchesLeadListFilter_(
+    { id: 'shared-domain-form', genre: 'キャンプ', facility_name: '山のキャンプ場', email: '', form_url: 'https://directory.example/b/contact' },
+    'form_all',
+    { formEmailPreferredLeadIds }
+  ),
+  true,
+  'unrelated form-only facilities must remain visible'
+);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(genrePriorityContext.activeFormSendEvents_([
+    { at: '2026-07-01T00:00:00+09:00', type: 'sent', template_id: 'normal-form-template' },
+    { at: '2026-08-16T00:00:00+09:00', type: 'sent', template_id: 'glamping-chatgpt-ads-form-v1' },
+    { at: '2026-08-16T01:00:00+09:00', type: 'unsent', template_id: 'glamping-chatgpt-ads-form-v1' },
+  ]).map((event) => event.template_id))),
+  ['normal-form-template'],
+  'undoing the ChatGPT form campaign must preserve an older normal form send'
+);
+const resendPrioritySelection = genrePriorityContext.selectEmailGenrePriorityCandidates_([
+  { id: 'normal-old-lead', email: 'normal-old@glamp.test', genre: 'グランピング', status: '初回メール送信済み', send_count: 1, last_sent_at: '2026-07-01T00:00:00+09:00', updated_at: '2026-08-15T03:00:00+09:00' },
+  { id: 'unsent-lead', email: 'unsent@glamp.test', genre: 'グランピング', status: '未対応', send_count: 0, updated_at: '2026-08-15T01:00:00+09:00' },
+  { id: 'dedicated-lead', email: 'dedicated@glamp.test', genre: 'グランピング', status: '初回メール送信済み', send_count: 1, last_sent_at: '2026-07-01T00:00:00+09:00', updated_at: '2026-08-15T02:00:00+09:00' },
+], priorityTemplateFixture, priorityMasterContext, 10, 'グランピング', priorityNowMs);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(resendPrioritySelection.selected.map((item) => item.lead.id))), ['unsent-lead', 'normal-old-lead']);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(resendPrioritySelection.breakdown)), { unsent: 1, previouslySent: 1 });
 
 const activePrioritySetting = {
   enabled: true,
@@ -2236,7 +2433,7 @@ genrePriorityContext.getSettingValue_ = (key, fallback) => key === 'email_genre_
 genrePriorityContext.findSheetRecordById_ = (_sheet, id) => id === priorityTemplateFixture.id ? priorityTemplateFixture : null;
 genrePriorityContext.buildMasterBlockContext_ = () => ({});
 genrePriorityContext.readSheetRecordFields_ = () => [
-  { id: 'glamp', email: 'glamp@example.com', genre: 'グランピング施設', sendable: true, updated_at: '2026-08-14T00:00:00Z' },
+  { id: 'glamp', email: 'glamp@priority.test', genre: 'グランピング施設', updated_at: '2026-08-14T00:00:00Z' },
 ];
 genrePriorityContext.getLeadById = (id) => id === 'other' ? { id, genre: 'ホテル' } : { id, genre: 'グランピング施設' };
 assert.throws(
@@ -2278,16 +2475,15 @@ let lifecycleSetting = {
   templateId: 'glamping-chatgpt-ads-v1',
   previousProductionTemplateIds: [],
 };
-priorityLifecycleContext.assertEmailGenrePriorityAdmin_ = () => ({ allowed: true, email: 'admin@example.com' });
+priorityLifecycleContext.assertEmailGenrePriorityAdmin_ = () => ({ allowed: true, email: 'admin@priority.test' });
 priorityLifecycleContext.withScriptLock_ = (_operation, callback) => callback();
 priorityLifecycleContext.getEmailGenrePrioritySetting_ = () => Object.assign({}, lifecycleSetting);
 priorityLifecycleContext.findSheetRecordById_ = (_sheet, id) => lifecycleTemplates[id] || null;
-priorityLifecycleContext.buildMasterBlockContext_ = () => ({});
+priorityLifecycleContext.buildMasterBlockContext_ = () => ({ ngMasters: [], excludedDomains: [], mailSendSafety: {} });
 priorityLifecycleContext.readSheetRecordFields_ = () => [
-  { id: 'glamp', email: 'glamp@example.com', genre: 'グランピング施設', sendable: true, updated_at: '2026-08-14T00:00:00Z' },
+  { id: 'glamp', email: 'glamp@priority.test', genre: 'グランピング施設', updated_at: '2026-08-14T00:00:00Z' },
 ];
 priorityLifecycleContext.isArchivedLead_ = () => false;
-priorityLifecycleContext.isEmailSendTarget_ = (lead) => Boolean(lead.sendable);
 priorityLifecycleContext.readAllActiveSheetRecords_ = () => Object.values(lifecycleTemplates);
 priorityLifecycleContext.updateSheetRecord_ = (_sheet, id, patch) => {
   lifecycleTemplates[id] = Object.assign({}, lifecycleTemplates[id], patch);
@@ -2923,10 +3119,10 @@ assert.deepStrictEqual(
 );
 const mailCandidateLeadFields = JSON.parse(JSON.stringify(analyticsContext.mailSendCandidateLeadFields_()));
 assert.deepStrictEqual(mailCandidateLeadFields, [
-  'id', 'source', 'genre', 'company_name', 'email', 'website_url', 'website_domain', 'form_url', 'status',
-  'send_ng', 'reply_checked', 'last_sent_at', 'send_count', 'deal_status', 'created_at', 'updated_at', 'archived_at',
+  'id', 'source', 'genre', 'company_name', 'facility_name', 'email', 'website_url', 'website_domain', 'form_url', 'status',
+  'send_ng', 'reply_checked', 'last_sent_at', 'send_count', 'deal_status', 'custom_fields_json', 'created_at', 'updated_at', 'archived_at',
 ]);
-['custom_fields_json', 'source_payload_json', 'notes', 'address', 'facility_name', 'form_status'].forEach((field) => {
+['source_payload_json', 'notes', 'address', 'form_status'].forEach((field) => {
   assert(!mailCandidateLeadFields.includes(field));
 });
 const projectedMailCandidateLeads = dashboardLeadFixtures.map((lead) => {
@@ -2951,6 +3147,233 @@ assert.deepStrictEqual(
   JSON.parse(JSON.stringify(fullPayloadCandidateSelection.selected.map((item) => item.lead.id))),
   'automatic candidate order and exclusions must stay identical with projected leads'
 );
+
+const mailStatusContext = vm.createContext({ console, URL });
+files.forEach((file) => {
+  vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), mailStatusContext, { filename: file });
+});
+const mailStatusHistories = [
+  { id: 'history-success', lead_id: 'lead-camp', sent_at: '2026-08-15T07:01:00+09:00', send_type: '初回メール', to_email: 'camp@example.jp', facility_name: 'キャンプ施設', genre: 'キャンプ', template_id: 'template-camp', template_name: 'キャンプ初回', subject: '本番成功', send_result: '成功' },
+  { id: 'history-test', sent_at: '2026-08-15T08:01:00+09:00', send_type: 'テスト送信', to_email: 'test@example.jp', facility_name: 'テスト施設', genre: 'グランピング', template_id: 'priority-template', template_name: '優先テンプレート', subject: 'テスト', send_result: '成功' },
+  { id: 'history-sending', lead_id: 'lead-pending', sent_at: '2026-08-15T08:02:00+09:00', send_type: '初回メール', to_email: 'pending@example.jp', facility_name: '送信中施設', genre: 'キャンプ', template_id: 'template-camp', template_name: 'キャンプ初回', subject: '送信中', send_result: '送信中' },
+  { id: 'history-failed', lead_id: 'lead-failed', sent_at: '2026-08-15T08:03:00+09:00', send_type: '初回メール', to_email: 'failed@example.jp', facility_name: '失敗施設', genre: 'キャンプ', template_id: 'template-camp', template_name: 'キャンプ初回', subject: '失敗', send_result: '失敗', error_message: '送信エラー' },
+  { id: 'history-old', lead_id: 'lead-old', sent_at: '2026-08-14T07:00:00+09:00', send_type: '初回メール', to_email: 'old@example.jp', send_result: '成功' },
+];
+const mailStatusLeads = [
+  { id: 'lead-camp-next', facility_name: '明日のキャンプ', company_name: 'キャンプ運営', genre: 'キャンプ', email: 'next@example.jp', status: '未対応', send_count: 0, updated_at: '2026-08-15T09:00:00+09:00' },
+  { id: 'lead-glamping', facility_name: '優先候補', company_name: '優先運営', genre: 'グランピング', email: 'glamping@example.jp', status: '未対応', send_count: 0, updated_at: '2026-08-15T08:00:00+09:00' },
+];
+const mailStatusTemplates = [
+  { id: 'template-camp', name: 'キャンプ初回', genre: 'キャンプ', template_type: 'initial', active: true, is_production: true },
+  { id: 'priority-template', name: 'グランピング向けChatGPT広告', genre: 'グランピング', template_type: 'initial', active: true, is_production: false, last_test_sent_at: '2026-08-15T00:55:10+09:00' },
+];
+mailStatusContext.Session = { getScriptTimeZone: () => 'Asia/Tokyo' };
+mailStatusContext.Utilities = {
+  formatDate: (value, _timezone, format) => {
+    const date = new Date(value);
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Tokyo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date).reduce((result, part) => {
+      if (part.type !== 'literal') result[part.type] = part.value;
+      return result;
+    }, {});
+    if (format === 'HH:mm') return `${parts.hour}:${parts.minute}`;
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  },
+};
+mailStatusContext.todayText_ = () => '2026-08-15';
+mailStatusContext.nowIso_ = () => '2026-08-15T09:00:00+09:00';
+mailStatusContext.readSheetRecordFields_ = (sheetName) => sheetName === 'send_histories' ? mailStatusHistories : mailStatusLeads;
+mailStatusContext.buildMailSendSafetyContext_ = () => ({
+  sentLeadIds: { 'lead-camp': true },
+  sentEmails: { 'camp@example.jp': true },
+  reservedLeadIds: { 'lead-pending': true },
+  reservedEmails: { 'pending@example.jp': true },
+  successfulCountToday: 1,
+  reservedCountToday: 1,
+});
+mailStatusContext.buildPendingSendReservationStatus_ = () => ({ count: 1, staleCount: 0, oldestAt: '2026-08-15T08:02:00+09:00' });
+mailStatusContext.getSettingValue_ = (key, fallback) => {
+  if (key === 'gmail_daily_send_limit') return 80;
+  if (key === 'email_batch_send_limit') return 20;
+  return fallback;
+};
+mailStatusContext.getMailQuotaStatus_ = () => ({ available: true, remaining: 70 });
+mailStatusContext.buildSendWindowStatus_ = () => ({ enabled: true, start: '07:00', end: '08:00', timezone: 'Asia/Tokyo', currentTime: '07:30', label: '07:00-08:00', allowed: true });
+mailStatusContext.getMailSendingControl_ = () => ({ enabled: true, reason: null, updatedAt: '2026-08-15T00:00:00+09:00' });
+mailStatusContext.getProjectTriggerHandlerCount_ = () => 1;
+mailStatusContext.buildMasterBlockRulesContext_ = () => ({ ngMasters: [], excludedDomains: [] });
+mailStatusContext.readAllActiveSheetRecords_ = () => mailStatusTemplates;
+let mailStatusPriorityEnabled = false;
+mailStatusContext.getEmailGenrePrioritySetting_ = () => ({
+  enabled: mailStatusPriorityEnabled,
+  genreKeyword: 'グランピング',
+  templateId: 'priority-template',
+  previousProductionTemplateIds: [],
+  activatedAt: null,
+  updatedAt: '2026-08-15T00:00:00+09:00',
+  deactivatedReason: '',
+});
+mailStatusContext.getEmailGenrePriorityAdminStatus_ = () => ({ allowed: true, mode: 'deployment_owner' });
+mailStatusContext.getEmailGenrePriorityTemplateBlockReason_ = () => '';
+mailStatusContext.isEmailDeliveryPreviewTemplate_ = (template) => template.template_type === 'initial' && template.active === true && Boolean(template.genre);
+mailStatusContext.selectEmailGenrePriorityCandidates_ = (leads, template, master, limit) => {
+  const sentLeadIds = master.mailSendSafety.sentLeadIds || {};
+  const selected = leads.filter((lead) => lead.genre === 'グランピング' && !sentLeadIds[lead.id]).slice(0, limit).map((lead) => ({ lead, template }));
+  return { selected, groups: [], total: selected.length };
+};
+mailStatusContext.selectScheduledEmailCandidates_ = (leads, templates, master, limit) => {
+  const templateByGenre = Object.fromEntries(templates.map((template) => [template.genre, template]));
+  const sentLeadIds = master.mailSendSafety.sentLeadIds || {};
+  const selected = leads.filter((lead) => templateByGenre[lead.genre] && !sentLeadIds[lead.id]).slice(0, limit).map((lead) => ({ lead, template: templateByGenre[lead.genre] }));
+  return { selected, groups: [] };
+};
+mailStatusContext.countLeadSendTrackingMismatches_ = () => 0;
+const mailStatusOverview = JSON.parse(JSON.stringify(mailStatusContext.getEmailDeliveryOverview({ historyLimit: 200 })));
+assert.strictEqual(mailStatusOverview.overviewOnly, true);
+assert.deepStrictEqual(mailStatusOverview.today.counts, { total: 4, success: 1, failed: 1, sending: 1, test: 1, other: 0 });
+assert.strictEqual(mailStatusOverview.tomorrow.loading, true);
+assert.strictEqual(mailStatusOverview.tomorrow.candidateCount, null);
+assert.strictEqual(mailStatusOverview.priority.targetCount, null);
+const mailStatusSnapshot = JSON.parse(JSON.stringify(mailStatusContext.getEmailDeliveryStatus({ historyLimit: 200 })));
+assert.deepStrictEqual(mailStatusSnapshot.today.counts, { total: 4, success: 1, failed: 1, sending: 1, test: 1, other: 0 });
+assert.strictEqual(mailStatusSnapshot.today.remaining, 70);
+assert.strictEqual(mailStatusSnapshot.tomorrow.candidateCount, 1);
+assert.strictEqual(mailStatusSnapshot.tomorrow.items[0].leadId, 'lead-camp-next');
+assert.strictEqual(mailStatusSnapshot.tomorrow.items[0].order, 1);
+assert.strictEqual(mailStatusSnapshot.tomorrow.templateWaiting.waitingCount, 1);
+assert.strictEqual(mailStatusSnapshot.tomorrow.templateWaiting.genres[0].genre, 'グランピング');
+assert.strictEqual(mailStatusSnapshot.tomorrow.templateWaiting.items[0].leadId, 'lead-glamping');
+assert.strictEqual(mailStatusSnapshot.priority.targetCount, 1);
+assert.strictEqual(mailStatusSnapshot.priority.canInspect, true);
+assert.strictEqual(mailStatusSnapshot.priority.diagnostics.totalCount, 1);
+assert.strictEqual(mailStatusSnapshot.priority.diagnostics.sendableCount, 1);
+assert.strictEqual(mailStatusSnapshot.priority.diagnostics.items[0].reasonKey, 'sendable_unsent');
+assert.strictEqual(mailStatusSnapshot.control.adminAllowed, true);
+const dashboardScheduledTargets = JSON.parse(JSON.stringify(mailStatusContext.buildDashboardEmailTargetStatus_(
+  mailStatusLeads,
+  mailStatusTemplates,
+  mailStatusHistories,
+  {
+    availableSlots: 80,
+    automaticMailTriggerCount: 1,
+    mailSendingControl: { enabled: true, reason: '' },
+    sendWindow: { enabled: true },
+  }
+)));
+assert.strictEqual(dashboardScheduledTargets.count, 1);
+assert.strictEqual(dashboardScheduledTargets.blockCode, '');
+const dashboardNoTemplateTargets = JSON.parse(JSON.stringify(mailStatusContext.buildDashboardEmailTargetStatus_(
+  mailStatusLeads,
+  [],
+  mailStatusHistories,
+  {
+    availableSlots: 80,
+    automaticMailTriggerCount: 1,
+    mailSendingControl: { enabled: true, reason: '' },
+    sendWindow: { enabled: true },
+  }
+)));
+assert.strictEqual(dashboardNoTemplateTargets.count, 0);
+assert.strictEqual(dashboardNoTemplateTargets.blockCode, 'no_production_templates');
+mailStatusPriorityEnabled = true;
+const dashboardPriorityTargets = JSON.parse(JSON.stringify(mailStatusContext.buildDashboardEmailTargetStatus_(
+  mailStatusLeads,
+  mailStatusTemplates,
+  mailStatusHistories,
+  {
+    availableSlots: 80,
+    automaticMailTriggerCount: 1,
+    mailSendingControl: { enabled: true, reason: '' },
+    sendWindow: { enabled: true },
+  }
+)));
+assert.strictEqual(dashboardPriorityTargets.count, 1);
+assert.strictEqual(dashboardPriorityTargets.blockCode, '');
+mailStatusPriorityEnabled = false;
+const priorityDiagnostics = JSON.parse(JSON.stringify(mailStatusContext.buildEmailGenrePriorityDiagnostics_([
+  { id: 'glamp-ready', genre: 'グランピング', facility_name: '送信可能施設', email: 'ready@glamp.jp', status: '未対応', send_count: 0, updated_at: '2026-08-15T10:00:00+09:00' },
+  { id: 'glamp-no-email', genre: 'グランピング', facility_name: 'メール未取得施設', email: '', status: '未対応', send_count: 0, updated_at: '2026-08-15T09:00:00+09:00' },
+  { id: 'glamp-sent', genre: 'グランピング', facility_name: '送信済み施設', email: 'sent@glamp.jp', status: '初回メール送信済み', last_sent_at: '2026-08-14T07:00:00+09:00', send_count: 1, updated_at: '2026-08-15T08:00:00+09:00' },
+  { id: 'glamp-ng', genre: 'グランピング', facility_name: '送信NG施設', email: 'ng@glamp.jp', status: '送信NG', send_ng: true, send_count: 0, updated_at: '2026-08-15T07:00:00+09:00' },
+], mailStatusTemplates[1], { ngMasters: [], excludedDomains: [], mailSendSafety: {} }, 'グランピング', Date.parse('2026-08-15T12:00:00+09:00'))));
+assert.strictEqual(priorityDiagnostics.totalCount, 4);
+assert.strictEqual(priorityDiagnostics.sendableCount, 1);
+assert.strictEqual(priorityDiagnostics.blockedCount, 3);
+assert(priorityDiagnostics.reasons.some((item) => item.key === 'invalid_email' && item.count === 1));
+assert(priorityDiagnostics.reasons.some((item) => item.key === 'waiting_period' && item.count === 1));
+assert(priorityDiagnostics.reasons.some((item) => item.key === 'send_ng' && item.count === 1));
+assert.strictEqual(mailStatusContext.classifyEmailDeliveryHistory_({ send_type: 'テスト送信', send_result: '失敗' }), 'test');
+assert.strictEqual(mailStatusContext.classifyEmailDeliveryHistory_({ send_type: '初回メール', send_result: '送信中' }), 'sending');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(mailStatusContext.emailDeliverySelectionExecutionOrder_({
+  selected: [
+    { lead: { id: 'camp-1' }, template: { id: 'camp' } },
+    { lead: { id: 'spa-1' }, template: { id: 'spa' } },
+    { lead: { id: 'camp-2' }, template: { id: 'camp' } },
+  ],
+  groups: [
+    { templateId: 'camp', leadIds: ['camp-1', 'camp-2'] },
+    { templateId: 'spa', leadIds: ['spa-1'] },
+  ],
+}).map((item) => item.lead.id))), ['camp-1', 'camp-2', 'spa-1']);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(mailStatusContext.buildEmailDeliveryPreviewFromSelection_({
+  selected: [
+    { lead: { id: 'camp-1' }, template: { id: 'camp' } },
+    { lead: { id: 'spa-1' }, template: { id: 'spa' } },
+    { lead: { id: 'care-1' }, template: { id: 'care' } },
+    { lead: { id: 'camp-2' }, template: { id: 'camp' } },
+    { lead: { id: 'spa-2' }, template: { id: 'spa' } },
+    { lead: { id: 'care-2' }, template: { id: 'care' } },
+    { lead: { id: 'camp-3' }, template: { id: 'camp' } },
+    { lead: { id: 'camp-4' }, template: { id: 'camp' } },
+  ],
+  groups: [
+    { templateId: 'camp', leadIds: ['camp-1', 'camp-2', 'camp-3', 'camp-4'] },
+    { templateId: 'spa', leadIds: ['spa-1', 'spa-2'] },
+    { templateId: 'care', leadIds: ['care-1', 'care-2'] },
+  ],
+}, 8, 4).selected.map((item) => item.lead.id))), [
+  'camp-1', 'camp-2', 'spa-1', 'care-1',
+  'camp-3', 'camp-4', 'spa-2', 'care-2',
+]);
+const mailStatusWebAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
+const mailStatusIndexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
+assert(mailStatusWebAppSource.includes("if (action === 'getEmailDeliveryOverview')"));
+assert(mailStatusWebAppSource.includes("if (action === 'getEmailDeliveryStatus')"));
+assert(mailStatusWebAppSource.includes('function setMailSendingControl(input)'));
+assert(mailStatusWebAppSource.includes('assertEmailGenrePriorityAdmin_();'));
+assert(mailStatusIndexSource.includes('id="mailStatus"'));
+assert(mailStatusIndexSource.includes('function renderEmailDeliveryStatus()'));
+assert(mailStatusIndexSource.includes("request('getEmailDeliveryOverview'"));
+assert(mailStatusIndexSource.includes('function loadEmailDeliveryTomorrowCandidates(options)'));
+assert(mailStatusIndexSource.includes('mail-status-loading-card'));
+assert(mailStatusIndexSource.includes('const refreshTimes = [[6, 30], [12, 0], [18, 0]];'));
+assert(mailStatusIndexSource.includes('mail-status-table-wrap'));
+assert(mailStatusIndexSource.includes('class="mail-status-operation-bar"'));
+assert(mailStatusIndexSource.includes('class="mail-status-next-hero"'));
+assert(mailStatusIndexSource.includes('function mailStatusOperationItem('));
+assert(mailStatusIndexSource.includes('v352-mail-status-next-send-first'));
+assert(mailStatusIndexSource.includes('function mailStatusPriorityReasonSummary('));
+assert(mailStatusIndexSource.includes('グランピング候補が表示されない理由'));
+assert(mailStatusIndexSource.includes('id="mailStatusTemplateWaiting"'));
+assert(mailStatusIndexSource.includes('class="panel stack mail-status-panel mail-status-tomorrow-panel"'));
+assert(mailStatusIndexSource.includes('id="mailStatusPriorityDiagnostics"'));
+assert(mailStatusIndexSource.includes('function showEmailGenrePriorityDiagnostics()'));
+assert(mailStatusIndexSource.includes('開始できない理由を確認'));
+assert(mailStatusIndexSource.includes("if (name === 'mailStatus')"));
+const mailStatusTomorrowHeroIndex = mailStatusIndexSource.indexOf('id="mailStatusTomorrowDateLabel"');
+const mailStatusPriorityMarkupIndex = mailStatusIndexSource.indexOf('id="mailStatusHero"');
+const mailStatusTomorrowMarkupIndex = mailStatusIndexSource.indexOf('id="mailStatusTomorrowCaption"');
+const mailStatusTodayMarkupIndex = mailStatusIndexSource.indexOf('id="mailStatusTodayCaption"');
+assert(mailStatusTomorrowHeroIndex > -1 && mailStatusTomorrowHeroIndex < mailStatusPriorityMarkupIndex);
+assert(mailStatusPriorityMarkupIndex > -1 && mailStatusPriorityMarkupIndex < mailStatusTomorrowMarkupIndex);
+assert(mailStatusTomorrowMarkupIndex > -1 && mailStatusTomorrowMarkupIndex < mailStatusTodayMarkupIndex);
 
 const leadListContext = vm.createContext({ console, URL });
 files.forEach((file) => {
@@ -4448,14 +4871,131 @@ const serperSource = fs.readFileSync(path.join(root, 'Serper.gs'), 'utf8');
 const repositorySource = fs.readFileSync(path.join(root, 'Repository.gs'), 'utf8');
 const webAppSource = fs.readFileSync(path.join(root, 'WebApp.gs'), 'utf8');
 const indexSource = fs.readFileSync(path.join(root, 'Index.html'), 'utf8');
-assert(codeSource.includes('20260814_apps_script_full_workflow_v334_glamping_mail_priority'));
+assert(codeSource.includes('20260818_apps_script_full_workflow_v352_mail_status_next_send_first'));
 assert(codeSource.includes("EMAIL_GENRE_PRIORITY_TEMPLATE_ID_ = 'glamping-chatgpt-ads-v1'"));
+assert(codeSource.includes("EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_ = 'glamping-chatgpt-ads-form-v1'"));
 assert(codeSource.includes("EMAIL_GENRE_PRIORITY_LP_URL_ = 'https://adclutch.jp/glamping-chatgpt-ads'"));
+const glampingTemplateContext = vm.createContext({ console });
+vm.runInContext(codeSource, glampingTemplateContext, { filename: 'Code.gs' });
+const glampingPriorityTemplate = vm.runInContext('EMAIL_GENRE_PRIORITY_TEMPLATE_', glampingTemplateContext);
+const glampingFormTemplate = vm.runInContext('EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_', glampingTemplateContext);
+assert.strictEqual(glampingPriorityTemplate.version, 2);
+assert(glampingPriorityTemplate.body.startsWith('{{屋号}} ご担当者様\n\n'));
+assert.strictEqual(
+  glampingPriorityTemplate.body.split('\n\n').filter((paragraph) => paragraph.includes('\n')).length,
+  1,
+  'the glamping email should only use a single intentional line break before the LP URL'
+);
+assert(!/、\n/.test(glampingPriorityTemplate.body), 'the glamping email must not force a line break mid-sentence');
+assert.strictEqual(glampingFormTemplate.template_type, 'form');
+assert.strictEqual(glampingFormTemplate.is_production, true);
+assert.strictEqual(glampingFormTemplate.version, 2);
+assert(glampingFormTemplate.body.startsWith('{{屋号}}\nご担当者様\n\n'));
+assert(glampingFormTemplate.body.includes('https://adclutch.jp/glamping-chatgpt-ads'));
+assert(glampingFormTemplate.body.length < glampingPriorityTemplate.body.length, 'the form copy should stay shorter than the email copy');
+const originalTemplateListRecords = context.listSheetRecords;
+context.listSheetRecords = () => ({
+  total: 1,
+  items: [{ id: 'glamping-chatgpt-ads-form-v1', body: '{{屋号}} ご担当者様', version: 1, is_production: false, active: false }],
+});
+const refreshedSystemFormTemplates = context.listEmailTemplates({ limit: 20 }).items;
+const refreshedSystemFormTemplate = refreshedSystemFormTemplates.find((template) => template.id === 'glamping-chatgpt-ads-form-v1');
+assert(refreshedSystemFormTemplate.body.startsWith('{{屋号}}\nご担当者様\n\n'));
+assert.strictEqual(refreshedSystemFormTemplate.version, 2);
+assert.strictEqual(refreshedSystemFormTemplate.is_production, true);
+assert.strictEqual(refreshedSystemFormTemplate.system_template, true);
+context.listSheetRecords = originalTemplateListRecords;
 assert(emailSource.includes('function setEmailGenrePriority(input)'));
 assert(emailSource.includes('function maybeAutoDeactivateEmailGenrePriority_()'));
 assert(emailSource.includes('previousProductionTemplateIds'));
 assert(webAppSource.includes("if (action === 'getEmailGenrePriorityStatus')"));
 assert(webAppSource.includes("if (action === 'setEmailGenrePriority')"));
+assert(webAppSource.includes("if (action === 'listFormOutreachQueue')"));
+assert(webAppSource.includes("if (action === 'markLeadFormUnavailable')"));
+assert(codeSource.includes('function listFormOutreachQueue(options)'));
+assert(codeSource.includes('function markLeadFormUnavailable(leadId, options)'));
+assert(indexSource.includes("apiQuiet('listFormOutreachQueue'"));
+assert(indexSource.includes("apiQuiet('markLeadFormUnavailable'"));
+assert(indexSource.includes('const API_BUSY_REVEAL_DELAY_MS = 450'));
+assert(indexSource.includes('if (changedTab && tabHasPendingData(name)) showRouteProgress();'));
+assert(indexSource.includes('Promise.resolve(ensureTabDataLoaded(name)).finally(hideRouteProgress);'));
+assert(indexSource.includes('function hideRouteProgress()'));
+assert(indexSource.includes('onpointerenter="prefetchFormOutreachWorkspace()"'));
+assert(indexSource.includes('function prefetchFormOutreachWorkspace()'));
+assert(indexSource.includes("{ quietError: true }"));
+assert(indexSource.includes('公式サイトを開いて本文コピー'));
+assert(indexSource.includes('送信済み・次へ'));
+assert(indexSource.includes('送信不可・次へ'));
+assert(indexSource.includes("key === 'o'"));
+assert(indexSource.includes("key === 's'"));
+assert(indexSource.includes("key === 'x'"));
+
+const formUnavailableContext = vm.createContext({ console, URL });
+files.forEach((file) => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), formUnavailableContext, { filename: file }));
+let unavailableWrittenRecord = null;
+formUnavailableContext.withScriptLock_ = (_operation, callback) => callback();
+formUnavailableContext.getOrCreateSpreadsheet_ = () => ({});
+formUnavailableContext.ensureSheet_ = () => ({});
+formUnavailableContext.findRowById_ = () => ({
+  rowNumber: 2,
+  headers: ['id', 'status', 'form_status', 'custom_fields_json', 'updated_at'],
+  record: { id: 'form-unavailable', status: 'フォーム対応中', form_status: '対応中', custom_fields_json: '{}' },
+});
+formUnavailableContext.writeRecordToRow_ = (_sheet, _rowNumber, _headers, record) => { unavailableWrittenRecord = record; };
+formUnavailableContext.clearRuntimeCaches_ = () => {};
+formUnavailableContext.nowIso_ = () => '2026-08-16T12:00:00.000Z';
+const unavailableResult = formUnavailableContext.markLeadFormUnavailable('form-unavailable', { reason: 'フォームが見つからない' });
+assert.strictEqual(unavailableResult.status, '対応不要');
+assert.strictEqual(unavailableResult.form_status, '対応不要');
+const unavailableFields = JSON.parse(unavailableResult.custom_fields_json);
+assert.strictEqual(unavailableFields.form_unavailable_reason, 'フォームが見つからない');
+assert.strictEqual(unavailableFields.form_unavailable_events[0].previous_form_status, '対応中');
+assert.strictEqual(unavailableWrittenRecord.id, 'form-unavailable');
+
+const formQueueContext = vm.createContext({ console, URL });
+files.forEach((file) => vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), formQueueContext, { filename: file }));
+formQueueContext.overlayPendingReviewDecisionsOnLeads_ = (rows) => rows;
+let formQueueSheetReads = 0;
+const formQueueCache = {};
+formQueueContext.CacheService = {
+  getScriptCache: () => ({
+    get: (key) => formQueueCache[key] || null,
+    put: (key, value) => { formQueueCache[key] = value; },
+  }),
+};
+formQueueContext.PropertiesService = {
+  getScriptProperties: () => ({ getProperty: () => 'form-queue-revision' }),
+};
+formQueueContext.readSheetRecordFields_ = () => {
+  formQueueSheetReads += 1;
+  return [
+  { id: 'ready', genre: 'キャンプ', facility_name: '送信可能施設', website_url: 'https://ready.example/path', form_url: 'https://ready.example/contact', status: '対応中', form_status: '未対応' },
+  { id: 'missing-template', genre: 'ホテル', facility_name: 'テンプレート不足', website_url: 'https://hotel.example', form_url: 'https://hotel.example/contact', status: '対応中', form_status: '未対応' },
+  { id: 'send-ng', genre: 'キャンプ', facility_name: '送信NG施設', website_url: 'https://ng.example', form_url: 'https://ng.example/contact', status: '送信NG', form_status: '未対応' },
+  { id: 'missing-site', genre: 'キャンプ', facility_name: '公式サイト不足', website_url: '', form_url: 'https://form.example/contact', status: '対応中', form_status: '未対応' },
+  ];
+};
+formQueueContext.buildLeadListMasterContext_ = () => ({});
+formQueueContext.listEmailTemplates = () => ({ items: [
+  { id: 'camp-form', genre: 'キャンプ', template_type: 'form', name: 'キャンプ用', body: '本文', is_production: true, active: true },
+] });
+formQueueContext.isFormOutreachLead_ = () => true;
+formQueueContext.decorateGlampingChatgptFormLead_ = (lead) => lead;
+formQueueContext.getFormSendTargetBlockReason_ = (lead) => lead.status === '送信NG' ? '送信NGに指定されているため送信できません。' : '';
+formQueueContext.nowIso_ = () => '2026-08-16T12:00:00.000Z';
+const formQueueResult = formQueueContext.listFormOutreachQueue({ limit: 25 });
+assert.strictEqual(formQueueResult.total, 1);
+assert.strictEqual(formQueueResult.items[0].id, 'ready');
+assert.strictEqual(formQueueResult.reviewTotal, 3);
+assert.strictEqual(formQueueResult.reviewBreakdown.template_missing, 1);
+assert.strictEqual(formQueueResult.reviewBreakdown.send_ng, 1);
+assert.strictEqual(formQueueResult.reviewBreakdown.website_missing, 1);
+const cachedFormQueueResult = formQueueContext.listFormOutreachQueue({ limit: 25 });
+assert.strictEqual(cachedFormQueueResult.cacheHit, true);
+assert.strictEqual(formQueueSheetReads, 1, 'an unchanged form queue request must reuse the server cache');
+assert(codeSource.includes("readLeadListCache_('form_queue', cachePayload)"));
+assert(codeSource.includes("writeLeadListCache_('form_queue', cachePayload, response, FORM_OUTREACH_QUEUE_CACHE_TTL_SECONDS_)"));
+assert(repositorySource.includes("'send_histories', 'email_templates'"), 'template changes must invalidate form queue caches');
 const appInfoContext = vm.createContext({ console });
 vm.runInContext(codeSource, appInfoContext, { filename: 'Code.gs' });
 appInfoContext.PropertiesService = {
@@ -4687,7 +5227,7 @@ assert.strictEqual(customEmptyStateLabel.dataset.emptyEnhanced, 'true', 'a confi
 assert(customEmptyStateLabel.innerHTML.includes('除外サイトの登録はありません'));
 const sectionLoadErrorSource = indexSource.slice(
   indexSource.indexOf('function sectionLoadErrorId(name)'),
-  indexSource.indexOf('function ensureDataLoaded(key, loader)'),
+  indexSource.indexOf('function ensureDataLoaded(key, loader, options)'),
 );
 let insertedSectionError = null;
 const sectionLoadHeader = {
@@ -4738,7 +5278,7 @@ assert.deepStrictEqual(
   'literal getElementById references must resolve to a rendered DOM id',
 );
 const applicationSections = Array.from(indexSource.matchAll(/<section id="([^"]+)" class="section(?: active)?">/g), (match) => match[1]);
-assert.strictEqual(applicationSections.length, 20, 'the app-wide audit contract must cover all 20 routed screens');
+assert.strictEqual(applicationSections.length, 21, 'the app-wide audit contract must cover all 21 routed screens');
 const tabLoaderSource = indexSource.slice(
   indexSource.indexOf('async function ensureTabDataLoaded(name)'),
   indexSource.indexOf('async function onCollectionSupportToggle', indexSource.indexOf('async function ensureTabDataLoaded(name)')),
@@ -6088,7 +6628,7 @@ const gasUsageAtHighCodeVersion = context.buildConsumerGasUsageStatus_({
   urlFetchRecordedToday: 0,
   batchRuntimeBudgetMs: 240000,
 });
-assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 334);
+assert.strictEqual(gasUsageAtHighCodeVersion.versions.current, 352);
 assert.strictEqual(gasUsageAtHighCodeVersion.versions.quotaComparable, false);
 assert(!gasUsageAtHighCodeVersion.alerts.some((item) => item.key === 'versions'), 'the release label must not be treated as the number of stored Apps Script versions');
 assert(!indexSource.includes("label: 'Apps Scriptバージョン', note: 'コード版から判定'"), 'the current release must not render as a quota meter');
@@ -6102,7 +6642,7 @@ const normalizedCachedGasUsage = context.normalizeDashboardGasUsage_({
     status: 'danger',
   },
 });
-assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 334);
+assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.current, 352);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.versions.quotaComparable, false);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(normalizedCachedGasUsage.gasUsage.alerts)), [{ key: 'email', tone: 'warn' }]);
 assert.strictEqual(normalizedCachedGasUsage.gasUsage.status, 'warning');
@@ -6383,5 +6923,78 @@ assert(codeSource.includes("payload.review_exclude_domain_from_collection !== tr
 assert(operationsSource.includes('excludeDomainFromCollectionSpecified: record.excludeDomainFromCollectionSpecified === true'));
 assert(indexSource.includes('function renderCollectionSourcePerformance()'));
 assert(indexSource.includes('function openDomainHistory(value)'));
+assert(indexSource.includes('id="formTemplateSelect"'));
+assert(indexSource.includes('id="formGenreFilter"'));
+assert(indexSource.includes("genre: document.getElementById('formGenreFilter').value"));
+assert(indexSource.includes("fillSelect('formGenreFilter', [''].concat((genres || []).map((genre) => genre.name)))"));
+assert(indexSource.includes("document.getElementById('formGenreFilter').value = '';"));
+assert.strictEqual(context.normalizeListOptions_({ filter: 'form_all', genre: 'グランピング' }).genre, 'グランピング');
+assert(indexSource.includes('id="formChatgptCopyPanel"'));
+assert(indexSource.includes('id="formCurrentLeadContent"'));
+assert(indexSource.includes('id="formNextQueue"'));
+assert(indexSource.includes('id="formReviewPanel"'));
+assert(indexSource.includes('function renderFormNextQueue()'));
+assert(indexSource.includes('function renderFormReviewPanel()'));
+assert(indexSource.includes('function officialWebsiteTopUrlClient(lead)'));
+assert(indexSource.includes("return `${parsed.protocol}//${parsed.host}/`;"));
+assert(indexSource.includes('function openSelectedFormWebsiteAndCopy()'));
+assert(indexSource.includes('function completeSelectedFormLeadAndAdvance()'));
+assert(indexSource.includes('function markSelectedFormUnavailableAndAdvance()'));
+assert(indexSource.includes('function advanceFormQueueAfterMutation(id, successMessage)'));
+assert(indexSource.includes("reason: 'フォームが見つからない'"));
+assert(indexSource.includes('state.formBatchCompleted'));
+assert(indexSource.includes('function syncFormLeadSelectionUi()'));
+assert(indexSource.includes('function syncFormCopyFeedback()'));
+const formLoadStart = indexSource.indexOf('async function loadFormLeads(options)');
+const formLoadEnd = indexSource.indexOf('\n      function ', formLoadStart + 10);
+const formLoadSource = indexSource.slice(formLoadStart, formLoadEnd);
+assert(formLoadSource.includes('const result = await requestFormOutreachQueue(request'));
+assert(formLoadSource.includes('limit: 25'));
+assert(formLoadSource.includes("countTarget.textContent = '更新中…'"));
+assert(formLoadSource.includes('state.formBatchSize = state.formLeads.length'));
+const formCopyStart = indexSource.indexOf('async function copyFormMessageForLead(id)');
+const formCopyEnd = indexSource.indexOf('\n      async function ', formCopyStart + 10);
+const formCopySource = indexSource.slice(formCopyStart, formCopyEnd);
+assert(!formCopySource.includes('renderFormLeads('), 'copy feedback must not rebuild the full form lead table');
+const facilityCopyStart = indexSource.indexOf('async function copyFormLeadFacilityName(id)');
+const facilityCopyEnd = indexSource.indexOf('\n      function ', facilityCopyStart + 10);
+const facilityCopySource = indexSource.slice(facilityCopyStart, facilityCopyEnd);
+assert(!facilityCopySource.includes('renderFormLeads('), 'facility copy feedback must not rebuild the full form lead table');
+assert(indexSource.includes('function renderFormLeadRow(lead)'));
+assert(indexSource.includes('function applyUpdatedFormLeadClient(updatedLead)'));
+assert(indexSource.includes('function refreshFormLeadRow(id)'));
+const formMarkClientStart = indexSource.indexOf('async function markFormLeadSent(id, options)');
+const formMarkClientEnd = indexSource.indexOf('\n      async function unmarkFormLeadSent', formMarkClientStart);
+const formMarkClientSource = indexSource.slice(formMarkClientStart, formMarkClientEnd);
+assert(formMarkClientSource.includes("const updatedLead = await apiQuiet('markLeadFormSent'"));
+assert(formMarkClientSource.includes('applyUpdatedFormLeadClient(updatedLead)'));
+assert(formMarkClientSource.includes('refreshFormLeadRow(id)'));
+assert(formMarkClientSource.includes('if (!config.deferRender)'));
+assert(!formMarkClientSource.includes('loadFormLeads('), 'marking a form lead sent must not reload the form lead list');
+assert(!formMarkClientSource.includes('loadLeads('), 'marking a form lead sent must not reload the general lead list');
+assert(!formMarkClientSource.includes('renderFormLeads('), 'marking a form lead sent must not rebuild the full form lead table');
+const formUnmarkClientStart = indexSource.indexOf('async function unmarkFormLeadSent(id)');
+const formUnmarkClientEnd = indexSource.indexOf('\n      function ', formUnmarkClientStart);
+const formUnmarkClientSource = indexSource.slice(formUnmarkClientStart, formUnmarkClientEnd);
+assert(formUnmarkClientSource.includes("const updatedLead = await apiQuiet('unmarkLeadFormSent'"));
+assert(formUnmarkClientSource.includes('applyUpdatedFormLeadClient(updatedLead)'));
+assert(formUnmarkClientSource.includes('refreshFormLeadRow(id)'));
+assert(!formUnmarkClientSource.includes('loadFormLeads('), 'unmarking a form lead sent must not reload the form lead list');
+assert(!formUnmarkClientSource.includes('loadLeads('), 'unmarking a form lead sent must not reload the general lead list');
+assert(!formUnmarkClientSource.includes('renderFormLeads('), 'unmarking a form lead sent must not rebuild the full form lead table');
+const formToggleClientStart = indexSource.indexOf('async function toggleFormLeadSent(id, checked)');
+const formToggleClientEnd = indexSource.indexOf('\n      async function ', formToggleClientStart + 10);
+const formToggleClientSource = indexSource.slice(formToggleClientStart, formToggleClientEnd);
+assert(!formToggleClientSource.includes('loadFormLeads('), 'the sent checkbox error path must not reload the form lead list');
+assert(indexSource.includes('function formTemplateOptionsForLead(lead)'));
+assert(indexSource.includes('function isFormTemplateSentClient(lead, template)'));
+assert(indexSource.includes('同じ広告をメールまたはフォームで送信済みの施設は除外します'));
+const formMarkServerStart = codeSource.indexOf('function markLeadFormSent(leadId, options)');
+const formMarkServerEnd = codeSource.indexOf('\nfunction unmarkLeadFormSent', formMarkServerStart);
+const formMarkServerSource = codeSource.slice(formMarkServerStart, formMarkServerEnd);
+assert(formMarkServerSource.includes('hasGlampingChatgptEmailSendOrReservationForLead_(found.record)'), 'the server must recheck the dedicated email history while recording a form send');
+assert(formMarkServerSource.includes('renderTemplateForLead_(template, found.record, {}).body'), 'the dedicated form body must be rendered from the server template');
+assert(formMarkServerSource.includes('glamping_chatgpt_ads_form_sent_at'), 'the form campaign marker must be persisted for email-side duplicate prevention');
+assert(webAppSource.includes("if (action === 'unmarkLeadFormSent') return unmarkLeadFormSent(data.leadId || data.lead_id || data.id, data.options || data);"));
 
-console.log('v334 glamping-mail-priority regression tests passed.');
+console.log('v352 mail-status-next-send-first regression tests passed.');

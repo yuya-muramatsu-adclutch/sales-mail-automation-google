@@ -6068,6 +6068,110 @@
         background: #fffbeb;
       }
 
+      .form-template-quick-copy {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 16px;
+        border: 1px solid #93c5fd;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 72%);
+        box-shadow: 0 12px 28px rgba(37, 99, 235, 0.09);
+      }
+
+      .form-template-quick-copy:empty {
+        display: none;
+      }
+
+      .form-template-quick-copy-icon {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        background: var(--blue);
+        color: #fff;
+      }
+
+      .form-template-quick-copy-icon svg {
+        width: 21px;
+        height: 21px;
+      }
+
+      .form-template-quick-copy-copy {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .form-template-quick-copy-copy > span {
+        color: var(--blue);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+      }
+
+      .form-template-quick-copy-copy strong {
+        color: var(--ink);
+        font-size: 17px;
+        line-height: 1.35;
+      }
+
+      .form-template-quick-copy-copy small {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.55;
+      }
+
+      .form-template-quick-copy-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .form-template-quick-copy-actions .button,
+      .form-template-quick-copy-actions button {
+        min-height: 40px;
+      }
+
+      .form-copy-primary {
+        border-color: var(--blue);
+        background: var(--blue);
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+      }
+
+      .form-copy-primary:hover:not(:disabled) {
+        border-color: #1d4ed8;
+        background: #1d4ed8;
+      }
+
+      .form-copy-primary.copied {
+        border-color: #15803d;
+        background: #15803d;
+      }
+
+      .form-copy-secondary.copied {
+        border-color: #86efac;
+        background: #f0fdf4;
+        color: #15803d;
+      }
+
+      .table-link-button.form-copy-row-button {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      .table-link-button.form-copy-row-button.copied {
+        border-color: #86efac;
+        background: #f0fdf4;
+        color: #15803d;
+      }
+
       .form-board-grid {
         display: grid;
         grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
@@ -6142,6 +6246,35 @@
         white-space: nowrap;
       }
 
+      .form-work-title-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%;
+        color: #1d4ed8;
+        font-size: 16px;
+        font-weight: 950;
+        line-height: 1.35;
+        text-decoration: none;
+      }
+
+      .form-work-title-link span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .form-work-title-link svg {
+        flex: 0 0 auto;
+        width: 15px;
+        height: 15px;
+        stroke-width: 2.15;
+      }
+
+      .form-work-title-link:hover span {
+        text-decoration: underline;
+      }
+
       .form-work-actions,
       .form-send-state-actions {
         display: flex;
@@ -6156,47 +6289,117 @@
         min-height: 38px;
       }
 
+      .form-work-actions .form-website-primary-link {
+        min-height: 42px;
+        padding-inline: 15px;
+        border-color: #2563eb;
+        background: #2563eb;
+        color: #ffffff;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+        text-decoration: none;
+      }
+
+      .form-work-actions .form-website-primary-link:hover {
+        border-color: #1d4ed8;
+        background: #1d4ed8;
+      }
+
       .form-work-actions .form-url-link {
         max-width: min(100%, 420px);
+      }
+
+      .form-website-link {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-weight: 900;
+      }
+
+      .form-website-link:hover {
+        border-color: #60a5fa;
+        background: #dbeafe;
       }
 
       .table-form-outreach tr.form-outreach-row-active td {
         background: #eff6ff;
       }
 
-      .facility-copy-cell {
-        align-items: center;
+      .form-facility-cell {
+        display: grid;
+        align-items: start;
+        gap: 7px;
+        min-width: 230px;
       }
 
-      .facility-copy-button {
+      .form-facility-name-link,
+      .form-facility-name-static {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
+        gap: 6px;
         min-width: 0;
-        max-width: min(260px, 100%);
-        padding: 0;
-        border: 0;
-        background: transparent;
+        max-width: 100%;
         color: #1d4ed8;
-        cursor: pointer;
-        font-weight: 900;
+        font-size: 13px;
+        font-weight: 950;
         line-height: 1.4;
         text-align: left;
+        text-decoration: none;
       }
 
-      .facility-copy-button span {
+      .form-facility-name-link span,
+      .form-facility-name-static span {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
 
-      .facility-copy-button:hover span {
+      .form-facility-name-link:hover span {
         text-decoration: underline;
       }
 
-      .facility-copy-button svg {
+      .form-facility-name-link svg {
         flex: 0 0 auto;
-        color: var(--green);
+        width: 14px;
+        height: 14px;
+        stroke-width: 2.15;
+      }
+
+      .form-facility-name-static {
+        color: var(--ink);
+      }
+
+      .form-facility-quick-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .facility-copy-button,
+      .form-facility-work-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        min-height: 27px;
+        padding: 4px 7px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #ffffff;
+        color: #475569;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .facility-copy-button:hover,
+      .form-facility-work-button:hover {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      .facility-copy-button svg {
+        color: #2563eb;
       }
 
       .form-send-state-actions {
@@ -6214,6 +6417,570 @@
 
       .form-outreach-row-active td {
         background: #eff6ff;
+      }
+
+      .form-continuous-header {
+        margin-bottom: 18px;
+      }
+
+      .form-continuous-header .section-description {
+        margin-top: 6px;
+      }
+
+      .form-header-actions {
+        justify-content: flex-end;
+      }
+
+      .form-continuous-status {
+        margin-bottom: 14px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      }
+
+      .form-progress-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(170px, 0.55fr) minmax(170px, 0.55fr);
+        align-items: center;
+        min-height: 92px;
+      }
+
+      .form-progress-main,
+      .form-progress-stat {
+        display: grid;
+        gap: 6px;
+        padding: 20px 24px;
+      }
+
+      .form-progress-main {
+        grid-template-columns: auto auto minmax(140px, 1fr) auto;
+        align-items: center;
+      }
+
+      .form-progress-label,
+      .form-progress-stat span {
+        color: #475569;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .form-progress-main strong {
+        color: var(--ink);
+        font-size: 28px;
+        line-height: 1;
+      }
+
+      .form-progress-track {
+        height: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e2e8f0;
+      }
+
+      .form-progress-track > span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--blue);
+        transition: width 180ms ease;
+      }
+
+      .form-progress-percent {
+        color: var(--blue);
+        font-size: 15px;
+        font-weight: 950;
+      }
+
+      .form-progress-stat {
+        min-height: 54px;
+        border-top: 0;
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 1px solid var(--line);
+        border-radius: 0;
+        background: #ffffff;
+        text-align: center;
+      }
+
+      .form-progress-stat strong {
+        font-size: 24px;
+        line-height: 1.1;
+      }
+
+      .form-progress-stat.is-ready strong {
+        color: #15803d;
+      }
+
+      .form-progress-stat.is-review strong {
+        color: #dc2626;
+      }
+
+      .form-queue-filters {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) minmax(180px, 260px) auto auto;
+        gap: 10px;
+        align-items: end;
+        padding: 12px 20px;
+        border-top: 1px solid var(--line);
+        background: #f8fafc;
+      }
+
+      .form-queue-filters label {
+        display: grid;
+        gap: 6px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .form-shortcut-guide {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin: -2px 0 14px;
+        padding: 10px 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .form-shortcut-guide[hidden] {
+        display: none;
+      }
+
+      .form-shortcut-guide kbd,
+      .form-action-key {
+        display: inline-grid;
+        place-items: center;
+        min-width: 30px;
+        min-height: 30px;
+        padding: 3px 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        background: #ffffff;
+        color: #334155;
+        font: 900 13px/1 Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+        box-shadow: 0 2px 0 #cbd5e1;
+      }
+
+      .form-continuous-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(330px, 0.72fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .form-current-card,
+      .form-next-card {
+        overflow: hidden;
+      }
+
+      .form-current-card .panel-head,
+      .form-next-card .panel-head {
+        min-height: 58px;
+        padding: 15px 20px;
+      }
+
+      .form-current-content {
+        padding: 22px;
+      }
+
+      .form-current-content:empty {
+        display: none;
+      }
+
+      .form-current-lead {
+        display: grid;
+        gap: 20px;
+      }
+
+      .form-current-name-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .form-current-name-row h3 {
+        margin: 0;
+        color: var(--ink);
+        font-size: clamp(23px, 2vw, 30px);
+        line-height: 1.25;
+      }
+
+      .form-current-meta {
+        display: grid;
+        grid-template-columns: 130px minmax(0, 1fr);
+        gap: 12px 20px;
+        margin: 0;
+      }
+
+      .form-current-meta dt {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .form-current-meta dd {
+        min-width: 0;
+        margin: 0;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 850;
+        overflow-wrap: anywhere;
+      }
+
+      .form-current-meta svg,
+      .form-current-actions svg,
+      .form-next-queue svg,
+      .form-review-link svg {
+        flex: 0 0 auto;
+        width: 17px;
+        height: 17px;
+        stroke-width: 2.1;
+      }
+
+      .form-official-site-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: #1d4ed8;
+        text-decoration: none;
+      }
+
+      .form-official-site-link:hover {
+        text-decoration: underline;
+      }
+
+      .form-template-compact {
+        display: grid;
+        gap: 9px;
+      }
+
+      .form-template-compact-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .form-template-compact-head strong {
+        color: #475569;
+        font-size: 13px;
+      }
+
+      .form-template-compact select {
+        min-height: 36px;
+        max-width: 380px;
+      }
+
+      .form-template-snippet {
+        display: -webkit-box;
+        overflow: hidden;
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+
+      .form-template-details summary {
+        width: fit-content;
+        color: #1d4ed8;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .form-template-preview-full {
+        max-height: 360px;
+        margin-top: 10px;
+        overflow: auto;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        color: #334155;
+        font-size: 13px;
+        line-height: 1.75;
+        white-space: pre-wrap;
+      }
+
+      .form-current-actions {
+        display: grid;
+        gap: 12px;
+        padding-top: 4px;
+      }
+
+      .form-action-line {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .form-action-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        min-height: 58px;
+        padding: 12px 18px;
+        border-radius: 9px;
+        font-size: 16px;
+        font-weight: 950;
+      }
+
+      .form-action-button.is-open {
+        border-color: #1d4ed8;
+        background: #1d4ed8;
+        color: #ffffff;
+        box-shadow: 0 10px 24px rgba(29, 78, 216, 0.2);
+      }
+
+      .form-action-button.is-sent {
+        border-color: #15803d;
+        background: #15803d;
+        color: #ffffff;
+      }
+
+      .form-action-button.is-unavailable {
+        border-color: #ef4444;
+        background: #ffffff;
+        color: #dc2626;
+      }
+
+      .form-action-button:disabled {
+        box-shadow: none;
+      }
+
+      .form-action-help {
+        margin: -4px 0 0;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 750;
+        line-height: 1.5;
+      }
+
+      .form-next-queue {
+        display: grid;
+        margin: 0;
+        padding: 0 18px;
+        list-style: none;
+      }
+
+      .form-next-queue-item {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 83px;
+        padding: 13px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .form-next-queue-number {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 13px;
+        font-weight: 950;
+      }
+
+      .form-next-queue-copy {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .form-next-queue-copy strong,
+      .form-next-queue-copy small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .form-next-queue-copy strong {
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .form-next-queue-copy small {
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 750;
+      }
+
+      .form-next-select {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        min-width: 34px;
+        height: 34px;
+        padding: 0;
+        border-color: transparent;
+        background: transparent;
+        color: #64748b;
+      }
+
+      .form-next-select:hover {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      .form-next-empty {
+        padding: 24px 4px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+        text-align: center;
+      }
+
+      .form-review-link {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 8px;
+        align-items: center;
+        width: 100%;
+        min-height: 56px;
+        padding: 12px 18px;
+        border: 0;
+        border-top: 1px solid var(--line);
+        border-radius: 0;
+        background: #ffffff;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 900;
+        text-align: left;
+      }
+
+      .form-review-link strong {
+        color: #dc2626;
+      }
+
+      .form-review-panel {
+        margin-top: 14px;
+        overflow: hidden;
+      }
+
+      .form-review-panel[hidden] {
+        display: none;
+      }
+
+      .form-review-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 0 18px 14px;
+      }
+
+      .form-review-list {
+        display: grid;
+        border-top: 1px solid var(--line);
+      }
+
+      .form-review-item {
+        display: grid;
+        grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1.2fr) auto;
+        gap: 14px;
+        align-items: center;
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .form-review-item:last-child {
+        border-bottom: 0;
+      }
+
+      .form-review-item strong,
+      .form-review-item span {
+        font-size: 12px;
+      }
+
+      .form-review-item span {
+        color: #64748b;
+        font-weight: 750;
+      }
+
+      @media (max-width: 1080px) {
+        .form-progress-summary {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .form-progress-main {
+          grid-column: 1 / -1;
+        }
+
+        .form-progress-stat:first-of-type {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+
+        .form-progress-stat {
+          border-top: 1px solid var(--line);
+        }
+
+        .form-continuous-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .form-queue-filters,
+        .form-progress-main,
+        .form-review-item {
+          grid-template-columns: 1fr;
+        }
+
+        .form-progress-main {
+          gap: 10px;
+        }
+
+        .form-progress-track {
+          width: 100%;
+        }
+
+        .form-current-content {
+          padding: 16px;
+        }
+
+        .form-current-meta {
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+
+        .form-current-meta dd {
+          margin-bottom: 8px;
+        }
+
+        .form-action-button {
+          min-height: 54px;
+          font-size: 14px;
+        }
+
+        .form-shortcut-guide {
+          display: none;
+        }
       }
 
       .prospecting-activity-head,
@@ -8954,6 +9721,13 @@
         text-decoration: none;
       }
 
+      .url-mini-link > svg {
+        flex: 0 0 auto;
+        width: 14px;
+        height: 14px;
+        stroke-width: 2.15;
+      }
+
       .url-mini-link:hover {
         border-color: #93c5fd;
         background: #dbeafe;
@@ -9881,6 +10655,15 @@
           align-items: stretch;
         }
 
+        .form-template-quick-copy {
+          grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .form-template-quick-copy-actions {
+          grid-column: 1 / -1;
+          justify-content: flex-start;
+        }
+
         .gmail-command-center,
         .admin-command-center {
           display: grid;
@@ -9949,6 +10732,10 @@
         .main-toolbar-actions > button {
           flex: 1 1 160px;
         }
+
+        .form-work-actions .form-website-primary-link {
+          justify-content: center;
+        }
       }
 
       @media (max-width: 720px) {
@@ -9995,6 +10782,23 @@
 
         .quick-summary-grid {
           grid-template-columns: 1fr;
+        }
+
+        .form-template-quick-copy {
+          grid-template-columns: 1fr;
+        }
+
+        .form-template-quick-copy-icon {
+          display: none;
+        }
+
+        .form-template-quick-copy-actions {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .form-template-quick-copy-actions > * {
+          width: 100%;
         }
 
         .dashboard-api-list {
@@ -14882,6 +15686,1041 @@
         }
       }
 
+      /* v342-mail-status-decision-board: decision-first summary, next candidates, and priority reasons. */
+      #mailStatus.section.active {
+        width: 100%;
+        max-width: 1680px;
+        margin-inline: auto;
+      }
+
+      .mail-status-summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .mail-status-summary-card {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+        min-width: 0;
+        min-height: 138px;
+        padding: 18px 20px;
+        border: 1px solid #dbe4ee;
+        border-radius: 16px;
+        background: #fff;
+      }
+
+      .mail-status-summary-card > span,
+      .mail-status-summary-card > small {
+        color: #64748b;
+        font-size: 12px;
+      }
+
+      .mail-status-summary-card > strong {
+        min-width: 0;
+        color: #0f172a;
+        font-size: clamp(22px, 2vw, 30px);
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+      }
+
+      .mail-status-summary-card.is-good {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+      }
+
+      .mail-status-summary-card.is-info {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+      }
+
+      .mail-status-summary-card.is-warn {
+        border-color: #fed7aa;
+        background: #fff7ed;
+      }
+
+      .mail-status-summary-card.is-bad {
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+
+      .mail-status-summary-card.is-good > strong { color: #047857; }
+      .mail-status-summary-card.is-info > strong { color: #1d4ed8; }
+      .mail-status-summary-card.is-warn > strong { color: #c2410c; }
+      .mail-status-summary-card.is-bad > strong { color: #b91c1c; }
+
+      .mail-status-summary-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+        margin-top: auto;
+      }
+
+      .mail-status-summary-footer small {
+        min-width: 0;
+        color: #64748b;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+
+      .mail-status-summary-footer button {
+        min-height: 30px;
+        padding: 5px 10px;
+        flex: 0 0 auto;
+      }
+
+      .mail-status-decision-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(360px, .82fr);
+        gap: 16px;
+        align-items: start;
+      }
+
+      .mail-status-hero {
+        display: block;
+        min-width: 0;
+      }
+
+      .mail-status-hero .mail-status-card {
+        min-height: 100%;
+      }
+
+      .mail-status-card {
+        display: grid;
+        gap: 16px;
+        min-width: 0;
+        padding: 22px;
+        border: 1px solid #dbe4ee;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+      }
+
+      .mail-status-loading-card {
+        grid-column: 1 / -1;
+        min-height: 132px;
+        align-content: center;
+      }
+
+      .mail-status-card.is-good {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+      }
+
+      .mail-status-card.is-warn {
+        border-color: #fde68a;
+        background: #fffbeb;
+      }
+
+      .mail-status-card.is-bad {
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+
+      .mail-status-card-head,
+      .mail-status-section-head,
+      .mail-status-card-actions,
+      .mail-status-filter-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .mail-status-card-head h2,
+      .mail-status-section-head h2 {
+        margin: 0;
+      }
+
+      .mail-status-card-main {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .mail-status-card-main > div {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+        padding: 12px;
+        border: 1px solid rgba(148, 163, 184, .25);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .72);
+      }
+
+      .mail-status-card-main span,
+      .mail-status-card-main small {
+        color: #64748b;
+        font-size: 12px;
+      }
+
+      .mail-status-card-main strong {
+        min-width: 0;
+        color: #0f172a;
+        font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+
+      .mail-status-card-actions {
+        justify-content: flex-start;
+      }
+
+      .mail-status-priority-focus {
+        display: grid;
+        gap: 4px;
+        padding: 16px;
+        border: 1px solid rgba(148, 163, 184, .28);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .82);
+      }
+
+      .mail-status-priority-focus span,
+      .mail-status-priority-focus small {
+        color: #64748b;
+        font-size: 12px;
+      }
+
+      .mail-status-priority-focus strong {
+        color: #c2410c;
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      .mail-status-priority-rules {
+        display: grid;
+        gap: 8px;
+        padding: 14px 16px;
+        border: 1px solid rgba(148, 163, 184, .25);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .72);
+      }
+
+      .mail-status-priority-rule {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        color: #334155;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .mail-status-priority-rule::before {
+        width: 8px;
+        height: 8px;
+        margin-top: 5px;
+        border-radius: 999px;
+        background: #2563eb;
+        content: '';
+        flex: 0 0 auto;
+      }
+
+      .mail-status-zero-reasons {
+        display: grid;
+        gap: 12px;
+        margin-top: 12px;
+        padding: 16px;
+        border: 1px solid #fed7aa;
+        border-radius: 12px;
+        background: #fff7ed;
+      }
+
+      .mail-status-zero-reasons-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .mail-status-zero-reasons-head > div {
+        display: grid;
+        gap: 2px;
+      }
+
+      .mail-status-zero-reasons-head strong { color: #9a3412; }
+      .mail-status-zero-reasons-head small { color: #7c2d12; }
+
+      .mail-status-zero-reason-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .mail-status-zero-reason {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+        padding: 11px 12px;
+        border: 1px solid #ffedd5;
+        border-radius: 10px;
+        background: #fff;
+      }
+
+      .mail-status-zero-reason span {
+        color: #64748b;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+
+      .mail-status-zero-reason strong {
+        color: #0f172a;
+        font-size: 17px;
+      }
+
+      .mail-status-alerts {
+        display: grid;
+        gap: 8px;
+      }
+
+      .mail-status-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid #dbe4ee;
+        border-radius: 12px;
+        background: #fff;
+      }
+
+      .mail-status-alert::before {
+        width: 9px;
+        height: 9px;
+        margin-top: 5px;
+        border-radius: 999px;
+        background: #3b82f6;
+        content: '';
+        flex: 0 0 auto;
+      }
+
+      .mail-status-alert.is-good::before { background: #22c55e; }
+      .mail-status-alert.is-warn::before { background: #f59e0b; }
+      .mail-status-alert.is-bad::before { background: #ef4444; }
+
+      .mail-status-alert div {
+        display: grid;
+        gap: 2px;
+      }
+
+      .mail-status-alert strong { color: #0f172a; }
+      .mail-status-alert small { color: #64748b; }
+
+      .mail-status-panel {
+        display: grid;
+        gap: 16px;
+        align-content: start;
+      }
+
+      .mail-status-section-head {
+        align-items: flex-end;
+      }
+
+      .mail-status-section-head > div:first-child {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .mail-status-section-head p {
+        margin: 0;
+      }
+
+      .mail-status-filter-row {
+        justify-content: flex-end;
+      }
+
+      .mail-status-filter-row button {
+        min-height: 34px;
+        padding: 6px 11px;
+      }
+
+      .mail-status-filter-row button.is-active {
+        border-color: #2563eb;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      .mail-status-table-wrap {
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .mail-status-table-wrap table {
+        min-width: 980px;
+      }
+
+      .mail-status-lead-link {
+        max-width: 260px;
+        text-align: left;
+        white-space: normal;
+      }
+
+      .mail-status-history-detail {
+        min-width: 180px;
+      }
+
+      .mail-status-history-detail summary {
+        color: #2563eb;
+        cursor: pointer;
+        font-weight: 800;
+      }
+
+      .mail-status-history-detail div {
+        display: grid;
+        gap: 6px;
+        max-width: 320px;
+        margin-top: 8px;
+        padding: 10px;
+        border-radius: 10px;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 12px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+
+      .mail-status-empty-notice {
+        padding: 14px;
+        border: 1px solid #dbe4ee;
+        border-radius: 12px;
+        background: #f8fafc;
+        color: #475569;
+      }
+
+      .mail-status-empty-notice.is-loading {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        color: #1e40af;
+      }
+
+      .mail-status-empty-notice.is-error {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+      }
+
+      .mail-status-empty-notice.is-error button {
+        flex: 0 0 auto;
+      }
+
+      .mail-status-template-waiting {
+        display: grid;
+        gap: 12px;
+        padding-top: 2px;
+      }
+
+      .mail-status-template-waiting[hidden],
+      .mail-status-tomorrow-table-wrap[hidden] {
+        display: none;
+      }
+
+      .mail-status-template-waiting-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .mail-status-template-waiting-head > div {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .mail-status-template-waiting-head h3,
+      .mail-status-template-waiting-head p {
+        margin: 0;
+      }
+
+      .mail-status-template-waiting-head h3 {
+        color: #111827;
+        font-size: 16px;
+      }
+
+      .mail-status-template-waiting > .mail-status-table-wrap {
+        border: 1px solid #dbe4ee;
+        border-radius: 10px;
+      }
+
+      .mail-status-priority-diagnostics {
+        border-color: #fcd34d;
+        background: #fffbeb;
+      }
+
+      .mail-status-priority-diagnostics[hidden] {
+        display: none;
+      }
+
+      .mail-status-priority-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .mail-status-priority-summary > div {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+        padding: 12px 14px;
+        border: 1px solid #fde68a;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, .82);
+      }
+
+      .mail-status-priority-summary span,
+      .mail-status-priority-summary small {
+        color: #64748b;
+        font-size: 12px;
+      }
+
+      .mail-status-priority-summary strong {
+        color: #111827;
+        font-size: 22px;
+      }
+
+      .mail-status-priority-reasons {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .mail-status-priority-reasons button {
+        min-height: 34px;
+        padding: 6px 11px;
+      }
+
+      .mail-status-priority-reasons button.is-active {
+        border-color: #d97706;
+        background: #fff7d6;
+        color: #92400e;
+      }
+
+      @media (max-width: 1180px) {
+        .mail-status-summary {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .mail-status-decision-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 820px) {
+        .mail-status-card-main {
+          grid-template-columns: 1fr;
+        }
+
+        .mail-status-priority-summary {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .mail-status-summary {
+          grid-template-columns: 1fr;
+        }
+
+        .mail-status-summary-card {
+          min-height: 0;
+        }
+
+        .mail-status-card,
+        .mail-status-panel {
+          padding: 16px;
+        }
+
+        .mail-status-zero-reason-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .mail-status-zero-reasons-head {
+          display: grid;
+        }
+
+        .mail-status-section-head {
+          align-items: flex-start;
+        }
+
+        .mail-status-filter-row {
+          width: 100%;
+          justify-content: flex-start;
+          overflow-x: auto;
+          flex-wrap: nowrap;
+          padding-bottom: 4px;
+        }
+
+        .mail-status-filter-row button {
+          flex: 0 0 auto;
+        }
+
+        .mail-status-table-wrap table {
+          min-width: 920px;
+        }
+      }
+
+      /* v352-mail-status-next-send-first: selected visual direction 1. */
+      .mail-status-operation-bar {
+        display: grid;
+        grid-template-columns: minmax(230px, 1.15fr) minmax(230px, 1fr) minmax(190px, .8fr) auto;
+        min-width: 0;
+        border: 1px solid #dbe4ee;
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, .035);
+        overflow: hidden;
+      }
+
+      .mail-status-operation-item {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        min-width: 0;
+        min-height: 66px;
+        padding: 13px 18px;
+        border-right: 1px solid #e2e8f0;
+      }
+
+      .mail-status-operation-item:last-child {
+        border-right: 0;
+      }
+
+      .mail-status-operation-bar > :only-child {
+        grid-column: 1 / -1;
+        border-right: 0;
+      }
+
+      .mail-status-operation-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        color: #2563eb;
+        flex: 0 0 auto;
+      }
+
+      .mail-status-operation-icon svg {
+        width: 24px;
+        height: 24px;
+      }
+
+      .mail-status-operation-item.is-good .mail-status-operation-icon,
+      .mail-status-operation-item.is-good strong {
+        color: #047857;
+      }
+
+      .mail-status-operation-item.is-warn .mail-status-operation-icon,
+      .mail-status-operation-item.is-warn strong {
+        color: #b45309;
+      }
+
+      .mail-status-operation-item.is-bad .mail-status-operation-icon,
+      .mail-status-operation-item.is-bad strong {
+        color: #b91c1c;
+      }
+
+      .mail-status-operation-item > div {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .mail-status-operation-item span,
+      .mail-status-operation-item small {
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .mail-status-operation-item strong {
+        min-width: 0;
+        color: #0f172a;
+        font-size: 15px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .mail-status-operation-action {
+        justify-content: flex-end;
+        padding-inline: 14px;
+      }
+
+      .mail-status-operation-action button {
+        min-height: 36px;
+        white-space: nowrap;
+      }
+
+      .mail-status-alerts:empty {
+        display: none;
+      }
+
+      .mail-status-tomorrow-panel {
+        gap: 0;
+        padding: 0;
+        border-color: #d8e2ee;
+        border-radius: 16px;
+        overflow: hidden;
+      }
+
+      .mail-status-next-hero {
+        display: grid;
+        grid-template-columns: auto minmax(210px, auto) auto minmax(280px, 1fr);
+        align-items: center;
+        gap: 18px;
+        min-width: 0;
+        padding: 22px 24px;
+        border-bottom: 1px solid #e2e8f0;
+        background: #fff;
+      }
+
+      .mail-status-next-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        color: #2563eb;
+        flex: 0 0 auto;
+      }
+
+      .mail-status-next-icon svg {
+        width: 36px;
+        height: 36px;
+      }
+
+      .mail-status-next-copy {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .mail-status-next-copy p,
+      .mail-status-next-copy h2 {
+        margin: 0;
+      }
+
+      .mail-status-next-copy h2 {
+        color: #0f172a;
+        font-size: clamp(21px, 1.8vw, 28px);
+        line-height: 1.25;
+      }
+
+      .mail-status-next-count {
+        padding-right: 22px;
+        border-right: 1px solid #dbe4ee;
+        color: #1d4ed8;
+        font-size: clamp(38px, 4vw, 58px);
+        line-height: 1;
+        letter-spacing: -.04em;
+        white-space: nowrap;
+      }
+
+      .mail-status-next-limit {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .mail-status-next-limit-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .mail-status-next-limit-line strong {
+        color: #0f172a;
+        font-size: 14px;
+      }
+
+      .mail-status-next-limit-line span,
+      .mail-status-next-limit small {
+        color: #64748b;
+        font-size: 12px;
+      }
+
+      .mail-status-progress-track {
+        display: block;
+        width: 100%;
+        height: 7px;
+        border-radius: 999px;
+        background: #dbeafe;
+        overflow: hidden;
+      }
+
+      .mail-status-progress-track > span {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: #2563eb;
+        transition: width .25s ease;
+      }
+
+      .mail-status-hero {
+        padding: 16px 18px 0;
+      }
+
+      .mail-status-hero:empty {
+        display: none;
+      }
+
+      .mail-status-priority-banner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+        padding: 15px 16px;
+        border: 1px solid #bfdbfe;
+        border-radius: 13px;
+        background: #eff6ff;
+        flex-wrap: wrap;
+      }
+
+      .mail-status-priority-banner.is-warn {
+        border-color: #f4c84f;
+        background: #fffbeb;
+      }
+
+      .mail-status-priority-banner.is-bad {
+        border-color: #fecaca;
+        background: #fef2f2;
+      }
+
+      .mail-status-priority-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        color: #2563eb;
+        flex: 0 0 auto;
+      }
+
+      .mail-status-priority-banner.is-warn .mail-status-priority-icon {
+        color: #b45309;
+      }
+
+      .mail-status-priority-banner.is-bad .mail-status-priority-icon {
+        color: #b91c1c;
+      }
+
+      .mail-status-priority-icon svg {
+        width: 26px;
+        height: 26px;
+      }
+
+      .mail-status-priority-copy {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+        flex: 1 1 420px;
+      }
+
+      .mail-status-priority-title {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        min-width: 0;
+        flex-wrap: wrap;
+      }
+
+      .mail-status-priority-title strong {
+        color: #0f172a;
+        font-size: 18px;
+      }
+
+      .mail-status-priority-title span {
+        color: #92400e;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .mail-status-priority-copy small {
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .mail-status-priority-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex: 0 1 auto;
+        flex-wrap: wrap;
+      }
+
+      .mail-status-priority-actions button,
+      .mail-status-priority-actions .button-link {
+        min-height: 36px;
+        padding: 7px 12px;
+      }
+
+      .mail-status-priority-banner .mail-status-zero-reasons {
+        width: 100%;
+      }
+
+      .mail-status-priority-banner > .form-message {
+        width: 100%;
+      }
+
+      .mail-status-candidate-head {
+        padding: 22px 24px 12px;
+      }
+
+      .mail-status-candidate-head .mail-status-section-head {
+        align-items: flex-end;
+      }
+
+      #mailStatusTomorrowNotice:not(:empty) {
+        margin: 0 18px 14px;
+      }
+
+      .mail-status-tomorrow-panel > .mail-status-template-waiting,
+      .mail-status-tomorrow-panel > .mail-status-table-wrap {
+        margin: 0 16px 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        overflow: auto;
+      }
+
+      .mail-status-tomorrow-panel > .mail-status-template-waiting {
+        padding: 14px;
+      }
+
+      .mail-status-tomorrow-panel > .mail-status-table-wrap table {
+        margin: 0;
+      }
+
+      .mail-status-today-panel {
+        gap: 14px;
+        padding: 20px 22px;
+      }
+
+      .mail-status-today-panel .mail-status-table-wrap {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+      }
+
+      @media (max-width: 1180px) {
+        .mail-status-operation-bar {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .mail-status-operation-item:nth-child(2) {
+          border-right: 0;
+        }
+
+        .mail-status-operation-item:nth-child(-n + 2) {
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .mail-status-next-hero {
+          grid-template-columns: auto minmax(210px, 1fr) auto;
+        }
+
+        .mail-status-next-limit {
+          grid-column: 1 / -1;
+          padding-left: 66px;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .mail-status-operation-bar {
+          grid-template-columns: 1fr;
+        }
+
+        .mail-status-operation-item,
+        .mail-status-operation-item:nth-child(2) {
+          border-right: 0;
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .mail-status-operation-item:last-child {
+          border-bottom: 0;
+        }
+
+        .mail-status-operation-action {
+          justify-content: stretch;
+        }
+
+        .mail-status-operation-action button {
+          width: 100%;
+        }
+
+        .mail-status-next-hero {
+          grid-template-columns: auto minmax(0, 1fr);
+          gap: 12px;
+          padding: 18px 16px;
+        }
+
+        .mail-status-next-count {
+          grid-column: 2;
+          padding: 0;
+          border: 0;
+          font-size: 40px;
+        }
+
+        .mail-status-next-limit {
+          grid-column: 1 / -1;
+          padding-left: 0;
+        }
+
+        .mail-status-next-limit-line {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        .mail-status-hero {
+          padding: 12px 12px 0;
+        }
+
+        .mail-status-priority-banner {
+          align-items: flex-start;
+          flex-wrap: wrap;
+        }
+
+        .mail-status-priority-copy {
+          flex-basis: calc(100% - 52px);
+        }
+
+        .mail-status-priority-actions {
+          width: 100%;
+          justify-content: flex-start;
+          padding-left: 52px;
+        }
+
+        .mail-status-priority-actions button,
+        .mail-status-priority-actions .button-link {
+          flex: 1 1 140px;
+          justify-content: center;
+        }
+
+        .mail-status-candidate-head {
+          padding: 18px 16px 10px;
+        }
+
+        .mail-status-tomorrow-panel > .mail-status-template-waiting,
+        .mail-status-tomorrow-panel > .mail-status-table-wrap {
+          margin-inline: 10px;
+        }
+
+        .mail-status-today-panel {
+          padding: 16px;
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         *,
         *::before,
@@ -14940,6 +16779,9 @@
             <button type="button" class="tab nav-item" data-tab="emailLeads" onclick="showTab('emailLeads')">
               <span class="nav-icon">ML</span><span class="nav-copy"><strong>送信</strong><small>送信対象を確認</small></span><span id="navSendCount" class="nav-count" hidden>0</span>
             </button>
+            <button type="button" class="tab nav-item" data-tab="mailStatus" onclick="showTab('mailStatus')">
+              <span class="nav-icon">ST</span><span class="nav-copy"><strong>送信状況</strong><small>今日・明日・優先設定</small></span>
+            </button>
             <button type="button" class="tab nav-item" data-tab="analytics" onclick="showTab('analytics')">
               <span class="nav-icon">AN</span><span class="nav-copy"><strong>成果</strong><small>返信・商談・分析</small></span>
             </button>
@@ -14951,7 +16793,7 @@
             <div class="nav-group nav-group-secondary">
               <button type="button" class="tab nav-item" data-tab="leads" onclick="showTab('leads')"><span class="nav-icon">LD</span><span>営業リスト</span></button>
               <button type="button" class="tab nav-item" data-tab="backgroundJobs" onclick="showTab('backgroundJobs')"><span class="nav-icon">BG</span><span>収集の進捗</span></button>
-              <button type="button" class="tab nav-item" data-tab="forms" onclick="showTab('forms')"><span class="nav-icon">FM</span><span>フォーム送信</span></button>
+              <button type="button" class="tab nav-item" data-tab="forms" onpointerenter="prefetchFormOutreachWorkspace()" onfocus="prefetchFormOutreachWorkspace()" onclick="showTab('forms')"><span class="nav-icon">FM</span><span>フォーム送信</span></button>
               <button type="button" class="tab nav-item" data-tab="sending" onclick="showTab('sending')"><span class="nav-icon">PV</span><span>送信プレビュー</span></button>
               <button type="button" class="tab nav-item" data-tab="histories" onclick="showTab('histories')"><span class="nav-icon">HS</span><span>送信履歴</span></button>
               <button type="button" class="tab nav-item" data-tab="templates" onclick="showTab('templates')"><span class="nav-icon">TP</span><span>テンプレート</span></button>
@@ -15525,65 +17367,72 @@
         </section>
 
         <section id="forms" class="section">
-          <header class="section-header">
+          <header class="section-header form-continuous-header">
             <div>
               <p class="eyebrow">フォーム営業</p>
-              <h1>フォーム送信リスト</h1>
+              <h1>フォーム送信</h1>
+              <p class="section-description">公式サイトを開いて本文コピー → 手動送信 → 送信済み・次へ</p>
             </div>
-            <div class="toolbar">
-              <button type="button" onclick="showTab('leads'); setLeadFilter('form')">営業リストで見る</button>
-              <button type="button" class="primary" onclick="showTab('templates')">フォーム用テンプレート</button>
+            <div class="toolbar form-header-actions">
+              <button type="button" class="button secondary" onclick="toggleFormShortcutGuide()"><span class="button-icon" data-ui-icon="listChecks"></span>ショートカット</button>
+              <button type="button" class="button secondary" onclick="showTab('templates')"><span class="button-icon" data-ui-icon="mailCheck"></span>テンプレート</button>
             </div>
           </header>
-          <div class="form-outreach-toolbar">
-            <div id="formOutreachSummary" class="form-outreach-summary-grid"></div>
-            <div class="list-filter-panel">
-              <label>検索<input id="formSearch" type="search" placeholder="会社名、施設名、フォームURL"></label>
-              <label>フォーム状態<select id="formStatusFilter">
-                <option value="active">未対応/対応中</option>
-                <option value="未対応">未対応</option>
-                <option value="対応中">対応中</option>
-                <option value="対応済み">対応済み</option>
-                <option value="対応不要">対応不要</option>
-                <option value="all">すべて</option>
-              </select></label>
-              <label>表示件数<select id="formLimit">
-                <option value="25" selected>25件</option>
-                <option value="50">50件</option>
-                <option value="100">100件</option>
-                <option value="300">300件</option>
-              </select></label>
-              <div class="list-filter-actions">
-                <button type="button" class="button" onclick="loadFormLeads()"><span class="button-icon" data-ui-icon="search"></span>適用</button>
-                <button type="button" class="button secondary" onclick="clearFormFilters()"><span class="button-icon" data-ui-icon="reset"></span>クリア</button>
-              </div>
-              <span class="list-filter-panel-icon" data-ui-icon="sliders" aria-hidden="true"></span>
+          <section class="form-continuous-status" aria-label="フォーム送信キューの状態">
+            <div id="formOutreachSummary" class="form-progress-summary"></div>
+            <div class="form-queue-filters">
+              <label>検索<input id="formSearch" type="search" placeholder="会社名・施設名・URL" onkeydown="handleFormSearchKeydown(event)"></label>
+              <label>ジャンル<select id="formGenreFilter" onchange="loadFormLeads()"><option value="">すべて</option></select></label>
+              <button type="button" class="button secondary" onclick="loadFormLeads()"><span class="button-icon" data-ui-icon="sliders"></span>絞り込み</button>
+              <button type="button" class="button secondary" onclick="clearFormFilters()"><span class="button-icon" data-ui-icon="reset"></span>クリア</button>
+              <input id="formStatusFilter" type="hidden" value="active">
+              <input id="formLimit" type="hidden" value="25">
             </div>
-          </div>
-          <div id="formWorkPanel" class="form-work-panel"></div>
-          <div class="form-board-grid">
-            <section class="panel form-lead-list-panel">
-              <div class="panel-head"><h2>フォーム対象</h2><span class="pill info" id="formLeadCount">0件</span></div>
+          </section>
+
+          <section id="formShortcutGuide" class="form-shortcut-guide" hidden>
+            <span><kbd>O</kbd> 公式サイトを開いて本文コピー</span>
+            <span><kbd>S</kbd> 送信済み・次へ</span>
+            <span><kbd>X</kbd> 送信不可・次へ</span>
+          </section>
+
+          <div class="form-continuous-layout">
+            <section class="panel form-current-card" aria-labelledby="formCurrentHeading">
+              <div class="panel-head">
+                <h2 id="formCurrentHeading">現在の施設</h2>
+                <span class="pill info" id="formCurrentPosition">0 / 0件</span>
+              </div>
               <div id="formLeadEmptyState" class="form-list-empty-state">
-                <strong>フォーム対象を読み込み中です</strong>
-                <span>対象リストを取得しています。読み込み後にここへフォーム送信候補を表示します。</span>
+                <strong>送信可能な施設を読み込み中です</strong>
+                <span>テンプレート設定と送信条件を確認しています。</span>
               </div>
-              <div class="table-wrap table-form-outreach"><table id="formLeadTable"></table></div>
+              <div id="formCurrentLeadContent" class="form-current-content" aria-live="polite"></div>
             </section>
-            <section class="panel side">
-              <div class="panel-head"><h2>本文プレビュー</h2><span class="pill" id="formTemplatePill">未選択</span></div>
-              <div class="panel-body">
-                <p class="muted" id="formPreviewMeta">対象を選択してください</p>
-                <div class="form-template-preview" id="formTemplatePreview">フォーム送信用テンプレートがここに表示されます。</div>
-                <div class="toolbar" style="margin-top:12px">
-                  <button type="button" class="primary" id="formPreviewCopyButton" onclick="copySelectedFormMessage()">コピー</button>
-                  <button type="button" id="formPreviewWorkingButton" onclick="markSelectedFormLead('対応中')">対応中</button>
-                  <button type="button" id="formPreviewSentButton" onclick="markSelectedFormLead('対応済み')">対応済み</button>
-                  <button type="button" class="danger" id="formPreviewNoActionButton" onclick="markSelectedFormLead('対応不要')">対応不要</button>
-                </div>
+
+            <aside class="panel form-next-card" aria-labelledby="formNextHeading">
+              <div class="panel-head">
+                <h2 id="formNextHeading">次の候補</h2>
+                <span class="pill info" id="formLeadCount">0件</span>
               </div>
-            </section>
+              <ol id="formNextQueue" class="form-next-queue"></ol>
+              <button type="button" class="form-review-link" id="formReviewToggle" onclick="toggleFormReviewPanel()">
+                <span>要確認（送信できない候補）</span><strong id="formReviewCount">0件</strong><span class="button-icon" data-ui-icon="arrowRight"></span>
+              </button>
+            </aside>
           </div>
+
+          <section id="formReviewPanel" class="panel form-review-panel" hidden>
+            <div class="panel-head">
+              <div><h2>要確認</h2><p class="muted">テンプレート不足・送信NG・公式サイト未取得など、連続送信できない理由を表示します。</p></div>
+              <button type="button" class="button secondary" onclick="toggleFormReviewPanel(false)">閉じる</button>
+            </div>
+            <div id="formReviewSummary" class="form-review-summary"></div>
+            <div id="formReviewList" class="form-review-list"></div>
+          </section>
+
+          <div id="formWorkPanel" hidden></div>
+          <section id="formChatgptCopyPanel" hidden aria-hidden="true"></section>
+          <table id="formLeadTable" hidden aria-hidden="true"></table>
         </section>
 
         <section id="search" class="section">
@@ -15720,6 +17569,87 @@
           <section class="panel">
             <div class="panel-head"><h2>メール送信対象</h2><span class="pill info" id="emailLeadCountPill">0件</span></div>
             <div class="table-wrap table-email-leads"><table id="emailLeadTable"></table></div>
+          </section>
+        </section>
+
+        <section id="mailStatus" class="section">
+          <header class="section-header">
+            <div>
+              <p class="eyebrow">メール運用ボード</p>
+              <h1>メール送信状況</h1>
+              <p class="muted">稼働状況、次回送信、優先設定、今日の結果を上から順に確認できます。</p>
+            </div>
+            <div class="toolbar">
+              <span id="mailStatusUpdatedAt" class="muted">未取得</span>
+              <button id="mailStatusRefreshButton" type="button" class="icon-text-button" onclick="refreshEmailDeliveryStatus()"><span class="button-icon" data-ui-icon="refreshCw"></span>最新情報に更新</button>
+            </div>
+          </header>
+          <section id="mailStatusMetrics" class="mail-status-operation-bar" aria-label="メール運用サマリー"></section>
+          <section id="mailStatusAlerts" class="mail-status-alerts" aria-live="polite"></section>
+          <section class="panel stack mail-status-panel mail-status-tomorrow-panel">
+            <div class="mail-status-next-hero" aria-label="次回送信予定">
+              <span class="mail-status-next-icon" data-ui-icon="calendarCheck" aria-hidden="true"></span>
+              <div class="mail-status-next-copy">
+                <p class="eyebrow">次回送信</p>
+                <h2><span id="mailStatusTomorrowDateLabel">明日</span>に送る予定</h2>
+              </div>
+              <strong id="mailStatusTomorrowCountHero" class="mail-status-next-count">0件</strong>
+              <div class="mail-status-next-limit">
+                <div class="mail-status-next-limit-line">
+                  <strong id="mailStatusTomorrowLimit">1日上限 0件 / 1回 0件</strong>
+                  <span id="mailStatusTomorrowProgressLabel">0 / 0件</span>
+                </div>
+                <span id="mailStatusTomorrowProgressTrack" class="mail-status-progress-track" role="progressbar" aria-label="明日の送信予定数" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"><span id="mailStatusTomorrowProgressBar"></span></span>
+                <small id="mailStatusTomorrowSchedule">送信予定を確認中です。</small>
+              </div>
+            </div>
+            <section id="mailStatusHero" class="mail-status-hero" aria-live="polite"></section>
+            <div class="mail-status-candidate-head">
+              <div class="mail-status-section-head">
+                <div>
+                  <p class="eyebrow">送信順を確認</p>
+                  <h2>明日の送信候補</h2>
+                  <p id="mailStatusTomorrowCaption" class="muted">優先設定・送信条件・1日の上限を反映した予定順です。</p>
+                </div>
+                <span id="mailStatusTomorrowPill" class="pill info">0件</span>
+              </div>
+            </div>
+            <div id="mailStatusTomorrowNotice"></div>
+            <section id="mailStatusTemplateWaiting" class="mail-status-template-waiting" hidden>
+              <div class="mail-status-template-waiting-head">
+                <div>
+                  <h3>本番テンプレート設定待ち</h3>
+                  <p id="mailStatusTemplateWaitingCaption" class="muted"></p>
+                </div>
+                <button type="button" onclick="showTab('templates')">テンプレートを設定</button>
+              </div>
+              <div class="table-wrap mail-status-table-wrap"><table id="mailStatusTemplateWaitingTable"></table></div>
+            </section>
+            <div id="mailStatusTomorrowTableWrap" class="table-wrap mail-status-table-wrap mail-status-tomorrow-table-wrap"><table id="mailStatusTomorrowTable"></table></div>
+          </section>
+          <section id="mailStatusPriorityDiagnostics" class="panel stack mail-status-priority-diagnostics" aria-live="polite" hidden>
+            <div class="mail-status-section-head">
+              <div>
+                <p class="eyebrow">グランピング優先の対象判定</p>
+                <h2>グランピング施設リスト</h2>
+                <p id="mailStatusPriorityDiagnosticsCaption" class="muted"></p>
+              </div>
+              <button type="button" onclick="hideEmailGenrePriorityDiagnostics()">閉じる</button>
+            </div>
+            <div id="mailStatusPriorityDiagnosticsSummary" class="mail-status-priority-summary"></div>
+            <div id="mailStatusPriorityReasonFilters" class="mail-status-priority-reasons"></div>
+            <div class="table-wrap mail-status-table-wrap"><table id="mailStatusPriorityDiagnosticsTable"></table></div>
+          </section>
+          <section class="panel stack mail-status-panel mail-status-today-panel">
+            <div class="mail-status-section-head">
+              <div>
+                <p class="eyebrow">今日の実績</p>
+                <h2>今日送ったリスト</h2>
+                <p id="mailStatusTodayCaption" class="muted">本日の送信履歴を状態別に表示します。</p>
+              </div>
+              <div id="mailStatusTodayFilters" class="mail-status-filter-row"></div>
+            </div>
+            <div class="table-wrap mail-status-table-wrap"><table id="mailStatusTodayTable"></table></div>
           </section>
         </section>
 
@@ -16094,6 +18024,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         backgroundJobs: 'バックグラウンド進捗',
         backgroundActivity: '直近実行結果',
         emailLeads: 'メール送信リスト',
+        mailStatus: 'メール送信状況',
         sending: '送信プレビュー',
         histories: '送信履歴',
         deals: '商談',
@@ -16119,6 +18050,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         backgroundJobs: '収集や自動処理の進捗、停止理由、完了結果を確認します。',
         backgroundActivity: '直近の収集結果と、追加・重複・除外の内訳を確認します。',
         emailLeads: '安全チェックを通過したメール送信対象を確認します。',
+        mailStatus: '今日の送信結果、明日の候補、自動送信と優先設定をまとめて確認します。',
         forms: 'お問い合わせフォームから連絡する営業先を管理します。',
         templates: 'メールとフォーム営業で使用する文章を管理します。',
         sending: '送信対象と差し込み内容を確認してから実行します。',
@@ -16160,12 +18092,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const leadSender = document.getElementById('leadSenderName');
         if (leadSender && !String(leadSender.value || '').trim()) leadSender.value = senderName;
       }
-      let routeProgressTimer = null;
+      let routeProgressDelayTimer = null;
       let leadLoadProgressTimer = null;
       let sourcePageProgressTimer = null;
       let sourcePageAdvanceInFlightJobId = '';
       let messageClearTimer = null;
       let currentTab = 'reviewLeads';
+      let emailDeliveryStatusRefreshTimer = 0;
       let busyRequestCount = 0;
       let activeDialogElement = null;
       let activeDialogReturnFocus = null;
@@ -16738,6 +18671,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         reasons: [],
         formLeads: [],
         formTotal: 0,
+        formReviewItems: [],
+        formReviewTotal: 0,
+        formReviewBreakdown: { template_missing: 0, send_ng: 0, website_missing: 0, waiting: 0, blocked: 0 },
+        formBatchCompleted: 0,
+        formBatchSize: 0,
+        formShortcutBusy: false,
         emailLeads: [],
         emailTotal: 0,
         emailBatchLeads: [],
@@ -16748,6 +18687,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         emailGenrePriority: null,
         emailGenrePriorityConfirmOpen: false,
         emailGenrePriorityChanging: false,
+        emailDeliveryStatus: null,
+        mailStatusHistoryFilter: 'all',
+        mailStatusPriorityReasonFilter: 'all',
+        mailStatusPriorityDiagnosticsVisible: false,
+        mailStatusLoading: false,
+        mailStatusTomorrowLoading: false,
+        mailStatusOverviewError: '',
+        mailStatusTomorrowError: '',
         selectedEmailPreviewTemplateId: '',
         selectedEmailPreviewLeadId: '',
         emailBatchConfirmOpen: false,
@@ -16790,8 +18737,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         leadDangerConfirmAction: '',
         dismissedBackgroundJobKeys: [],
         selectedFormLeadId: '',
+        selectedFormTemplateIdsByLead: {},
         formUpdatingLeadId: '',
         copiedFormFacilityId: '',
+        copiedFormMessageLeadId: '',
+        copiedChatgptTemplateRaw: false,
         selectedLeadIds: [],
         hasCompletedInitialLoad: false,
         startupRefreshScheduled: false,
@@ -16811,6 +18761,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           syncLogDetails: false,
           gmailAuth: false,
           emailGenrePriority: false,
+          mailStatus: false,
           emailLeads: false,
           formLeads: false,
           dealLeads: false,
@@ -16889,6 +18840,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         backgroundJobs: 30,
         backgroundActivity: 30,
         sendHistory: 30,
+        mailStatusToday: 60,
+        mailStatusTomorrow: 100,
         emailLeads: 25,
         excludedDomains: 40,
         analyticsDaily: 30,
@@ -16909,6 +18862,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return callApi(name, args, { busy: false });
       }
 
+      const API_BUSY_REVEAL_DELAY_MS = 450;
+      const API_SLOW_LOG_THRESHOLD_MS = 1200;
       const LEAD_LIST_CLIENT_CACHE_TTL_MS = 120000;
       const LEAD_LIST_SESSION_CACHE_TTL_MS = 600000;
       const LEAD_LIST_SESSION_CACHE_PREFIX = 'lead-list-display-v267:';
@@ -16933,16 +18888,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         'createLead',
         'deleteLead',
         'deleteExcludedDomain',
+        'deleteEmailTemplate',
+        'markLeadFormUnavailable',
         'markLeadFormSent',
         'runSmallSearchJob',
         'repairBackgroundJobs',
         'restoreReplyFalsePositiveCandidates',
         'reviewSearchResults',
         'saveExcludedDomain',
+        'saveEmailTemplate',
         'saveNgMaster',
         'sendLeadEmail',
         'sendLeadEmailBatch',
         'setEmailGenrePriority',
+        'setEmailTemplateProduction',
+        'setMailSendingControl',
         'startSearchJob',
         'startLeadCsvImport',
         'unmarkLeadFormSent',
@@ -16956,12 +18916,71 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       const leadListInFlightRequests = new Map();
       const leadListStatsInFlightRequests = new Map();
       const leadListPrefetchSignatures = new Set();
+      const FORM_OUTREACH_QUEUE_CLIENT_CACHE_TTL_MS = 60000;
+      const formOutreachQueueResponseCache = new Map();
+      const formOutreachQueueInFlightRequests = new Map();
+      let formOutreachQueueClientRevision = 0;
       let leadListRequestSequence = 0;
       let leadListStatsRequestSequence = 0;
       let leadSearchDebounceTimer = 0;
 
       function cloneLeadListPayload(value) {
         return value == null ? value : JSON.parse(JSON.stringify(value));
+      }
+
+      function formOutreachQueueClientCacheKey(request) {
+        const source = request || {};
+        return JSON.stringify({
+          search: String(source.search || '').trim().toLowerCase(),
+          genre: String(source.genre || '').trim(),
+          limit: Math.min(Math.max(Number(source.limit) || 25, 1), 25),
+        });
+      }
+
+      function readFormOutreachQueueClientCache(request) {
+        const key = formOutreachQueueClientCacheKey(request);
+        const entry = formOutreachQueueResponseCache.get(key);
+        if (!entry) return null;
+        if (Number(entry.expiresAt || 0) <= Date.now()) {
+          formOutreachQueueResponseCache.delete(key);
+          return null;
+        }
+        return cloneLeadListPayload(entry.value);
+      }
+
+      function requestFormOutreachQueue(request, options) {
+        const config = options || {};
+        const key = formOutreachQueueClientCacheKey(request);
+        const cached = config.force === true ? null : readFormOutreachQueueClientCache(request);
+        if (cached) return Promise.resolve(cached);
+        if (formOutreachQueueInFlightRequests.has(key)) return formOutreachQueueInFlightRequests.get(key);
+        const requestRevision = formOutreachQueueClientRevision;
+        const pending = apiQuiet('listFormOutreachQueue', request)
+          .then((result) => {
+            if (requestRevision === formOutreachQueueClientRevision) {
+              formOutreachQueueResponseCache.set(key, {
+                expiresAt: Date.now() + FORM_OUTREACH_QUEUE_CLIENT_CACHE_TTL_MS,
+                value: cloneLeadListPayload(result),
+              });
+            }
+            return cloneLeadListPayload(result);
+          })
+          .finally(() => {
+            if (formOutreachQueueInFlightRequests.get(key) === pending) {
+              formOutreachQueueInFlightRequests.delete(key);
+            }
+          });
+        formOutreachQueueInFlightRequests.set(key, pending);
+        return pending;
+      }
+
+      function prefetchFormOutreachWorkspace() {
+        if (!state.hasCompletedInitialLoad || state.dataLoaded.formLeads) return Promise.resolve();
+        return ensureDataLoaded('templates', () => loadTemplates({ quiet: true }), { quietError: true })
+          .then(() => ensureDataLoaded('formLeads', () => loadFormLeads({ prefetch: true }), { quietError: true }))
+          .catch((error) => {
+            console.warn('Form outreach prefetch skipped:', error && error.message ? error.message : error);
+          });
       }
 
       function readLeadListClientCacheEntry(cache, key) {
@@ -17073,6 +19092,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         leadListInFlightRequests.clear();
         leadListStatsInFlightRequests.clear();
         leadListPrefetchSignatures.clear();
+        formOutreachQueueResponseCache.clear();
+        formOutreachQueueInFlightRequests.clear();
+        formOutreachQueueClientRevision += 1;
         clearLeadListSessionCache();
         leadListRequestSequence += 1;
         leadListStatsRequestSequence += 1;
@@ -17121,7 +19143,16 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function callApi(name, args, options) {
         const useBusy = !options || options.busy !== false;
-        if (useBusy) setBusy(true);
+        const startedAt = Date.now();
+        let busyVisible = false;
+        let busyDelayTimer = 0;
+        if (useBusy) {
+          busyDelayTimer = window.setTimeout(() => {
+            busyDelayTimer = 0;
+            busyVisible = true;
+            setBusy(true);
+          }, API_BUSY_REVEAL_DELAY_MS);
+        }
         return new Promise((resolve, reject) => {
           let finished = false;
           let timeoutId = 0;
@@ -17129,7 +19160,12 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             if (finished) return false;
             finished = true;
             if (timeoutId) window.clearTimeout(timeoutId);
-            if (useBusy) setBusy(false);
+            if (busyDelayTimer) window.clearTimeout(busyDelayTimer);
+            if (busyVisible) setBusy(false);
+            const elapsedMs = Date.now() - startedAt;
+            if (elapsedMs >= API_SLOW_LOG_THRESHOLD_MS) {
+              console.info(`[api-performance] ${String(name || 'unknown')} ${elapsedMs}ms`);
+            }
             return true;
           };
           timeoutId = window.setTimeout(() => {
@@ -17305,8 +19341,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function showTab(name) {
         if (name === 'masters') name = 'sendNg';
-        showRouteProgress();
         const changedTab = currentTab !== name;
+        if (changedTab && tabHasPendingData(name)) showRouteProgress();
+        else hideRouteProgress();
         if (changedTab && state.taskCenterOpen) closeTaskCenter({ restoreFocus: false });
         if (changedTab) {
           currentTab = name;
@@ -17327,7 +19364,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           focusActiveSectionHeading(name);
         }
         renderSectionLoading(name);
-        ensureTabDataLoaded(name);
+        Promise.resolve(ensureTabDataLoaded(name)).finally(hideRouteProgress);
+        if (name === 'mailStatus') scheduleEmailDeliveryStatusRefresh();
+        else clearEmailDeliveryStatusRefreshTimer();
       }
 
       function focusActiveSectionHeading(sectionId) {
@@ -17351,9 +19390,18 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function showRouteProgress() {
         const progress = document.getElementById('appRouteProgress');
         if (!progress) return;
-        progress.classList.add('active');
-        if (routeProgressTimer) clearTimeout(routeProgressTimer);
-        routeProgressTimer = setTimeout(() => progress.classList.remove('active'), 650);
+        hideRouteProgress();
+        routeProgressDelayTimer = window.setTimeout(() => {
+          routeProgressDelayTimer = null;
+          progress.classList.add('active');
+        }, 220);
+      }
+
+      function hideRouteProgress() {
+        const progress = document.getElementById('appRouteProgress');
+        if (routeProgressDelayTimer) window.clearTimeout(routeProgressDelayTimer);
+        routeProgressDelayTimer = null;
+        if (progress) progress.classList.remove('active');
       }
 
       function renderAppSafetyStrip(dashboard) {
@@ -17552,6 +19600,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           const isInitialLoad = !state.hasCompletedInitialLoad;
           message('読み込み中...');
           hideAuthorizationGate();
+          clearLeadListClientCaches();
           resetDeferredDataFlags();
           const initial = await api('getInitialData');
           state.app = initial.app;
@@ -17709,6 +19758,625 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return result;
       }
 
+      function clearEmailDeliveryStatusRefreshTimer() {
+        if (!emailDeliveryStatusRefreshTimer) return;
+        window.clearTimeout(emailDeliveryStatusRefreshTimer);
+        emailDeliveryStatusRefreshTimer = 0;
+      }
+
+      function jstClockParts(date) {
+        try {
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Tokyo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23',
+          }).formatToParts(date || new Date());
+          return parts.reduce((result, part) => {
+            if (part.type !== 'literal') result[part.type] = Number(part.value);
+            return result;
+          }, {});
+        } catch (_) {
+          const value = date || new Date();
+          return {
+            year: value.getFullYear(),
+            month: value.getMonth() + 1,
+            day: value.getDate(),
+            hour: value.getHours(),
+            minute: value.getMinutes(),
+            second: value.getSeconds(),
+          };
+        }
+      }
+
+      function nextEmailDeliveryStatusRefreshDelayMs(nowDate) {
+        const now = nowDate || new Date();
+        const parts = jstClockParts(now);
+        const clockNow = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second || 0);
+        const refreshTimes = [[6, 30], [12, 0], [18, 0]];
+        let target = refreshTimes.map(([hour, minute]) => Date.UTC(parts.year, parts.month - 1, parts.day, hour, minute, 0))
+          .find((timestamp) => timestamp > clockNow + 1000);
+        if (!target) target = Date.UTC(parts.year, parts.month - 1, parts.day + 1, refreshTimes[0][0], refreshTimes[0][1], 0);
+        return Math.max(1000, target - clockNow);
+      }
+
+      function scheduleEmailDeliveryStatusRefresh() {
+        clearEmailDeliveryStatusRefreshTimer();
+        if (currentTab !== 'mailStatus') return;
+        emailDeliveryStatusRefreshTimer = window.setTimeout(async () => {
+          emailDeliveryStatusRefreshTimer = 0;
+          if (currentTab === 'mailStatus') {
+            try {
+              state.dataLoaded.mailStatus = false;
+              await loadEmailDeliveryStatus({ quiet: true });
+            } catch (error) {
+              console.warn('Mail status scheduled refresh skipped:', apiErrorText(error));
+            }
+          }
+          scheduleEmailDeliveryStatusRefresh();
+        }, nextEmailDeliveryStatusRefreshDelayMs());
+      }
+
+      async function loadEmailDeliveryStatus(options) {
+        const config = options || {};
+        if (state.mailStatusLoading) return state.emailDeliveryStatus;
+        state.mailStatusLoading = true;
+        state.mailStatusOverviewError = '';
+        state.mailStatusTomorrowError = '';
+        renderEmailDeliveryStatus();
+        try {
+          const request = config.quiet ? apiQuiet : api;
+          const result = await request('getEmailDeliveryOverview', { historyLimit: 200 });
+          state.emailDeliveryStatus = result || null;
+          if (result && result.priority) {
+            state.emailGenrePriority = result.priority;
+            state.dataLoaded.emailGenrePriority = true;
+          }
+          state.dataLoaded.mailStatus = true;
+          renderEmailDeliveryStatus();
+          const tomorrowPromise = loadEmailDeliveryTomorrowCandidates({ quiet: true });
+          if (config.awaitTomorrow === true) await tomorrowPromise;
+          return state.emailDeliveryStatus;
+        } catch (error) {
+          state.mailStatusOverviewError = apiErrorText(error);
+          state.dataLoaded.mailStatus = false;
+          throw error;
+        } finally {
+          state.mailStatusLoading = false;
+          renderEmailDeliveryStatus();
+        }
+      }
+
+      async function loadEmailDeliveryTomorrowCandidates(options) {
+        const config = options || {};
+        if (state.mailStatusTomorrowLoading) return state.emailDeliveryStatus && state.emailDeliveryStatus.tomorrow;
+        state.mailStatusTomorrowLoading = true;
+        state.mailStatusTomorrowError = '';
+        renderEmailDeliveryStatus();
+        try {
+          const request = config.quiet ? apiQuiet : api;
+          const result = await request('getEmailDeliveryStatus', { historyLimit: 200 });
+          if (!result) throw new Error('明日の送信候補を取得できませんでした。');
+          state.emailDeliveryStatus = result;
+          if (result.priority) {
+            state.emailGenrePriority = result.priority;
+            state.dataLoaded.emailGenrePriority = true;
+          }
+          renderEmailDeliveryStatus();
+          return result.tomorrow || null;
+        } catch (error) {
+          state.mailStatusTomorrowError = apiErrorText(error);
+          renderEmailDeliveryStatus();
+          if (config.throwOnError === true) throw error;
+          return null;
+        } finally {
+          state.mailStatusTomorrowLoading = false;
+          renderEmailDeliveryStatus();
+        }
+      }
+
+      async function retryEmailDeliveryTomorrowCandidates() {
+        await loadEmailDeliveryTomorrowCandidates({ quiet: false });
+      }
+
+      async function refreshEmailDeliveryStatus(options) {
+        const config = options || {};
+        try {
+          state.dataLoaded.mailStatus = false;
+          await loadEmailDeliveryStatus({ quiet: config.quiet === true, awaitTomorrow: true });
+          if (!config.quiet) {
+            message(state.mailStatusTomorrowError
+              ? `今日の状態を更新しました。明日の候補は取得できませんでした: ${state.mailStatusTomorrowError}`
+              : 'メール送信状況を最新に更新しました。', state.mailStatusTomorrowError ? 'error' : 'ok');
+          }
+        } catch (error) {
+          message(`メール送信状況を更新できませんでした: ${apiErrorText(error)}`, 'error');
+          throw error;
+        } finally {
+          scheduleEmailDeliveryStatusRefresh();
+        }
+      }
+
+      async function refreshEmailDeliveryStatusAfterAction() {
+        state.dataLoaded.mailStatus = false;
+        await loadEmailDeliveryStatus({ quiet: true, awaitTomorrow: true });
+        scheduleEmailDeliveryStatusRefresh();
+      }
+
+      function mailStatusOperationItem(icon, label, value, detail, tone, extraClass) {
+        return `
+          <div class="mail-status-operation-item ${tone ? `is-${escapeHtml(tone)}` : ''} ${extraClass ? escapeHtml(extraClass) : ''}">
+            <span class="mail-status-operation-icon" data-ui-icon="${escapeHtml(icon || 'checkCircle')}" aria-hidden="true"></span>
+            <div>
+              <span>${escapeHtml(label)}</span>
+              <strong>${escapeHtml(value)}</strong>
+              <small>${escapeHtml(detail || '')}</small>
+            </div>
+          </div>
+        `;
+      }
+
+      function mailStatusShortDateLabel(value, fallback) {
+        const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return fallback || '明日';
+        return `${Number(match[2])}/${Number(match[3])}`;
+      }
+
+      function mailStatusPriorityReasonSummary(priority, options) {
+        const source = priority || {};
+        const diagnostics = source.diagnostics || {};
+        const config = options || {};
+        if (diagnostics.loading === true) return '';
+        const blockedReasons = (diagnostics.reasons || []).filter((reason) => String(reason.key || '').indexOf('sendable') !== 0);
+        if (!blockedReasons.length) return '';
+        const reasons = blockedReasons.slice(0, 4);
+        const title = config.title || '候補に表示されない理由';
+        const detail = config.detail || `対象外 ${formatNumber(diagnostics.blockedCount || 0)}件を理由別に確認できます。`;
+        return `
+          <section class="mail-status-zero-reasons" aria-label="${escapeHtml(title)}">
+            <div class="mail-status-zero-reasons-head">
+              <div><strong>${escapeHtml(title)}</strong><small>${escapeHtml(detail)}</small></div>
+              <button type="button" onclick="showEmailGenrePriorityDiagnostics()">全施設を見る</button>
+            </div>
+            <div class="mail-status-zero-reason-grid">
+              ${reasons.map((reason) => `
+                <div class="mail-status-zero-reason">
+                  <span>${escapeHtml(reason.label || 'その他')}</span>
+                  <strong>${formatNumber(reason.count || 0)}件</strong>
+                </div>
+              `).join('')}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderEmailDeliveryStatus() {
+        const status = state.emailDeliveryStatus;
+        const updated = document.getElementById('mailStatusUpdatedAt');
+        const refreshButton = document.getElementById('mailStatusRefreshButton');
+        if (updated) {
+          if (state.mailStatusOverviewError) {
+            updated.textContent = '状態を取得できませんでした';
+          } else if (status && status.generatedAt) {
+            const suffix = state.mailStatusTomorrowLoading
+              ? ' / 明日の候補を計算中…'
+              : (state.mailStatusTomorrowError ? ' / 明日の候補は取得失敗' : '');
+            updated.textContent = `更新 ${dateTimeLabel(status.generatedAt)}${suffix}（自動更新 6:30 / 12:00 / 18:00）`;
+          } else {
+            updated.textContent = state.mailStatusLoading ? '最新状態を取得中…' : '未取得';
+          }
+        }
+        if (refreshButton) refreshButton.disabled = state.mailStatusLoading || state.mailStatusTomorrowLoading;
+        const hero = document.getElementById('mailStatusHero');
+        const metrics = document.getElementById('mailStatusMetrics');
+        const alerts = document.getElementById('mailStatusAlerts');
+        if (!hero || !metrics || !alerts) return;
+        if (!status) {
+          const priorityDiagnostics = document.getElementById('mailStatusPriorityDiagnostics');
+          if (priorityDiagnostics) priorityDiagnostics.hidden = true;
+          hero.innerHTML = `<article class="mail-status-card mail-status-loading-card"><strong>${escapeHtml(state.mailStatusOverviewError ? 'メール送信状況を取得できませんでした。' : 'メール送信状況を読み込んでいます。')}</strong><span class="muted">${escapeHtml(state.mailStatusOverviewError || '送信処理は実行せず、設定・履歴・候補だけを確認します。')}</span></article>`;
+          metrics.innerHTML = mailStatusOperationItem(
+            state.mailStatusOverviewError ? 'triangleAlert' : 'loaderCircle',
+            '自動送信',
+            state.mailStatusOverviewError ? '状態を取得できません' : '確認中',
+            state.mailStatusOverviewError || '送信設定と安全状態を読み込んでいます。',
+            state.mailStatusOverviewError ? 'bad' : 'info'
+          );
+          alerts.innerHTML = state.mailStatusOverviewError
+            ? `<article class="mail-status-alert is-bad"><div><strong>画面データを読み込めませんでした</strong><small>${escapeHtml(state.mailStatusOverviewError)}</small></div></article>`
+            : '';
+          renderMailStatusToday();
+          renderMailStatusTomorrow();
+          return;
+        }
+
+        const control = status.control || {};
+        const sendWindow = status.sendWindow || {};
+        const trigger = status.trigger || {};
+        const nextRun = status.nextRun || {};
+        const priority = status.priority || {};
+        const today = status.today || {};
+        const tomorrow = status.tomorrow || {};
+        const counts = today.counts || {};
+        const operationReady = control.enabled && trigger.installed && sendWindow.enabled !== false;
+        const operationTone = operationReady ? 'good' : 'bad';
+        const operationLabel = operationReady ? '稼働中' : (control.enabled ? '要確認' : '停止中');
+        const adminAllowed = control.adminAllowed === true;
+        const priorityTone = priority.templateBlockReason && priority.enabled ? 'bad' : (priority.enabled ? 'warn' : 'good');
+        const priorityCountPending = priority.targetCountPending === true || state.mailStatusTomorrowLoading;
+        const priorityCanStart = priority.canActivate === true;
+        const priorityCanInspect = priority.canInspect !== false;
+        const priorityActionLabel = priorityCountPending
+          ? '対象を計算中…'
+          : (priorityCanStart ? 'グランピングを優先' : '開始できない理由を確認');
+        const priorityActionDisabled = priorityCountPending || (!priorityCanStart && !priorityCanInspect);
+        const priorityReasonSummary = !priorityCountPending && Number(priority.targetCount || 0) === 0
+          ? mailStatusPriorityReasonSummary(priority, {
+            title: 'グランピングが0件になる理由',
+            detail: '開始できない条件を件数で確認できます。',
+          })
+          : '';
+        const priorityTargetLabel = priorityCountPending
+          ? '対象を計算中…'
+          : `対象 ${formatNumber(priority.targetCount || 0)}件`;
+        const priorityDetail = priorityCountPending
+          ? '未送信・送信履歴を確認しています。'
+          : (priority.enabled
+            ? `未送信 ${formatNumber(priority.unsentTargetCount || 0)}件 / 通常メール送信済み ${formatNumber(priority.previouslySentTargetCount || 0)}件 / 他ジャンルには送信しません`
+            : `送信可能 ${formatNumber(priority.targetCount || 0)}件 / テンプレート ${priority.templateName || '-'}`);
+        hero.innerHTML = `
+          <div class="mail-status-priority-banner is-${priorityTone}">
+            <span class="mail-status-priority-icon" data-ui-icon="${priority.enabled ? 'star' : 'mailCheck'}" aria-hidden="true"></span>
+            <div class="mail-status-priority-copy">
+              <div class="mail-status-priority-title">
+                <strong>${escapeHtml(priority.enabled ? 'グランピング優先中' : '通常送信')}</strong>
+                <span>${escapeHtml(priorityTargetLabel)}</span>
+              </div>
+              <small>${escapeHtml(priorityDetail)}</small>
+              <small>使用テンプレート: ${escapeHtml(priority.templateName || '-')}</small>
+            </div>
+            <div class="mail-status-priority-actions">
+              <button type="button" onclick="showEmailGenrePriorityDiagnostics()" ${priorityCanInspect ? '' : 'disabled'}>対象内訳</button>
+              <a class="button-link" href="${escapeHtml(priority.lpUrl || (HTTPS_PROTOCOL_PREFIX + 'adclutch.jp/glamping-chatgpt-ads'))}" target="_blank" rel="noopener">LPを確認</a>
+              ${priority.enabled
+                ? `<button type="button" onclick="releaseEmailGenrePriority()" ${priority.canDeactivate ? '' : 'disabled'}>優先を解除</button>`
+                : `<button type="button" class="primary" onclick="confirmEmailGenrePriorityFromMailStatus()" ${priorityActionDisabled ? 'disabled' : ''}>${escapeHtml(priorityActionLabel)}</button>`}
+            </div>
+            ${priorityReasonSummary}
+            ${priority.templateBlockReason ? `<small class="form-message error">${escapeHtml(priority.templateBlockReason)}</small>` : ''}
+          </div>
+        `;
+
+        const attentionCount = Number(counts.failed || 0) + Number(counts.sending || 0);
+        metrics.innerHTML = [
+          mailStatusOperationItem(
+            operationReady ? 'shieldCheck' : 'shieldAlert',
+            '自動送信',
+            operationLabel,
+            sendWindow.label || '送信時間未設定',
+            operationTone
+          ),
+          mailStatusOperationItem(
+            'clock3',
+            '次回の確認',
+            nextRun.label || '予定なし',
+            trigger.installed ? '10分間隔で送信条件を確認' : 'トリガー未設定',
+            trigger.installed ? 'info' : 'bad'
+          ),
+          mailStatusOperationItem(
+            attentionCount ? 'triangleAlert' : 'checkCircle',
+            '安全状態',
+            attentionCount ? `要確認 ${formatNumber(attentionCount)}件` : '問題なし',
+            `失敗 ${formatNumber(counts.failed || 0)}件 / 送信中 ${formatNumber(counts.sending || 0)}件`,
+            counts.failed ? 'bad' : (counts.sending ? 'warn' : 'good')
+          ),
+          `<div class="mail-status-operation-item mail-status-operation-action"><button type="button" class="${control.enabled ? '' : 'primary'}" onclick="toggleMailSendingControl(${control.enabled ? 'false' : 'true'})" ${adminAllowed ? '' : 'disabled'}>${control.enabled ? '自動送信を停止' : '自動送信を開始'}</button></div>`,
+        ].join('');
+        const statusAlerts = (status.alerts || []).filter((alert) => ['warn', 'bad'].includes(String(alert.tone || '')));
+        if (state.mailStatusOverviewError) statusAlerts.unshift({
+          tone: 'bad',
+          title: '最新の送信状態を取得できませんでした',
+          detail: state.mailStatusOverviewError,
+        });
+        if (state.mailStatusTomorrowError) statusAlerts.unshift({
+          tone: 'bad',
+          title: '明日の送信候補を取得できませんでした',
+          detail: state.mailStatusTomorrowError,
+        });
+        alerts.innerHTML = statusAlerts.map((alert) => `
+          <article class="mail-status-alert is-${escapeHtml(alert.tone || 'info')}">
+            <div><strong>${escapeHtml(alert.title || '')}</strong><small>${escapeHtml(alert.detail || '')}</small></div>
+          </article>
+        `).join('');
+        renderMailStatusPriorityDiagnostics();
+        renderMailStatusToday();
+        renderMailStatusTomorrow();
+      }
+
+      function showEmailGenrePriorityDiagnostics() {
+        const priority = state.emailDeliveryStatus && state.emailDeliveryStatus.priority;
+        const diagnostics = priority && priority.diagnostics;
+        if (!diagnostics || diagnostics.loading === true) {
+          message('グランピング対象を計算中です。少し待ってからもう一度押してください。', 'error');
+          return;
+        }
+        state.mailStatusPriorityDiagnosticsVisible = true;
+        state.mailStatusPriorityReasonFilter = 'all';
+        resetTableRenderLimit('mailStatusPriorityDiagnostics');
+        renderMailStatusPriorityDiagnostics();
+        requestAnimationFrame(() => {
+          const panel = document.getElementById('mailStatusPriorityDiagnostics');
+          if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
+
+      function hideEmailGenrePriorityDiagnostics() {
+        state.mailStatusPriorityDiagnosticsVisible = false;
+        renderMailStatusPriorityDiagnostics();
+      }
+
+      function setMailStatusPriorityReasonFilter(filter) {
+        state.mailStatusPriorityReasonFilter = filter || 'all';
+        resetTableRenderLimit('mailStatusPriorityDiagnostics');
+        renderMailStatusPriorityDiagnostics();
+      }
+
+      function renderMailStatusPriorityDiagnostics() {
+        const panel = document.getElementById('mailStatusPriorityDiagnostics');
+        const caption = document.getElementById('mailStatusPriorityDiagnosticsCaption');
+        const summary = document.getElementById('mailStatusPriorityDiagnosticsSummary');
+        const filters = document.getElementById('mailStatusPriorityReasonFilters');
+        const tableTarget = document.getElementById('mailStatusPriorityDiagnosticsTable');
+        if (!panel || !caption || !summary || !filters || !tableTarget) return;
+        const priority = state.emailDeliveryStatus && state.emailDeliveryStatus.priority || {};
+        const diagnostics = priority.diagnostics || {};
+        panel.hidden = !state.mailStatusPriorityDiagnosticsVisible;
+        if (panel.hidden) return;
+
+        const filter = state.mailStatusPriorityReasonFilter || 'all';
+        const allItems = diagnostics.items || [];
+        const items = allItems.filter((item) => filter === 'all' || item.reasonKey === filter);
+        const reasonRows = diagnostics.reasons || [];
+        caption.textContent = `${diagnostics.keyword || 'グランピング'}に一致する営業先を、専用メールの送信条件（未送信を先、通常メール送信済みは30日後）で判定しています。`;
+        summary.innerHTML = `
+          <div><span>グランピング施設</span><strong>${formatNumber(diagnostics.totalCount || 0)}件</strong><small>ジャンル名で一致</small></div>
+          <div><span>送信可能</span><strong>${formatNumber(diagnostics.sendableCount || 0)}件</strong><small>未送信 ${formatNumber(diagnostics.unsentCount || 0)}件 / 通常送信済み ${formatNumber(diagnostics.previouslySentCount || 0)}件</small></div>
+          <div><span>送信対象外</span><strong>${formatNumber(diagnostics.blockedCount || 0)}件</strong><small>下の理由別に確認できます</small></div>
+        `;
+        filters.innerHTML = [
+          `<button type="button" class="${filter === 'all' ? 'is-active' : ''}" onclick="setMailStatusPriorityReasonFilter('all')">すべて ${formatNumber(diagnostics.totalCount || 0)}</button>`,
+        ].concat(reasonRows.map((reason) => `<button type="button" class="${filter === reason.key ? 'is-active' : ''}" onclick="setMailStatusPriorityReasonFilter('${escapeJsString(reason.key)}')">${escapeHtml(reason.label || '')} ${formatNumber(reason.count || 0)}</button>`)).join('');
+        const headers = ['施設名', 'メールアドレス', '現在の状態', '判定', '表示されない理由'];
+        const rows = limitedTableRows(headers, items, 'mailStatusPriorityDiagnostics', 'renderMailStatusPriorityDiagnostics', (item) => row([
+          ['施設名', item.leadId ? `<button type="button" class="table-link-button mail-status-lead-link" onclick="openMailStatusLead('${escapeJsString(item.leadId)}')">${escapeHtml(item.facilityName || item.companyName || '-')}</button>` : escapeHtml(item.facilityName || item.companyName || '-')],
+          ['メールアドレス', escapeHtml(item.toEmail || '未取得')],
+          ['現在の状態', escapeHtml(item.status || '-')],
+          ['判定', `<span class="pill ${item.sendable ? 'good' : 'warn'}">${escapeHtml(item.reasonLabel || (item.sendable ? '送信可能' : '対象外'))}</span>`],
+          ['表示されない理由', escapeHtml(item.reasonDetail || '-')],
+        ]));
+        tableTarget.innerHTML = table(headers, rows);
+      }
+
+      function mailStatusHistoryCategoryLabel(category) {
+        const labels = { success: '成功', failed: '失敗', sending: '送信中', test: 'テスト送信', other: 'その他' };
+        return labels[category] || 'その他';
+      }
+
+      function mailStatusHistoryCategoryPill(category) {
+        const tones = { success: 'good', failed: 'bad', sending: 'warn', test: 'info', other: '' };
+        return `<span class="pill ${tones[category] || ''}">${escapeHtml(mailStatusHistoryCategoryLabel(category))}</span>`;
+      }
+
+      function setMailStatusHistoryFilter(filter) {
+        state.mailStatusHistoryFilter = filter || 'all';
+        resetTableRenderLimit('mailStatusToday');
+        renderMailStatusToday();
+      }
+
+      function renderMailStatusToday() {
+        const status = state.emailDeliveryStatus || {};
+        const today = status.today || {};
+        const counts = today.counts || {};
+        const filter = state.mailStatusHistoryFilter || 'all';
+        const items = (today.items || []).filter((item) => filter === 'all' || item.category === filter);
+        const filterTarget = document.getElementById('mailStatusTodayFilters');
+        const tableTarget = document.getElementById('mailStatusTodayTable');
+        const caption = document.getElementById('mailStatusTodayCaption');
+        if (!filterTarget || !tableTarget || !caption) return;
+        const headers = ['時刻', '状態', '施設名', 'ジャンル', '宛先', 'テンプレート', '種別', '詳細'];
+        if (!state.emailDeliveryStatus) {
+          filterTarget.innerHTML = '';
+          caption.textContent = state.mailStatusOverviewError ? '本日の履歴を取得できませんでした。' : '本日の送信履歴を読み込んでいます。';
+          const label = state.mailStatusOverviewError || '読み込みが完了すると、状態別の履歴を表示します。';
+          tableTarget.innerHTML = table(headers, `<tr><td data-column="" colspan="${headers.length}" class="data-table-empty-cell"><span>${escapeHtml(label)}</span></td></tr>`);
+          return;
+        }
+        const filters = [
+          ['all', 'すべて', counts.total || 0],
+          ['success', '成功', counts.success || 0],
+          ['failed', '失敗', counts.failed || 0],
+          ['sending', '送信中', counts.sending || 0],
+          ['test', 'テスト', counts.test || 0],
+        ];
+        filterTarget.innerHTML = filters.map(([value, label, count]) => `<button type="button" class="${filter === value ? 'is-active' : ''}" onclick="setMailStatusHistoryFilter('${escapeJsString(value)}')">${escapeHtml(label)} ${formatNumber(count)}</button>`).join('');
+        caption.textContent = `${today.date || '本日'} / 表示 ${formatNumber(items.length)}件 / 全 ${formatNumber(today.total || 0)}件`;
+        const rows = limitedTableRows(headers, items, 'mailStatusToday', 'renderMailStatusToday', (item) => row([
+          ['時刻', escapeHtml(dateTimeLabel(item.sentAt) || '-')],
+          ['状態', mailStatusHistoryCategoryPill(item.category)],
+          ['施設名', item.leadId ? `<button type="button" class="table-link-button mail-status-lead-link" onclick="openMailStatusLead('${escapeJsString(item.leadId)}')">${escapeHtml(item.facilityName || item.companyName || '-')}</button>` : escapeHtml(item.facilityName || item.companyName || '-')],
+          ['ジャンル', escapeHtml(item.genre || '-')],
+          ['宛先', escapeHtml(item.toEmail || '-')],
+          ['テンプレート', escapeHtml(item.templateName || '-')],
+          ['種別', escapeHtml(item.sendType || '-')],
+          ['詳細', `<details class="mail-status-history-detail"><summary>詳細を確認</summary><div><strong>${escapeHtml(item.subject || '件名なし')}</strong><span>結果: ${escapeHtml(item.sendResult || '-')}</span>${item.errorMessage ? `<span>エラー: ${escapeHtml(item.errorMessage)}</span>` : '<span>エラーなし</span>'}</div></details>`],
+        ]));
+        tableTarget.innerHTML = table(headers, rows);
+      }
+
+      function renderMailStatusTomorrow() {
+        const status = state.emailDeliveryStatus || {};
+        const tomorrow = status.tomorrow || {};
+        const priority = status.priority || {};
+        const items = tomorrow.items || [];
+        const templateWaiting = tomorrow.templateWaiting || {};
+        const waitingItems = templateWaiting.items || [];
+        const tableTarget = document.getElementById('mailStatusTomorrowTable');
+        const tableWrap = document.getElementById('mailStatusTomorrowTableWrap');
+        const caption = document.getElementById('mailStatusTomorrowCaption');
+        const pill = document.getElementById('mailStatusTomorrowPill');
+        const notice = document.getElementById('mailStatusTomorrowNotice');
+        const waitingSection = document.getElementById('mailStatusTemplateWaiting');
+        const waitingCaption = document.getElementById('mailStatusTemplateWaitingCaption');
+        const waitingTable = document.getElementById('mailStatusTemplateWaitingTable');
+        const dateLabel = document.getElementById('mailStatusTomorrowDateLabel');
+        const countHero = document.getElementById('mailStatusTomorrowCountHero');
+        const limitHero = document.getElementById('mailStatusTomorrowLimit');
+        const progressLabel = document.getElementById('mailStatusTomorrowProgressLabel');
+        const progressTrack = document.getElementById('mailStatusTomorrowProgressTrack');
+        const progressBar = document.getElementById('mailStatusTomorrowProgressBar');
+        const scheduleHero = document.getElementById('mailStatusTomorrowSchedule');
+        if (!tableTarget || !tableWrap || !caption || !pill || !notice || !waitingSection || !waitingCaption || !waitingTable) return;
+        const headers = ['送信順', '施設名', 'ジャンル', '対象区分', '宛先', '使用予定テンプレート'];
+        const loading = !state.mailStatusTomorrowError && (state.mailStatusTomorrowLoading || tomorrow.loading === true || !state.emailDeliveryStatus);
+        if (loading) {
+          if (dateLabel) dateLabel.textContent = '明日';
+          if (countHero) countHero.textContent = '計算中';
+          if (limitHero) limitHero.textContent = '送信上限を確認中';
+          if (progressLabel) progressLabel.textContent = '—';
+          if (progressTrack) {
+            progressTrack.setAttribute('aria-valuemax', '0');
+            progressTrack.setAttribute('aria-valuenow', '0');
+          }
+          if (progressBar) progressBar.style.width = '0%';
+          if (scheduleHero) scheduleHero.textContent = '優先設定と送信条件を反映しています。';
+          waitingSection.hidden = true;
+          tableWrap.hidden = false;
+          caption.textContent = '現在の優先設定・送信条件・1日の上限を反映して計算しています。';
+          pill.textContent = '計算中';
+          pill.className = 'pill info';
+          notice.innerHTML = '<div class="mail-status-empty-notice is-loading">今日の状態は先に表示し、明日の候補だけを続けて計算しています。</div>';
+          tableTarget.innerHTML = table(headers, `<tr><td data-column="" colspan="${headers.length}" class="data-table-empty-cell"><span>明日の候補を計算中です</span></td></tr>`);
+          return;
+        }
+        if (state.mailStatusTomorrowError) {
+          if (dateLabel) dateLabel.textContent = mailStatusShortDateLabel(tomorrow.date, '明日');
+          if (countHero) countHero.textContent = '取得失敗';
+          if (limitHero) limitHero.textContent = '候補を再取得してください';
+          if (progressLabel) progressLabel.textContent = '—';
+          if (progressTrack) {
+            progressTrack.setAttribute('aria-valuemax', '0');
+            progressTrack.setAttribute('aria-valuenow', '0');
+          }
+          if (progressBar) progressBar.style.width = '0%';
+          if (scheduleHero) scheduleHero.textContent = state.mailStatusTomorrowError;
+          waitingSection.hidden = true;
+          tableWrap.hidden = false;
+          caption.textContent = '明日の候補を取得できませんでした。今日の履歴と設定は表示できます。';
+          pill.textContent = '取得失敗';
+          pill.className = 'pill bad';
+          notice.innerHTML = `<div class="mail-status-empty-notice is-error"><span>${escapeHtml(state.mailStatusTomorrowError)}</span><button type="button" onclick="retryEmailDeliveryTomorrowCandidates()">候補だけ再取得</button></div>`;
+          tableTarget.innerHTML = table(headers, `<tr><td data-column="" colspan="${headers.length}" class="data-table-empty-cell"><span>明日の候補を表示できません</span></td></tr>`);
+          return;
+        }
+        const candidateCount = Number(tomorrow.candidateCount || 0);
+        const dailyLimit = Number(tomorrow.dailyLimit || 0);
+        const batchLimit = Number(tomorrow.batchLimit || 0);
+        const progressPercent = dailyLimit > 0 ? Math.min(100, Math.max(0, candidateCount / dailyLimit * 100)) : 0;
+        if (dateLabel) dateLabel.textContent = mailStatusShortDateLabel(tomorrow.date, '明日');
+        if (countHero) countHero.textContent = `${formatNumber(candidateCount)}件`;
+        if (limitHero) limitHero.textContent = `1日上限 ${formatNumber(dailyLimit)}件 / 1回 ${formatNumber(batchLimit)}件`;
+        if (progressLabel) progressLabel.textContent = `${formatNumber(candidateCount)} / ${formatNumber(dailyLimit)}件`;
+        if (progressTrack) {
+          progressTrack.setAttribute('aria-valuemax', String(dailyLimit));
+          progressTrack.setAttribute('aria-valuenow', String(candidateCount));
+        }
+        if (progressBar) progressBar.style.width = `${progressPercent}%`;
+        if (scheduleHero) {
+          const sendWindow = status.sendWindow || {};
+          scheduleHero.textContent = candidateCount
+            ? `${sendWindow.label || '設定済みの時間帯'}に、10分間隔で順次送信します。`
+            : '現在の条件では送信予定がありません。';
+        }
+        caption.textContent = `${tomorrow.date || '明日'}時点の候補 / 1日上限 ${formatNumber(tomorrow.dailyLimit || 0)}件 / 1回 ${formatNumber(tomorrow.batchLimit || 0)}件`;
+        pill.textContent = `${formatNumber(tomorrow.candidateCount || 0)}件`;
+        pill.className = `pill ${tomorrow.candidateCount ? 'good' : 'warn'}`;
+        const priorityReasonSummary = !items.length && priority.enabled
+          ? mailStatusPriorityReasonSummary(priority, {
+            title: 'グランピング候補が表示されない理由',
+            detail: '優先対象のうち、現在送信できない施設を理由別に表示しています。',
+          })
+          : '';
+        if (tomorrow.priorityAutoReleaseExpected) {
+          notice.innerHTML = '<div class="mail-status-empty-notice">グランピングの送信可能対象が0件のため、次回トリガーで優先を自動解除し、表示中の通常候補へ切り替わる予定です。</div>' + priorityReasonSummary;
+        } else if (tomorrow.blockReason) {
+          notice.innerHTML = `<div class="mail-status-empty-notice">${escapeHtml(tomorrow.blockReason)}</div>${priorityReasonSummary}`;
+        } else {
+          notice.innerHTML = priorityReasonSummary;
+        }
+        const showTemplateWaiting = !items.length && Number(templateWaiting.waitingCount || 0) > 0;
+        waitingSection.hidden = !showTemplateWaiting;
+        tableWrap.hidden = showTemplateWaiting;
+        if (showTemplateWaiting) {
+          const genreSummary = (templateWaiting.genres || []).slice(0, 4).map((item) => `${item.genre || 'ジャンル未設定'} ${formatNumber(item.count || 0)}件`).join(' / ');
+          waitingCaption.textContent = `表示 ${formatNumber(waitingItems.length)}件 / 全 ${formatNumber(templateWaiting.waitingCount || 0)}件${genreSummary ? `（${genreSummary}）` : ''}。本番テンプレートを設定するまで自動送信されません。`;
+          const waitingHeaders = ['候補順', '施設名', 'ジャンル', '宛先', '送信状態'];
+          const waitingRows = limitedTableRows(waitingHeaders, waitingItems, 'mailStatusTemplateWaiting', 'renderMailStatusTomorrow', (item) => row([
+            ['候補順', `<strong>#${formatNumber(item.order || 0)}</strong>`],
+            ['施設名', item.leadId ? `<button type="button" class="table-link-button mail-status-lead-link" onclick="openMailStatusLead('${escapeJsString(item.leadId)}')">${escapeHtml(item.facilityName || item.companyName || '-')}</button>` : escapeHtml(item.facilityName || item.companyName || '-')],
+            ['ジャンル', escapeHtml(item.genre || '未設定')],
+            ['宛先', escapeHtml(item.toEmail || '-')],
+            ['送信状態', '<span class="pill warn">テンプレート未設定</span>'],
+          ]));
+          waitingTable.innerHTML = table(waitingHeaders, waitingRows);
+          return;
+        }
+        const rows = limitedTableRows(headers, items, 'mailStatusTomorrow', 'renderMailStatusTomorrow', (item) => row([
+          ['送信順', `<strong>#${formatNumber(item.order || 0)}</strong>`],
+          ['施設名', item.leadId ? `<button type="button" class="table-link-button mail-status-lead-link" onclick="openMailStatusLead('${escapeJsString(item.leadId)}')">${escapeHtml(item.facilityName || item.companyName || '-')}</button>` : escapeHtml(item.facilityName || item.companyName || '-')],
+          ['ジャンル', escapeHtml(item.genre || '-')],
+          ['対象区分', escapeHtml(item.priorityEligibilityKind === 'previously_sent' ? '通常メール送信済み（30日以上）' : (item.priorityEligibilityKind === 'unsent' ? '未送信' : '-'))],
+          ['宛先', escapeHtml(item.toEmail || '-')],
+          ['使用予定テンプレート', escapeHtml(item.templateName || '-')],
+        ]));
+        tableTarget.innerHTML = table(headers, rows);
+      }
+
+      async function openMailStatusLead(id) {
+        const leadId = String(id || '');
+        if (!leadId) return;
+        try {
+          if (!findLeadByIdClient(leadId)) {
+            const lead = await api('getLead', leadId);
+            if (!lead || !lead.id) throw new Error('営業先が見つかりませんでした。');
+            state.leads = [lead].concat((state.leads || []).filter((item) => item.id !== lead.id));
+          }
+          await editLead(leadId);
+        } catch (error) {
+          message(`営業先の詳細を開けませんでした: ${apiErrorText(error)}`, 'error');
+        }
+      }
+
+      async function confirmEmailGenrePriorityFromMailStatus() {
+        const priority = state.emailDeliveryStatus && state.emailDeliveryStatus.priority;
+        if (!priority) return;
+        if (!priority.canActivate) {
+          showEmailGenrePriorityDiagnostics();
+          const diagnostics = priority.diagnostics || {};
+          const reason = priority.templateBlockReason || `送信可能0件です。対象外${formatNumber(diagnostics.blockedCount || 0)}件の理由を一覧で確認してください。`;
+          message(`グランピング優先を開始できません: ${reason}`, 'error');
+          return;
+        }
+        const confirmed = confirm(
+          `グランピング優先を開始します。\n\n対象: ${formatNumber(priority.targetCount || 0)}件\n・未送信: ${formatNumber(priority.unsentTargetCount || 0)}件\n・通常メール送信済み（30日以上）: ${formatNumber(priority.previouslySentTargetCount || 0)}件\nテンプレート: ${priority.templateName || '-'}\n\n未送信を先に送信し、専用メール送信済みの施設は除外します。優先中は他ジャンルへの自動・手動・再送を停止します。よろしいですか？`
+        );
+        if (!confirmed) return;
+        await startEmailGenrePriority();
+      }
+
       async function refreshGmailAuthorizationStatus() {
         try {
           const result = await loadGmailAuthorizationStatus();
@@ -17762,10 +20430,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const requiredData = {
           backgroundJobs: ['jobs'],
           backgroundActivity: ['jobs'],
+          reviewLeads: ['reviewLeads'],
           emailLeads: ['emailLeads'],
+          mailStatus: ['mailStatus'],
           sending: ['templates', 'emailLeads', 'histories', 'jobs'],
           histories: ['histories'],
           templates: ['templates'],
+          forms: ['templates', 'formLeads'],
           sendNg: ['masters'],
           exclusions: ['masters'],
           deals: ['dealLeads'],
@@ -17786,6 +20457,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           backgroundJobs: 'バックグラウンド処理の進捗',
           backgroundActivity: '直近の実行結果',
           emailLeads: 'メール送信対象',
+          mailStatus: '今日・明日の送信状況',
           sending: '送信前の対象と制限',
           histories: '送信履歴',
           templates: 'テンプレート',
@@ -17842,7 +20514,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
       }
 
-      function ensureDataLoaded(key, loader) {
+      function ensureDataLoaded(key, loader, options) {
+        const config = options || {};
         if (state.dataLoaded[key]) return Promise.resolve();
         if (state.dataLoading[key]) return state.dataLoading[key];
         state.dataLoading[key] = Promise.resolve()
@@ -17852,7 +20525,9 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           })
           .catch((error) => {
             state.dataLoaded[key] = false;
-            message(error && error.message ? error.message : String(error), 'error');
+            if (config.quietError !== true) {
+              message(error && error.message ? error.message : String(error), 'error');
+            }
             throw error;
           })
           .finally(() => {
@@ -17912,8 +20587,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             renderActiveLoadedScreen(name);
             return;
           }
+          if (name === 'mailStatus') {
+            await ensureDataLoaded('mailStatus', () => loadEmailDeliveryStatus({ quiet: true }));
+            renderActiveLoadedScreen(name);
+            return;
+          }
           if (name === 'forms') {
-            await ensureDataLoaded('templates', loadTemplates);
+            await ensureDataLoaded('templates', () => loadTemplates({ quiet: true }));
             await ensureDataLoaded('formLeads', loadFormLeads);
             return;
           }
@@ -18185,6 +20865,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           renderHistoriesScreen();
           return;
         }
+        if (active === 'mailStatus') {
+          renderEmailDeliveryStatus();
+          return;
+        }
         if (active === 'analytics') {
           renderAnalyticsScreen();
           return;
@@ -18230,8 +20914,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderSelects(enums, genres) {
         state.genres = genres || [];
+        const selectedFormGenre = document.getElementById('formGenreFilter')?.value || '';
         fillSelect('leadStatus', [''].concat(enums.leadStatuses || []));
         fillSelect('leadGenreFilter', [''].concat((genres || []).map((genre) => genre.name)));
+        fillSelect('formGenreFilter', [''].concat((genres || []).map((genre) => genre.name)));
+        const formGenreFilter = document.getElementById('formGenreFilter');
+        if (formGenreFilter && Array.from(formGenreFilter.options).some((option) => option.value === selectedFormGenre)) {
+          formGenreFilter.value = selectedFormGenre;
+        }
         const datalist = document.getElementById('genreList');
         datalist.innerHTML = (genres || []).map((genre) => `<option value="${escapeHtml(genre.name)}"></option>`).join('');
         renderGenreBar();
@@ -18711,19 +21401,24 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       async function toggleMailSendingControl(enabled) {
         if (enabled && !confirm('本番メール送信を稼働中にします。送信内容と対象リストを確認しましたか？')) return;
-        const result = await api('setMailSendingControl', {
-          enabled: Boolean(enabled),
-          reason: enabled ? null : 'テンプレートや営業リストの準備中のため停止',
-        });
-        state.dashboard = Object.assign({}, state.dashboard || {}, {
-          mailSendingEnabled: result.enabled,
-          mailSendingReason: result.reason,
-          mailSendingUpdatedAt: result.updatedAt,
-        });
-        renderDashboardMailSendingControl(state.dashboard);
-        renderAppSafetyStrip(state.dashboard);
-        message(result.enabled ? 'メール送信機能を稼働中にしました' : 'メール送信機能を停止しました', 'ok');
-        await refreshAll();
+        try {
+          const result = await api('setMailSendingControl', {
+            enabled: Boolean(enabled),
+            reason: enabled ? null : 'テンプレートや営業リストの準備中のため停止',
+          });
+          state.dashboard = Object.assign({}, state.dashboard || {}, {
+            mailSendingEnabled: result.enabled,
+            mailSendingReason: result.reason,
+            mailSendingUpdatedAt: result.updatedAt,
+          });
+          renderDashboardMailSendingControl(state.dashboard);
+          renderAppSafetyStrip(state.dashboard);
+          if (currentTab === 'mailStatus') await refreshEmailDeliveryStatusAfterAction();
+          else await refreshAll();
+          message(result.enabled ? 'メール送信機能を稼働中にしました' : 'メール送信機能を停止しました', 'ok');
+        } catch (error) {
+          message(`メール送信機能を変更できませんでした: ${apiErrorText(error)}`, 'error');
+        }
       }
 
       function renderDashboardCompact(dashboard) {
@@ -20048,6 +22743,22 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           event.preventDefault();
           if (state.taskCenterOpen) closeTaskCenter();
           if (state.undoAction) closeUndoAction();
+          return;
+        }
+        if (currentTab === 'forms' && !state.taskCenterOpen) {
+          if (event.metaKey || event.ctrlKey || event.altKey || event.repeat) return;
+          const formTarget = event.target;
+          if (formTarget && (formTarget.matches('input, textarea, select, button, a, summary') || formTarget.isContentEditable)) return;
+          if (key === 'o') {
+            event.preventDefault();
+            openSelectedFormWebsiteAndCopy();
+          } else if (key === 's') {
+            event.preventDefault();
+            completeSelectedFormLeadAndAdvance();
+          } else if (key === 'x') {
+            event.preventDefault();
+            markSelectedFormUnavailableAndAdvance();
+          }
           return;
         }
         if (currentTab !== 'reviewLeads' || state.taskCenterOpen) return;
@@ -21857,6 +24568,8 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
             at: event.at,
             body: typeof event.body === 'string' ? event.body : '',
             type: event.type,
+            template_id: event.template_id ? String(event.template_id) : '',
+            campaign_key: event.campaign_key ? String(event.campaign_key) : '',
           }))
           .sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime());
       }
@@ -22128,11 +24841,14 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         message('除外ドメイン登録と営業対象からの削除を完了しました', 'ok');
       }
 
-      async function loadTemplates() {
-        const result = await api('listEmailTemplates', { limit: 300 });
+      async function loadTemplates(options) {
+        const config = options || {};
+        const request = config.quiet === true ? apiQuiet : api;
+        const result = await request('listEmailTemplates', { limit: 300 });
         state.templates = result.items || [];
         state.dataLoaded.templates = true;
         renderTemplates();
+        renderFormChatgptCopyPanel();
       }
 
       function renderTemplates() {
@@ -22143,7 +24859,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           ['ジャンル', escapeHtml(template.genre || 'ジャンル未設定')],
           ['種別', statusPill(templateTypeLabel(template.template_type))],
           ['タグ', renderTemplateTags(template)],
-          ['テスト', template.last_test_sent_at ? `<span class="pill good">${escapeHtml(dateLabel(template.last_test_sent_at))}</span>` : '<span class="pill warn">未実施</span>'],
+          ['テスト', template.template_type === 'form' ? '<span class="pill info">本文確認</span>' : (template.last_test_sent_at ? `<span class="pill good">${escapeHtml(dateLabel(template.last_test_sent_at))}</span>` : '<span class="pill warn">未実施</span>')],
           ['本番', renderTemplateProductionStatus(template)],
           ['版', `v${escapeHtml(template.version || 1)}`],
           ['操作', renderTemplateActionCell(template)],
@@ -22163,12 +24879,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderTemplateActionCell(template) {
+        if (template && template.system_template === true) {
+          return '<span class="pill info">組み込みテンプレート</span>';
+        }
         const productionOn = isProductionTemplate(template);
         const blockReason = productionOn ? '' : templateProductionBlockedReason(template);
         return `
           <span class="template-action-row">
             <button type="button" class="table-link-button" onclick="openTemplateEditDialog('${escapeJsString(template.id)}')">${legacyUiIcon('pencil')}編集</button>
-            <button type="button" class="table-link-button" onclick="sendTemplateTestFromRow('${escapeJsString(template.id)}')">${legacyUiIcon('eye')}テスト送信</button>
+            ${template.template_type === 'form' ? '' : `<button type="button" class="table-link-button" onclick="sendTemplateTestFromRow('${escapeJsString(template.id)}')">${legacyUiIcon('eye')}テスト送信</button>`}
             <button type="button" class="table-link-button" onclick="toggleTemplateProduction('${escapeJsString(template.id)}')" ${blockReason ? `disabled title="${escapeHtml(blockReason)}"` : ''}>${legacyUiIcon('power')}${productionOn ? '本番OFF' : '本番ON'}</button>
             <button type="button" class="table-link-button danger" onclick="deleteTemplateFromRow('${escapeJsString(template.id)}')">${legacyUiIcon('trash2')}削除</button>
             ${blockReason ? `<span class="inline-error">${escapeHtml(blockReason)}</span>` : ''}
@@ -22365,7 +25084,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       function templateProductionBlockedReason(template) {
         if (!template) return 'テンプレートがありません';
         if (isProductionTemplate(template)) return '';
-        if (!template.last_test_sent_at) return '先にテスト送信してください';
+        if (template.template_type !== 'form' && !template.last_test_sent_at) return '先にテスト送信してください';
         if (template.template_type === 'followup_2m') return '2ヶ月後メールは使用しません';
         if (template.template_type !== 'form' && !template.genre) return 'ジャンルを設定してください';
         const mismatchReason = templateGenreContentMismatchReason(template);
@@ -23104,31 +25823,37 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         }
       }
 
-      async function loadFormLeads() {
+      async function loadFormLeads(options) {
+        const config = options || {};
         state.formLeadLoading = true;
-        document.getElementById('formLeadTable').innerHTML = '';
-        renderFormLeadEmptyState(state.formTotal || 0, true);
+        const countTarget = document.getElementById('formLeadCount');
+        if (!(state.formLeads || []).length) {
+          renderFormLeadEmptyState(state.formTotal || 0, true);
+        } else if (countTarget) {
+          countTarget.textContent = '更新中…';
+        }
         try {
-          const result = await api('listLeads', {
+          const request = {
             search: document.getElementById('formSearch').value,
-            filter: 'form_all',
-            formStatus: document.getElementById('formStatusFilter').value,
-            limit: Number(document.getElementById('formLimit').value || 25),
-            offset: 0,
-            includeStats: false,
-            includeFields: ['contact_name'],
-          });
+            genre: document.getElementById('formGenreFilter').value,
+            limit: 25,
+          };
+          const result = await requestFormOutreachQueue(request, { force: config.force === true });
           state.formLeads = result.items || [];
           state.formTotal = result.total || state.formLeads.length;
+          state.formReviewItems = result.reviewItems || [];
+          state.formReviewTotal = Number(result.reviewTotal || 0);
+          state.formReviewBreakdown = result.reviewBreakdown || { template_missing: 0, send_ng: 0, website_missing: 0, waiting: 0, blocked: 0 };
+          state.formBatchCompleted = 0;
+          state.formBatchSize = state.formLeads.length;
           state.dataLoaded.formLeads = true;
-          if (!state.formLeads.some((lead) => lead.id === state.selectedFormLeadId)) {
-            state.selectedFormLeadId = '';
-          }
-          if (!state.selectedFormLeadId && state.formLeads.length > 0) {
-            state.selectedFormLeadId = state.formLeads[0].id;
-          }
+          state.selectedFormLeadId = state.formLeads.length ? state.formLeads[0].id : '';
           renderFormLeads(state.formTotal);
+          if (config.continuation === true && state.formLeads.length) {
+            message(`次の${formatNumber(state.formLeads.length)}件を読み込みました`, 'ok');
+          }
         } catch (error) {
+          if (countTarget) countTarget.textContent = `${formatNumber(state.formTotal || 0)}件`;
           renderFormLeadEmptyState(0, false, error.message || String(error));
           throw error;
         } finally {
@@ -23138,39 +25863,86 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function clearFormFilters() {
         document.getElementById('formSearch').value = '';
+        document.getElementById('formGenreFilter').value = '';
         document.getElementById('formStatusFilter').value = 'active';
         document.getElementById('formLimit').value = '25';
         loadFormLeads();
       }
 
+      function handleFormSearchKeydown(event) {
+        if (event && event.key === 'Enter') loadFormLeads();
+      }
+
       function renderFormLeads(total) {
-        document.getElementById('formLeadCount').textContent = `${formatNumber(total)}件`;
+        document.getElementById('formLeadCount').textContent = `${formatNumber(Math.min(Math.max(state.formLeads.length - 1, 0), 5))}件`;
         renderFormOutreachSummary(total);
-        const rows = state.formLeads.map((lead) => {
-          const sent = isFormLeadSent(lead);
-          const blockedReason = sent ? '' : formLeadBlockReasonClient(lead);
-          const updating = state.formUpdatingLeadId === lead.id;
-          const displayName = lead.facility_name || lead.company_name || '-';
-          const classes = [
-            state.selectedFormLeadId === lead.id ? 'form-outreach-row-active' : '',
-            sent ? 'form-outreach-row-sent' : '',
-          ].filter(Boolean).join(' ');
-          const cells = [
-            ['選択', `<button type="button" class="table-link-button" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '作業中' : '選択'}</button>`],
-            ['送信済み', renderFormSentCheck(lead, sent, updating, blockedReason)],
-            ['営業先', `<span class="company-cell facility-copy-cell"><button type="button" class="facility-copy-button" onclick="copyFormLeadFacilityName('${escapeJsString(lead.id)}')">${state.copiedFormFacilityId === lead.id ? legacyUiIcon('check') : ''}<span>${escapeHtml(displayName)}</span></button>${lead.company_name && lead.company_name !== displayName ? `<small class="muted">${escapeHtml(lead.company_name)}</small>` : ''}<button type="button" class="mini-text-link mini-button-reset" onclick="selectFormLead('${escapeJsString(lead.id)}')">作業</button></span>`],
-            ['ジャンル', escapeHtml(lead.genre || '-')],
-            ['フォーム状態', statusPill(lead.form_status || '未対応')],
-            ['営業状態', statusPill(lead.status || '未対応')],
-            ['フォーム送信', formSendSummaryCell(lead)],
-            ['フォームURL', blockedReason ? `<span class="pill warn" title="${escapeHtml(blockedReason)}">確認待ち</span>` : (lead.form_url ? formUrlMiniLink(lead.form_url) : '<span class="muted">未取得</span>')],
-            ['操作', renderFormLeadActionCell(lead, sent, updating, blockedReason)],
-          ];
-          return `<tr class="${escapeHtml(classes)}">` + cells.map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
-        }).join('');
-        document.getElementById('formLeadTable').innerHTML = rows ? table(['選択', '送信済み', '営業先', 'ジャンル', 'フォーム状態', '営業状態', 'フォーム送信', 'フォームURL', '操作'], rows) : '';
         renderFormLeadEmptyState(total, false);
         renderSelectedFormLead();
+        renderFormNextQueue();
+        renderFormReviewPanel();
+      }
+
+      function renderFormLeadRow(lead) {
+        const template = findFormTemplateForLead(lead);
+        const sent = isFormTemplateSentClient(lead, template);
+        const blockedReason = sent ? '' : formLeadBlockReasonClient(lead, template);
+        const updating = state.formUpdatingLeadId === lead.id;
+        const displayName = lead.facility_name || lead.company_name || '-';
+        const classes = [
+          state.selectedFormLeadId === lead.id ? 'form-outreach-row-active' : '',
+          sent ? 'form-outreach-row-sent' : '',
+        ].filter(Boolean).join(' ');
+        const cells = [
+          ['選択', `<button type="button" class="table-link-button" data-form-select-lead-id="${escapeHtml(lead.id)}" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '作業中' : '選択'}</button>`],
+          ['送信済み', renderFormSentCheck(lead, sent, updating, blockedReason)],
+          ['営業先・WEBサイト', renderFormLeadFacilityCell(lead, displayName)],
+          ['ジャンル', escapeHtml(lead.genre || '-')],
+          ['テンプレート', template ? `<span class="send-summary-cell"><strong>${escapeHtml(template.name || '-')}</strong>${isGlampingChatgptFormTemplateClient(template) ? '<small>ChatGPT広告専用</small>' : ''}</span>` : '<span class="pill warn">未設定</span>'],
+          ['フォーム状態', statusPill(lead.form_status || '未対応')],
+          ['営業状態', statusPill(lead.status || '未対応')],
+          ['フォーム送信', formSendSummaryCell(lead)],
+          ['フォームURL', blockedReason ? `<span class="pill warn" title="${escapeHtml(blockedReason)}">確認待ち</span>` : (lead.form_url ? formUrlMiniLink(lead.form_url) : '<span class="muted">未取得</span>')],
+          ['操作', renderFormLeadActionCell(lead, sent, updating, blockedReason)],
+        ];
+        return `<tr class="${escapeHtml(classes)}" data-form-lead-id="${escapeHtml(lead.id)}">` + cells.map(([header, value]) => `<td data-column="${escapeHtml(header)}">${value}</td>`).join('') + '</tr>';
+      }
+
+      function renderFormLeadFacilityCell(lead, displayName) {
+        const website = String(lead.website_url || '').trim();
+        const copied = state.copiedFormFacilityId === lead.id;
+        const name = displayName || lead.facility_name || lead.company_name || '-';
+        const nameMarkup = website
+          ? `<a class="form-facility-name-link" href="${escapeHtml(externalUrl(website))}" target="_blank" rel="noopener" title="WEBサイトを開く: ${escapeHtml(website)}"><span>${escapeHtml(name)}</span>${legacyUiIcon('external')}</a>`
+          : `<span class="form-facility-name-static" title="WEBサイト未取得"><span>${escapeHtml(name)}</span></span>`;
+        return `
+          <span class="company-cell form-facility-cell">
+            ${nameMarkup}
+            ${lead.company_name && lead.company_name !== name ? `<small class="muted">${escapeHtml(lead.company_name)}</small>` : ''}
+            <span class="form-facility-quick-actions">
+              ${website ? formWebsiteMiniLink(website, 'WEBサイトを開く') : '<small class="muted">WEBサイト未取得</small>'}
+              <button type="button" class="facility-copy-button" data-form-facility-copy-id="${escapeHtml(lead.id)}" data-form-facility-name="${escapeHtml(name)}" onclick="copyFormLeadFacilityName('${escapeJsString(lead.id)}')" title="屋号をコピー">${legacyUiIcon(copied ? 'check' : 'clipboard')}<span>${copied ? 'コピー済み' : '屋号コピー'}</span></button>
+              <button type="button" class="form-facility-work-button" data-form-select-lead-id="${escapeHtml(lead.id)}" onclick="selectFormLead('${escapeJsString(lead.id)}')">${state.selectedFormLeadId === lead.id ? '作業中' : '作業'}</button>
+            </span>
+          </span>
+        `;
+      }
+
+      function applyUpdatedFormLeadClient(updatedLead) {
+        if (!updatedLead || !updatedLead.id) return null;
+        let mergedLead = null;
+        state.formLeads = (state.formLeads || []).map((lead) => {
+          if (lead.id !== updatedLead.id) return lead;
+          mergedLead = Object.assign({}, lead, updatedLead);
+          return mergedLead;
+        });
+        state.leads = (state.leads || []).map((lead) => {
+          return lead.id === updatedLead.id ? Object.assign({}, lead, updatedLead) : lead;
+        });
+        return mergedLead || updatedLead;
+      }
+
+      function refreshFormLeadRow(id) {
+        renderFormLeads(state.formTotal);
       }
 
       function renderFormLeadEmptyState(total, loading, errorText) {
@@ -23180,21 +25952,20 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         const shouldShow = loading || errorText || !hasRows;
         target.hidden = !shouldShow;
         if (!shouldShow) return;
-        const hasAny = Number(total || 0) > 0;
         const title = loading
-          ? 'フォーム対象を読み込み中です'
+          ? '送信可能な施設を読み込み中です'
           : errorText
-            ? 'フォーム対象を読み込めませんでした'
-            : hasAny
-              ? '条件に一致するフォーム対象がありません'
-              : 'フォーム対象はまだありません';
+            ? '送信キューを読み込めませんでした'
+            : state.formReviewTotal > 0
+              ? '送信可能な施設はありません'
+              : '現在の条件で送信できる施設はありません';
         const detail = loading
-          ? 'Google Sheetsからフォーム送信候補を取得しています。'
+          ? 'テンプレート設定・送信条件・公式サイトURLを確認しています。'
           : errorText
             ? errorText
-            : hasAny
-              ? '検索条件やフォーム状態を変更して、対象があるか確認してください。'
-              : 'フォームURLがある営業先、または未対応のフォーム候補が追加されるとここに表示されます。';
+            : state.formReviewTotal > 0
+              ? `要確認に${formatNumber(state.formReviewTotal)}件あります。送信できない理由を確認してください。`
+              : '検索条件を解除するか、営業リストとテンプレート設定を確認してください。';
         target.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span>`;
       }
 
@@ -23213,9 +25984,13 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderFormLeadActionCell(lead, sent, updating, blockedReason) {
         const id = escapeJsString(lead.id);
+        const template = findFormTemplateForLead(lead);
+        const dedicated = isGlampingChatgptFormTemplateClient(template);
+        const copied = state.copiedFormMessageLeadId === lead.id;
+        const copyLabel = copied ? 'コピー済み' : (dedicated ? 'ChatGPT広告をコピー' : '本文コピー');
         return `
           <span class="table-action-row">
-            <button type="button" class="table-link-button" onclick="selectFormLead('${id}'); copySelectedFormMessage()" ${updating || blockedReason ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon('clipboard')}本文コピー</button>
+            <button type="button" class="table-link-button ${dedicated ? 'form-copy-row-button' : ''} ${copied ? 'copied' : ''}" data-form-copy-lead-id="${escapeHtml(lead.id)}" data-form-copy-label="${escapeHtml(dedicated ? 'ChatGPT広告をコピー' : '本文コピー')}" onclick="copyFormMessageForLead('${id}')" ${updating || blockedReason ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon(copied ? 'check' : 'clipboard')}${copyLabel}</button>
             ${sent
               ? `<button type="button" class="table-link-button" onclick="unmarkFormLeadSent('${id}')" ${updating ? 'disabled' : ''}>解除</button>`
               : `<button type="button" class="table-link-button" onclick="markFormLeadSent('${id}')" ${updating || !lead.form_url || blockedReason ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon('checkCircle')}送信済み</button>`}
@@ -23225,7 +26000,21 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function selectFormLead(id) {
         state.selectedFormLeadId = id;
-        renderFormLeads(state.formTotal);
+        syncFormLeadSelectionUi();
+      }
+
+      function syncFormLeadSelectionUi() {
+        renderSelectedFormLead();
+        renderFormNextQueue();
+        renderFormOutreachSummary(state.formTotal);
+      }
+
+      function syncFormCopyFeedback() {
+        renderSelectedFormLead();
+      }
+
+      function syncFormFacilityCopyFeedback() {
+        renderSelectedFormLead();
       }
 
       async function copyFormLeadFacilityName(id) {
@@ -23238,11 +26027,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         try {
           await navigator.clipboard.writeText(text);
           state.copiedFormFacilityId = id;
-          renderFormLeads(state.formTotal);
+          syncFormFacilityCopyFeedback();
           window.setTimeout(() => {
             if (state.copiedFormFacilityId === id) {
               state.copiedFormFacilityId = '';
-              renderFormLeads(state.formTotal);
+              syncFormFacilityCopyFeedback();
             }
           }, 1500);
           message('屋号をコピーしました', 'ok');
@@ -23252,21 +26041,20 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function renderFormOutreachSummary(total) {
-        const active = state.formLeads.filter(canFormLeadClient).length;
-        const sent = state.formLeads.filter((lead) => lead.form_status === '対応済み').length;
-        const noAction = state.formLeads.filter((lead) => lead.form_status === '対応不要').length;
-        const hasForm = state.formLeads.filter((lead) => Boolean(lead.form_url)).length;
-        const ready = state.formLeads.filter((lead) => canFormLeadClient(lead) && findFormTemplateForLead(lead)).length;
-        const missingTemplate = state.formLeads.filter((lead) => canFormLeadClient(lead) && !findFormTemplateForLead(lead)).length;
-        document.getElementById('formOutreachSummary').innerHTML = [
-          formSummaryCard('表示中', state.formLeads.length, `${formatNumber(total)}件中`, 'primary'),
-          formSummaryCard('作業中', active, '未対応/対応中', 'primary'),
-          formSummaryCard('送信済み', sent, '対応済み', ''),
-          formSummaryCard('対応不要', noAction, '除外', 'warn'),
-          formSummaryCard('フォームあり', hasForm, 'URL取得済み', ''),
-          formSummaryCard('テンプレ不足', missingTemplate, '本番フォーム用なし', missingTemplate > 0 ? 'warn' : ''),
-          formSummaryCard('コピー準備', ready, '本文生成可能', 'primary'),
-        ].join('');
+        const batchSize = Number(state.formBatchSize || 0);
+        const completed = Math.min(Number(state.formBatchCompleted || 0), batchSize);
+        const percent = batchSize > 0 ? Math.round((completed / batchSize) * 100) : 0;
+        document.getElementById('formOutreachSummary').innerHTML = `
+          <div class="form-progress-main">
+            <span class="form-progress-label">今回</span>
+            <strong>${formatNumber(completed)}<small> / ${formatNumber(batchSize)}件</small></strong>
+            <span class="form-progress-track" aria-label="今回の進捗 ${formatNumber(percent)}%"><span style="width:${percent}%"></span></span>
+            <span class="form-progress-percent">${formatNumber(percent)}%</span>
+          </div>
+          <div class="form-progress-stat is-ready"><span>送信可能</span><strong>${formatNumber(total || 0)}件</strong></div>
+          <button type="button" class="form-progress-stat is-review" onclick="toggleFormReviewPanel(true)"><span>要確認</span><strong>${formatNumber(state.formReviewTotal || 0)}件 ${legacyUiIcon('arrowRight')}</strong></button>
+        `;
+        document.getElementById('formReviewCount').textContent = `${formatNumber(state.formReviewTotal || 0)}件`;
       }
 
       function formSummaryCard(label, value, detail, tone) {
@@ -23275,54 +26063,220 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
 
       function renderSelectedFormLead() {
         const lead = state.formLeads.find((item) => item.id === state.selectedFormLeadId);
+        const content = document.getElementById('formCurrentLeadContent');
+        const position = document.getElementById('formCurrentPosition');
         if (!lead) {
-          document.getElementById('formPreviewMeta').textContent = '対象を選択してください';
-          document.getElementById('formTemplatePreview').textContent = 'フォーム送信用テンプレートがここに表示されます。';
-          document.getElementById('formTemplatePill').textContent = '未選択';
-          document.getElementById('formWorkPanel').innerHTML = '<div class="form-work-main"><strong>作業対象を選択してください</strong><small class="muted">左のフォーム対象から1件選びます。</small></div>';
-          updateFormPreviewActionState(null, 'フォーム対象を選択してください');
+          if (content) content.innerHTML = '';
+          if (position) position.textContent = '0 / 0件';
           return;
         }
         const template = findFormTemplateForLead(lead);
-        const sent = isFormLeadSent(lead);
-        const blockedReason = sent ? '' : formLeadBlockReasonClient(lead);
+        const blockedReason = formLeadBlockReasonClient(lead, template);
         const updating = state.formUpdatingLeadId === lead.id;
-        const formCount = formDisplaySendCount(lead);
-        const latestFormAt = latestFormSentAtClient(lead);
-        document.getElementById('formPreviewMeta').textContent = `${lead.company_name || ''} / ${lead.genre || '共通'} / ${template ? template.name : 'テンプレート未設定'}`;
-        document.getElementById('formTemplatePreview').textContent = template ? renderClientTemplate(template.body || '', lead) : '本番ONのフォーム用テンプレートがありません。テンプレート画面で template_type=form を作成してください。';
-        document.getElementById('formTemplatePill').textContent = template ? template.name : 'テンプレート未設定';
-        updateFormPreviewActionState(lead, blockedReason);
-        document.getElementById('formWorkPanel').innerHTML = `
-          <div class="form-work-main">
-            ${statusTonePill('作業中', formStatusToneClient(lead.form_status || '未対応'))}
-            <div>
-              <strong>${escapeHtml(lead.facility_name || lead.company_name || '-')}</strong>
-              <small class="muted">${escapeHtml(lead.genre || '共通')} / ${escapeHtml(lead.form_status || '未対応')} / ${formatNumber(formCount)}回${latestFormAt ? ' / 最新 ' + escapeHtml(dateTimeLabel(latestFormAt)) : ''} / ${template ? escapeHtml(template.name) : 'テンプレート未設定'}</small>
+        const copied = state.copiedFormMessageLeadId === lead.id;
+        const displayName = lead.facility_name || lead.company_name || '-';
+        const currentIndex = Math.max(0, state.formLeads.findIndex((item) => item.id === lead.id));
+        const currentOrdinal = Math.min(Number(state.formBatchCompleted || 0) + currentIndex + 1, Number(state.formBatchSize || 0));
+        const officialUrl = officialWebsiteTopUrlClient(lead);
+        const renderedBody = template ? renderClientTemplate(template.body || '', lead) : '';
+        if (position) position.textContent = `${formatNumber(currentOrdinal)} / ${formatNumber(state.formBatchSize || state.formLeads.length)}件`;
+        content.innerHTML = `
+          <article class="form-current-lead">
+            <div class="form-current-name-row">
+              <h3>${escapeHtml(displayName)}</h3>
+              ${statusTonePill(blockedReason ? '要確認' : '送信可能', blockedReason ? 'warn' : 'good')}
             </div>
-          </div>
-          <div class="form-work-actions">
-            <button type="button" class="icon-text-button secondary" onclick="copyFormLeadFacilityName('${escapeJsString(lead.id)}')">${state.copiedFormFacilityId === lead.id ? legacyUiIcon('check') : legacyUiIcon('mousePointer')}屋号コピー</button>
-            ${blockedReason ? `<span class="pill warn" title="${escapeHtml(blockedReason)}">確認待ち</span>` : (lead.form_url ? formUrlMiniLink(lead.form_url) : '<span class="pill warn">フォーム未取得</span>')}
-            <button type="button" class="icon-text-button" onclick="copySelectedFormMessage()" ${blockedReason ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon('clipboard')}本文コピー</button>
-            ${sent
-              ? `<button type="button" class="icon-text-button secondary" onclick="unmarkSelectedFormLeadSent()" ${updating ? 'disabled' : ''}>送信済み解除</button>`
-              : `<button type="button" class="icon-text-button" onclick="markSelectedFormLeadSent()" ${updating || !lead.form_url || blockedReason ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon('checkCircle')}送信済み</button>`}
-            <button type="button" class="button secondary compact-button" onclick="selectNextFormLead()">${legacyUiIcon('arrowRight')}次へ</button>
-          </div>
+            <dl class="form-current-meta">
+              <dt>${legacyUiIcon('tag')}ジャンル</dt><dd>${escapeHtml(lead.genre || '共通')}</dd>
+              <dt>${legacyUiIcon('external')}公式サイト</dt><dd>${officialUrl ? `<a class="form-official-site-link" href="${escapeHtml(officialUrl)}" target="_blank" rel="noopener">${escapeHtml(compactUrl(officialUrl))}${legacyUiIcon('external')}</a>` : '<span class="pill warn">未取得</span>'}</dd>
+              <dt>${legacyUiIcon('mailCheck')}テンプレート</dt><dd>${escapeHtml(template ? template.name : '未設定')}</dd>
+            </dl>
+            <div class="form-template-compact">
+              <div class="form-template-compact-head">
+                <strong>コピーする本文</strong>
+                <select id="formTemplateSelect" aria-label="使用テンプレート" onchange="setSelectedFormTemplate(this.value)" disabled><option value="">読み込み中</option></select>
+              </div>
+              <div id="formCampaignTemplateNotice" class="form-message" hidden></div>
+              <div class="form-template-snippet">${escapeHtml(renderedBody || '本文を生成できません。')}</div>
+              <details class="form-template-details">
+                <summary>本文をすべて表示</summary>
+                <div class="form-template-preview-full" id="formTemplatePreview">${escapeHtml(renderedBody || '本文を生成できません。')}</div>
+              </details>
+            </div>
+            <div class="form-current-actions" aria-label="フォーム送信操作">
+              <div class="form-action-line">
+                <button type="button" class="form-action-button is-open" onclick="openSelectedFormWebsiteAndCopy()" ${updating || blockedReason || !officialUrl ? 'disabled' : ''} title="${escapeHtml(blockedReason || '')}">${legacyUiIcon(copied ? 'check' : 'external')}<span>${copied ? '公式サイトを開き、本文をコピーしました' : '公式サイトを開いて本文コピー'}</span></button>
+                <span class="form-action-key" aria-hidden="true">O</span>
+              </div>
+              <p class="form-action-help">公式サイトのトップを新しいタブで開き、本文をすべてコピーします。</p>
+              <div class="form-action-line">
+                <button type="button" class="form-action-button is-sent" onclick="completeSelectedFormLeadAndAdvance()" ${updating || blockedReason ? 'disabled' : ''}>${legacyUiIcon('checkCircle')}<span>送信済み・次へ</span></button>
+                <span class="form-action-key" aria-hidden="true">S</span>
+              </div>
+              <div class="form-action-line">
+                <button type="button" class="form-action-button is-unavailable" onclick="markSelectedFormUnavailableAndAdvance()" ${updating ? 'disabled' : ''}>${legacyUiIcon('x')}<span>送信不可・次へ</span></button>
+                <span class="form-action-key" aria-hidden="true">X</span>
+              </div>
+              <p class="form-action-help">「送信不可」は確認なしで対応不要へ更新し、理由「フォームが見つからない」を保存します。</p>
+            </div>
+          </article>
         `;
+        renderFormTemplateSelector(lead, template, blockedReason);
       }
 
-      function updateFormPreviewActionState(lead, blockedReason) {
-        const blocked = !lead || Boolean(blockedReason);
-        ['formPreviewCopyButton', 'formPreviewWorkingButton', 'formPreviewSentButton'].forEach((id) => {
-          const button = document.getElementById(id);
-          if (!button) return;
-          button.disabled = blocked;
-          button.title = blockedReason || '';
-        });
-        const noActionButton = document.getElementById('formPreviewNoActionButton');
-        if (noActionButton) noActionButton.disabled = !lead;
+      function officialWebsiteTopUrlClient(lead) {
+        const raw = String(lead && lead.website_url || '').trim();
+        if (!raw) return '';
+        try {
+          const parsed = new URL(externalUrl(raw));
+          return `${parsed.protocol}//${parsed.host}/`;
+        } catch (error) {
+          return externalUrl(raw);
+        }
+      }
+
+      function renderFormNextQueue() {
+        const target = document.getElementById('formNextQueue');
+        if (!target) return;
+        const currentIndex = state.formLeads.findIndex((lead) => lead.id === state.selectedFormLeadId);
+        const startIndex = currentIndex >= 0 ? currentIndex + 1 : 0;
+        const nextLeads = state.formLeads.slice(startIndex, startIndex + 5);
+        document.getElementById('formLeadCount').textContent = `${formatNumber(nextLeads.length)}件`;
+        target.innerHTML = nextLeads.length ? nextLeads.map((lead, index) => {
+          const displayName = lead.facility_name || lead.company_name || '-';
+          const officialUrl = officialWebsiteTopUrlClient(lead);
+          return `
+            <li class="form-next-queue-item">
+              <span class="form-next-queue-number">${formatNumber(index + 1)}</span>
+              <span class="form-next-queue-copy">
+                <strong>${escapeHtml(displayName)}</strong>
+                <small>${escapeHtml(lead.genre || '共通')}</small>
+                <small>${escapeHtml(officialUrl ? compactUrl(officialUrl) : '公式サイト未取得')}</small>
+              </span>
+              <button type="button" class="form-next-select" onclick="selectFormLead('${escapeJsString(lead.id)}')" title="この施設を現在の施設にする" aria-label="${escapeHtml(displayName)}を選択">${legacyUiIcon('arrowRight')}</button>
+            </li>
+          `;
+        }).join('') : '<li class="form-next-empty">この25件内の次候補はありません。完了後に次の候補を自動取得します。</li>';
+      }
+
+      function renderFormReviewPanel() {
+        const list = document.getElementById('formReviewList');
+        const summary = document.getElementById('formReviewSummary');
+        if (!list || !summary) return;
+        const breakdown = state.formReviewBreakdown || {};
+        summary.innerHTML = [
+          ['テンプレート不足', breakdown.template_missing || 0, 'warn'],
+          ['送信NG', breakdown.send_ng || 0, 'bad'],
+          ['公式サイト未取得', breakdown.website_missing || 0, 'warn'],
+          ['再送待ち', breakdown.waiting || 0, 'info'],
+          ['その他', breakdown.blocked || 0, ''],
+        ].filter((item) => Number(item[1]) > 0).map((item) => statusTonePill(`${item[0]} ${formatNumber(item[1])}件`, item[2])).join('');
+        list.innerHTML = state.formReviewItems.length ? state.formReviewItems.map((lead) => {
+          const name = lead.facility_name || lead.company_name || '-';
+          const officialUrl = officialWebsiteTopUrlClient(lead);
+          return `
+            <div class="form-review-item">
+              <strong>${escapeHtml(name)}</strong>
+              <span>${escapeHtml(lead.form_queue_block_reason || '送信条件を確認してください。')}</span>
+              ${officialUrl ? `<a class="button-link secondary" href="${escapeHtml(officialUrl)}" target="_blank" rel="noopener">公式サイト ${legacyUiIcon('external')}</a>` : '<span class="muted">公式サイトなし</span>'}
+            </div>
+          `;
+        }).join('') : '<div class="form-next-empty">要確認の候補はありません。</div>';
+      }
+
+      function toggleFormReviewPanel(forceOpen) {
+        const panel = document.getElementById('formReviewPanel');
+        if (!panel) return;
+        const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : panel.hidden;
+        panel.hidden = !shouldOpen;
+        if (shouldOpen) {
+          renderFormReviewPanel();
+          window.setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0);
+        }
+      }
+
+      function toggleFormShortcutGuide() {
+        const guide = document.getElementById('formShortcutGuide');
+        if (guide) guide.hidden = !guide.hidden;
+      }
+
+      async function openSelectedFormWebsiteAndCopy() {
+        if (state.formShortcutBusy || state.formUpdatingLeadId) return false;
+        const lead = state.formLeads.find((item) => item.id === state.selectedFormLeadId);
+        const officialUrl = officialWebsiteTopUrlClient(lead);
+        if (!lead || !officialUrl) {
+          message('公式サイトURLがありません', 'error');
+          return false;
+        }
+        const template = findFormTemplateForLead(lead);
+        const blockReason = formLeadBlockReasonClient(lead, template);
+        if (blockReason) {
+          message(blockReason, 'error');
+          return false;
+        }
+        state.formShortcutBusy = true;
+        try {
+          window.open(officialUrl, '_blank', 'noopener');
+          return await copyFormMessageForLead(lead.id);
+        } finally {
+          state.formShortcutBusy = false;
+        }
+      }
+
+      async function completeSelectedFormLeadAndAdvance() {
+        if (state.formShortcutBusy || state.formUpdatingLeadId || !state.selectedFormLeadId) return false;
+        const id = state.selectedFormLeadId;
+        state.formShortcutBusy = true;
+        try {
+          const updated = await markFormLeadSent(id, { deferRender: true });
+          if (!updated) return false;
+          await advanceFormQueueAfterMutation(id, '送信済みに更新し、次の施設へ進みました');
+          return true;
+        } finally {
+          state.formShortcutBusy = false;
+        }
+      }
+
+      async function markSelectedFormUnavailableAndAdvance() {
+        if (state.formShortcutBusy || state.formUpdatingLeadId || !state.selectedFormLeadId) return false;
+        const id = state.selectedFormLeadId;
+        state.formShortcutBusy = true;
+        state.formUpdatingLeadId = id;
+        renderSelectedFormLead();
+        try {
+          const updatedLead = await apiQuiet('markLeadFormUnavailable', id, { reason: 'フォームが見つからない' });
+          applyUpdatedFormLeadClient(updatedLead);
+          await advanceFormQueueAfterMutation(id, '対応不要と理由を保存し、次の施設へ進みました');
+          return true;
+        } catch (error) {
+          message(error && error.message ? error.message : '送信不可の保存に失敗しました', 'error');
+          return false;
+        } finally {
+          state.formUpdatingLeadId = '';
+          state.formShortcutBusy = false;
+          renderSelectedFormLead();
+        }
+      }
+
+      async function advanceFormQueueAfterMutation(id, successMessage) {
+        const index = state.formLeads.findIndex((lead) => lead.id === id);
+        if (index >= 0) state.formLeads.splice(index, 1);
+        state.formBatchCompleted = Math.min(Number(state.formBatchCompleted || 0) + 1, Number(state.formBatchSize || 0));
+        state.formTotal = Math.max(0, Number(state.formTotal || 0) - 1);
+        state.selectedFormLeadId = state.formLeads.length ? state.formLeads[Math.min(index, state.formLeads.length - 1)].id : '';
+        message(successMessage, 'ok');
+        renderFormLeads(state.formTotal);
+        if (!state.formLeads.length && state.formTotal > 0) {
+          await loadFormLeads({ continuation: true });
+        }
+      }
+
+      function formWebsiteMiniLink(url, label) {
+        return `<a class="url-mini-link form-website-link" href="${escapeHtml(externalUrl(url))}" target="_blank" rel="noopener" title="${escapeHtml(url)}">${legacyUiIcon('external')}<span>${escapeHtml(label || 'WEBサイト')}</span><small>${escapeHtml(compactUrl(url))}</small></a>`;
+      }
+
+      function formWebsitePrimaryLink(url) {
+        return `<a class="icon-text-button primary form-website-primary-link" href="${escapeHtml(externalUrl(url))}" target="_blank" rel="noopener" title="WEBサイトを新しいタブで開く: ${escapeHtml(url)}">${legacyUiIcon('external')}<span>WEBサイトを開く</span></a>`;
       }
 
       function formUrlMiniLink(url) {
@@ -23340,14 +26294,161 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         if (!state.formLeads.length) return;
         const currentIndex = state.formLeads.findIndex((lead) => lead.id === state.selectedFormLeadId);
         const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % state.formLeads.length : 0;
-        state.selectedFormLeadId = state.formLeads[nextIndex].id;
-        renderFormLeads(state.formTotal);
+        selectFormLead(state.formLeads[nextIndex].id);
+      }
+
+      function isGlampingChatgptFormTemplateClient(template) {
+        return Boolean(template && String(template.id || '') === 'glamping-chatgpt-ads-form-v1');
+      }
+
+      function glampingChatgptFormTemplateClient() {
+        return (state.templates || []).find(isGlampingChatgptFormTemplateClient) || null;
+      }
+
+      function chatgptFormTemplateForLeadClient(lead) {
+        return formTemplateOptionsForLead(lead).find(isGlampingChatgptFormTemplateClient) || null;
+      }
+
+      function chatgptFormCopyLeadClient() {
+        const selected = (state.formLeads || []).find((lead) => lead.id === state.selectedFormLeadId);
+        const candidates = (state.formLeads || []).filter((lead) => {
+          const template = chatgptFormTemplateForLeadClient(lead);
+          return Boolean(template) && !formLeadBlockReasonClient(lead, template);
+        });
+        if (selected && candidates.some((lead) => lead.id === selected.id)) return selected;
+        return candidates[0] || null;
+      }
+
+      function renderFormChatgptCopyPanel() {
+        const target = document.getElementById('formChatgptCopyPanel');
+        if (!target) return;
+        const template = glampingChatgptFormTemplateClient();
+        const lead = template ? chatgptFormCopyLeadClient() : null;
+        const copiedLead = Boolean(lead && state.copiedFormMessageLeadId === lead.id);
+        const facility = lead ? (lead.facility_name || lead.company_name || '選択中の施設') : '';
+        const copyDetail = lead
+          ? `${facility}向けに施設名を差し込んだ本文をコピーできます。`
+          : '表示中に送信可能なグランピング施設がありません。原文のコピーはいつでも使えます。';
+        target.innerHTML = `
+          <span class="form-template-quick-copy-icon" aria-hidden="true">${legacyUiIcon('clipboard')}</span>
+          <div class="form-template-quick-copy-copy">
+            <span>すぐにコピー</span>
+            <strong>ChatGPT広告用テンプレート</strong>
+            <small>${escapeHtml(template ? copyDetail : 'ChatGPT広告用のフォームテンプレートを読み込めませんでした。')}</small>
+          </div>
+          <div class="form-template-quick-copy-actions">
+            <button type="button" class="button form-copy-primary ${copiedLead ? 'copied' : ''}" onclick="copyReadyChatgptFormMessage()" ${lead ? '' : 'disabled'}>${legacyUiIcon(copiedLead ? 'check' : 'clipboard')}${copiedLead ? 'コピーしました' : '選択施設用をコピー'}</button>
+            <button type="button" class="button secondary form-copy-secondary ${state.copiedChatgptTemplateRaw ? 'copied' : ''}" onclick="copyChatgptFormTemplateRaw()" ${template ? '' : 'disabled'}>${legacyUiIcon(state.copiedChatgptTemplateRaw ? 'check' : 'clipboard')}${state.copiedChatgptTemplateRaw ? '原文をコピーしました' : 'テンプレート原文をコピー'}</button>
+            <button type="button" class="button secondary" onclick="showChatgptFormTargets()">グランピングを表示</button>
+          </div>
+        `;
+      }
+
+      async function showChatgptFormTargets() {
+        const select = document.getElementById('formGenreFilter');
+        if (!select) return;
+        const option = Array.from(select.options || []).find((item) => emailGenrePriorityMatchesClient(item.value));
+        if (!option) {
+          message('ジャンル一覧にグランピングがありません', 'error');
+          return;
+        }
+        select.value = option.value;
+        await loadFormLeads();
+      }
+
+      async function copyChatgptFormTemplateRaw() {
+        const template = glampingChatgptFormTemplateClient();
+        const text = template ? String(template.body || '').trim() : '';
+        if (!text) {
+          message('ChatGPT広告用テンプレートを読み込めませんでした', 'error');
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          state.copiedChatgptTemplateRaw = true;
+          renderFormChatgptCopyPanel();
+          message('ChatGPT広告用テンプレートの原文をコピーしました', 'ok');
+          window.setTimeout(() => {
+            state.copiedChatgptTemplateRaw = false;
+            renderFormChatgptCopyPanel();
+          }, 1800);
+        } catch (error) {
+          message('コピーできませんでした。テンプレート画面から本文を選択してコピーしてください。', 'error');
+        }
+      }
+
+      async function copyReadyChatgptFormMessage() {
+        const lead = chatgptFormCopyLeadClient();
+        const template = lead ? chatgptFormTemplateForLeadClient(lead) : null;
+        if (!lead || !template) {
+          message('表示中にコピーできるグランピング施設がありません', 'error');
+          return;
+        }
+        state.selectedFormTemplateIdsByLead[lead.id] = String(template.id || '');
+        await copyFormMessageForLead(lead.id);
+      }
+
+      function formTemplateMatchesLeadClient(template, lead) {
+        if (!template || !lead) return false;
+        const templateGenre = String(template.genre || '').trim();
+        const leadGenre = String(lead.genre || '').trim();
+        if (!templateGenre) return true;
+        if (templateGenre === leadGenre) return true;
+        return isGlampingChatgptFormTemplateClient(template) && emailGenrePriorityMatchesClient(templateGenre) && emailGenrePriorityMatchesClient(leadGenre);
+      }
+
+      function formTemplateOptionsForLead(lead) {
+        return (state.templates || []).filter((template) => {
+          return template.template_type === 'form' && isProductionTemplate(template) && template.active !== false && template.active !== 'false' && formTemplateMatchesLeadClient(template, lead);
+        }).sort((left, right) => {
+          const leftPriority = isGlampingChatgptFormTemplateClient(left) ? 0 : (left.genre ? 1 : 2);
+          const rightPriority = isGlampingChatgptFormTemplateClient(right) ? 0 : (right.genre ? 1 : 2);
+          return leftPriority - rightPriority || String(left.name || '').localeCompare(String(right.name || ''), 'ja');
+        });
       }
 
       function findFormTemplateForLead(lead) {
-        const active = state.templates.filter((template) => template.template_type === 'form' && (template.is_production === true || template.is_production === 'true'));
+        const active = formTemplateOptionsForLead(lead);
+        const overrideId = String(state.selectedFormTemplateIdsByLead[lead && lead.id] || '');
+        const overridden = overrideId ? active.find((template) => String(template.id || '') === overrideId) : null;
+        if (overridden) return overridden;
+        const queuedTemplateId = String(lead && lead.form_queue_template_id || '');
+        const queuedTemplate = queuedTemplateId ? active.find((template) => String(template.id || '') === queuedTemplateId) : null;
+        if (queuedTemplate) return queuedTemplate;
         const leadGenre = String((lead && lead.genre) || '').trim();
+        if (emailGenrePriorityMatchesClient(leadGenre)) {
+          const chatgptTemplate = active.find(isGlampingChatgptFormTemplateClient);
+          if (chatgptTemplate) return chatgptTemplate;
+        }
         return active.find((template) => template.genre && leadGenre && template.genre === leadGenre) || active.find((template) => !template.genre) || null;
+      }
+
+      function setSelectedFormTemplate(templateId) {
+        const leadId = String(state.selectedFormLeadId || '');
+        if (!leadId) return;
+        if (templateId) state.selectedFormTemplateIdsByLead[leadId] = String(templateId);
+        else delete state.selectedFormTemplateIdsByLead[leadId];
+        renderFormLeads(state.formTotal);
+      }
+
+      function renderFormTemplateSelector(lead, selectedTemplate, blockedReason) {
+        const select = document.getElementById('formTemplateSelect');
+        const notice = document.getElementById('formCampaignTemplateNotice');
+        if (!select || !notice) return;
+        const templates = lead ? formTemplateOptionsForLead(lead) : [];
+        select.innerHTML = templates.length
+          ? templates.map((template) => `<option value="${escapeHtml(template.id || '')}">${escapeHtml(template.name || '名称未設定')}</option>`).join('')
+          : '<option value="">本番ONのフォーム用テンプレートがありません</option>';
+        select.disabled = !lead || !templates.length;
+        select.value = selectedTemplate ? String(selectedTemplate.id || '') : '';
+        const dedicated = isGlampingChatgptFormTemplateClient(selectedTemplate);
+        notice.hidden = !dedicated && !blockedReason;
+        notice.className = blockedReason ? 'form-message error' : 'form-message';
+        notice.textContent = blockedReason
+          ? blockedReason
+          : dedicated
+            ? 'ChatGPT広告専用です。通常フォーム送信から30日以上経過した施設を含み、同じ広告をメールまたはフォームで送信済みの施設は除外します。'
+            : '';
       }
 
       function renderClientTemplate(body, lead) {
@@ -23397,14 +26498,41 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         });
       }
 
-      async function copySelectedFormMessage() {
-        const text = document.getElementById('formTemplatePreview').textContent || '';
+      async function copyFormMessageForLead(id) {
+        const lead = (state.formLeads || []).find((item) => item.id === id);
+        const template = lead ? findFormTemplateForLead(lead) : null;
+        const blockReason = lead ? formLeadBlockReasonClient(lead, template) : 'フォーム対象を選択してください';
+        if (blockReason) {
+          message(blockReason, 'error');
+          return false;
+        }
+        const text = renderClientTemplate(template.body || '', lead);
         try {
           await navigator.clipboard.writeText(text);
-          message('フォーム送信用本文をコピーしました', 'ok');
+          state.selectedFormLeadId = lead.id;
+          state.copiedFormMessageLeadId = lead.id;
+          syncFormLeadSelectionUi();
+          syncFormCopyFeedback();
+          message(`${template.name || 'フォーム送信用本文'}をコピーしました`, 'ok');
+          window.setTimeout(() => {
+            if (state.copiedFormMessageLeadId === lead.id) {
+              state.copiedFormMessageLeadId = '';
+              syncFormCopyFeedback();
+            }
+          }, 1800);
+          return true;
         } catch (error) {
           message('コピーできませんでした。本文プレビューを選択してコピーしてください。', 'error');
+          return false;
         }
+      }
+
+      async function copySelectedFormMessage() {
+        if (!state.selectedFormLeadId) {
+          message('フォーム対象を選択してください', 'error');
+          return;
+        }
+        await copyFormMessageForLead(state.selectedFormLeadId);
       }
 
       async function markSelectedFormLead(nextStatus) {
@@ -23422,18 +26550,50 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           await markSelectedFormLeadSent();
           return;
         }
+        if (nextStatus === '対応不要') {
+          await markSelectedFormUnavailableAndAdvance();
+          return;
+        }
         const statusPatch = nextStatus === '対応済み'
           ? { status: 'フォーム対応済み', form_status: '対応済み' }
           : nextStatus === '対応不要'
             ? { status: '対応不要', form_status: '対応不要' }
             : { status: 'フォーム対応中', form_status: '対応中' };
-        await api('updateLead', state.selectedFormLeadId, statusPatch);
+        const updatedLead = await apiQuiet('updateLead', state.selectedFormLeadId, statusPatch);
+        applyUpdatedFormLeadClient(updatedLead);
         message(`フォーム状態を${nextStatus}に更新しました`, 'ok');
-        await Promise.all([loadFormLeads(), loadLeads()]);
+        renderFormLeads(state.formTotal);
       }
 
       function isFormLeadSent(lead) {
         return String(lead?.form_status || '') === '対応済み' || formSendCountClient(lead) > 0 || Boolean(latestFormSentAtClient(lead));
+      }
+
+      function activeFormSendEventsClient(lead) {
+        return formSendEventsClient(lead).slice().sort((left, right) => new Date(left.at).getTime() - new Date(right.at).getTime()).reduce((active, event) => {
+          if (event.type === 'sent') {
+            active.push(event);
+          } else if (event.type === 'unsent' && active.length) {
+            let removeIndex = active.length - 1;
+            if (event.template_id) {
+              for (let index = active.length - 1; index >= 0; index -= 1) {
+                if (active[index].template_id === event.template_id) {
+                  removeIndex = index;
+                  break;
+                }
+              }
+            }
+            active.splice(removeIndex, 1);
+          }
+          return active;
+        }, []);
+      }
+
+      function isFormTemplateSentClient(lead, template) {
+        if (!isGlampingChatgptFormTemplateClient(template)) return isFormLeadSent(lead);
+        const customFields = parseCustomFieldsClient(lead && lead.custom_fields_json);
+        if (customFields.glamping_chatgpt_ads_form_sent_at) return true;
+        return activeFormSendEventsClient(lead).some((event) => event.template_id === 'glamping-chatgpt-ads-form-v1' || event.campaign_key === 'glamping_chatgpt_ads');
       }
 
       function formDisplaySendCount(lead) {
@@ -23453,14 +26613,10 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       async function toggleFormLeadSent(id, checked) {
-        try {
-          if (checked) {
-            await markFormLeadSent(id);
-          } else {
-            await unmarkFormLeadSent(id);
-          }
-        } catch (error) {
-          await loadFormLeads();
+        if (checked) {
+          await markFormLeadSent(id);
+        } else {
+          await unmarkFormLeadSent(id);
         }
       }
 
@@ -23469,7 +26625,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
           message('フォーム対象を選択してください', 'error');
           return;
         }
-        await markFormLeadSent(state.selectedFormLeadId);
+        await completeSelectedFormLeadAndAdvance();
       }
 
       async function unmarkSelectedFormLeadSent() {
@@ -23480,45 +26636,61 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         await unmarkFormLeadSent(state.selectedFormLeadId);
       }
 
-      async function markFormLeadSent(id) {
+      async function markFormLeadSent(id, options) {
+        const config = options || {};
         const lead = state.formLeads.find((item) => item.id === id) || state.leads.find((item) => item.id === id);
         if (!lead || !lead.form_url) {
           message('フォームURLがない営業先は送信済みにできません', 'error');
           return;
         }
         const template = findFormTemplateForLead(lead);
+        if (!template) {
+          message('使用できるフォーム用テンプレートがありません', 'error');
+          return false;
+        }
+        const blockReason = formLeadBlockReasonClient(lead, template);
+        if (blockReason) {
+          message(blockReason, 'error');
+          return false;
+        }
         const body = template ? renderClientTemplate(template.body || '', lead) : '';
         state.formUpdatingLeadId = id;
-        renderFormLeads(state.formTotal);
+        if (!config.deferRender) refreshFormLeadRow(id);
         try {
-          await api('markLeadFormSent', id, {
+          const updatedLead = await apiQuiet('markLeadFormSent', id, {
             body: body,
             template_id: template ? template.id : '',
           });
-          message('フォーム送信済みに更新しました', 'ok');
-          await Promise.all([loadFormLeads(), loadLeads()]);
+          applyUpdatedFormLeadClient(updatedLead);
+          if (!config.deferRender) message('フォーム送信済みに更新しました', 'ok');
+          return updatedLead;
         } catch (error) {
           message(error && error.message ? error.message : 'フォーム送信済みの更新に失敗しました', 'error');
           return false;
         } finally {
           state.formUpdatingLeadId = '';
-          renderFormLeads(state.formTotal);
+          if (!config.deferRender) refreshFormLeadRow(id);
         }
       }
 
       async function unmarkFormLeadSent(id) {
+        const lead = state.formLeads.find((item) => item.id === id) || state.leads.find((item) => item.id === id);
+        const template = lead ? findFormTemplateForLead(lead) : null;
         state.formUpdatingLeadId = id;
-        renderFormLeads(state.formTotal);
+        refreshFormLeadRow(id);
         try {
-          await api('unmarkLeadFormSent', id);
+          const updatedLead = await apiQuiet('unmarkLeadFormSent', id, {
+            template_id: template ? template.id : '',
+          });
+          applyUpdatedFormLeadClient(updatedLead);
           message('フォーム送信済みを解除しました', 'ok');
-          await Promise.all([loadFormLeads(), loadLeads()]);
+          return true;
         } catch (error) {
           message(error && error.message ? error.message : 'フォーム送信済み解除に失敗しました', 'error');
           return false;
         } finally {
           state.formUpdatingLeadId = '';
-          renderFormLeads(state.formTotal);
+          refreshFormLeadRow(id);
         }
       }
 
@@ -29418,11 +32590,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <div class="admin-detail-body">
                 ${automationCardHeader('wand2', 'グランピング優先送信', '開始中は自動・手動・一括・再送のすべてで、グランピング以外へのメール送信を止めます。', `<span class="pill ${priorityEnabled ? 'good' : 'info'}">${priorityEnabled ? '優先中' : '停止中'}</span>`)}
                 <div class="send-check-grid">
-                  <span><small>送信可能な対象</small><strong>${formatNumber(priorityTargetCount)}件</strong></span>
+                  <span><small>送信可能な対象</small><strong>${formatNumber(priorityTargetCount)}件</strong><small>未送信 ${formatNumber(priority.unsentTargetCount || 0)} / 通常送信済み ${formatNumber(priority.previouslySentTargetCount || 0)}</small></span>
                   <span><small>専用テンプレート</small><strong>${escapeHtml(priorityTemplateName)}</strong></span>
                   <span><small>他ジャンル送信</small><strong>${priorityEnabled ? '停止中' : '通常どおり'}</strong></span>
                 </div>
-                <p class="muted">対象が0件になると自動解除し、開始前に本番ONだった通常のグランピング用テンプレートへ戻します。送信時間帯・上限・二重送信防止は現在の設定を引き継ぎます。</p>
+                <p class="muted">未送信施設を先に送り、通常メール送信済みの施設は前回送信から${formatNumber(priority.resendIntervalDays || 30)}日以上経過後に送ります。専用メール送信済みは除外します。対象が0件になると自動解除します。</p>
                 ${priority.lpUrl ? `<p><a href="${escapeHtml(priority.lpUrl)}" target="_blank" rel="noopener noreferrer">ChatGPT広告LPを確認</a></p>` : ''}
                 ${priority.templateBlockReason ? `<p class="message error">${escapeHtml(priority.templateBlockReason)}</p>` : ''}
                 ${priority.deactivatedReason && !priorityEnabled ? `<p class="muted">前回の解除理由: ${escapeHtml(priority.deactivatedReason)}</p>` : ''}
@@ -29507,10 +32679,11 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
               <p class="muted">開始後は複数日・複数回のトリガーをまたいで継続し、自動送信・1件送信・一括送信・再送のすべてで他ジャンルへのメールを停止します。</p>
               <div class="send-check-grid">
                 <span><small>現在の送信対象</small><strong>${formatNumber(priority.targetCount || 0)}件</strong></span>
+                <span><small>対象の内訳</small><strong>未送信 ${formatNumber(priority.unsentTargetCount || 0)}件</strong><small>通常送信済み ${formatNumber(priority.previouslySentTargetCount || 0)}件</small></span>
                 <span><small>使用テンプレート</small><strong>${escapeHtml(priority.templateName || 'グランピング向けChatGPT広告')}</strong></span>
                 <span><small>他ジャンルへの送信</small><strong>行いません</strong></span>
               </div>
-              <p class="message ok">対象がなくなると自動解除し、開始前の通常テンプレートへ戻します。現在の時間帯・送信上限・二重送信防止設定は変更しません。</p>
+              <p class="message ok">未送信施設を先に送り、通常メール送信済みは前回送信から${formatNumber(priority.resendIntervalDays || 30)}日以上経過後に送ります。専用メール送信済みは除外します。対象がなくなると自動解除します。</p>
               ${priority.lpUrl ? `<p><a href="${escapeHtml(priority.lpUrl)}" target="_blank" rel="noopener noreferrer">使用するChatGPT広告LPを確認</a></p>` : ''}
               <div class="dialog-actions">
                 <button type="button" onclick="closeEmailGenrePriorityConfirm()" ${changing ? 'disabled' : ''}>キャンセル</button>
@@ -29567,6 +32740,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         renderSendingScreen();
         renderEmailPreviewPanel();
         renderAdminAutomationSettingsPanel();
+        if (currentTab === 'mailStatus') await refreshEmailDeliveryStatusAfterAction();
       }
 
       async function startEmailGenrePriority() {
@@ -31096,7 +34270,15 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
         return true;
       }
 
-      function formLeadBlockReasonClient(lead) {
+      function formLeadBlockReasonClient(lead, selectedTemplate) {
+        const template = selectedTemplate || findFormTemplateForLead(lead);
+        if (!template) return '本番ONのフォーム用テンプレートがありません';
+        if (isGlampingChatgptFormTemplateClient(template)) {
+          if (!emailGenrePriorityMatchesClient(lead && lead.genre)) return 'ChatGPT広告フォームはグランピング施設だけが対象です';
+          if (lead && lead.glamping_chatgpt_form_block_reason) return String(lead.glamping_chatgpt_form_block_reason);
+          if (lead && lead.glamping_chatgpt_form_eligible === false) return 'ChatGPT広告フォームの送信条件を満たしていません';
+          return '';
+        }
         if (!lead || !lead.form_url) return 'フォームURLがありません';
         if (isReviewPendingLead(lead)) return '確認待ちです。先に確認済みにしてください';
         if (isValidBusinessEmailClient(lead.email)) return 'メール送信対象です';
@@ -31108,7 +34290,7 @@ Batch budget: settings.batch_runtime_budget_ms</pre>
       }
 
       function canFormLeadClient(lead) {
-        return !formLeadBlockReasonClient(lead);
+        return !formLeadBlockReasonClient(lead, findFormTemplateForLead(lead));
       }
 
       function isValidBusinessEmailClient(email) {

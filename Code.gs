@@ -1,5 +1,5 @@
 const APP_NAME = 'Auto Sales List App';
-const APP_VERSION = '20260814_apps_script_full_workflow_v334_glamping_mail_priority';
+const APP_VERSION = '20260818_apps_script_full_workflow_v352_mail_status_next_send_first';
 const BACKGROUND_JOB_SAFE_RUNTIME_MAX_MS = 240000;
 const BACKGROUND_JOB_DEFAULT_RUNTIME_MS = 240000;
 const BACKGROUND_JOB_IMMEDIATE_DELAY_MS = 5000;
@@ -13,17 +13,35 @@ const EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_ = 'グランピング';
 const EMAIL_GENRE_PRIORITY_TEMPLATE_ID_ = 'glamping-chatgpt-ads-v1';
 const EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_ = 'グランピング向けChatGPT広告';
 const EMAIL_GENRE_PRIORITY_LP_URL_ = 'https://adclutch.jp/glamping-chatgpt-ads';
+const EMAIL_GENRE_PRIORITY_RESEND_INTERVAL_DAYS_ = 30;
+const EMAIL_GENRE_PRIORITY_SEND_TYPE_ = 'グランピングChatGPT広告';
+const EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_ = 'glamping-chatgpt-ads-form-v1';
+const EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_NAME_ = 'グランピング向けChatGPT広告（フォーム）';
+const EMAIL_GENRE_PRIORITY_FORM_CAMPAIGN_KEY_ = 'glamping_chatgpt_ads';
 const EMAIL_GENRE_PRIORITY_TEMPLATE_ = Object.freeze({
   id: EMAIL_GENRE_PRIORITY_TEMPLATE_ID_,
   genre: EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_,
   template_type: 'initial',
   name: EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_,
   subject: '【{{屋号}}様】ChatGPT広告を活用した予約集客のご提案',
-  body: '{{屋号}}\nご担当者様\n\nはじめまして。\nAd Clutch（アドクラッチ）の村松と申します。\n\nこの度、貴施設のホームページを拝見し、\nグランピング施設向けのChatGPT広告について、\n予約集客のお力になれるのではないかと思いご連絡いたしました。\n\n旅行者がChatGPTに希望や条件を相談する段階で、\n回答の下にスポンサー広告として施設をご案内し、\n公式サイトでの空室確認・予約につなげる広告施策です。\n\nGoogle広告やMeta広告とは異なる「相談中」の接点を加えることで、\n比較を始める前の旅行者にも施設を知っていただく機会をつくります。\n\nサービス内容はこちらにまとめております。\n' + EMAIL_GENRE_PRIORITY_LP_URL_ + '\n\n初期費用0円の初回限定プランもご用意しております。\nもし現在の集客状況や広告施策についてお悩みがございましたら、\n30分ほどの無料相談で、活用方法を具体的にご説明いたします。\n\nご関心がございましたら、上記ページよりお気軽にご相談ください。\n\nご検討のほど、どうぞよろしくお願いいたします。',
+  body: '{{屋号}} ご担当者様\n\nはじめまして。Ad Clutch（アドクラッチ）の村松と申します。\n\nこの度、貴施設のホームページを拝見し、グランピング施設向けのChatGPT広告について、予約集客のお力になれるのではないかと思い、ご連絡いたしました。\n\n旅行者がChatGPTに希望や条件を相談する段階で、回答の下にスポンサー広告として施設をご案内し、公式サイトでの空室確認・予約につなげる広告施策です。\n\nGoogle広告やMeta広告とは異なる「相談中」の接点を加えることで、比較を始める前の旅行者にも施設を知っていただく機会をつくります。\n\nサービス内容はこちらにまとめております。\n' + EMAIL_GENRE_PRIORITY_LP_URL_ + '\n\n初期費用0円の初回限定プランもご用意しております。現在の集客状況や広告施策についてお悩みがございましたら、30分ほどの無料相談で活用方法を具体的にご説明いたします。\n\nご関心がございましたら、上記ページよりお気軽にご相談ください。\n\nご検討のほど、どうぞよろしくお願いいたします。',
   is_production: false,
   production_enabled_at: '',
   last_test_sent_at: '',
-  version: 1,
+  version: 2,
+  active: true,
+});
+const EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ = Object.freeze({
+  id: EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_,
+  genre: EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_,
+  template_type: 'form',
+  name: EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_NAME_,
+  subject: '',
+  body: '{{屋号}}\nご担当者様\n\nお問い合わせフォームより失礼いたします。Ad Clutch（アドクラッチ）の村松と申します。\n\n貴施設のホームページを拝見し、グランピング施設向けのChatGPT広告について、予約集客のお力になれるのではないかと思いご連絡しました。\n\n旅行者がChatGPTで旅行先を相談・比較している段階で施設をご案内し、公式サイトの空室確認・予約につなげる広告施策です。\n\nサービス内容はこちらです。\n' + EMAIL_GENRE_PRIORITY_LP_URL_ + '\n\n初期費用0円の初回限定プランもご用意しています。ご関心がございましたら、30分ほどの無料相談で活用方法をご説明いたします。\n\nご担当者様にご確認いただけますと幸いです。',
+  is_production: true,
+  production_enabled_at: '',
+  last_test_sent_at: '',
+  version: 2,
   active: true,
 });
 const PROPERTY_KEYS = Object.freeze({
@@ -1308,6 +1326,7 @@ function leadListFields_(additionalFields) {
 
 const LEAD_LIST_CACHE_TTL_SECONDS_ = 300;
 const LEAD_LIST_STATS_CACHE_TTL_SECONDS_ = 300;
+const FORM_OUTREACH_QUEUE_CACHE_TTL_SECONDS_ = 300;
 const LEAD_LIST_CACHE_MAX_CHARS_ = 95000;
 const LEAD_LIST_CACHE_REVISION_PROPERTY_ = 'LEAD_LIST_CACHE_REVISION_V1';
 const LEAD_LIST_READ_MAX_GAP_COLUMNS_ = 2;
@@ -1464,10 +1483,55 @@ function shouldSuppressReviewDuplicate_(candidate, existing) {
     Boolean(String(current.last_sent_at || '').trim());
 }
 
-function buildLeadListMasterContext_(rows) {
-  return Object.assign({}, buildMasterBlockRulesContext_(), {
+function buildLeadListMasterContext_(rows, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const context = Object.assign({}, buildMasterBlockRulesContext_(), {
     reviewDuplicateLeadIds: buildReviewDuplicateLeadIds_(rows),
   });
+  if (input.includeMailSendSafety === true) context.mailSendSafety = buildMailSendSafetyContext_();
+  if (input.includeFormEmailPreferredLeads === true) {
+    context.formEmailPreferredLeadIds = buildFormEmailPreferredLeadIds_(rows);
+  }
+  return context;
+}
+
+function formEmailChannelFacilityKey_(lead) {
+  const source = lead && typeof lead === 'object' ? lead : {};
+  const name = normalizeCompanyName_(source.facility_name || source.company_name || source.normalized_company_name || '');
+  if (!name || name.length < 4) return '';
+  const genericNames = {
+    'キャンプ': true,
+    'キャンプ場': true,
+    'グランピング': true,
+    'グランピング施設': true,
+    'ホテル': true,
+    '旅館': true,
+    'リゾート': true,
+    'ヴィラ': true,
+    'コテージ': true,
+    '公園': true,
+    '野営場': true,
+  };
+  if (genericNames[name]) return '';
+  return String(source.genre || '').trim().toLowerCase() + '\n' + name;
+}
+
+function buildFormEmailPreferredLeadIds_(rows) {
+  const emailLeadByFacility = {};
+  const source = Array.isArray(rows) ? rows : [];
+  source.forEach(function (lead) {
+    if (!lead || isArchivedLead_(lead) || !isValidEmailAddress_(lead.email)) return;
+    const key = formEmailChannelFacilityKey_(lead);
+    if (key && !emailLeadByFacility[key]) emailLeadByFacility[key] = String(lead.id || '');
+  });
+  return source.reduce(function (result, lead) {
+    if (!lead || isArchivedLead_(lead) || !String(lead.form_url || '').trim() || isValidEmailAddress_(lead.email)) return result;
+    const leadId = String(lead.id || '').trim();
+    const key = formEmailChannelFacilityKey_(lead);
+    const emailLeadId = key ? String(emailLeadByFacility[key] || '') : '';
+    if (leadId && emailLeadId && leadId !== emailLeadId) result[leadId] = emailLeadId;
+    return result;
+  }, {});
 }
 
 function canBuildLeadListPrimaryFilterBundle_(query) {
@@ -1535,12 +1599,21 @@ function listLeads(options) {
   const rows = overlayPendingReviewDecisionsOnLeads_(
     readSheetRecordFields_('leads', leadListFields_(query.includeFields), { maxGapColumns: LEAD_LIST_READ_MAX_GAP_COLUMNS_ })
   );
-  const masterContext = leadListQueryNeedsMasterContext_(query) ? buildLeadListMasterContext_(rows) : {};
+  const masterContext = leadListQueryNeedsMasterContext_(query)
+    ? buildLeadListMasterContext_(rows, {
+        includeMailSendSafety: query.filter === 'form_all',
+        includeFormEmailPreferredLeads: query.filter === 'form_all',
+      })
+    : {};
   const primaryFilterResponse = buildLeadListPrimaryFilterBundle_(rows, query, masterContext);
   if (primaryFilterResponse) return primaryFilterResponse;
-  const preparedRows = query.filter === 'review' ? rows.map(function (lead) {
-    return isLeadReviewPending_(lead) ? decorateReviewLeadForList_(lead) : lead;
-  }) : rows;
+  const preparedRows = query.filter === 'review'
+    ? rows.map(function (lead) {
+        return isLeadReviewPending_(lead) ? decorateReviewLeadForList_(lead) : lead;
+      })
+    : query.filter === 'form_all'
+      ? rows.map(function (lead) { return decorateGlampingChatgptFormLead_(lead, masterContext); })
+      : rows;
   const filterPreparedRows = function (filterQuery) {
     return preparedRows.filter(function (lead) {
       if (!filterQuery.includeArchived && isArchivedLead_(lead)) {
@@ -1629,12 +1702,162 @@ function getLeadListStats(options) {
   return response;
 }
 
+function formOutreachTemplateMatchesLead_(template, lead) {
+  if (!template || !lead) return false;
+  if (String(template.template_type || '') !== 'form') return false;
+  if (!normalizeBooleanLike_(template.is_production)) return false;
+  if (Object.prototype.hasOwnProperty.call(template, 'active') && normalizeBooleanLike_(template.active) === false) return false;
+  if (!String(template.body || '').trim()) return false;
+  const templateGenre = String(template.genre || '').trim();
+  const leadGenre = String(lead.genre || '').trim();
+  if (!templateGenre || templateGenre === leadGenre) return true;
+  return String(template.id || '') === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_ &&
+    emailGenrePriorityMatches_(templateGenre, EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_) &&
+    emailGenrePriorityMatches_(leadGenre, EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_);
+}
+
+function findFormOutreachTemplateForLead_(templates, lead) {
+  const matches = (Array.isArray(templates) ? templates : []).filter(function (template) {
+    return formOutreachTemplateMatchesLead_(template, lead);
+  });
+  if (emailGenrePriorityMatches_(lead && lead.genre, EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_)) {
+    const dedicated = matches.find(function (template) {
+      return String(template.id || '') === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_;
+    });
+    if (dedicated) return dedicated;
+  }
+  const leadGenre = String(lead && lead.genre || '').trim();
+  return matches.find(function (template) {
+    return String(template.genre || '').trim() === leadGenre && leadGenre;
+  }) || matches.find(function (template) {
+    return !String(template.genre || '').trim();
+  }) || null;
+}
+
+function formOutreachQueueBlockReason_(lead, template, masterContext) {
+  if (!template) return '本番ONのフォーム用テンプレートが設定されていません。';
+  const sendBlockReason = String(template.id || '') === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_
+    ? String(getGlampingChatgptFormEligibility_(lead, masterContext).blockReason || '')
+    : String(getFormSendTargetBlockReason_(lead, masterContext) || '');
+  if (sendBlockReason) return sendBlockReason;
+  if (!String(lead && lead.website_url || '').trim()) return '公式サイトURLがないため、連続送信キューには表示できません。';
+  return '';
+}
+
+function shouldOmitHandledFormOutreachLead_(lead, template, blockReason) {
+  const status = String(lead && lead.status || '');
+  const formStatus = String(lead && lead.form_status || '');
+  if (status === '対応不要' || formStatus === '対応不要') return true;
+  if (String(template && template.id || '') === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_) {
+    return /ChatGPT広告を(?:フォーム|メール)で送信済み|メール送信済み、または送信処理中/.test(String(blockReason || ''));
+  }
+  return status === 'フォーム対応済み' || formStatus === '対応済み';
+}
+
+function formOutreachReviewKind_(blockReason, template) {
+  const reason = String(blockReason || '');
+  if (!template) return 'template_missing';
+  if (/送信NG/.test(reason)) return 'send_ng';
+  if (/公式サイトURL/.test(reason)) return 'website_missing';
+  if (/30日未満|日経過後/.test(reason)) return 'waiting';
+  return 'blocked';
+}
+
+function decorateFormOutreachQueueLead_(lead, template, blockReason, kind) {
+  return Object.assign({}, lead, {
+    form_queue_template_id: String(template && template.id || ''),
+    form_queue_template_name: String(template && template.name || ''),
+    form_queue_block_reason: String(blockReason || ''),
+    form_queue_kind: String(kind || ''),
+  });
+}
+
+function listFormOutreachQueue(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const limit = Math.min(Math.max(Number(input.limit) || 25, 1), 25);
+  const genre = String(input.genre || '').trim();
+  const search = String(input.search || '').trim().toLowerCase();
+  const cachePayload = {
+    revision: leadListCacheRevision_(),
+    genre: genre,
+    search: search,
+    limit: limit,
+  };
+  const cached = readLeadListCache_('form_queue', cachePayload);
+  if (cached) return cached;
+  const rows = overlayPendingReviewDecisionsOnLeads_(
+    readSheetRecordFields_('leads', leadListFields_(['contact_name', 'custom_fields_json']), { maxGapColumns: LEAD_LIST_READ_MAX_GAP_COLUMNS_ })
+  );
+  const masterContext = buildLeadListMasterContext_(rows, {
+    includeMailSendSafety: true,
+    includeFormEmailPreferredLeads: true,
+  });
+  const templates = listEmailTemplates({ limit: 500, includeInactive: true }).items || [];
+  const ready = [];
+  const review = [];
+
+  rows.forEach(function (sourceLead) {
+    if (!isFormOutreachLead_(sourceLead, masterContext)) return;
+    if (genre && String(sourceLead.genre || '').trim() !== genre) return;
+    if (search) {
+      const haystack = [
+        sourceLead.company_name,
+        sourceLead.facility_name,
+        sourceLead.website_url,
+        sourceLead.form_url,
+        sourceLead.genre,
+      ].join(' ').toLowerCase();
+      if (haystack.indexOf(search) === -1) return;
+    }
+
+    const lead = decorateGlampingChatgptFormLead_(sourceLead, masterContext);
+    const template = findFormOutreachTemplateForLead_(templates, lead);
+    const blockReason = formOutreachQueueBlockReason_(lead, template, masterContext);
+    if (shouldOmitHandledFormOutreachLead_(lead, template, blockReason)) return;
+    if (blockReason) {
+      review.push(decorateFormOutreachQueueLead_(lead, template, blockReason, formOutreachReviewKind_(blockReason, template)));
+      return;
+    }
+    ready.push(decorateFormOutreachQueueLead_(lead, template, '', String(lead.glamping_chatgpt_form_kind || 'unsent')));
+  });
+
+  ready.sort(function (left, right) {
+    const leftPriority = String(left.form_queue_kind || '') === 'previously_sent' ? 1 : 0;
+    const rightPriority = String(right.form_queue_kind || '') === 'previously_sent' ? 1 : 0;
+    return leftPriority - rightPriority ||
+      String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
+  });
+  review.sort(function (left, right) {
+    return String(right.updated_at || right.created_at || '').localeCompare(String(left.updated_at || left.created_at || ''));
+  });
+
+  const reviewBreakdown = review.reduce(function (result, lead) {
+    const key = String(lead.form_queue_kind || 'blocked');
+    result[key] = Number(result[key] || 0) + 1;
+    return result;
+  }, { template_missing: 0, send_ng: 0, website_missing: 0, waiting: 0, blocked: 0 });
+
+  const response = {
+    total: ready.length,
+    limit: limit,
+    items: ready.slice(0, limit),
+    reviewTotal: review.length,
+    reviewItems: review.slice(0, 25),
+    reviewBreakdown: reviewBreakdown,
+    genre: genre,
+    search: search,
+    generatedAt: nowIso_(),
+  };
+  writeLeadListCache_('form_queue', cachePayload, response, FORM_OUTREACH_QUEUE_CACHE_TTL_SECONDS_);
+  return response;
+}
+
 function leadListQueryNeedsMasterContext_(query) {
   const source = query && typeof query === 'object' ? query : {};
   const filter = String(source.filter || 'all');
   if (source.includeStats !== false) return true;
   if (filter.indexOf('state_') === 0 || filter.indexOf('group_') === 0) return true;
-  return ['email', 'form', 'unsent', 'review'].indexOf(filter) !== -1;
+  return ['email', 'form', 'form_all', 'unsent', 'review'].indexOf(filter) !== -1;
 }
 
 function listEmailSendCandidates(options) {
@@ -1645,9 +1868,21 @@ function listEmailSendCandidates(options) {
     ? getEmailGenrePrioritySetting_()
     : { enabled: false, genreKeyword: EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_, templateId: EMAIL_GENRE_PRIORITY_TEMPLATE_ID_ };
   const masterContext = buildMasterBlockContext_();
-  const candidates = readSheetRecordFields_('leads', leadListFields_(['contact_name']), { maxGapColumns: 0 }).filter(function (lead) {
+  const leads = readSheetRecordFields_('leads', leadListFields_(['contact_name']), { maxGapColumns: 0 });
+  if (priorityState.enabled && typeof selectEmailGenrePriorityCandidates_ === 'function') {
+    const priorityTemplate = findSheetRecordById_('email_templates', priorityState.templateId);
+    const selection = selectEmailGenrePriorityCandidates_(leads, priorityTemplate || EMAIL_GENRE_PRIORITY_TEMPLATE_, masterContext, Number.MAX_SAFE_INTEGER, priorityState.genreKeyword);
+    return {
+      total: selection.total,
+      limit: limit,
+      genre: priorityState.genreKeyword,
+      emailGenrePriority: sanitizeEmailGenrePriorityState_(priorityState),
+      priorityBreakdown: selection.breakdown || { unsent: 0, previouslySent: 0 },
+      items: selection.selected.slice(0, limit).map(function (item) { return item.lead; }),
+    };
+  }
+  const candidates = leads.filter(function (lead) {
     if (isArchivedLead_(lead) || !isEmailSendTarget_(lead, masterContext)) return false;
-    if (priorityState.enabled) return emailGenrePriorityMatches_(lead.genre, priorityState.genreKeyword);
     return !genre || String(lead.genre || '').trim() === genre;
   });
   sortLeads_(candidates, 'updated_desc');
@@ -1756,7 +1991,7 @@ function matchesLeadListFilter_(lead, filter, masterContext) {
   if (value === 'email') return isEmailSendTarget_(lead, masterContext);
   if (value === 'has_email') return isValidEmailAddress_(lead.email);
   if (value === 'form') return isFormSendTarget_(lead, masterContext);
-  if (value === 'form_all') return isFormOutreachLead_(lead);
+  if (value === 'form_all') return isFormOutreachLead_(lead, masterContext);
   if (value === 'excluded') return sendNg || SEND_EXCLUDED_STATUSES.indexOf(status) !== -1;
   if (value === 'send_ng') return sendNg;
   if (value === 'unsent') return isValidEmailAddress_(lead.email) && !sent && !sendNg && !replied && !deal;
@@ -2990,7 +3225,9 @@ function getLeadCollectionQualityMigrationV215Status_() {
 function matchesFormStatusFilter_(lead, formStatus) {
   const status = String(lead.form_status || '未対応');
   if (formStatus === 'all') return true;
-  if (formStatus === 'active') return status === '未対応' || status === '対応中' || !status;
+  if (formStatus === 'active') {
+    return status === '未対応' || status === '対応中' || !status || lead.glamping_chatgpt_form_eligible === true;
+  }
   return status === formStatus;
 }
 
@@ -3597,6 +3834,7 @@ function countSheetExactMatches_(sheetName, columnName, value) {
 
 function markLeadFormSent(leadId, options) {
   const input = options && typeof options === 'object' ? options : {};
+  const requestedTemplateId = String(input.template_id || input.templateId || '').trim();
   return withScriptLock_('markLeadFormSent', function () {
     const id = requireId_(leadId);
     const spreadsheet = getOrCreateSpreadsheet_();
@@ -3607,7 +3845,22 @@ function markLeadFormSent(leadId, options) {
       throw new Error('Lead not found: ' + id);
     }
 
-    const blockReason = getFormSendTargetBlockReason_(found.record, buildMasterBlockRulesContext_());
+    const storedTemplate = requestedTemplateId ? findSheetRecordById_('email_templates', requestedTemplateId) : null;
+    const template = requestedTemplateId === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_
+      ? Object.assign({}, storedTemplate || {}, EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_)
+      : storedTemplate;
+    if (requestedTemplateId && !template) {
+      throw createExpectedOperationError_('フォーム用テンプレートが見つかりません。', 'FORM_TEMPLATE_NOT_FOUND');
+    }
+    if (template) validateFormSendTemplate_(template, found.record);
+    const isChatgptAdsForm = requestedTemplateId === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_;
+    const masterContext = buildMasterBlockRulesContext_();
+    if (isChatgptAdsForm && hasGlampingChatgptEmailSendOrReservationForLead_(found.record)) {
+      throw createExpectedOperationError_('グランピング向けChatGPT広告はメール送信済み、または送信処理中です。', 'FORM_CAMPAIGN_EMAIL_ALREADY_SENT');
+    }
+    const blockReason = isChatgptAdsForm
+      ? getGlampingChatgptFormEligibility_(found.record, masterContext).blockReason
+      : getFormSendTargetBlockReason_(found.record, masterContext);
     if (blockReason) {
       throw createExpectedOperationError_(blockReason, 'FORM_TARGET_BLOCKED');
     }
@@ -3616,15 +3869,29 @@ function markLeadFormSent(leadId, options) {
     const headers = found.headers || getHeaders_(sheet);
     const customFields = parseJsonObjectSafe_(found.record.custom_fields_json);
     const events = formSendEventsFromCustomFields_(customFields);
-    const body = typeof input.body === 'string' ? input.body : '';
-    const templateId = String(input.template_id || input.templateId || '').trim();
-    const nextCount = Number(customFields.form_send_count || 0) + 1;
+    const body = isChatgptAdsForm
+      ? renderTemplateForLead_(template, found.record, {}).body
+      : (typeof input.body === 'string' ? input.body : '');
+    let activeEvents = activeFormSendEvents_(events);
+    if (!activeEvents.length && Number(customFields.form_send_count || 0) > 0 && customFields.last_form_sent_at) {
+      events.push({
+        at: String(customFields.last_form_sent_at),
+        type: 'sent',
+        body: String(customFields.last_form_body || ''),
+        template_id: String(customFields.last_form_template_id || ''),
+        campaign_key: '',
+        previous_status: String(customFields.last_form_previous_status || '未対応'),
+      });
+      activeEvents = activeFormSendEvents_(events);
+    }
+    const nextCount = Math.max(Number(customFields.form_send_count || 0), activeEvents.length) + 1;
 
     events.unshift({
       at: now,
       type: 'sent',
       body: body,
-      template_id: templateId,
+      template_id: requestedTemplateId,
+      campaign_key: isChatgptAdsForm ? EMAIL_GENRE_PRIORITY_FORM_CAMPAIGN_KEY_ : '',
       previous_status: String(found.record.status || '未対応'),
     });
 
@@ -3632,7 +3899,11 @@ function markLeadFormSent(leadId, options) {
     customFields.last_form_sent_at = now;
     customFields.last_form_body = body;
     customFields.last_form_previous_status = String(found.record.status || '未対応');
-    if (templateId) customFields.last_form_template_id = templateId;
+    if (requestedTemplateId) customFields.last_form_template_id = requestedTemplateId;
+    if (isChatgptAdsForm) {
+      customFields.glamping_chatgpt_ads_form_sent_at = now;
+      customFields.glamping_chatgpt_ads_form_template_id = EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_;
+    }
     customFields.form_send_events = events.slice(0, 50);
 
     const nextRecord = Object.assign({}, found.record, {
@@ -3650,7 +3921,51 @@ function markLeadFormSent(leadId, options) {
   });
 }
 
-function unmarkLeadFormSent(leadId) {
+function markLeadFormUnavailable(leadId, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const reason = String(input.reason || 'フォームが見つからない').trim();
+  if (reason !== 'フォームが見つからない') {
+    throw createExpectedOperationError_('フォーム送信不可理由が不正です。', 'FORM_UNAVAILABLE_REASON_INVALID');
+  }
+  return withScriptLock_('markLeadFormUnavailable', function () {
+    const id = requireId_(leadId);
+    const spreadsheet = getOrCreateSpreadsheet_();
+    const sheet = ensureSheet_(spreadsheet, 'leads');
+    const found = findRowById_(sheet, id);
+    if (!found) throw new Error('Lead not found: ' + id);
+    if (isArchivedLead_(found.record)) {
+      throw createExpectedOperationError_('営業対象外の施設は更新できません。', 'FORM_TARGET_ARCHIVED');
+    }
+
+    const now = nowIso_();
+    const customFields = parseJsonObjectSafe_(found.record.custom_fields_json);
+    const events = Array.isArray(customFields.form_unavailable_events) ? customFields.form_unavailable_events.slice() : [];
+    events.unshift({
+      at: now,
+      reason: reason,
+      previous_status: String(found.record.status || '未対応'),
+      previous_form_status: String(found.record.form_status || '未対応'),
+    });
+    customFields.form_unavailable_reason = reason;
+    customFields.form_unavailable_at = now;
+    customFields.form_unavailable_events = events.slice(0, 50);
+
+    const headers = found.headers || getHeaders_(sheet);
+    const nextRecord = Object.assign({}, found.record, {
+      status: '対応不要',
+      form_status: '対応不要',
+      custom_fields_json: safeJsonStringify_(customFields),
+      updated_at: now,
+      form_unavailable_reason: reason,
+    });
+    writeRecordToRow_(sheet, found.rowNumber, headers, nextRecord);
+    clearRuntimeCaches_('leads');
+    return nextRecord;
+  }, { waitMs: 6000, attempts: 5, retryDelayMs: 400 });
+}
+
+function unmarkLeadFormSent(leadId, options) {
+  const input = options && typeof options === 'object' ? options : {};
   return withScriptLock_('unmarkLeadFormSent', function () {
     const id = requireId_(leadId);
     const spreadsheet = getOrCreateSpreadsheet_();
@@ -3665,17 +3980,28 @@ function unmarkLeadFormSent(leadId) {
     const headers = found.headers || getHeaders_(sheet);
     const customFields = parseJsonObjectSafe_(found.record.custom_fields_json);
     const currentCount = Math.max(0, Number(customFields.form_send_count || 0));
+    const events = formSendEventsFromCustomFields_(customFields);
+    const activeEvents = activeFormSendEvents_(events);
+    const latestActiveEvent = activeEvents.length ? activeEvents[activeEvents.length - 1] : null;
     const hasRecordedFormSend = currentCount > 0 ||
+      activeEvents.length > 0 ||
       Boolean(customFields.last_form_sent_at) ||
       String(found.record.status || '') === 'フォーム対応済み' ||
       String(found.record.form_status || '') === '対応済み';
     if (!hasRecordedFormSend) {
       throw createExpectedOperationError_('取り消せるフォーム送信記録がありません。', 'FORM_SEND_NOT_RECORDED');
     }
-    const events = formSendEventsFromCustomFields_(customFields);
-    const nextCount = Math.max(0, currentCount - 1);
+    const requestedTemplateId = String(input.template_id || input.templateId || '').trim();
+    const activeTemplateId = String(latestActiveEvent && latestActiveEvent.template_id || customFields.last_form_template_id || '').trim();
+    if (requestedTemplateId && activeTemplateId && requestedTemplateId !== activeTemplateId) {
+      throw createExpectedOperationError_('選択中のテンプレートは直近のフォーム送信ではないため解除できません。', 'FORM_SEND_TEMPLATE_MISMATCH');
+    }
+    const removedTemplateId = activeTemplateId || requestedTemplateId;
+    const remainingEvents = activeEvents.slice(0, Math.max(activeEvents.length - 1, 0));
+    const restoredEvent = remainingEvents.length ? remainingEvents[remainingEvents.length - 1] : null;
+    const nextCount = Math.max(remainingEvents.length, Math.max(0, currentCount - 1));
     const fallbackSentAt = latestSuccessfulMailSentAt_(id);
-    const previousSentEvent = events.find(function (event) {
+    const previousSentEvent = activeEvents.slice().reverse().find(function (event) {
       return event && event.type === 'sent' && event.previous_status;
     });
     const reviewFallbackStatus = ['serper', 'search_job', 'prospecting', 'source_page'].indexOf(String(found.record.source || '')) !== -1
@@ -3690,19 +4016,34 @@ function unmarkLeadFormSent(leadId) {
       at: now,
       type: 'unsent',
       body: '',
+      template_id: removedTemplateId,
+      campaign_key: removedTemplateId === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_ ? EMAIL_GENRE_PRIORITY_FORM_CAMPAIGN_KEY_ : '',
     });
 
     customFields.form_send_count = nextCount;
     customFields.form_send_events = events.slice(0, 50);
-    delete customFields.last_form_sent_at;
-    delete customFields.last_form_body;
-    delete customFields.last_form_template_id;
-    delete customFields.last_form_previous_status;
+    if (restoredEvent) {
+      customFields.last_form_sent_at = restoredEvent.at;
+      customFields.last_form_body = restoredEvent.body || '';
+      customFields.last_form_template_id = restoredEvent.template_id || '';
+      customFields.last_form_previous_status = restoredEvent.previous_status || reviewFallbackStatus;
+    } else {
+      delete customFields.last_form_sent_at;
+      delete customFields.last_form_body;
+      delete customFields.last_form_template_id;
+      delete customFields.last_form_previous_status;
+    }
+    if (removedTemplateId === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_) {
+      delete customFields.glamping_chatgpt_ads_form_sent_at;
+      delete customFields.glamping_chatgpt_ads_form_template_id;
+    }
 
     const nextRecord = Object.assign({}, found.record, {
-      status: found.record.status === 'フォーム対応済み' ? restoreStatus : (found.record.status || restoreStatus),
-      form_status: '未対応',
-      last_sent_at: fallbackSentAt || '',
+      status: nextCount > 0
+        ? 'フォーム対応済み'
+        : (found.record.status === 'フォーム対応済み' ? restoreStatus : (found.record.status || restoreStatus)),
+      form_status: nextCount > 0 ? '対応済み' : '未対応',
+      last_sent_at: restoredEvent ? restoredEvent.at : (fallbackSentAt || ''),
       custom_fields_json: safeJsonStringify_(customFields),
       updated_at: now,
     });
@@ -5003,8 +5344,36 @@ function formSendEventsFromCustomFields_(customFields) {
         type: String(event.type || ''),
         body: typeof event.body === 'string' ? event.body : '',
         template_id: event.template_id ? String(event.template_id) : '',
+        campaign_key: event.campaign_key ? String(event.campaign_key) : '',
+        previous_status: event.previous_status ? String(event.previous_status) : '',
       };
     });
+}
+
+function activeFormSendEvents_(events) {
+  const chronological = (Array.isArray(events) ? events : []).slice().sort(function (left, right) {
+    return String(left.at || '').localeCompare(String(right.at || ''));
+  });
+  return chronological.reduce(function (active, event) {
+    if (event.type === 'sent') {
+      active.push(event);
+      return active;
+    }
+    if (event.type === 'unsent' && active.length) {
+      const templateId = String(event.template_id || '');
+      let removeIndex = active.length - 1;
+      if (templateId) {
+        for (let index = active.length - 1; index >= 0; index -= 1) {
+          if (String(active[index].template_id || '') === templateId) {
+            removeIndex = index;
+            break;
+          }
+        }
+      }
+      active.splice(removeIndex, 1);
+    }
+    return active;
+  }, []);
 }
 
 function latestSuccessfulMailSentAt_(leadId) {

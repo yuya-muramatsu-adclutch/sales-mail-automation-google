@@ -1,26 +1,58 @@
 function listEmailTemplates(options) {
-  return listSheetRecords('email_templates', options || { limit: 200 });
+  const result = listSheetRecords('email_templates', options || { limit: 200 });
+  const items = Array.isArray(result.items) ? result.items.slice() : [];
+  const formTemplateIndex = items.findIndex(function (template) {
+    return String(template.id || '') === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_;
+  });
+  if (formTemplateIndex === -1) {
+    items.push(Object.assign({}, EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_, {
+      system_template: true,
+      production_enabled_at: '',
+      created_at: '',
+      updated_at: '',
+    }));
+  } else {
+    const stored = items[formTemplateIndex];
+    items[formTemplateIndex] = Object.assign({}, stored, EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_, {
+      system_template: true,
+      production_enabled_at: stored.production_enabled_at || '',
+      created_at: stored.created_at || '',
+      updated_at: stored.updated_at || '',
+    });
+  }
+  return Object.assign({}, result, {
+    total: Math.max(Number(result.total || 0), items.length),
+    items: items,
+  });
 }
 
 function seedDefaultEmailTemplates_(spreadsheet) {
   const sheet = ensureSheet_(spreadsheet, 'email_templates');
   const records = readSheetRecords_(sheet);
-  const existing = records.find(function (record) {
-    return String(record.id || '') === EMAIL_GENRE_PRIORITY_TEMPLATE_ID_;
-  });
-  if (existing) return existing;
-
   const headers = getHeaders_(sheet);
   const now = nowIso_();
-  const record = Object.assign({}, EMAIL_GENRE_PRIORITY_TEMPLATE_, {
-    created_at: now,
-    updated_at: now,
+  const defaults = [EMAIL_GENRE_PRIORITY_TEMPLATE_, EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_];
+  const existingIds = records.reduce(function (result, record) {
+    result[String(record.id || '')] = true;
+    return result;
+  }, {});
+  const inserts = defaults.filter(function (template) {
+    return !existingIds[String(template.id || '')];
+  }).map(function (template) {
+    return Object.assign({}, template, {
+      production_enabled_at: normalizeBooleanLike_(template.is_production) ? now : '',
+      created_at: now,
+      updated_at: now,
+    });
   });
-  sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([headers.map(function (header) {
-    return valueOrBlank_(record[header]);
-  })]);
+  if (!inserts.length) return records.find(function (record) {
+    return String(record.id || '') === EMAIL_GENRE_PRIORITY_TEMPLATE_ID_;
+  }) || null;
+  sheet.getRange(sheet.getLastRow() + 1, 1, inserts.length, headers.length).setValues(inserts.map(function (record) {
+    return headers.map(function (header) { return valueOrBlank_(record[header]); });
+  }));
   clearRuntimeCaches_('email_templates');
-  return record;
+  return inserts[0];
 }
 
 function saveEmailTemplate(input) {
@@ -159,7 +191,7 @@ function setEmailTemplateProduction(id, input) {
     if (!template) throw new Error('Email template not found: ' + templateId);
 
     if (enabled) {
-      if (!template.last_test_sent_at) throw new Error('本番ONにする前にテスト送信してください。');
+      if (template.template_type !== 'form' && !template.last_test_sent_at) throw new Error('本番ONにする前にテスト送信してください。');
       if (template.template_type === 'followup_2m') throw new Error('2ヶ月後メールは現在の自動送信では使用しません。');
       if (template.template_type !== 'form' && !template.genre) throw new Error('本番ONにする前にジャンルを設定してください。');
       const mismatchReason = getTemplateGenreContentMismatchReason_(template);

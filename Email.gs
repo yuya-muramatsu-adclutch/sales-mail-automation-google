@@ -198,12 +198,164 @@ function getFormSendTargetBlockReason_(lead, masterContext) {
   return blocked.blocked ? blocked.reason : '';
 }
 
-function isFormOutreachLead_(lead) {
+function validateFormSendTemplate_(template, lead) {
+  if (!template) throw createExpectedOperationError_('フォーム用テンプレートが見つかりません。', 'FORM_TEMPLATE_NOT_FOUND');
+  if (Object.prototype.hasOwnProperty.call(template, 'active') && normalizeBooleanLike_(template.active) === false) {
+    throw createExpectedOperationError_('無効なフォーム用テンプレートは使用できません。', 'FORM_TEMPLATE_INACTIVE');
+  }
+  if (String(template.template_type || '') !== 'form') {
+    throw createExpectedOperationError_('フォーム営業用テンプレートを選択してください。', 'FORM_TEMPLATE_TYPE_INVALID');
+  }
+  if (!normalizeBooleanLike_(template.is_production)) {
+    throw createExpectedOperationError_('本番ONのフォーム用テンプレートだけ使用できます。', 'FORM_TEMPLATE_NOT_PRODUCTION');
+  }
+  if (!String(template.body || '').trim()) {
+    throw createExpectedOperationError_('フォーム用テンプレートの本文が空です。', 'FORM_TEMPLATE_BODY_EMPTY');
+  }
+  const templateGenre = String(template.genre || '').trim();
+  const leadGenre = String(lead && lead.genre || '').trim();
+  const priorityMatch = String(template.id || '') === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_ &&
+    emailGenrePriorityMatches_(templateGenre, EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_) &&
+    emailGenrePriorityMatches_(leadGenre, EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_);
+  if (templateGenre && templateGenre !== leadGenre && !priorityMatch) {
+    throw createExpectedOperationError_('テンプレートと営業先のジャンルが一致していません。', 'FORM_TEMPLATE_GENRE_MISMATCH');
+  }
+  if (String(template.id || '') === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_ && String(template.body || '').indexOf(EMAIL_GENRE_PRIORITY_LP_URL_) === -1) {
+    throw createExpectedOperationError_('ChatGPT広告フォーム用テンプレートに専用LPが含まれていません。', 'FORM_TEMPLATE_LP_MISSING');
+  }
+  const mismatchReason = getTemplateGenreContentMismatchReason_(template);
+  if (mismatchReason) throw createExpectedOperationError_(mismatchReason, 'FORM_TEMPLATE_CONTENT_MISMATCH');
+  return true;
+}
+
+function getGlampingChatgptFormSendState_(lead) {
+  const customFields = parseJsonObjectSafe_(lead && lead.custom_fields_json);
+  const activeEvents = activeFormSendEvents_(formSendEventsFromCustomFields_(customFields));
+  const dedicatedEvent = activeEvents.slice().reverse().find(function (event) {
+    return String(event.template_id || '') === EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_ ||
+      String(event.campaign_key || '') === EMAIL_GENRE_PRIORITY_FORM_CAMPAIGN_KEY_;
+  });
+  const latestEvent = activeEvents.length ? activeEvents[activeEvents.length - 1] : null;
+  const dedicatedAt = String(customFields.glamping_chatgpt_ads_form_sent_at || (dedicatedEvent && dedicatedEvent.at) || '');
+  const latestAt = String((latestEvent && latestEvent.at) || customFields.last_form_sent_at || '');
+  const recordedCount = Math.max(Number(customFields.form_send_count || 0), activeEvents.length);
+  const hasPriorFormSend = recordedCount > 0 || Boolean(latestAt) ||
+    String(lead && lead.form_status || '') === '対応済み' || String(lead && lead.status || '') === 'フォーム対応済み';
+  return {
+    customFields: customFields,
+    activeEvents: activeEvents,
+    dedicatedAt: dedicatedAt,
+    latestAt: latestAt,
+    recordedCount: recordedCount,
+    hasPriorFormSend: hasPriorFormSend,
+  };
+}
+
+function hasGlampingChatgptEmailSendOrReservationForLead_(lead) {
+  const leadId = String(lead && lead.id || '').trim();
+  if (!leadId) return false;
+  return findSheetRecordsByExactFieldValues_(
+    'send_histories',
+    'lead_id',
+    [leadId],
+    mailSendSafetyHistoryFields_()
+  ).some(function (history) {
+    return String(history.lead_id || '') === leadId &&
+      String(history.template_id || '') === EMAIL_GENRE_PRIORITY_TEMPLATE_ID_ &&
+      ['成功', PRODUCTION_SEND_RESERVED_RESULT_].indexOf(String(history.send_result || '')) !== -1;
+  });
+}
+
+function hasSuccessfulGlampingChatgptEmailSend_(lead, masterContext) {
+  const safety = masterContext && masterContext.mailSendSafety;
+  if (!safety) return false;
+  const leadId = String(lead && lead.id || '').trim();
+  const email = normalizeEmailForSendSafety_(lead && lead.email || '');
+  return Boolean(
+    (leadId && safety.sentTemplateLeadIds && safety.sentTemplateLeadIds[EMAIL_GENRE_PRIORITY_TEMPLATE_ID_ + '\n' + leadId]) ||
+    (email && safety.sentTemplateEmails && safety.sentTemplateEmails[EMAIL_GENRE_PRIORITY_TEMPLATE_ID_ + '\n' + email])
+  );
+}
+
+function getGlampingChatgptFormEligibility_(lead, masterContext, nowMs) {
+  const currentMs = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+  const intervalMs = EMAIL_GENRE_PRIORITY_RESEND_INTERVAL_DAYS_ * 24 * 60 * 60 * 1000;
+  if (!lead || isArchivedLead_(lead)) return { blockReason: '営業対象外のためフォーム送信できません。', kind: 'blocked' };
+  if (!emailGenrePriorityMatches_(lead.genre, EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_)) {
+    return { blockReason: 'ChatGPT広告フォームはグランピング施設だけが対象です。', kind: 'blocked' };
+  }
+  if (isClearlyClosedLead_(lead)) return { blockReason: '閉鎖・営業終了・休業が確認できるためフォーム送信できません。', kind: 'blocked' };
+  if (isLeadLinkDefinitelyBroken_(lead)) return { blockReason: 'リンク切れが確認できるためフォーム送信できません。', kind: 'blocked' };
+  if (isLeadReviewPending_(lead)) return { blockReason: '確認待ちのため、確認済みにするまでフォーム送信できません。', kind: 'blocked' };
+  if (!String(lead.form_url || '').trim()) return { blockReason: 'フォームURLがないため送信できません。', kind: 'blocked' };
+  if (isValidEmailAddress_(lead.email)) return { blockReason: '有効なメールアドレスがあるため、ChatGPT広告はメール送信を使用してください。', kind: 'blocked' };
+  if (normalizeBooleanLike_(lead.send_ng) || String(lead.status || '') === '送信NG') return { blockReason: '送信NGに指定されているため送信できません。', kind: 'blocked' };
+  if (normalizeBooleanLike_(lead.reply_checked) || String(lead.status || '') === '返信あり') return { blockReason: '返信確認済みのため送信できません。', kind: 'blocked' };
+  if (String(lead.deal_status || '未設定') !== '未設定') return { blockReason: '商談状態が設定済みのため送信できません。', kind: 'blocked' };
+  if (String(lead.form_status || '') === '対応不要' || String(lead.status || '') === '対応不要') {
+    return { blockReason: '対応不要に指定されているため送信できません。', kind: 'blocked' };
+  }
+  if (SEND_EXCLUDED_STATUSES.indexOf(String(lead.status || '')) !== -1 && String(lead.status || '') !== 'フォーム対応済み') {
+    return { blockReason: '現在のステータスでは送信できません。', kind: 'blocked' };
+  }
+  const blocked = masterContext ? isLeadBlockedByMastersInContext_(lead, masterContext) : isLeadBlockedByMasters_(lead);
+  if (blocked.blocked) return { blockReason: blocked.reason, kind: 'blocked' };
+  if (hasSuccessfulGlampingChatgptEmailSend_(lead, masterContext)) {
+    return { blockReason: 'グランピング向けChatGPT広告をメールで送信済みです。', kind: 'blocked' };
+  }
+
+  const state = getGlampingChatgptFormSendState_(lead);
+  if (state.dedicatedAt) {
+    return { blockReason: 'グランピング向けChatGPT広告をフォームで送信済みです。', kind: 'blocked', dedicatedSentAt: state.dedicatedAt };
+  }
+  if (!state.hasPriorFormSend) {
+    return { blockReason: '', kind: 'unsent', previousSuccessfulAtMs: 0, availableAt: '' };
+  }
+  const previousSuccessfulAtMs = state.latestAt ? new Date(state.latestAt).getTime() : NaN;
+  if (!Number.isFinite(previousSuccessfulAtMs)) {
+    return { blockReason: '通常フォームの送信済み記録はありますが、前回送信日を確認できないため停止しています。', kind: 'blocked' };
+  }
+  const availableAtMs = previousSuccessfulAtMs + intervalMs;
+  if (currentMs < availableAtMs) {
+    const remainingDays = Math.max(1, Math.ceil((availableAtMs - currentMs) / (24 * 60 * 60 * 1000)));
+    return {
+      blockReason: '前回フォーム送信から' + EMAIL_GENRE_PRIORITY_RESEND_INTERVAL_DAYS_ + '日未満です。あと' + remainingDays + '日経過後に対象になります。',
+      kind: 'blocked',
+      previousSuccessfulAtMs: previousSuccessfulAtMs,
+      availableAt: new Date(availableAtMs).toISOString(),
+    };
+  }
+  return {
+    blockReason: '',
+    kind: 'previously_sent',
+    previousSuccessfulAtMs: previousSuccessfulAtMs,
+    availableAt: new Date(availableAtMs).toISOString(),
+  };
+}
+
+function decorateGlampingChatgptFormLead_(lead, masterContext, nowMs) {
+  if (!emailGenrePriorityMatches_(lead && lead.genre, EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_)) return lead;
+  const eligibility = getGlampingChatgptFormEligibility_(lead, masterContext, nowMs);
+  return Object.assign({}, lead, {
+    glamping_chatgpt_form_template_id: EMAIL_GENRE_PRIORITY_FORM_TEMPLATE_ID_,
+    glamping_chatgpt_form_eligible: !eligibility.blockReason,
+    glamping_chatgpt_form_block_reason: String(eligibility.blockReason || ''),
+    glamping_chatgpt_form_kind: String(eligibility.kind || 'blocked'),
+    glamping_chatgpt_form_available_at: String(eligibility.availableAt || ''),
+    glamping_chatgpt_form_sent_at: String(eligibility.dedicatedSentAt || ''),
+  });
+}
+
+function isFormOutreachLead_(lead, masterContext) {
   if (!lead || isArchivedLead_(lead)) return false;
   if (isClearlyClosedLead_(lead)) return false;
   if (isLeadLinkDefinitelyBroken_(lead)) return false;
   if (!lead.form_url) return false;
   if (isValidEmailAddress_(lead.email)) return false;
+  const leadId = String(lead.id || '').trim();
+  if (leadId && masterContext && masterContext.formEmailPreferredLeadIds && masterContext.formEmailPreferredLeadIds[leadId]) {
+    return false;
+  }
   return true;
 }
 
@@ -583,6 +735,7 @@ function mailSendCandidateLeadFields_() {
     'source',
     'genre',
     'company_name',
+    'facility_name',
     'email',
     'website_url',
     'website_domain',
@@ -593,10 +746,662 @@ function mailSendCandidateLeadFields_() {
     'last_sent_at',
     'send_count',
     'deal_status',
+    'custom_fields_json',
     'created_at',
     'updated_at',
     'archived_at',
   ];
+}
+
+function emailDeliveryStatusHistoryFields_() {
+  return [
+    'id',
+    'lead_id',
+    'sent_at',
+    'send_type',
+    'to_email',
+    'company_name',
+    'facility_name',
+    'genre',
+    'template_id',
+    'template_name',
+    'subject',
+    'send_result',
+    'error_message',
+    'created_at',
+    'updated_at',
+  ];
+}
+
+function emailDeliveryHistoryDateKey_(history, timezone) {
+  const timestamp = String(history && (history.sent_at || history.created_at) || '').trim();
+  if (!timestamp) return '';
+  const parsed = new Date(timestamp);
+  if (!Number.isNaN(parsed.getTime())) {
+    return Utilities.formatDate(parsed, timezone || Session.getScriptTimeZone() || 'Asia/Tokyo', 'yyyy-MM-dd');
+  }
+  return timestamp.slice(0, 10);
+}
+
+function classifyEmailDeliveryHistory_(history) {
+  const sendType = String(history && history.send_type || '');
+  if (sendType.indexOf('テスト') !== -1) return 'test';
+  const result = String(history && history.send_result || '');
+  if (result === '成功') return 'success';
+  if (result === PRODUCTION_SEND_RESERVED_RESULT_) return 'sending';
+  if (result === '失敗' || result) return 'failed';
+  return 'other';
+}
+
+function buildNextAutomaticEmailRun_(control, sendWindow, triggerInstalled) {
+  if (!control || !control.enabled) {
+    return { available: false, label: '自動送信停止中', scheduledDate: '', scheduledTime: '' };
+  }
+  if (!triggerInstalled) {
+    return { available: false, label: '自動送信トリガー未設定', scheduledDate: '', scheduledTime: '' };
+  }
+  if (!sendWindow || sendWindow.enabled === false) {
+    return { available: false, label: '送信時間帯が無効', scheduledDate: '', scheduledTime: '' };
+  }
+  if (sendWindow.allowed) {
+    return {
+      available: true,
+      label: '送信時間内（次回の10分トリガー）',
+      scheduledDate: todayText_(),
+      scheduledTime: String(sendWindow.currentTime || ''),
+    };
+  }
+
+  const timezone = sendWindow.timezone || Session.getScriptTimeZone() || 'Asia/Tokyo';
+  const now = new Date();
+  const today = Utilities.formatDate(now, timezone, 'yyyy-MM-dd');
+  const targetDate = String(sendWindow.currentTime || '') < String(sendWindow.start || '07:00')
+    ? today
+    : Utilities.formatDate(new Date(now.getTime() + 24 * 60 * 60 * 1000), timezone, 'yyyy-MM-dd');
+  return {
+    available: true,
+    label: targetDate + ' ' + String(sendWindow.start || '07:00') + '以降',
+    scheduledDate: targetDate,
+    scheduledTime: String(sendWindow.start || '07:00'),
+  };
+}
+
+function isEmailDeliveryPreviewTemplate_(template) {
+  return Boolean(template) &&
+    String(template.template_type || '') === 'initial' &&
+    normalizeBooleanLike_(template.active) &&
+    String(template.genre || '').trim() &&
+    !getTemplateGenreContentMismatchReason_(template);
+}
+
+function emailDeliverySelectionExecutionOrder_(selection) {
+  const source = selection && typeof selection === 'object' ? selection : {};
+  const selected = Array.isArray(source.selected) ? source.selected : [];
+  const groups = Array.isArray(source.groups) ? source.groups : [];
+  if (!groups.length) return selected.slice();
+  const itemByLeadId = {};
+  selected.forEach(function (item) {
+    const leadId = String(item && item.lead && item.lead.id || '');
+    if (leadId) itemByLeadId[leadId] = item;
+  });
+  const ordered = [];
+  groups.forEach(function (group) {
+    (group.leadIds || []).forEach(function (leadId) {
+      const item = itemByLeadId[String(leadId || '')];
+      if (item) ordered.push(item);
+    });
+  });
+  return ordered.length === selected.length ? ordered : selected.slice();
+}
+
+function buildEmailDeliveryPreviewFromSelection_(selection, dailyLimit, batchLimit) {
+  const source = selection && typeof selection === 'object' ? selection : {};
+  const selected = Array.isArray(source.selected) ? source.selected : [];
+  const groups = Array.isArray(source.groups) ? source.groups : [];
+  const safeDailyLimit = Math.max(0, Number(dailyLimit) || 0);
+  const safeBatchLimit = Math.max(1, Number(batchLimit) || 1);
+  if (!selected.length || !safeDailyLimit) return { selected: [], batches: [] };
+
+  const itemByLeadId = {};
+  selected.forEach(function (item) {
+    const leadId = String(item && item.lead && item.lead.id || '');
+    if (leadId) itemByLeadId[leadId] = item;
+  });
+  const queues = groups.map(function (group) {
+    return {
+      group: group,
+      items: (group.leadIds || []).map(function (leadId) {
+        return itemByLeadId[String(leadId || '')];
+      }).filter(Boolean),
+    };
+  }).filter(function (queue) { return queue.items.length; });
+
+  if (!queues.length) {
+    return {
+      selected: selected.slice(0, safeDailyLimit),
+      batches: selected.length ? [{ index: 1, count: Math.min(selected.length, safeDailyLimit), groups: [] }] : [],
+    };
+  }
+
+  const ordered = [];
+  const batches = [];
+  while (ordered.length < safeDailyLimit) {
+    const requested = Math.min(safeBatchLimit, safeDailyLimit - ordered.length);
+    const batchByQueue = queues.map(function () { return []; });
+    let selectedInBatch = 0;
+    while (selectedInBatch < requested) {
+      let added = false;
+      queues.forEach(function (queue, queueIndex) {
+        if (selectedInBatch >= requested || !queue.items.length) return;
+        batchByQueue[queueIndex].push(queue.items.shift());
+        selectedInBatch += 1;
+        added = true;
+      });
+      if (!added) break;
+    }
+    if (!selectedInBatch) break;
+
+    const batchGroups = [];
+    batchByQueue.forEach(function (items, queueIndex) {
+      if (!items.length) return;
+      items.forEach(function (item) { ordered.push(item); });
+      const group = queues[queueIndex].group || {};
+      batchGroups.push({
+        templateId: String(group.templateId || ''),
+        leadIds: items.map(function (item) { return String(item && item.lead && item.lead.id || ''); }),
+      });
+    });
+    batches.push({ index: batches.length + 1, count: selectedInBatch, groups: batchGroups });
+    if (selectedInBatch < requested) break;
+  }
+  return { selected: ordered, batches: batches };
+}
+
+function buildEmailDeliveryPreviewSchedule_(leads, templates, masterContext, dailyLimit, batchLimit, options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const selection = input.prioritySelection || (input.priorityTemplate
+    ? selectEmailGenrePriorityCandidates_(leads, input.priorityTemplate, masterContext, Number.MAX_SAFE_INTEGER, input.genreKeyword)
+    : selectScheduledEmailCandidates_(leads, templates, masterContext, Number.MAX_SAFE_INTEGER));
+  return buildEmailDeliveryPreviewFromSelection_(selection, dailyLimit, batchLimit);
+}
+
+function buildEmailDeliveryTemplateCoverage_(leads, templates, masterContext, itemLimit) {
+  const templateGenres = {};
+  (Array.isArray(templates) ? templates : []).forEach(function (template) {
+    const genre = String(template && template.genre || '').trim();
+    if (genre) templateGenres[genre] = true;
+  });
+
+  const sendable = (Array.isArray(leads) ? leads : []).filter(function (lead) {
+    return !isArchivedLead_(lead) && isEmailSendTarget_(lead, masterContext);
+  });
+  sortLeads_(sendable, 'updated_desc');
+
+  const unique = [];
+  const seenEmails = {};
+  sendable.forEach(function (lead) {
+    const email = normalizeEmailForSendSafety_(lead.email);
+    if (!email || seenEmails[email]) return;
+    seenEmails[email] = true;
+    unique.push(lead);
+  });
+
+  const scheduledEmails = {};
+  sendable.forEach(function (lead) {
+    const genre = String(lead.genre || '').trim();
+    const email = normalizeEmailForSendSafety_(lead.email);
+    if (genre && templateGenres[genre] && email) scheduledEmails[email] = true;
+  });
+  const waiting = unique.filter(function (lead) {
+    const genre = String(lead.genre || '').trim();
+    const email = normalizeEmailForSendSafety_(lead.email);
+    return !templateGenres[genre] && !scheduledEmails[email];
+  });
+  const genreCounts = {};
+  waiting.forEach(function (lead) {
+    const genre = String(lead.genre || '').trim() || 'ジャンル未設定';
+    genreCounts[genre] = Number(genreCounts[genre] || 0) + 1;
+  });
+  const genres = Object.keys(genreCounts).map(function (genre) {
+    return { genre: genre, count: genreCounts[genre] };
+  }).sort(function (left, right) {
+    if (right.count !== left.count) return right.count - left.count;
+    return left.genre.localeCompare(right.genre, 'ja');
+  });
+  const safeLimit = Math.min(Math.max(Number(itemLimit) || 20, 1), 100);
+
+  return {
+    sendableCount: unique.length,
+    scheduledGenreCount: Object.keys(templateGenres).length,
+    waitingCount: waiting.length,
+    displayed: Math.min(waiting.length, safeLimit),
+    genres: genres,
+    items: waiting.slice(0, safeLimit).map(function (lead, index) {
+      return {
+        order: index + 1,
+        leadId: String(lead.id || ''),
+        facilityName: String(lead.facility_name || lead.company_name || ''),
+        companyName: String(lead.company_name || ''),
+        genre: String(lead.genre || ''),
+        toEmail: String(lead.email || ''),
+      };
+    }),
+  };
+}
+
+function emailDeliveryTemplateCoverageReason_(coverage) {
+  const source = coverage && typeof coverage === 'object' ? coverage : {};
+  const waitingCount = Number(source.waitingCount || 0);
+  if (!waitingCount) return '';
+  const genreSummary = (source.genres || []).slice(0, 4).map(function (item) {
+    return String(item.genre || 'ジャンル未設定') + ' ' + Number(item.count || 0) + '件';
+  }).join('・');
+  return '送信可能な営業先は' + waitingCount + '件ありますが、本番テンプレート未設定のため明日の自動送信には入りません。' +
+    (genreSummary ? ' 内訳: ' + genreSummary : '');
+}
+
+function getEmailDeliveryOverview(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const timezone = Session.getScriptTimeZone() || 'Asia/Tokyo';
+  const today = todayText_();
+  const historyLimit = Math.min(Math.max(Number(input.historyLimit || input.history_limit) || 200, 20), 500);
+  const histories = readSheetRecordFields_('send_histories', emailDeliveryStatusHistoryFields_());
+  const safety = buildMailSendSafetyContext_(histories);
+  const pending = buildPendingSendReservationStatus_(histories);
+  const todayHistories = histories.filter(function (history) {
+    return emailDeliveryHistoryDateKey_(history, timezone) === today;
+  }).sort(function (left, right) {
+    return String(right.sent_at || right.created_at || '').localeCompare(String(left.sent_at || left.created_at || ''));
+  });
+  const todayCounts = {
+    total: todayHistories.length,
+    success: 0,
+    failed: 0,
+    sending: 0,
+    test: 0,
+    other: 0,
+  };
+  const todayItems = todayHistories.slice(0, historyLimit).map(function (history) {
+    const category = classifyEmailDeliveryHistory_(history);
+    todayCounts[category] = Number(todayCounts[category] || 0) + 1;
+    return {
+      id: String(history.id || ''),
+      leadId: String(history.lead_id || ''),
+      sentAt: String(history.sent_at || history.created_at || ''),
+      sendType: String(history.send_type || ''),
+      toEmail: String(history.to_email || ''),
+      companyName: String(history.company_name || ''),
+      facilityName: String(history.facility_name || history.company_name || ''),
+      genre: String(history.genre || ''),
+      templateId: String(history.template_id || ''),
+      templateName: String(history.template_name || ''),
+      subject: String(history.subject || ''),
+      sendResult: String(history.send_result || ''),
+      errorMessage: String(history.error_message || ''),
+      category: category,
+    };
+  });
+  if (todayHistories.length > todayItems.length) {
+    todayHistories.slice(todayItems.length).forEach(function (history) {
+      const category = classifyEmailDeliveryHistory_(history);
+      todayCounts[category] = Number(todayCounts[category] || 0) + 1;
+    });
+  }
+
+  const dailyLimit = Math.min(Math.max(Number(getSettingValue_('gmail_daily_send_limit', 80)) || 80, 1), 100);
+  const batchLimit = Math.min(Math.max(Number(getSettingValue_('email_batch_send_limit', 20)) || 20, 1), 100);
+  const quota = getMailQuotaStatus_(dailyLimit);
+  const remainingByLimit = Math.max(0, dailyLimit - Number(safety.successfulCountToday || 0) - Number(safety.reservedCountToday || 0));
+  const remainingToday = Math.max(0, Math.min(remainingByLimit, Number(quota.remaining || 0)));
+  const sendWindow = buildSendWindowStatus_();
+  const control = getMailSendingControl_();
+  const triggerCount = getProjectTriggerHandlerCount_('runScheduledEmailBatch');
+  const triggerInstalled = triggerCount > 0;
+  const allTemplates = readAllActiveSheetRecords_('email_templates');
+  const priorityState = getEmailGenrePrioritySetting_();
+  const priorityTemplate = allTemplates.find(function (template) {
+    return String(template.id || '') === String(priorityState.templateId || '');
+  }) || null;
+  const priorityTemplateBlockReason = getEmailGenrePriorityTemplateBlockReason_(priorityState, priorityTemplate, {
+    requireTest: true,
+    requireProduction: priorityState.enabled,
+  });
+  const admin = getEmailGenrePriorityAdminStatus_();
+  const priority = Object.assign({}, sanitizeEmailGenrePriorityState_(priorityState), {
+    adminAllowed: admin.allowed,
+    adminMode: admin.mode,
+    targetCount: null,
+    unsentTargetCount: null,
+    previouslySentTargetCount: null,
+    resendIntervalDays: EMAIL_GENRE_PRIORITY_RESEND_INTERVAL_DAYS_,
+    targetCountPending: true,
+    templateName: String(priorityTemplate && priorityTemplate.name || EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_),
+    templateActive: Boolean(priorityTemplate && normalizeBooleanLike_(priorityTemplate.active)),
+    templateProduction: Boolean(priorityTemplate && normalizeBooleanLike_(priorityTemplate.is_production)),
+    templateTestedAt: String(priorityTemplate && priorityTemplate.last_test_sent_at || ''),
+    templateBlockReason: priorityTemplateBlockReason,
+    canActivate: false,
+    canDeactivate: priorityState.enabled && admin.allowed,
+    canInspect: true,
+    diagnostics: {
+      keyword: String(priorityState.genreKeyword || EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_),
+      totalCount: null,
+      sendableCount: null,
+      blockedCount: null,
+      reasons: [],
+      items: [],
+      loading: true,
+    },
+    lpUrl: EMAIL_GENRE_PRIORITY_LP_URL_,
+    exclusive: priorityState.enabled,
+  });
+
+  const alerts = [];
+  if (!control.enabled) alerts.push({ tone: 'bad', title: '自動送信は停止中です', detail: control.reason || '管理者により停止されています。' });
+  if (!triggerInstalled) alerts.push({ tone: 'bad', title: '自動送信トリガーがありません', detail: '完全自動送信の10分トリガーを確認してください。' });
+  if (sendWindow.enabled === false) alerts.push({ tone: 'bad', title: '送信時間帯が無効です', detail: '管理画面で送信時間帯を有効にしてください。' });
+  if (pending.staleCount > 0) alerts.push({ tone: 'bad', title: '送信中の履歴が滞留しています', detail: '30分以上の滞留が' + pending.staleCount + '件あります。' });
+  if (todayCounts.failed > 0) alerts.push({ tone: 'warn', title: '本日の失敗があります', detail: todayCounts.failed + '件の詳細を確認してください。' });
+  if (priorityState.enabled && priorityTemplateBlockReason) alerts.push({ tone: 'bad', title: '優先テンプレートを使用できません', detail: priorityTemplateBlockReason });
+  if (!alerts.length) alerts.push({ tone: 'info', title: '明日の送信候補を計算しています', detail: '今日の履歴と設定は取得済みです。候補一覧は計算完了後に表示します。' });
+
+  return {
+    generatedAt: nowIso_(),
+    timezone: timezone,
+    overviewOnly: true,
+    control: Object.assign({}, control, {
+      adminAllowed: admin.allowed,
+      adminMode: admin.mode,
+    }),
+    sendWindow: sendWindow,
+    trigger: {
+      installed: triggerInstalled,
+      count: triggerCount,
+      intervalMinutes: 10,
+    },
+    nextRun: buildNextAutomaticEmailRun_(control, sendWindow, triggerInstalled),
+    today: {
+      date: today,
+      counts: todayCounts,
+      successfulProduction: Number(safety.successfulCountToday || 0),
+      sendingProduction: Number(safety.reservedCountToday || 0),
+      dailyLimit: dailyLimit,
+      gmailQuotaRemaining: Number(quota.remaining || 0),
+      gmailQuotaAvailable: quota.available !== false,
+      remaining: remainingToday,
+      displayed: todayItems.length,
+      total: todayHistories.length,
+      items: todayItems,
+    },
+    priority: priority,
+    tomorrow: {
+      date: Utilities.formatDate(new Date(Date.now() + 24 * 60 * 60 * 1000), timezone, 'yyyy-MM-dd'),
+      dailyLimit: dailyLimit,
+      batchLimit: batchLimit,
+      candidateCount: null,
+      loading: true,
+      blockCode: '',
+      blockReason: '',
+      priorityAutoReleaseExpected: false,
+      items: [],
+    },
+    safety: {
+      pendingCount: pending.count,
+      stalePendingCount: pending.staleCount,
+      oldestPendingAt: pending.oldestAt,
+      trackingMismatchCount: null,
+    },
+    alerts: alerts,
+  };
+}
+
+function getEmailDeliveryStatus(options) {
+  const input = options && typeof options === 'object' ? options : {};
+  const timezone = Session.getScriptTimeZone() || 'Asia/Tokyo';
+  const today = todayText_();
+  const generatedAt = nowIso_();
+  const historyLimit = Math.min(Math.max(Number(input.historyLimit || input.history_limit) || 200, 20), 500);
+  const histories = readSheetRecordFields_('send_histories', emailDeliveryStatusHistoryFields_());
+  const safety = buildMailSendSafetyContext_(histories);
+  const pending = buildPendingSendReservationStatus_(histories);
+  const todayHistories = histories.filter(function (history) {
+    return emailDeliveryHistoryDateKey_(history, timezone) === today;
+  }).sort(function (left, right) {
+    return String(right.sent_at || right.created_at || '').localeCompare(String(left.sent_at || left.created_at || ''));
+  });
+  const todayCounts = {
+    total: todayHistories.length,
+    success: 0,
+    failed: 0,
+    sending: 0,
+    test: 0,
+    other: 0,
+  };
+  const todayItems = todayHistories.slice(0, historyLimit).map(function (history) {
+    const category = classifyEmailDeliveryHistory_(history);
+    todayCounts[category] = Number(todayCounts[category] || 0) + 1;
+    return {
+      id: String(history.id || ''),
+      leadId: String(history.lead_id || ''),
+      sentAt: String(history.sent_at || history.created_at || ''),
+      sendType: String(history.send_type || ''),
+      toEmail: String(history.to_email || ''),
+      companyName: String(history.company_name || ''),
+      facilityName: String(history.facility_name || history.company_name || ''),
+      genre: String(history.genre || ''),
+      templateId: String(history.template_id || ''),
+      templateName: String(history.template_name || ''),
+      subject: String(history.subject || ''),
+      sendResult: String(history.send_result || ''),
+      errorMessage: String(history.error_message || ''),
+      category: category,
+    };
+  });
+  if (todayHistories.length > todayItems.length) {
+    todayHistories.slice(todayItems.length).forEach(function (history) {
+      const category = classifyEmailDeliveryHistory_(history);
+      todayCounts[category] = Number(todayCounts[category] || 0) + 1;
+    });
+  }
+
+  const dailyLimit = Math.min(Math.max(Number(getSettingValue_('gmail_daily_send_limit', 80)) || 80, 1), 100);
+  const batchLimit = Math.min(Math.max(Number(getSettingValue_('email_batch_send_limit', 20)) || 20, 1), 100);
+  const quota = getMailQuotaStatus_(dailyLimit);
+  const remainingByLimit = Math.max(0, dailyLimit - Number(safety.successfulCountToday || 0) - Number(safety.reservedCountToday || 0));
+  const remainingToday = Math.max(0, Math.min(remainingByLimit, Number(quota.remaining || 0)));
+  const sendWindow = buildSendWindowStatus_();
+  const control = getMailSendingControl_();
+  const triggerCount = getProjectTriggerHandlerCount_('runScheduledEmailBatch');
+  const triggerInstalled = triggerCount > 0;
+
+  const masterRules = buildMasterBlockRulesContext_();
+  const masterContext = Object.assign({}, masterRules, { mailSendSafety: safety });
+  const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 });
+  const allTemplates = readAllActiveSheetRecords_('email_templates');
+  let productionTemplates = allTemplates.filter(function (template) {
+    return isEmailDeliveryPreviewTemplate_(template) && normalizeBooleanLike_(template.is_production);
+  });
+  const priorityState = getEmailGenrePrioritySetting_();
+  const priorityTemplate = allTemplates.find(function (template) {
+    return String(template.id || '') === String(priorityState.templateId || '');
+  }) || null;
+  const priorityTemplateBlockReason = getEmailGenrePriorityTemplateBlockReason_(priorityState, priorityTemplate, {
+    requireTest: true,
+    requireProduction: priorityState.enabled,
+  });
+  const priorityAllSelection = priorityTemplate
+    ? selectEmailGenrePriorityCandidates_(leads, priorityTemplate, masterContext, Number.MAX_SAFE_INTEGER, priorityState.genreKeyword)
+    : { selected: [], groups: [], total: 0 };
+  const priorityDiagnostics = buildEmailGenrePriorityDiagnostics_(leads, priorityTemplate, masterContext, priorityState.genreKeyword);
+  const admin = getEmailGenrePriorityAdminStatus_();
+  const priority = Object.assign({}, sanitizeEmailGenrePriorityState_(priorityState), {
+    adminAllowed: admin.allowed,
+    adminMode: admin.mode,
+    targetCount: Number(priorityAllSelection.total || priorityAllSelection.selected.length || 0),
+    unsentTargetCount: Number(priorityAllSelection.breakdown && priorityAllSelection.breakdown.unsent || 0),
+    previouslySentTargetCount: Number(priorityAllSelection.breakdown && priorityAllSelection.breakdown.previouslySent || 0),
+    resendIntervalDays: EMAIL_GENRE_PRIORITY_RESEND_INTERVAL_DAYS_,
+    targetCountPending: false,
+    templateName: String(priorityTemplate && priorityTemplate.name || EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_),
+    templateActive: Boolean(priorityTemplate && normalizeBooleanLike_(priorityTemplate.active)),
+    templateProduction: Boolean(priorityTemplate && normalizeBooleanLike_(priorityTemplate.is_production)),
+    templateTestedAt: String(priorityTemplate && priorityTemplate.last_test_sent_at || ''),
+    templateBlockReason: priorityTemplateBlockReason,
+    canActivate: !priorityState.enabled && admin.allowed && Number(priorityAllSelection.total || priorityAllSelection.selected.length || 0) > 0 && !priorityTemplateBlockReason,
+    canDeactivate: priorityState.enabled && admin.allowed,
+    canInspect: true,
+    diagnostics: priorityDiagnostics,
+    lpUrl: EMAIL_GENRE_PRIORITY_LP_URL_,
+    exclusive: priorityState.enabled,
+  });
+
+  let tomorrowSelection = { selected: [], groups: [] };
+  let tomorrowBlockCode = '';
+  let tomorrowBlockReason = '';
+  let priorityAutoReleaseExpected = false;
+  if (!control.enabled) {
+    tomorrowBlockCode = 'mail_disabled';
+    tomorrowBlockReason = control.reason || '自動送信停止中です。';
+  } else if (!triggerInstalled) {
+    tomorrowBlockCode = 'trigger_missing';
+    tomorrowBlockReason = '完全自動送信トリガーが設定されていません。';
+  } else if (sendWindow.enabled === false) {
+    tomorrowBlockCode = 'send_window_disabled';
+    tomorrowBlockReason = '自動送信時間帯が無効です。';
+  } else if (pending.staleCount > 0) {
+    tomorrowBlockCode = 'stale_send_reservations';
+    tomorrowBlockReason = '30分以上「送信中」の履歴が' + pending.staleCount + '件あるため、自動送信は停止します。';
+  } else if (priorityState.enabled) {
+    if (priorityTemplateBlockReason) {
+      tomorrowBlockCode = 'priority_template_unavailable';
+      tomorrowBlockReason = priorityTemplateBlockReason;
+    } else {
+      tomorrowSelection = buildEmailDeliveryPreviewSchedule_(leads, [], masterContext, dailyLimit, batchLimit, {
+        priorityTemplate: priorityTemplate,
+        prioritySelection: priorityAllSelection,
+        genreKeyword: priorityState.genreKeyword,
+      });
+      if (!tomorrowSelection.selected.length) {
+        priorityAutoReleaseExpected = true;
+        const restoredTemplateIds = {};
+        (priorityState.previousProductionTemplateIds || []).forEach(function (id) {
+          restoredTemplateIds[String(id || '')] = true;
+        });
+        productionTemplates = allTemplates.filter(function (template) {
+          const productionAfterRelease = normalizeBooleanLike_(template.is_production) ||
+            restoredTemplateIds[String(template.id || '')];
+          return productionAfterRelease &&
+            String(template.id || '') !== String(priorityState.templateId || '') &&
+            isEmailDeliveryPreviewTemplate_(template);
+        });
+        tomorrowSelection = buildEmailDeliveryPreviewSchedule_(leads, productionTemplates, masterContext, dailyLimit, batchLimit);
+        if (!tomorrowSelection.selected.length) {
+          tomorrowBlockCode = 'no_sendable_targets';
+          tomorrowBlockReason = '優先対象が0件のため自動解除予定ですが、通常送信の候補もありません。';
+        }
+      }
+    }
+  } else if (!productionTemplates.length) {
+    tomorrowBlockCode = 'no_production_templates';
+    tomorrowBlockReason = '本番ONの初回メールテンプレートがありません。';
+  } else {
+    tomorrowSelection = buildEmailDeliveryPreviewSchedule_(leads, productionTemplates, masterContext, dailyLimit, batchLimit);
+    if (!tomorrowSelection.selected.length) {
+      tomorrowBlockCode = 'no_sendable_targets';
+      tomorrowBlockReason = '本番テンプレートとジャンルが一致する未送信の営業先がありません。';
+    }
+  }
+
+  const templateCoverage = (!priorityState.enabled || priorityAutoReleaseExpected)
+    ? buildEmailDeliveryTemplateCoverage_(leads, productionTemplates, masterContext, dailyLimit)
+    : { sendableCount: 0, scheduledGenreCount: 0, waitingCount: 0, displayed: 0, genres: [], items: [] };
+  if (!tomorrowSelection.selected.length &&
+      Number(templateCoverage.waitingCount || 0) > 0 &&
+      ['no_sendable_targets', 'no_production_templates'].indexOf(tomorrowBlockCode) !== -1) {
+    tomorrowBlockCode = 'production_template_missing';
+    tomorrowBlockReason = emailDeliveryTemplateCoverageReason_(templateCoverage);
+  }
+
+  const tomorrowItems = (tomorrowSelection.selected || []).slice(0, dailyLimit).map(function (item, index) {
+    const lead = item.lead || {};
+    const template = item.template || {};
+    return {
+      order: index + 1,
+      leadId: String(lead.id || ''),
+      facilityName: String(lead.facility_name || lead.company_name || ''),
+      companyName: String(lead.company_name || ''),
+      genre: String(lead.genre || ''),
+      toEmail: String(lead.email || ''),
+      templateId: String(template.id || ''),
+      templateName: String(template.name || ''),
+      priorityEligibilityKind: String(item.priorityEligibility && item.priorityEligibility.kind || ''),
+    };
+  });
+
+  const trackingMismatchCount = countLeadSendTrackingMismatches_(leads, histories);
+  const alerts = [];
+  if (!control.enabled) alerts.push({ tone: 'bad', title: '自動送信は停止中です', detail: control.reason || '管理者により停止されています。' });
+  if (!triggerInstalled) alerts.push({ tone: 'bad', title: '自動送信トリガーがありません', detail: '完全自動送信の10分トリガーを確認してください。' });
+  if (sendWindow.enabled === false) alerts.push({ tone: 'bad', title: '送信時間帯が無効です', detail: '管理画面で送信時間帯を有効にしてください。' });
+  if (pending.staleCount > 0) alerts.push({ tone: 'bad', title: '送信中の履歴が滞留しています', detail: '30分以上の滞留が' + pending.staleCount + '件あります。' });
+  if (todayCounts.failed > 0) alerts.push({ tone: 'warn', title: '本日の失敗があります', detail: todayCounts.failed + '件の詳細を確認してください。' });
+  if (trackingMismatchCount > 0) alerts.push({ tone: 'warn', title: '送信回数の不一致があります', detail: trackingMismatchCount + '件の営業先で履歴との不一致があります。' });
+  if (priorityState.enabled && priorityTemplateBlockReason) alerts.push({ tone: 'bad', title: '優先テンプレートを使用できません', detail: priorityTemplateBlockReason });
+  if (priorityAutoReleaseExpected) alerts.push({ tone: 'info', title: 'グランピング優先は自動解除予定です', detail: '送信可能な優先対象が0件のため、次回実行時に通常送信へ戻ります。' });
+  if (!tomorrowItems.length && tomorrowBlockReason) alerts.push({
+    tone: tomorrowBlockCode === 'production_template_missing' ? 'warn' : 'info',
+    title: tomorrowBlockCode === 'production_template_missing' ? '本番テンプレートの設定待ちです' : '明日の送信候補はありません',
+    detail: tomorrowBlockReason,
+  });
+  if (!alerts.length) alerts.push({ tone: 'good', title: '送信を妨げる問題はありません', detail: '現在の設定と送信履歴では、自動送信を継続できます。' });
+
+  return {
+    generatedAt: generatedAt,
+    timezone: timezone,
+    control: Object.assign({}, control, {
+      adminAllowed: admin.allowed,
+      adminMode: admin.mode,
+    }),
+    sendWindow: sendWindow,
+    trigger: {
+      installed: triggerInstalled,
+      count: triggerCount,
+      intervalMinutes: 10,
+    },
+    nextRun: buildNextAutomaticEmailRun_(control, sendWindow, triggerInstalled),
+    today: {
+      date: today,
+      counts: todayCounts,
+      successfulProduction: Number(safety.successfulCountToday || 0),
+      sendingProduction: Number(safety.reservedCountToday || 0),
+      dailyLimit: dailyLimit,
+      gmailQuotaRemaining: Number(quota.remaining || 0),
+      gmailQuotaAvailable: quota.available !== false,
+      remaining: remainingToday,
+      displayed: todayItems.length,
+      total: todayHistories.length,
+      items: todayItems,
+    },
+    priority: priority,
+    tomorrow: {
+      date: Utilities.formatDate(new Date(Date.now() + 24 * 60 * 60 * 1000), timezone, 'yyyy-MM-dd'),
+      dailyLimit: dailyLimit,
+      batchLimit: batchLimit,
+      candidateCount: tomorrowItems.length,
+      blockCode: tomorrowBlockCode,
+      blockReason: tomorrowBlockReason,
+      priorityAutoReleaseExpected: priorityAutoReleaseExpected,
+      items: tomorrowItems,
+      templateWaiting: templateCoverage,
+    },
+    safety: {
+      pendingCount: pending.count,
+      stalePendingCount: pending.staleCount,
+      oldestPendingAt: pending.oldestAt,
+      trackingMismatchCount: trackingMismatchCount,
+    },
+    alerts: alerts,
+  };
 }
 
 function defaultEmailGenrePrioritySetting_() {
@@ -666,30 +1471,289 @@ function getEmailGenrePriorityTemplateBlockReason_(state, template, options) {
   return mismatchReason || '';
 }
 
-function selectEmailGenrePriorityCandidates_(leads, template, masterContext, limit, genreKeyword) {
+function getEmailGenrePriorityEligibility_(lead, template, masterContext, nowMs) {
+  const currentMs = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+  const intervalMs = EMAIL_GENRE_PRIORITY_RESEND_INTERVAL_DAYS_ * 24 * 60 * 60 * 1000;
+  if (!lead || isArchivedLead_(lead)) return { blockReason: '営業対象外のため送信できません。', kind: 'blocked' };
+  if (isClearlyClosedLead_(lead)) return { blockReason: '閉鎖・営業終了・休業が確認できるため送信できません。', kind: 'blocked' };
+  if (isLeadLinkDefinitelyBroken_(lead)) return { blockReason: 'リンク切れが確認できるため送信できません。', kind: 'blocked' };
+  if (isLeadReviewPending_(lead)) return { blockReason: '確認待ちのため、確認済みにするまで送信できません。', kind: 'blocked' };
+  if (!isValidEmailAddress_(lead.email)) return { blockReason: '有効なメールアドレスがないため送信できません。', kind: 'blocked' };
+  if (normalizeBooleanLike_(lead.send_ng) || String(lead.status || '') === '送信NG') {
+    return { blockReason: '送信NGに指定されているため送信できません。', kind: 'blocked' };
+  }
+  if (normalizeBooleanLike_(lead.reply_checked)) return { blockReason: '返信確認済みのため送信できません。', kind: 'blocked' };
+
+  const safety = masterContext && masterContext.mailSendSafety;
+  const leadId = String(lead.id || '').trim();
+  const email = normalizeEmailForSendSafety_(lead.email);
+  if (safety) {
+    if (leadId && safety.reservedLeadIds && safety.reservedLeadIds[leadId]) {
+      return { blockReason: 'Lead already has a pending send reservation.', kind: 'blocked' };
+    }
+    if (email && safety.reservedEmails && safety.reservedEmails[email]) {
+      return { blockReason: 'Email address already has a pending send reservation.', kind: 'blocked' };
+    }
+  }
+
+  const templateId = String(template && template.id || EMAIL_GENRE_PRIORITY_TEMPLATE_ID_).trim();
+  if (safety && templateId) {
+    const sentByLead = leadId && safety.sentTemplateLeadIds && safety.sentTemplateLeadIds[templateId + '\n' + leadId];
+    const sentByEmail = email && safety.sentTemplateEmails && safety.sentTemplateEmails[templateId + '\n' + email];
+    if (sentByLead || sentByEmail) {
+      return { blockReason: 'グランピング向けChatGPT広告の専用メールを送信済みです。', kind: 'blocked' };
+    }
+  }
+  const formCampaignState = getGlampingChatgptFormSendState_(lead);
+  if (formCampaignState.dedicatedAt) {
+    return { blockReason: 'グランピング向けChatGPT広告をフォームで送信済みです。', kind: 'blocked' };
+  }
+
+  if (String(lead.deal_status || '未設定') !== '未設定') {
+    return { blockReason: '商談状態が設定済みのため送信できません。', kind: 'blocked' };
+  }
+  if (SEND_EXCLUDED_STATUSES.indexOf(String(lead.status || '')) !== -1) {
+    return { blockReason: '現在のステータスでは送信できません。', kind: 'blocked' };
+  }
+  const blocked = masterContext ? isLeadBlockedByMastersInContext_(lead, masterContext) : isLeadBlockedByMasters_(lead);
+  if (blocked.blocked) return { blockReason: blocked.reason, kind: 'blocked' };
+
+  const successfulAtCandidates = [];
+  const leadLastSentAt = String(lead.last_sent_at || '').trim();
+  const leadLastSentAtMs = leadLastSentAt ? new Date(leadLastSentAt).getTime() : NaN;
+  if (Number.isFinite(leadLastSentAtMs)) successfulAtCandidates.push(leadLastSentAtMs);
+  if (safety) {
+    const leadHistoryAtMs = Number(safety.latestSuccessfulAtByLeadId && safety.latestSuccessfulAtByLeadId[leadId]);
+    const emailHistoryAtMs = Number(safety.latestSuccessfulAtByEmail && safety.latestSuccessfulAtByEmail[email]);
+    if (Number.isFinite(leadHistoryAtMs) && leadHistoryAtMs > 0) successfulAtCandidates.push(leadHistoryAtMs);
+    if (Number.isFinite(emailHistoryAtMs) && emailHistoryAtMs > 0) successfulAtCandidates.push(emailHistoryAtMs);
+  }
+  const hasPriorSuccessfulSend = Boolean(
+    lead.last_sent_at ||
+    Number(lead.send_count || 0) > 0 ||
+    String(lead.status || '').indexOf('送信済み') !== -1 ||
+    (safety && leadId && safety.sentLeadIds && safety.sentLeadIds[leadId]) ||
+    (safety && email && safety.sentEmails && safety.sentEmails[email])
+  );
+  if (!hasPriorSuccessfulSend) {
+    return { blockReason: '', kind: 'unsent', previousSuccessfulAtMs: 0, availableAt: '' };
+  }
+  if (!successfulAtCandidates.length) {
+    return {
+      blockReason: '通常メールの送信済み記録はありますが、前回送信日を確認できないため送信を停止しています。',
+      kind: 'blocked',
+    };
+  }
+
+  const previousSuccessfulAtMs = Math.max.apply(null, successfulAtCandidates);
+  const availableAtMs = previousSuccessfulAtMs + intervalMs;
+  if (currentMs < availableAtMs) {
+    const remainingDays = Math.max(1, Math.ceil((availableAtMs - currentMs) / (24 * 60 * 60 * 1000)));
+    return {
+      blockReason: '前回メール送信から' + EMAIL_GENRE_PRIORITY_RESEND_INTERVAL_DAYS_ + '日未満です。あと' + remainingDays + '日経過後に対象になります。',
+      kind: 'blocked',
+      previousSuccessfulAtMs: previousSuccessfulAtMs,
+      availableAt: new Date(availableAtMs).toISOString(),
+    };
+  }
+  return {
+    blockReason: '',
+    kind: 'previously_sent',
+    previousSuccessfulAtMs: previousSuccessfulAtMs,
+    availableAt: new Date(availableAtMs).toISOString(),
+  };
+}
+
+function getEmailGenrePriorityCandidateBlockReason_(lead, template, masterContext, nowMs) {
+  return getEmailGenrePriorityEligibility_(lead, template, masterContext, nowMs).blockReason;
+}
+
+function compareEmailGenrePriorityEvaluated_(left, right) {
+  const leftRank = left.eligibility.kind === 'unsent' ? 0 : 1;
+  const rightRank = right.eligibility.kind === 'unsent' ? 0 : 1;
+  if (leftRank !== rightRank) return leftRank - rightRank;
+  if (leftRank === 1) {
+    const dateDifference = Number(left.eligibility.previousSuccessfulAtMs || 0) - Number(right.eligibility.previousSuccessfulAtMs || 0);
+    if (dateDifference) return dateDifference;
+  }
+  return String(right.lead.updated_at || right.lead.created_at || '').localeCompare(String(left.lead.updated_at || left.lead.created_at || ''));
+}
+
+function sortEmailGenrePriorityEvaluated_(evaluated) {
+  evaluated.sort(compareEmailGenrePriorityEvaluated_);
+  return evaluated;
+}
+
+function selectEmailGenrePriorityCandidates_(leads, template, masterContext, limit, genreKeyword, nowMs) {
   const keyword = String(genreKeyword || EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_).trim();
-  const candidates = (Array.isArray(leads) ? leads : []).filter(function (lead) {
-    return emailGenrePriorityMatches_(lead && lead.genre, keyword) && !isArchivedLead_(lead) && isEmailSendTarget_(lead, masterContext);
+  const evaluated = (Array.isArray(leads) ? leads : []).filter(function (lead) {
+    return emailGenrePriorityMatches_(lead && lead.genre, keyword);
+  }).map(function (lead) {
+    return { lead: lead, eligibility: getEmailGenrePriorityEligibility_(lead, template, masterContext, nowMs) };
+  }).filter(function (item) {
+    return !item.eligibility.blockReason;
   });
-  sortLeads_(candidates, 'updated_desc');
+  sortEmailGenrePriorityEvaluated_(evaluated);
   const seenEmails = {};
-  const unique = candidates.filter(function (lead) {
-    const email = normalizeEmailForSendSafety_(lead.email);
+  const unique = evaluated.filter(function (item) {
+    const email = normalizeEmailForSendSafety_(item.lead.email);
     if (!email || seenEmails[email]) return false;
     seenEmails[email] = true;
     return true;
   });
   const safeLimit = Math.max(0, Number(limit) || 0);
-  const selectedLeads = unique.slice(0, safeLimit);
+  const selectedItems = unique.slice(0, safeLimit);
+  const breakdown = unique.reduce(function (result, item) {
+    if (item.eligibility.kind === 'unsent') result.unsent += 1;
+    if (item.eligibility.kind === 'previously_sent') result.previouslySent += 1;
+    return result;
+  }, { unsent: 0, previouslySent: 0 });
   return {
     total: unique.length,
-    selected: selectedLeads.map(function (lead) { return { lead: lead, template: template }; }),
-    groups: selectedLeads.length ? [{
+    breakdown: breakdown,
+    selected: selectedItems.map(function (item) {
+      return { lead: item.lead, template: template, priorityEligibility: item.eligibility };
+    }),
+    groups: selectedItems.length ? [{
       templateId: String(template.id || ''),
       templateName: String(template.name || ''),
       genre: keyword,
-      leadIds: selectedLeads.map(function (lead) { return lead.id; }),
+      leadIds: selectedItems.map(function (item) { return item.lead.id; }),
     }] : [],
+  };
+}
+
+function classifyEmailGenrePriorityBlockReason_(blockReason, eligibilityKind) {
+  const reason = String(blockReason || '').trim();
+  if (!reason && eligibilityKind === 'unsent') {
+    return { key: 'sendable_unsent', label: '送信可能（未送信）', detail: '成功した本番メール履歴がないため、最初に送信します。' };
+  }
+  if (!reason && eligibilityKind === 'previously_sent') {
+    return { key: 'sendable_previously_sent', label: '送信可能（通常メール送信済み）', detail: '通常メールの前回送信から30日以上経過しているため、未送信施設の後に送信します。' };
+  }
+  if (!reason) return { key: 'sendable', label: '送信可能', detail: '優先送信の対象です。' };
+  if (/営業対象外|archived/i.test(reason)) return { key: 'archived', label: '営業対象外', detail: reason };
+  if (/閉鎖|閉店|閉館|閉園|閉業|廃業|休業|営業終了/i.test(reason)) return { key: 'closed', label: '閉鎖・休業', detail: reason };
+  if (/リンク切れ|URL|DNS|host|certificate|SSL/i.test(reason)) return { key: 'broken_link', label: 'リンク切れ', detail: reason };
+  if (/確認待ち/.test(reason)) return { key: 'review_pending', label: '確認待ち', detail: reason };
+  if (/有効なメールアドレス/.test(reason)) return { key: 'invalid_email', label: 'メールアドレスなし・不正', detail: reason };
+  if (/送信NG/.test(reason)) return { key: 'send_ng', label: '送信NG', detail: reason };
+  if (/返信確認済み|返信あり/.test(reason)) return { key: 'reply', label: '返信確認済み', detail: reason };
+  if (/pending send reservation|送信中|送信予約/i.test(reason)) {
+    return { key: 'sending', label: '送信中', detail: '送信中の予約が残っているため、二重送信防止中です。' };
+  }
+  if (/専用メールを送信済み|ChatGPT広告.*送信済み/.test(reason)) {
+    return { key: 'dedicated_sent', label: '専用メール送信済み', detail: reason };
+  }
+  if (/30日未満|経過後に対象/.test(reason)) return { key: 'waiting_period', label: '30日待機中', detail: reason };
+  if (/前回送信日を確認できない/.test(reason)) return { key: 'sent_date_unknown', label: '前回送信日を要確認', detail: reason };
+  if (/already has|already sent|送信済み|successful send/i.test(reason)) {
+    return { key: 'sent', label: '送信済み', detail: 'すでに送信済み、または成功した送信履歴があります。' };
+  }
+  if (/商談状態|商談予定|商談済み|受注|失注/.test(reason)) return { key: 'deal', label: '商談状態あり', detail: reason };
+  if (/除外ドメイン/.test(reason)) return { key: 'excluded_domain', label: '除外ドメイン', detail: reason };
+  if (/現在のステータス/.test(reason)) return { key: 'status', label: '現在のステータス', detail: reason };
+  return { key: 'other', label: 'その他の送信条件', detail: reason };
+}
+
+function buildEmailGenrePriorityDiagnostics_(leads, template, masterContext, genreKeyword, nowMs) {
+  const keyword = String(genreKeyword || EMAIL_GENRE_PRIORITY_DEFAULT_GENRE_).trim();
+  const evaluated = (Array.isArray(leads) ? leads : []).filter(function (lead) {
+    return emailGenrePriorityMatches_(lead && lead.genre, keyword);
+  }).map(function (lead) {
+    return { lead: lead, eligibility: getEmailGenrePriorityEligibility_(lead, template, masterContext, nowMs) };
+  });
+  evaluated.sort(function (left, right) {
+    const leftSendable = left.eligibility.blockReason ? 1 : 0;
+    const rightSendable = right.eligibility.blockReason ? 1 : 0;
+    if (leftSendable !== rightSendable) return leftSendable - rightSendable;
+    if (!leftSendable) return compareEmailGenrePriorityEvaluated_(left, right);
+    return String(right.lead.updated_at || right.lead.created_at || '').localeCompare(String(left.lead.updated_at || left.lead.created_at || ''));
+  });
+
+  const seenSendableEmails = {};
+  const reasonCounts = {};
+  const reasonLabels = {};
+  let sendableCount = 0;
+  let unsentCount = 0;
+  let previouslySentCount = 0;
+  const items = evaluated.map(function (evaluatedItem) {
+    const lead = evaluatedItem.lead;
+    const eligibility = evaluatedItem.eligibility;
+    let blockReason = eligibility.blockReason;
+    if (!blockReason) {
+      const email = normalizeEmailForSendSafety_(lead.email);
+      if (email && seenSendableEmails[email]) {
+        blockReason = '同じメールアドレスの先行候補があるため、重複送信を防止しています。';
+      } else if (email) {
+        seenSendableEmails[email] = true;
+      }
+    }
+    let category = classifyEmailGenrePriorityBlockReason_(blockReason, eligibility.kind);
+    if (/重複送信/.test(String(blockReason || ''))) {
+      category = { key: 'duplicate_email', label: '同一宛先の重複', detail: String(blockReason || '') };
+    }
+    if (category.key.indexOf('sendable') === 0) {
+      sendableCount += 1;
+      if (eligibility.kind === 'unsent') unsentCount += 1;
+      if (eligibility.kind === 'previously_sent') previouslySentCount += 1;
+    }
+    reasonCounts[category.key] = Number(reasonCounts[category.key] || 0) + 1;
+    reasonLabels[category.key] = category.label;
+    return {
+      leadId: String(lead.id || ''),
+      facilityName: String(lead.facility_name || lead.company_name || ''),
+      companyName: String(lead.company_name || ''),
+      genre: String(lead.genre || ''),
+      toEmail: String(lead.email || ''),
+      status: String(lead.status || ''),
+      sendable: category.key.indexOf('sendable') === 0,
+      reasonKey: category.key,
+      reasonLabel: category.label,
+      reasonDetail: category.detail,
+      eligibilityKind: eligibility.kind,
+      previousSuccessfulAt: eligibility.previousSuccessfulAtMs ? new Date(eligibility.previousSuccessfulAtMs).toISOString() : '',
+      availableAt: String(eligibility.availableAt || ''),
+    };
+  });
+
+  const reasonOrder = [
+    'sendable_unsent',
+    'sendable_previously_sent',
+    'sendable',
+    'invalid_email',
+    'waiting_period',
+    'dedicated_sent',
+    'sent_date_unknown',
+    'sent',
+    'archived',
+    'send_ng',
+    'review_pending',
+    'excluded_domain',
+    'sending',
+    'duplicate_email',
+    'reply',
+    'deal',
+    'closed',
+    'broken_link',
+    'status',
+    'other',
+  ];
+  const reasons = reasonOrder.filter(function (key) {
+    return Number(reasonCounts[key] || 0) > 0;
+  }).map(function (key) {
+    return { key: key, label: reasonLabels[key] || key, count: Number(reasonCounts[key] || 0) };
+  });
+
+  return {
+    keyword: keyword,
+    totalCount: items.length,
+    sendableCount: sendableCount,
+    unsentCount: unsentCount,
+    previouslySentCount: previouslySentCount,
+    blockedCount: Math.max(0, items.length - sendableCount),
+    reasons: reasons,
+    items: items,
   };
 }
 
@@ -842,10 +1906,13 @@ function getEmailGenrePriorityStatus(options) {
   const template = findSheetRecordById_('email_templates', state.templateId);
   const admin = getEmailGenrePriorityAdminStatus_();
   let targetCount = null;
+  let targetBreakdown = { unsent: 0, previouslySent: 0 };
   if (input.includeCounts !== false) {
     const masterContext = buildMasterBlockContext_();
     const leads = readSheetRecordFields_('leads', mailSendCandidateLeadFields_(), { maxGapColumns: 2 });
-    targetCount = selectEmailGenrePriorityCandidates_(leads, template || EMAIL_GENRE_PRIORITY_TEMPLATE_, masterContext, Number.MAX_SAFE_INTEGER, state.genreKeyword).total;
+    const selection = selectEmailGenrePriorityCandidates_(leads, template || EMAIL_GENRE_PRIORITY_TEMPLATE_, masterContext, Number.MAX_SAFE_INTEGER, state.genreKeyword);
+    targetCount = selection.total;
+    targetBreakdown = selection.breakdown || targetBreakdown;
   }
   const templateBlockReason = getEmailGenrePriorityTemplateBlockReason_(state, template, {
     requireTest: true,
@@ -855,6 +1922,9 @@ function getEmailGenrePriorityStatus(options) {
     adminAllowed: admin.allowed,
     adminMode: admin.mode,
     targetCount: targetCount,
+    unsentTargetCount: input.includeCounts === false ? null : Number(targetBreakdown.unsent || 0),
+    previouslySentTargetCount: input.includeCounts === false ? null : Number(targetBreakdown.previouslySent || 0),
+    resendIntervalDays: EMAIL_GENRE_PRIORITY_RESEND_INTERVAL_DAYS_,
     templateName: String(template && template.name || EMAIL_GENRE_PRIORITY_TEMPLATE_NAME_),
     templateActive: Boolean(template && normalizeBooleanLike_(template.active)),
     templateProduction: Boolean(template && normalizeBooleanLike_(template.is_production)),
@@ -1149,7 +2219,10 @@ function prepareLeadEmailSend_(leadId, templateId, input, requireSendWindow) {
   }
   validateEmailSendTemplate_(template, lead, input);
   const context = buildMasterBlockContext_();
-  const sendBlockReason = getEmailSendTargetBlockReason_(lead, context);
+  const isGenrePriorityTemplate = String(template.id || '') === EMAIL_GENRE_PRIORITY_TEMPLATE_ID_;
+  const sendBlockReason = isGenrePriorityTemplate
+    ? getEmailGenrePriorityCandidateBlockReason_(lead, template, context)
+    : getEmailSendTargetBlockReason_(lead, context);
   if (sendBlockReason) throw createExpectedOperationError_(sendBlockReason, 'MAIL_TARGET_BLOCKED');
   assertEmailSendLimitAvailable_({
     includeReservations: true,
@@ -1157,7 +2230,9 @@ function prepareLeadEmailSend_(leadId, templateId, input, requireSendWindow) {
   });
 
   const senderName = resolveGmailSenderName_(input);
-  const sendType = input.send_type || input.sendType || '初回メール';
+  const sendType = isGenrePriorityTemplate
+    ? EMAIL_GENRE_PRIORITY_SEND_TYPE_
+    : (input.send_type || input.sendType || '初回メール');
   const rendered = renderTemplateForLead_(template, lead, {
     sender_name: senderName,
     '差出人名': senderName,
@@ -1285,7 +2360,7 @@ function assertProductionMailDeliveryAllowed_(requireSendWindow) {
 }
 
 function mailSendSafetyHistoryFields_() {
-  return ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'send_result', 'created_at'];
+  return ['id', 'lead_id', 'sent_at', 'send_type', 'to_email', 'send_result', 'template_id', 'created_at'];
 }
 
 function readMailSendSafetyHistories_() {
@@ -1299,6 +2374,10 @@ function buildMailSendSafetyContext_(historyRecords) {
   const today = todayText_();
   const sentLeadIds = {};
   const sentEmails = {};
+  const sentTemplateLeadIds = {};
+  const sentTemplateEmails = {};
+  const latestSuccessfulAtByLeadId = {};
+  const latestSuccessfulAtByEmail = {};
   const reservedLeadIds = {};
   const reservedEmails = {};
   let successfulCountToday = 0;
@@ -1306,10 +2385,21 @@ function buildMailSendSafetyContext_(historyRecords) {
   histories.forEach(function (history) {
     const leadId = String(history.lead_id || '').trim();
     const email = normalizeEmailForSendSafety_(history.to_email || '');
+    const templateId = String(history.template_id || '').trim();
     const historyDate = String(history.sent_at || history.created_at || '').slice(0, today.length);
     if (isSuccessfulProductionSendHistory_(history)) {
       if (leadId) sentLeadIds[leadId] = true;
       if (email) sentEmails[email] = true;
+      if (templateId && leadId) sentTemplateLeadIds[templateId + '\n' + leadId] = true;
+      if (templateId && email) sentTemplateEmails[templateId + '\n' + email] = true;
+      const successfulAt = String(history.sent_at || history.created_at || '').trim();
+      const successfulAtMs = new Date(successfulAt || 0).getTime();
+      if (leadId && Number.isFinite(successfulAtMs) && successfulAtMs > Number(latestSuccessfulAtByLeadId[leadId] || 0)) {
+        latestSuccessfulAtByLeadId[leadId] = successfulAtMs;
+      }
+      if (email && Number.isFinite(successfulAtMs) && successfulAtMs > Number(latestSuccessfulAtByEmail[email] || 0)) {
+        latestSuccessfulAtByEmail[email] = successfulAtMs;
+      }
       if (historyDate === today) successfulCountToday += 1;
     } else if (isProductionSendReservationHistory_(history)) {
       if (leadId) reservedLeadIds[leadId] = true;
@@ -1320,6 +2410,10 @@ function buildMailSendSafetyContext_(historyRecords) {
   return {
     sentLeadIds: sentLeadIds,
     sentEmails: sentEmails,
+    sentTemplateLeadIds: sentTemplateLeadIds,
+    sentTemplateEmails: sentTemplateEmails,
+    latestSuccessfulAtByLeadId: latestSuccessfulAtByLeadId,
+    latestSuccessfulAtByEmail: latestSuccessfulAtByEmail,
     reservedLeadIds: reservedLeadIds,
     reservedEmails: reservedEmails,
     successfulCountToday: successfulCountToday,

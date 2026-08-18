@@ -910,7 +910,7 @@ function clearRuntimeCaches_(changedSheetName) {
   if (['leads', 'excluded_domains'].indexOf(String(changedSheetName || '')) !== -1 && typeof clearLeadCollectionSendNgDomainsCache_ === 'function') {
     clearLeadCollectionSendNgDomainsCache_();
   }
-  if (['leads', 'ng_masters', 'excluded_domains', 'send_histories'].indexOf(String(changedSheetName || '')) !== -1) {
+  if (['leads', 'ng_masters', 'excluded_domains', 'send_histories', 'email_templates'].indexOf(String(changedSheetName || '')) !== -1) {
     bumpLeadListCacheRevision_();
   }
 

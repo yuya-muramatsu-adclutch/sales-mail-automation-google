@@ -179,8 +179,10 @@ function recordDetectedReply_(leadId, reply) {
         received_at: source.received_at || source.receivedAt || nowIso_(),
       });
     }
+    const preserveSendNg = normalizeBooleanLike_(lead.send_ng) || String(lead.status || '').trim() === '送信NG';
     const updatedLead = updateLeadLocked_(lead.id, {
-      status: '返信あり',
+      status: preserveSendNg ? '送信NG' : '返信あり',
+      send_ng: preserveSendNg ? true : normalizeBooleanLike_(lead.send_ng),
       reply_checked: true,
       last_gmail_thread_id: threadId,
     });

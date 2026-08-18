@@ -1,3 +1,270 @@
+# Design QA: メール送信状況を「次回送信」中心に再設計 v352
+
+## Evidence
+
+- Source visual truth: `/Users/muramatsuyuuya/.codex/generated_images/01a00094-0fac-7dd3-9013-3704151b3d17/exec-c64805a8-3b51-463d-a601-f4c99dca1b58.png`
+- Source pixels: 1487 x 1058. Intended CSS viewport: 1440 x 1024, desktop, light theme.
+- Source state: selected Product Design option 1, showing a healthy automatic-send bar, a dominant 8/19 send plan, Glamping priority, tomorrow candidates, and today's results.
+- Implementation: fixed production Web app `@362`, app marker `20260818_apps_script_full_workflow_v352_mail_status_next_send_first`.
+- Implementation screenshot: unavailable because the in-app Browser capture and interaction runtime is not callable in this environment.
+
+## Findings
+
+- [P1 repaired in source] The former four equal summary cards gave system state, tomorrow count, priority, and attention items the same visual weight, so the next send decision was not dominant.
+- [P1 repaired in source] Tomorrow candidates and Glamping priority were separate peer panels, forcing the user to scan across regions to confirm what would be sent and why.
+- [P2 repaired in source] Healthy-state alerts repeated information already available in the status summary and added another bordered block without requiring action.
+- [P1 blocked] A signed-in production screenshot at the target viewport is required to verify actual Japanese text wrapping, table density, priority-action wrapping, and the responsive breakpoints against the selected source visual.
+
+## Required fidelity surfaces
+
+- Fonts and typography: the existing Japanese system font stack is retained. The next-send count uses the strongest size, followed by the schedule heading, priority state, table headings, and supporting labels.
+- Spacing and layout rhythm: the source's status strip, large next-send region, inline priority banner, candidate table, and secondary today section are represented in the same vertical reading order. Nested summary cards were removed from the main path.
+- Colors and visual tokens: the existing navy sidebar and blue navigation remain. Green represents healthy operation, amber represents Glamping priority, red is reserved for errors, and blue represents schedule information and links.
+- Image quality and asset fidelity: the selected visual contains no raster content. The implementation reuses the app's existing icon set and does not add substitute imagery.
+- Copy and content: all operational facts come from the existing delivery-status response. Existing send controls, candidate detail links, filters, diagnostics, LP link, and priority controls are preserved.
+
+## Full-view and focused comparison
+
+- The source visual was opened and inspected at 1487 x 1058 before implementation.
+- Source, DOM order, CSS hierarchy, dynamic rendering paths, loading/error states, and responsive rules were inspected in code.
+- A browser-rendered implementation capture is unavailable, so no normalized full-view or focused-region pixel comparison can be recorded.
+
+## Interaction checks
+
+- Regression tests cover the delivery-status API routes, asynchronous tomorrow-candidate load, diagnostics, markup order, selected v352 layout markers, and existing action handlers.
+- Inline JavaScript parses successfully. All `.gs` files parse through the regression harness, and `git diff --check` passes.
+- Actual click, focus, horizontal-scroll, console-error, and same-viewport visual checks remain blocked without the signed-in Browser runtime.
+
+## Comparison history
+
+- Pass 1: replaced the equal card grid with a single operation bar and moved the next-send plan above all lists.
+- Pass 2: compressed Glamping priority into an inline banner, retained the operational actions, removed healthy-state alert noise, and added 1180px/760px responsive states.
+- Post-deployment visual evidence: blocked by unavailable signed-in Browser capture control.
+
+final result: blocked
+
+# Design QA: ボタン操作とフォーム候補表示の体感高速化 v351
+
+## Evidence
+
+- Target flow: cached menu navigation, form queue filter/load, form sent-and-next, form unavailable-and-next.
+- Implementation: fixed production Web app `@361`, app marker `20260817_apps_script_full_workflow_v351_fast_interactions`.
+- Production data evidence: `leads` metadata reports 10,153 rows, 46 columns, and one frozen header row; live inspection was read-only.
+- Current-run implementation screenshots: unavailable because the selected signed-in Browser capture and interaction runtime is not callable in this environment.
+- Execution logs: `clasp logs --json` is unavailable because the Apps Script project has no GCP project ID configured.
+
+## Findings
+
+- [P0 repaired in source] Every `api()` call immediately marked the entire active section busy and disabled its buttons, even when the operation completed quickly or already had local pending UI.
+- [P0 repaired in source] Every menu click displayed a fixed 650ms progress animation, including navigation to data that was already loaded.
+- [P1 repaired in source] Form queue calculation scanned a 10,152-record live lead dataset again for repeated identical conditions; browser and server caches now reuse the result and invalidate on relevant writes.
+- [P1 blocked] Signed-in production click timing and visual stability require a current browser run. No screenshot-based Product Design audit can be accepted in this session.
+
+## Interaction checks
+
+- Cached menu navigation: static source confirms no route progress unless the destination still has pending data.
+- Short API calls: static source confirms busy UI is delayed 450ms and cancelled when the request finishes first.
+- Form sent/unavailable/unmark: regression tests confirm quiet API calls, server-returned row application, and no full form/general list reload.
+- Repeated form queue request: runtime smoke test confirms the second unchanged server request is a cache hit and does not read the lead sheet again.
+- Cache safety: relevant mutations clear browser caches; server revision changes for leads, templates, send histories, send-NG masters, and excluded domains.
+
+## Accessibility and evidence limits
+
+- Long operations still expose `aria-busy` and the existing progress indicator after the delay; short operations retain inline success/error messages.
+- Keyboard focus on the form navigation item starts the same prefetch as pointer hover.
+- Focus retention, animation stability, and screen-reader announcements have not been exercised in a signed-in browser during this run.
+
+final result: blocked
+
+# Design QA: フォーム送信の連続作業キュー v350
+
+## Evidence
+
+- Source visual truth: `/Users/muramatsuyuuya/.codex/generated_images/01a00094-0fac-7dd3-9013-3704151b3d17/exec-b98955f8-e4b2-46e9-89af-107a9eb5c55a.png`
+- Source pixels: 1487 x 1058. Target implementation viewport is desktop-first at 1440 x 1024, with responsive stacking below 1080px.
+- Source state: selected Product Design option 1, showing one large current facility, a five-item next queue, progress, and O/S/X actions.
+- Implementation: fixed production Web app `@359`, app marker `20260816_apps_script_full_workflow_v350_form_continuous_queue`.
+- Implementation screenshot: unavailable because the selected signed-in Browser can be opened but its capture and interaction runtime is not callable in this environment.
+
+## Findings
+
+- [P0 repaired in source] The prior screen split work across a wide table, a separate active-work bar, and a full-height preview, which obscured the single next action and caused repeated list reloads.
+- [P1 blocked] A signed-in production screenshot at the target viewport is required to compare the deployed spacing, truncation, button wrapping, and next-five density with the source visual.
+- [P2 verified statically] The main queue contains only template-ready, sendable leads with an official website; blocked leads are placed in a reason-labelled review panel.
+- [P2 verified statically] O/S/X shortcuts ignore editable elements, modals, links, and buttons. The queue advances locally and requests another batch only after the loaded 25 are exhausted.
+
+## Required fidelity surfaces
+
+- Fonts and typography: the existing Japanese system font stack is retained. Current-facility hierarchy, template name, preview lines, action labels, and shortcut keys follow the source visual's relative emphasis.
+- Spacing and layout rhythm: desktop uses a large current-work column and a narrower next-five column; below 1080px they stack, and below 720px metadata and actions wrap to touch-friendly widths.
+- Colors and visual tokens: the existing navy sidebar, blue primary action, green completion action, red unavailable action, borders, radii, and shadows are reused.
+- Image quality and asset fidelity: no new raster assets are used in the implementation. Existing application SVG icons are reused with bounded dimensions.
+- Copy and content: the sequence is explicitly shown as official website top, body copy, manual send, then status recording. Full message body remains collapsed until requested.
+
+## Full-view and focused comparison
+
+- The source visual was inspected at 1487 x 1058 and used as the layout truth for the focused two-column workflow.
+- The implementation DOM, state transitions, responsive rules, and control labels were inspected in source and exercised by runtime smoke tests.
+- The deployed signed-in page was opened in the Codex browser panel, but the current session cannot capture or inspect it. Therefore no post-deployment pixel comparison or console inspection can be recorded.
+
+## Comparison history
+
+- Pass 1: implemented the selected focused layout, server-side ready/review segregation, local queue advancement, and O/S/X actions.
+- Pass 2: added compatibility DOM for existing callers, responsive stacking, modal/input shortcut guards, and runtime tests for queue segregation and unavailable-reason persistence.
+- Post-deployment visual evidence: blocked by unavailable signed-in Browser capture control.
+
+final result: blocked
+
+# Design QA: WEBサイトアイコンの巨大化修正 v349
+
+## Evidence
+
+- Source visual truth: `/var/folders/dt/65rjch0j08vc0l_nbx7pv2y00000gn/T/codex-clipboard-802908ec-7272-4402-836c-d4cc60fe5aad.png`
+- Source pixels: 3360 x 1856. Exact CSS viewport and device density are unavailable from the attachment metadata.
+- Source state: signed-in production form-outreach screen at `@357`, all genres, active form filter, no production form template available.
+- Implementation: fixed production Web app `@358`, app marker `20260816_apps_script_full_workflow_v349_form_website_icon_size_fix`.
+- Implementation screenshot: unavailable because signed-in browser control is not callable in this environment.
+
+## Findings
+
+- [P0 repaired in source] External-link SVGs had no explicit dimensions inside anchor elements, so their browser intrinsic size expanded table rows and hid facility names. The facility-name, active-work-title, and URL-link icons now have explicit 14px or 15px width and height.
+- [P1 blocked] A same-state post-fix production screenshot is required to confirm normal row height and that no icon overflows remain.
+
+## Required fidelity surfaces
+
+- Fonts and typography: unchanged from the existing app; the fix does not alter font size, weight, wrapping, or truncation.
+- Spacing and layout rhythm: icon intrinsic dimensions are replaced by fixed 14px/15px boxes so rows return to content height; rendered confirmation is pending.
+- Colors and visual tokens: existing blue link and icon colors are unchanged.
+- Image quality and asset fidelity: no raster assets are involved. Existing icon-library SVG output is retained with explicit dimensions and the app's 2.15 stroke width.
+- Copy and content: no labels or operational copy changed.
+
+## Full-view and focused comparison
+
+- Full-view source was opened and shows repeated giant external-link icons in the first and second visible table rows.
+- Focused source inspection identifies the icon itself as the only element expanding the rows. A post-fix implementation capture is unavailable, so the comparison cannot pass visually.
+
+## Comparison history
+
+- Pass 1: diagnosed missing SVG dimensions on anchor-only icon contexts and added explicit dimensions to all three website-link contexts.
+- Post-fix visual evidence: blocked by unavailable signed-in browser control.
+
+final result: blocked
+
+# Design QA: フォーム送信リストのWEBサイト導線 v348
+
+## Evidence
+
+- Source visual truth: `/var/folders/dt/65rjch0j08vc0l_nbx7pv2y00000gn/T/codex-clipboard-a6c69e69-5579-4dbc-917b-0a348decc28e.png`
+- Source pixels: 3360 x 1856. The exact CSS viewport and density normalization are unavailable from the supplied screenshot metadata.
+- Source state: signed-in production form-outreach screen, glamping filter, active lead `割山森林公園 天湖森`.
+- Implementation: fixed production Web app `@357`, app marker `20260816_apps_script_full_workflow_v348_form_website_navigation`.
+- Implementation screenshot: unavailable because the in-app browser runtime is not callable in this environment.
+
+## Findings
+
+- [P1 blocked] The deployed result cannot be compared visually in the same signed-in state. The source shows that the website action is outside the visible table region; source and production data support moving it beside the facility name, but the rendered post-fix spacing and wrapping cannot be judged without a new screenshot.
+- [P2 blocked] Desktop and narrow-screen button wrapping, facility-name truncation, and the primary blue website button require rendered confirmation.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing app font stack, 13px table title, 11px utility actions, and 16px active-work title are reused; rendered wrapping is unverified.
+- Spacing and layout rhythm: existing card, row, radius, and gap tokens are reused. The late website column is removed and its action is grouped with the facility; browser spacing remains unverified.
+- Colors and visual tokens: existing blue primary, pale-blue hover, white utility controls, and muted unavailable state are reused.
+- Image quality and asset fidelity: no new raster assets are required. Existing app icon-library output is reused for external-link and clipboard icons.
+- Copy and content: `営業先・WEBサイト`, `WEBサイトを開く`, `屋号コピー`, and `作業中` state labels are covered by source assertions.
+
+## Full-view and focused comparison
+
+- Full-view source was opened and inspected. It shows the form list above the fold without a visible website action.
+- Focused source region was the active-work bar and first two facility rows. The implementation capture needed for a same-region comparison is unavailable, so no visual pass is claimed.
+
+## Comparison history
+
+- Pass 1: source screenshot and production lead data identified the hidden late-column placement as the main usability failure. The website action was moved into the facility cell, the facility name became a link, and the active-work bar received a primary website button.
+- Post-fix visual evidence: blocked by unavailable signed-in browser control.
+
+final result: blocked
+
+# Design QA: フォーム送信作業の操作性改善 v347
+
+## Target and interaction
+
+- Website links are available in both the form-outreach table and the active-work bar, while facility and message copy feedback updates only the affected controls.
+- Marking or unmarking a form lead as sent replaces only that table row and refreshes the local summary/work panel. It does not refetch or rebuild the complete form list, so scroll position and filters remain stable.
+- The glamping ChatGPT Ads form greeting renders the facility name and contact salutation on separate lines for desktop and mobile readability.
+
+## Verification
+
+- Static regressions assert that mark/unmark paths contain no `loadFormLeads`, `loadLeads`, or full-table `renderFormLeads` call and use the server-returned record for a row replacement.
+- `node scripts/smoke-test.js`, all `.gs` syntax checks, the single inline `Index.html` script compilation, and `git diff --check` passed.
+- Apps Script version `356` and fixed production deployment `@356` were created. No external form send, form-send status registration, email send, or sales-record mutation was performed for verification.
+- Signed-in visual and click verification remains unverified because the browser-control runtime is unavailable.
+
+final result: static and deployment verification passed; signed-in visual verification blocked
+
+# Design QA: フォーム用ChatGPT広告テンプレートのクイックコピー v346
+
+## Target and interaction
+
+- Existing form outreach table layout and the app's blue/green operational color system are preserved.
+- A dedicated copy area is placed above the active-work bar so the campaign template is visible before the user scans the table.
+- The primary action copies the rendered body for the selected or first eligible displayed glamping facility. A separate secondary action copies the raw template, so unresolved tags are never confused with a facility-specific body.
+- Table, active-work bar, and preview actions use the same ChatGPT-specific copy label and the same temporary green success state.
+- Desktop uses a three-column command layout. At 900px it wraps actions below the copy description, and at 720px it becomes a single-column action stack.
+
+## Verification
+
+- Static source assertions cover the dedicated panel, personalized copy, raw-template copy, template override, and success feedback.
+- `node scripts/smoke-test.js`, all `.gs` syntax checks, the single inline `Index.html` script compilation, and `git diff --check` passed.
+- Apps Script version `355` and fixed production deployment `@355` were created; all nine cloned deployed files match the local GAS source byte-for-byte.
+- In-app browser control was not callable in this environment, so signed-in desktop/mobile visual comparison remains unverified.
+- No external form send, form-send status registration, email send, or sales-record mutation was performed.
+
+final result: static and deployment verification passed; visual QA blocked
+
+# Design QA: メール送信状況の判断優先レイアウト v342
+
+## Source visual truth
+
+- Figma board: `https://www.figma.com/design/bvHjiZip2gECYZCZVLYi1X?node-id=4-20`
+- Exported reference: `/Users/Shared/codex-design-audits/sales-app-email-status-2026-08-16/03-figma-audit-board-final.png` (1510 x 3200 export; source board 1720 x 3647).
+- Original production reference: `/Users/Shared/codex-design-audits/sales-app-email-status-2026-08-16/01-email-status-current.png` (2048 x 1152).
+
+## Implementation target
+
+- Fixed production Web app: `@351`, app marker `20260816_apps_script_full_workflow_v342_mail_status_decision_board`.
+- Intended desktop state: signed-in mail-status screen at approximately 2048 x 1152 CSS viewport, with loaded overview and tomorrow candidates.
+- Intended mobile state: top cards stacked and data tables horizontally scrollable below 760px.
+- Browser-rendered implementation screenshot: unavailable. The in-app browser and Computer Use JavaScript runtime were not callable in this task; anonymous access is not an authenticated UI comparison.
+
+## Findings
+
+- [P1 open] The new order and responsive reflow have not been confirmed in a signed-in browser. Source structure places the four decision cards first, tomorrow candidates beside priority settings, and today's history last, but rendered spacing, clipping, and table height remain unverified.
+- [P1 open] The zero-candidate reason cards and full-diagnostics action are covered by source regression checks, but their live state with production data has not been visually compared.
+- [P2 open] Desktop typography, card density, button wrapping, and mobile horizontal scrolling require same-state screenshots before visual acceptance.
+
+## Required fidelity surfaces
+
+- Fonts and typography: existing app font stack and hierarchy reused; rendered wrapping is unverified.
+- Spacing and layout rhythm: CSS grid, breakpoints, and panel order verified statically; browser pixels are unavailable.
+- Colors and visual tokens: existing blue, navy, green, amber, and red semantic tokens reused; rendered contrast is unverified.
+- Image quality and asset fidelity: no new image or icon assets are used in this operational screen.
+- Copy and content: four summary labels, priority rules, zero-candidate reasons, and today/tomorrow headings are covered by regression assertions.
+
+## Verification
+
+- `node scripts/smoke-test.js`: passed (`v342 mail-status-decision-board regression tests passed.`).
+- Seven `.gs` files and the single inline `Index.html` JavaScript compiled successfully.
+- `git diff --check`, `clasp push`, Apps Script version `351`, and fixed deployment `@351`: passed.
+- No external email send, priority-setting mutation, or sales-record mutation was performed.
+
+## Comparison history
+
+- Pass 1: compared the original production screenshot and Figma target in the same audit board; identified the six-KPI hierarchy, today-before-tomorrow order, and hidden zero-reason details as P0 design problems.
+- Pass 2: implemented the selected hierarchy and passed structural/runtime regression checks. Post-fix browser evidence remains unavailable, so visual QA is not passed.
+
+final result: blocked
+
 # Design QA: 全画面実機監査と操作状態の明確化 v292
 
 ## Source visual truth
